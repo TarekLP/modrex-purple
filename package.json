@@ -1,0 +1,28 @@
+{
+  "name": "pd3-mod-manager",
+  "version": "0.1.0",
+  "main": "main.ts",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShulhaOleh/pd3-mod-manager.git"
+  },
+  "keywords": [
+    "pd3",
+    "payday3",
+    "mod-manager"
+  ],
+  "author": "Oleh Shulha",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ShulhaOleh/pd3-mod-manager/issues"
+  },
+  "homepage": "https://github.com/ShulhaOleh/pd3-mod-manager#readme",
+  "description": "",
+  "devDependencies": {
+    "electron": "^39.2.7"
+  }
+}
