@@ -1,0 +1,17 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2022",
+    
+    // File Layout
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    "sourceMap": true,
+    "strict": true,
+
+    "types": ["node", "electron"],
+    "skipLibCheck": true
+  }
+}
