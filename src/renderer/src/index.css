@@ -18,3 +18,21 @@
     --color-success: oklch(0.264 0.065 153); /* green-900 */
     --color-success-text: oklch(0.792 0.209 152); /* green-400 */
 }
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-surface-raised);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-surface-light);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-subtle);
+}
