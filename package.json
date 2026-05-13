@@ -5,7 +5,8 @@
   "scripts": {
     "electron": "electron .",
     "build": "tsc",
-    "start": "npm run build && npm run electron"
+    "start": "npm run build && npm run electron",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -24,6 +25,8 @@
   "homepage": "https://github.com/ShulhaOleh/pd3-mod-manager#readme",
   "description": "",
   "devDependencies": {
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@tailwindcss/vite": "^4.3.0",
@@ -33,6 +36,7 @@
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^39.2.7",
     "electron-vite": "^5.0.0",
+    "husky": "^9.1.7",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^6.4.2"
