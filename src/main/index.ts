@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron'
 import { join } from 'path'
 import { rmSync } from 'fs'
 import { listMods, getMod, listCategories, registerDownload, type ListModsParams } from './api'
@@ -51,7 +51,7 @@ function registerHandlers(): void {
     )
 }
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -68,9 +68,12 @@ function createWindow(): void {
     } else {
         win.loadFile(join(__dirname, '../renderer/index.html'))
     }
+
+    return win
 }
 
 app.whenReady().then(() => {
     registerHandlers()
-    createWindow()
+    const win = createWindow()
+    globalShortcut.register('F12', () => win.webContents.toggleDevTools())
 })
