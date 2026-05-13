@@ -1,55 +1,55 @@
 {
-  "name": "pd3-mod-manager",
-  "version": "0.1.0",
-  "main": "out/main/index.js",
-  "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
-    "preview": "electron-vite preview",
-    "typecheck": "tsc --noEmit",
-    "prepare": "husky",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ShulhaOleh/pd3-mod-manager.git"
-  },
-  "keywords": [
-    "pd3",
-    "payday3",
-    "mod-manager"
-  ],
-  "author": "Oleh Shulha",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/ShulhaOleh/pd3-mod-manager/issues"
-  },
-  "homepage": "https://github.com/ShulhaOleh/pd3-mod-manager#readme",
-  "description": "",
-  "devDependencies": {
-    "@commitlint/cli": "^21.0.1",
-    "@commitlint/config-conventional": "^21.0.1",
-    "@electron-toolkit/preload": "^3.0.2",
-    "@electron-toolkit/utils": "^4.0.0",
-    "@tailwindcss/vite": "^4.3.0",
-    "@types/node": "^25.7.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.2.0",
-    "electron": "^39.2.7",
-    "electron-vite": "^5.0.0",
-    "husky": "^9.1.7",
-    "prettier": "^3.8.3",
-    "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3",
-    "vite": "^6.4.2",
-    "vitest": "^4.1.6"
-  },
-  "dependencies": {
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
-  }
+    "name": "pd3-mod-manager",
+    "version": "0.1.0",
+    "main": "out/main/index.js",
+    "scripts": {
+        "dev": "electron-vite dev",
+        "build": "electron-vite build",
+        "preview": "electron-vite preview",
+        "typecheck": "tsc --noEmit",
+        "prepare": "husky",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/ShulhaOleh/pd3-mod-manager.git"
+    },
+    "keywords": [
+        "pd3",
+        "payday3",
+        "mod-manager"
+    ],
+    "author": "Oleh Shulha",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/ShulhaOleh/pd3-mod-manager/issues"
+    },
+    "homepage": "https://github.com/ShulhaOleh/pd3-mod-manager#readme",
+    "description": "",
+    "devDependencies": {
+        "@commitlint/cli": "^21.0.1",
+        "@commitlint/config-conventional": "^21.0.1",
+        "@electron-toolkit/preload": "^3.0.2",
+        "@electron-toolkit/utils": "^4.0.0",
+        "@tailwindcss/vite": "^4.3.0",
+        "@types/node": "^25.7.0",
+        "@types/react": "^19.2.14",
+        "@types/react-dom": "^19.2.3",
+        "@vitejs/plugin-react": "^5.2.0",
+        "electron": "^39.2.7",
+        "electron-vite": "^5.0.0",
+        "husky": "^9.1.7",
+        "prettier": "^3.8.3",
+        "tailwindcss": "^4.3.0",
+        "typescript": "^6.0.3",
+        "vite": "^6.4.2",
+        "vitest": "^4.1.6"
+    },
+    "dependencies": {
+        "react": "^19.2.6",
+        "react-dom": "^19.2.6"
+    }
 }

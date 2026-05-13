@@ -14,6 +14,7 @@ npm run test:watch   # Run tests in watch mode
 ```
 
 Run a single test file:
+
 ```bash
 npx vitest run src/main/steam.test.ts
 ```
