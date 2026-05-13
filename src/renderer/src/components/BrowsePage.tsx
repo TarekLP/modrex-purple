@@ -84,7 +84,7 @@ export function BrowsePage({ gamePath }: Props) {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between shrink-0">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
                 <h1 className="text-lg font-semibold">Browse Mods</h1>
                 {!gamePath && (
                     <span className="text-xs text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded">
@@ -94,14 +94,14 @@ export function BrowsePage({ gamePath }: Props) {
             </div>
 
             {error && (
-                <div className="mx-6 mt-4 px-4 py-3 bg-red-900/30 border border-red-800 rounded text-sm text-red-300">
+                <div className="mx-6 mt-4 px-4 py-3 bg-danger/30 border border-danger-hover rounded text-sm text-danger-text">
                     {error}
                 </div>
             )}
 
             <div className="flex-1 overflow-y-auto px-6 py-4">
                 {!result ? (
-                    <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
+                    <div className="flex items-center justify-center h-full text-text-subtle text-sm">
                         Loading…
                     </div>
                 ) : (
@@ -124,22 +124,22 @@ export function BrowsePage({ gamePath }: Props) {
             </div>
 
             {result && (
-                <div className="px-6 py-3 border-t border-zinc-800 flex items-center justify-between shrink-0">
-                    <span className="text-xs text-zinc-500">
+                <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
+                    <span className="text-xs text-text-subtle">
                         Page {result.meta.current_page} of {result.meta.last_page}
                     </span>
                     <div className="flex gap-2">
                         <button
                             disabled={page <= 1}
                             onClick={() => setPage((p) => p - 1)}
-                            className="text-xs px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                             Previous
                         </button>
                         <button
                             disabled={page >= result.meta.last_page}
                             onClick={() => setPage((p) => p + 1)}
-                            className="text-xs px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                             Next
                         </button>

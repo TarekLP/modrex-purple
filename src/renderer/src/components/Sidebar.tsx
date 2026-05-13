@@ -12,9 +12,9 @@ const navItems: { id: View; label: string }[] = [
 
 export function Sidebar({ view, onViewChange }: Props) {
     return (
-        <aside className="w-48 shrink-0 flex flex-col bg-zinc-900 border-r border-zinc-800">
-            <div className="px-4 py-5 border-b border-zinc-800">
-                <span className="text-sm font-bold tracking-widest uppercase text-red-500">
+        <aside className="w-48 shrink-0 flex flex-col bg-surface-raised border-r border-border">
+            <div className="px-4 py-5 border-b border-border">
+                <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
                     PD3 Mods
                 </span>
             </div>
@@ -25,8 +25,8 @@ export function Sidebar({ view, onViewChange }: Props) {
                         onClick={() => onViewChange(item.id)}
                         className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
                             view === item.id
-                                ? 'bg-zinc-700 text-zinc-100'
-                                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                                ? 'bg-surface-active text-text'
+                                : 'text-text-muted hover:bg-surface-hover hover:text-text'
                         }`}
                     >
                         {item.label}

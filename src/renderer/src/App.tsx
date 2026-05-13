@@ -14,7 +14,7 @@ export default function App() {
     }, [])
 
     return (
-        <div className="flex h-screen bg-zinc-950 text-zinc-100">
+        <div className="flex h-screen bg-surface text-text">
             <Sidebar view={view} onViewChange={setView} />
             <main className="flex-1 overflow-hidden">
                 {view === 'browse' && <BrowsePage gamePath={gamePath} />}

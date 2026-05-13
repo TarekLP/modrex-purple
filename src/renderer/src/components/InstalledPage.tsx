@@ -47,10 +47,10 @@ export function InstalledPage({ gamePath }: Props) {
     if (mods.length === 0) {
         return (
             <div className="h-full flex flex-col">
-                <div className="px-6 py-4 border-b border-zinc-800 shrink-0">
+                <div className="px-6 py-4 border-b border-border shrink-0">
                     <h1 className="text-lg font-semibold">Installed Mods</h1>
                 </div>
-                <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
+                <div className="flex-1 flex items-center justify-center text-text-subtle text-sm">
                     No mods installed yet
                 </div>
             </div>
@@ -59,9 +59,9 @@ export function InstalledPage({ gamePath }: Props) {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between shrink-0">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
                 <h1 className="text-lg font-semibold">Installed Mods</h1>
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-text-subtle">
                     {mods.length} mod{mods.length !== 1 ? 's' : ''}
                 </span>
             </div>
@@ -72,17 +72,17 @@ export function InstalledPage({ gamePath }: Props) {
                     return (
                         <div
                             key={mod.id}
-                            className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex items-center gap-4"
+                            className="bg-surface-raised border border-border rounded-lg px-4 py-3 flex items-center gap-4"
                         >
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate">{mod.name}</p>
-                                <p className="text-xs text-zinc-500 mt-0.5">v{mod.version}</p>
+                                <p className="text-xs text-text-subtle mt-0.5">v{mod.version}</p>
                             </div>
                             <span
                                 className={`text-xs px-2 py-0.5 rounded-full ${
                                     mod.enabled
-                                        ? 'bg-green-900/50 text-green-400'
-                                        : 'bg-zinc-800 text-zinc-500'
+                                        ? 'bg-success/50 text-success-text'
+                                        : 'bg-surface-hover text-text-subtle'
                                 }`}
                             >
                                 {mod.enabled ? 'Enabled' : 'Disabled'}
@@ -91,14 +91,14 @@ export function InstalledPage({ gamePath }: Props) {
                                 <button
                                     disabled={!canAct}
                                     onClick={() => handleToggle(mod)}
-                                    className="text-xs px-3 py-1 rounded bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
                                     {loading ? '…' : mod.enabled ? 'Disable' : 'Enable'}
                                 </button>
                                 <button
                                     disabled={!canAct}
                                     onClick={() => handleUninstall(mod.id)}
-                                    className="text-xs px-3 py-1 rounded bg-red-900 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
                                     Remove
                                 </button>
