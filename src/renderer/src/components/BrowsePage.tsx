@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Mod, Paginated, InstalledMod, Category } from '../../../shared/types'
 import type { SortOption } from '../../../main/api'
 import { ModCard } from './ModCard'
+import { Select } from './Select'
 
 interface Props {
     gamePath: string | null
@@ -169,29 +170,20 @@ export function BrowsePage({ gamePath }: Props) {
                         onChange={(e) => handleQueryChange(e.target.value)}
                         className="flex-1 text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors"
                     />
-                    <select
-                        value={categoryId ?? ''}
-                        onChange={(e) => handleCategoryChange(e.target.value)}
-                        className="text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text focus:outline-none focus:border-accent transition-colors"
-                    >
-                        <option value="">All categories</option>
-                        {categories.map((c) => (
-                            <option key={c.id} value={c.id}>
-                                {c.name}
-                            </option>
-                        ))}
-                    </select>
-                    <select
+                    <Select
+                        value={categoryId?.toString() ?? ''}
+                        onChange={handleCategoryChange}
+                        placeholder="All categories"
+                        options={[
+                            { value: '', label: 'All categories' },
+                            ...categories.map((c) => ({ value: String(c.id), label: c.name })),
+                        ]}
+                    />
+                    <Select
                         value={sort}
-                        onChange={(e) => handleSortChange(e.target.value)}
-                        className="text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text focus:outline-none focus:border-accent transition-colors"
-                    >
-                        {SORT_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                                {o.label}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={handleSortChange}
+                        options={SORT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    />
                 </div>
             </div>
 
