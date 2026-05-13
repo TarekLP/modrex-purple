@@ -2,8 +2,7 @@ import { execSync } from 'child_process'
 import { join, normalize } from 'path'
 import { existsSync } from 'fs'
 
-const PD3_STEAM_ID = '1272080'
-const PD3_RELATIVE_PATH = join('steamapps', 'common', 'PAYDAY 3')
+const PD3_RELATIVE_PATH = join('steamapps', 'common', 'PAYDAY3')
 
 export function parseSteamLibraryPath(registryValue: string): string {
     return normalize(registryValue.replace(/\\\\/g, '\\'))

@@ -15,6 +15,6 @@ describe('parseSteamLibraryPath', () => {
 describe('buildGamePath', () => {
     it('appends PD3 relative path to any library root', () => {
         const base = 'library'
-        expect(buildGamePath(base)).toBe(join(base, 'steamapps', 'common', 'PAYDAY 3'))
+        expect(buildGamePath(base)).toBe(join(base, 'steamapps', 'common', 'PAYDAY3'))
     })
 })
