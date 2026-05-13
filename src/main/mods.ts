@@ -13,11 +13,11 @@ import type { InstalledMod, ModsState } from '../shared/types'
 export type { InstalledMod, ModsState }
 
 export function activeModPath(gamePath: string, filename: string): string {
-    return join(gamePath, 'Content', 'Paks', '~mods', filename)
+    return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', filename)
 }
 
 export function disabledModPath(gamePath: string, filename: string): string {
-    return join(gamePath, 'Content', 'Paks', '~mods', 'disabled', filename)
+    return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', filename)
 }
 
 export function addToState(state: ModsState, mod: InstalledMod): ModsState {
@@ -51,7 +51,7 @@ export function installMod(
     mod: InstalledMod,
     sourcePath: string
 ): void {
-    const modsDir = join(gamePath, 'Content', 'Paks', '~mods')
+    const modsDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
     if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true })
 
     copyFileSync(sourcePath, activeModPath(gamePath, mod.filename))
@@ -94,7 +94,7 @@ export function disableMod(gamePath: string, statePath: string, modId: number): 
     const mod = state.mods.find((m) => m.id === modId)
     if (!mod || !mod.enabled) return
 
-    const disabledDir = join(gamePath, 'Content', 'Paks', '~mods', 'disabled')
+    const disabledDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
     if (!existsSync(disabledDir)) mkdirSync(disabledDir, { recursive: true })
 
     const from = activeModPath(gamePath, mod.filename)

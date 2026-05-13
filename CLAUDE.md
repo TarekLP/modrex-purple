@@ -49,7 +49,7 @@ Electron app with three processes wired by `electron-vite`:
 - **modworkshop game ID for PD3 is `853`** — hardcoded in `api.ts`.
 - The modworkshop API at `api.modworkshop.net` requires a `User-Agent` header or returns 403.
 - Mod thumbnails: `thumbnail.file` is a bare filename. Full URL: `${THUMBNAIL_BASE_URL}/${file}` where `THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'` (exported from `src/shared/types.ts`).
-- PD3 mods are `.pak` files. Active path: `{gamePath}/Content/Paks/~mods/`. Disabled path: `{gamePath}/Content/Paks/~mods/disabled/`.
+- PD3 mods are `.pak` files. Active path: `{gamePath}/PAYDAY3/Content/Paks/~mods/`. Disabled path: `{gamePath}/PAYDAY3/Content/Paks/~mods/disabled/`. The `gamePath` is the Steam library root (`steamapps/common/PAYDAY3`); game content lives one level deeper in the `PAYDAY3/` subdirectory.
 - Anti-cheat (Nebula) is not a concern — mods work online freely.
 
 ## Workflow

@@ -28,17 +28,17 @@ const fakeMod: InstalledMod = {
 // --- path calculations ---
 
 describe('activeModPath', () => {
-    it('places file under Content/Paks/~mods', () => {
+    it('places file under PAYDAY3/Content/Paks/~mods', () => {
         expect(activeModPath('game', 'Mod.pak')).toBe(
-            join('game', 'Content', 'Paks', '~mods', 'Mod.pak')
+            join('game', 'PAYDAY3', 'Content', 'Paks', '~mods', 'Mod.pak')
         )
     })
 })
 
 describe('disabledModPath', () => {
-    it('places file under Content/Paks/~mods/disabled', () => {
+    it('places file under PAYDAY3/Content/Paks/~mods/disabled', () => {
         expect(disabledModPath('game', 'Mod.pak')).toBe(
-            join('game', 'Content', 'Paks', '~mods', 'disabled', 'Mod.pak')
+            join('game', 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', 'Mod.pak')
         )
     })
 })
