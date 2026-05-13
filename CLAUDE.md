@@ -40,7 +40,7 @@ Electron app with three processes wired by `electron-vite`:
 
 - **`App.tsx`** — shell with sidebar + view switcher. Fetches `gamePath` once on mount and passes it down.
 - **`components/Sidebar.tsx`** — nav between Browse and Installed views.
-- **`components/BrowsePage.tsx`** — paginated mod grid. Fetches `listMods` + `getInstalled`; handles install/uninstall/enable/disable.
+- **`components/BrowsePage.tsx`** — paginated mod grid with search, category filter, and sort. Fetches `listMods` + `listCategories` + `getInstalled`; handles install/uninstall/enable/disable.
 - **`components/InstalledPage.tsx`** — list of installed mods with enable/disable/remove.
 - **`components/ModCard.tsx`** — single mod card used by BrowsePage.
 
