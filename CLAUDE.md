@@ -34,7 +34,7 @@ Electron app with three processes wired by `electron-vite`:
 
 - **`api.ts`** — modworkshop REST API calls. `listMods`, `getMod`, `getLatestFile`, `listCategories`, `registerDownload`. All public GET endpoints, no auth token needed. Params sent as query string (Node fetch rejects GET with body).
 - **`steam.ts`** — finds PD3 install path by reading Windows registry (`HKLM\SOFTWARE\WOW6432Node\Valve\Steam`) and scanning `libraryfolders.vdf`.
-- **`mods.ts`** — mod file operations. Installs `.pak` files to `{gamePath}/Content/Paks/~mods/`, moves to `~mods/disabled/` on disable, removes on uninstall. Tracks state in a JSON file. Pure functions (`addToState`, `removeFromState`, `setEnabled`, `activeModPath`, `disabledModPath`) are exported separately for testing.
+- **`mods.ts`** — mod file operations. Installs `.pak` files to `{gamePath}/PAYDAY3/Content/Paks/~mods/`, moves to `~mods/disabled/` on disable, removes on uninstall. Tracks state in a JSON file. Pure functions (`addToState`, `removeFromState`, `setEnabled`, `activeModPath`, `disabledModPath`) are exported separately for testing.
 
 ### Renderer components
 
@@ -43,6 +43,10 @@ Electron app with three processes wired by `electron-vite`:
 - **`components/BrowsePage.tsx`** — paginated mod grid. Fetches `listMods` + `getInstalled`; handles install/uninstall/enable/disable.
 - **`components/InstalledPage.tsx`** — list of installed mods with enable/disable/remove.
 - **`components/ModCard.tsx`** — single mod card used by BrowsePage.
+
+### Styling
+
+All colors are defined as semantic tokens in `src/renderer/src/index.css` via Tailwind v4's `@theme` block — never use hardcoded Tailwind color classes like `zinc-*` or `red-*` in components. Token names: `surface`, `surface-raised`, `surface-hover`, `surface-active`, `surface-light`, `border`, `text`, `text-muted`, `text-subtle`, `accent`, `accent-bright`, `danger`, `danger-hover`, `danger-text`, `success`, `success-text`.
 
 ### Key domain facts
 
