@@ -42,7 +42,7 @@ export function setEnabled(state: ModsState, modId: number, enabled: boolean): M
     return { mods: state.mods.map((m) => (m.id === modId ? { ...m, enabled } : m)) }
 }
 
-function readState(statePath: string): ModsState {
+export function readState(statePath: string): ModsState {
     if (!existsSync(statePath)) return { mods: [] }
     try {
         return JSON.parse(readFileSync(statePath, 'utf8'))
