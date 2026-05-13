@@ -36,10 +36,19 @@ Electron app with three processes wired by `electron-vite`:
 - **`steam.ts`** — finds PD3 install path by reading Windows registry (`HKLM\SOFTWARE\WOW6432Node\Valve\Steam`) and scanning `libraryfolders.vdf`.
 - **`mods.ts`** — mod file operations. Installs `.pak` files to `{gamePath}/Content/Paks/~mods/`, moves to `~mods/disabled/` on disable, removes on uninstall. Tracks state in a JSON file. Pure functions (`addToState`, `removeFromState`, `setEnabled`, `activeModPath`, `disabledModPath`) are exported separately for testing.
 
+### Renderer components
+
+- **`App.tsx`** — shell with sidebar + view switcher. Fetches `gamePath` once on mount and passes it down.
+- **`components/Sidebar.tsx`** — nav between Browse and Installed views.
+- **`components/BrowsePage.tsx`** — paginated mod grid. Fetches `listMods` + `getInstalled`; handles install/uninstall/enable/disable.
+- **`components/InstalledPage.tsx`** — list of installed mods with enable/disable/remove.
+- **`components/ModCard.tsx`** — single mod card used by BrowsePage.
+
 ### Key domain facts
 
 - **modworkshop game ID for PD3 is `853`** — hardcoded in `api.ts`.
 - The modworkshop API at `api.modworkshop.net` requires a `User-Agent` header or returns 403.
+- Mod thumbnails: `thumbnail.file` is a bare filename. Full URL: `${THUMBNAIL_BASE_URL}/${file}` where `THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'` (exported from `src/shared/types.ts`).
 - PD3 mods are `.pak` files. Active path: `{gamePath}/Content/Paks/~mods/`. Disabled path: `{gamePath}/Content/Paks/~mods/disabled/`.
 - Anti-cheat (Nebula) is not a concern — mods work online freely.
 
