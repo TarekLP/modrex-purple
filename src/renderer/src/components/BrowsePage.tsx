@@ -7,6 +7,23 @@ interface Props {
     gamePath: string | null
 }
 
+function buildPages(current: number, last: number): (number | '...')[] {
+    const pages: (number | '...')[] = []
+    const delta = 2
+    const left = current - delta
+    const right = current + delta
+
+    let prev: number | null = null
+    for (let p = 1; p <= last; p++) {
+        if (p === 1 || p === last || (p >= left && p <= right)) {
+            if (prev !== null && p - prev > 1) pages.push('...')
+            pages.push(p)
+            prev = p
+        }
+    }
+    return pages
+}
+
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'downloads', label: 'Most Downloaded' },
     { value: 'likes', label: 'Most Liked' },
@@ -212,27 +229,34 @@ export function BrowsePage({ gamePath }: Props) {
                 )}
             </div>
 
-            {result && (
+            {result && result.meta.last_page > 1 && (
                 <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
                     <span className="text-xs text-text-subtle">
-                        Page {result.meta.current_page} of {result.meta.last_page}
-                        {result.meta.total > 0 && ` · ${result.meta.total} mods`}
+                        {result.meta.total > 0 && `${result.meta.total} mods`}
                     </span>
-                    <div className="flex gap-2">
-                        <button
-                            disabled={page <= 1}
-                            onClick={() => setPage((p) => p - 1)}
-                            className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Previous
-                        </button>
-                        <button
-                            disabled={page >= result.meta.last_page}
-                            onClick={() => setPage((p) => p + 1)}
-                            className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Next
-                        </button>
+                    <div className="flex gap-1">
+                        {buildPages(page, result.meta.last_page).map((p, i) =>
+                            p === '...' ? (
+                                <span
+                                    key={`ellipsis-${i}`}
+                                    className="text-xs px-2 py-1 text-text-subtle"
+                                >
+                                    …
+                                </span>
+                            ) : (
+                                <button
+                                    key={p}
+                                    onClick={() => setPage(p as number)}
+                                    className={`text-xs px-3 py-1 rounded transition-colors ${
+                                        p === page
+                                            ? 'bg-accent text-white'
+                                            : 'bg-surface-hover hover:bg-surface-active'
+                                    }`}
+                                >
+                                    {p}
+                                </button>
+                            )
+                        )}
                     </div>
                 </div>
             )}
