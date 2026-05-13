@@ -35,6 +35,21 @@ export interface Category {
     name: string
 }
 
+export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
+
+export interface InstalledMod {
+    id: number
+    name: string
+    version: string
+    filename: string
+    enabled: boolean
+    installedAt: string
+}
+
+export interface ModsState {
+    mods: InstalledMod[]
+}
+
 export interface Paginated<T> {
     data: T[]
     meta: {

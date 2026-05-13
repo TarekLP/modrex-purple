@@ -8,19 +8,9 @@ import {
     readFileSync,
     writeFileSync,
 } from 'fs'
+import type { InstalledMod, ModsState } from '../shared/types'
 
-export interface InstalledMod {
-    id: number
-    name: string
-    version: string
-    filename: string
-    enabled: boolean
-    installedAt: string
-}
-
-export interface ModsState {
-    mods: InstalledMod[]
-}
+export type { InstalledMod, ModsState }
 
 export function activeModPath(gamePath: string, filename: string): string {
     return join(gamePath, 'Content', 'Paks', '~mods', filename)

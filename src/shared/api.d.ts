@@ -1,4 +1,4 @@
-import type { Mod, Category, Paginated, ModsState } from './types'
+import type { Mod, Category, Paginated, ModsState, InstalledMod } from './types'
 import type { ListModsParams } from '../main/api'
 
 declare global {
