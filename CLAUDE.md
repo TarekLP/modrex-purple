@@ -43,6 +43,7 @@ Electron app with three processes wired by `electron-vite`:
 - **`components/BrowsePage.tsx`** — paginated mod grid with search, category filter, and sort. Fetches `listMods` + `listCategories` + `getInstalled`; handles install/uninstall/enable/disable.
 - **`components/InstalledPage.tsx`** — list of installed mods with enable/disable/remove.
 - **`components/ModCard.tsx`** — single mod card used by BrowsePage.
+- **`components/Select.tsx`** — reusable custom dropdown. Use this instead of native `<select>` — native selects render with OS chrome that can't be themed.
 
 ### Styling
 
