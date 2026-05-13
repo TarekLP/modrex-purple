@@ -9,6 +9,8 @@ npm run dev          # Start Electron app with HMR (main + renderer dev server)
 npm run build        # Production build → out/
 npm run preview      # Preview production build
 npm run typecheck    # Type-check without emitting
+npm run format       # Format all files with prettier
+npm run format:check # Check formatting without writing
 npm test             # Run tests once
 npm run test:watch   # Run tests in watch mode
 ```
@@ -28,15 +30,21 @@ Electron app with three processes wired by `electron-vite`:
 - **`src/renderer/`** — React + Tailwind UI. Communicates with main exclusively through IPC — never touches the file system or network directly.
 - **`src/shared/`** — TypeScript types shared between main and renderer (e.g. `Mod`, `ModFile`, `Category`).
 
+### Main process modules
+
+- **`api.ts`** — modworkshop REST API calls. `listMods`, `getMod`, `getLatestFile`, `listCategories`, `registerDownload`. All public GET endpoints, no auth token needed. Params sent as query string (Node fetch rejects GET with body).
+- **`steam.ts`** — finds PD3 install path by reading Windows registry (`HKLM\SOFTWARE\WOW6432Node\Valve\Steam`) and scanning `libraryfolders.vdf`.
+- **`mods.ts`** — mod file operations. Installs `.pak` files to `{gamePath}/Content/Paks/~mods/`, moves to `~mods/disabled/` on disable, removes on uninstall. Tracks state in a JSON file. Pure functions (`addToState`, `removeFromState`, `setEnabled`, `activeModPath`, `disabledModPath`) are exported separately for testing.
+
 ### Key domain facts
 
-- **modworkshop game ID for PD3 is `853`** — hardcoded in `src/main/api.ts`.
-- The modworkshop REST API at `api.modworkshop.net` requires a `User-Agent` header or returns 403. Most GET endpoints are public (no auth token needed).
-- API params are sent as **query string parameters**, not request body — Node's `fetch` (undici) rejects GET requests with a body.
-- PD3 mods are `.pak` files. The install path relative to any Steam library root is `steamapps/common/PAYDAY 3`.
-- Anti-cheat (Nebula) is not a concern — mods work online freely. Client-side mods work with others in lobby; server-side mods only affect the local player.
+- **modworkshop game ID for PD3 is `853`** — hardcoded in `api.ts`.
+- The modworkshop API at `api.modworkshop.net` requires a `User-Agent` header or returns 403.
+- PD3 mods are `.pak` files. Active path: `{gamePath}/Content/Paks/~mods/`. Disabled path: `{gamePath}/Content/Paks/~mods/disabled/`.
+- Anti-cheat (Nebula) is not a concern — mods work online freely.
 
-### Commit style
+## Workflow
 
-All commits must follow conventional commits: `type(scope): subject`.
-Keep commits focused — one logical change per commit.
+- Commits must follow conventional commits: `type(scope): subject`
+- Keep commits focused — one logical change per commit
+- When writing tests + implementation, commit tests first before writing implementation
