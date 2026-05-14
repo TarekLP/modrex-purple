@@ -29,11 +29,13 @@ function registerHandlers(): void {
         resolvedGamePath ? reconcileState(resolvedGamePath, statePath) : readState(statePath)
     )
 
-    ipcMain.handle('mods:install', async (_, modId: number, gamePath: string) => {
+    ipcMain.handle('mods:install', async (event, modId: number, gamePath: string) => {
         const mod = await getMod(modId)
         const file = mod.download ?? (mod.has_download ? await getLatestFile(modId) : null)
         if (!file) throw new Error('Mod has no download')
-        const tmp = await downloadFile(file.download_url, file.type)
+        const tmp = await downloadFile(file.download_url, file.type, (downloaded, total) =>
+            event.sender.send('download:progress', { downloaded, total })
+        )
         try {
             installMod(
                 gamePath,
@@ -57,7 +59,7 @@ function registerHandlers(): void {
     ipcMain.handle(
         'mods:install-file',
         async (
-            _,
+            event,
             modId: number,
             modName: string,
             fileId: number,
@@ -66,7 +68,9 @@ function registerHandlers(): void {
             fileVersion: string,
             gamePath: string
         ) => {
-            const tmp = await downloadFile(downloadUrl, fileType)
+            const tmp = await downloadFile(downloadUrl, fileType, (downloaded, total) =>
+                event.sender.send('download:progress', { downloaded, total })
+            )
             try {
                 installMod(
                     gamePath,

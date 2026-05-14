@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 
@@ -37,7 +38,23 @@ export function ModCard({
     loading,
     gamePath,
 }: Props) {
+    const [progress, setProgress] = useState<{ downloaded: number; total: number } | null>(null)
+    const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+        return window.api.onDownloadProgress(({ downloaded, total }) => {
+            setProgress({ downloaded, total })
+            if (clearTimer.current) clearTimeout(clearTimer.current)
+            clearTimer.current = setTimeout(() => setProgress(null), 800)
+        })
+    }, [])
+
     const canAct = !!gamePath && !loading
+
+    const progressPct =
+        loading && progress && progress.total > 0
+            ? Math.round((progress.downloaded / progress.total) * 100)
+            : null
 
     return (
         <div className="bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col">
@@ -85,7 +102,13 @@ export function ModCard({
                         onClick={onInstall}
                         className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                        {loading ? 'Installing…' : 'Install'}
+                        {loading
+                            ? progressPct !== null
+                                ? `${progressPct}%`
+                                : progress
+                                  ? 'Downloading…'
+                                  : 'Installing…'
+                            : 'Install'}
                     </button>
                 )}
                 {installed && (
@@ -117,6 +140,19 @@ export function ModCard({
                     </div>
                 )}
             </div>
+
+            {loading && progress !== null && (
+                <div className="h-0.5 bg-surface-active">
+                    {progress.total > 0 ? (
+                        <div
+                            className="h-full bg-accent transition-[width] duration-100"
+                            style={{ width: `${progressPct}%` }}
+                        />
+                    ) : (
+                        <div className="h-full bg-accent animate-pulse w-full" />
+                    )}
+                </div>
+            )}
         </div>
     )
 }

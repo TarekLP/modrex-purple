@@ -26,6 +26,9 @@ declare global {
             disableMod(modId: number, gamePath: string): Promise<void>
 
             openExternal(url: string): Promise<void>
+            onDownloadProgress(
+                callback: (info: { downloaded: number; total: number }) => void
+            ): () => void
 
             isGameRunning(): Promise<boolean>
             stopGame(): Promise<void>

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import type { ListModsParams } from '../main/api'
 
 contextBridge.exposeInMainWorld('api', {
@@ -38,6 +38,13 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('mods:disable', modId, gamePath),
 
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
+
+    onDownloadProgress: (callback: (info: { downloaded: number; total: number }) => void) => {
+        const handler = (_: IpcRendererEvent, info: { downloaded: number; total: number }) =>
+            callback(info)
+        ipcRenderer.on('download:progress', handler)
+        return () => ipcRenderer.removeListener('download:progress', handler)
+    },
 
     isGameRunning: () => ipcRenderer.invoke('app:is-game-running'),
     stopGame: () => ipcRenderer.invoke('app:stop-game'),

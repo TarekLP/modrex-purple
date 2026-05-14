@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { marked } from 'marked'
 import type { Mod, ModFile, ModDependency, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
@@ -57,6 +57,11 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
     const [tab, setTab] = useState<Tab>('description')
     const [actionLoading, setActionLoading] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+    const [downloadProgress, setDownloadProgress] = useState<{
+        downloaded: number
+        total: number
+    } | null>(null)
+    const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const installedMod = installed.find((m) => m.id === modId)
 
@@ -80,6 +85,14 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
     useEffect(() => {
         fetchData()
     }, [fetchData])
+
+    useEffect(() => {
+        return window.api.onDownloadProgress(({ downloaded, total }) => {
+            setDownloadProgress({ downloaded, total })
+            if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
+            progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
+        })
+    }, [])
 
     const images = mod?.images ?? []
 
@@ -160,7 +173,7 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
     return (
         <div className="h-full flex flex-col">
             {/* Top bar */}
-            <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3">
+            <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3 relative">
                 <button
                     onClick={onBack}
                     className="text-sm text-text-muted hover:text-text transition-colors flex items-center gap-1.5 shrink-0"
@@ -207,11 +220,31 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                             onClick={handleInstall}
                             className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                            {actionLoading ? 'Installing…' : 'Install'}
+                            {actionLoading
+                                ? downloadProgress
+                                    ? downloadProgress.total > 0
+                                        ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                        : 'Downloading…'
+                                    : 'Installing…'
+                                : 'Install'}
                         </button>
                     )}
                 </div>
             </div>
+            {downloadProgress !== null && (
+                <div className="h-0.5 bg-surface-active shrink-0">
+                    {downloadProgress.total > 0 ? (
+                        <div
+                            className="h-full bg-accent transition-[width] duration-100"
+                            style={{
+                                width: `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`,
+                            }}
+                        />
+                    ) : (
+                        <div className="h-full bg-accent animate-pulse w-full" />
+                    )}
+                </div>
+            )}
 
             {loading && (
                 <div className="flex items-center justify-center flex-1 text-text-subtle text-sm">
@@ -329,6 +362,7 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                                 mod={mod}
                                 gamePath={gamePath}
                                 installedMod={installedMod}
+                                downloadProgress={downloadProgress}
                                 onRefreshInstalled={onRefreshInstalled}
                             />
                         )}
@@ -456,12 +490,14 @@ function DownloadsTab({
     mod,
     gamePath,
     installedMod,
+    downloadProgress,
     onRefreshInstalled,
 }: {
     files: ModFile[]
     mod: Mod
     gamePath: string | null
     installedMod: InstalledMod | undefined
+    downloadProgress: { downloaded: number; total: number } | null
     onRefreshInstalled: () => Promise<void>
 }) {
     const [installingId, setInstallingId] = useState<number | null>(null)
@@ -534,7 +570,11 @@ function DownloadsTab({
                                     }`}
                                 >
                                     {installingId === file.id
-                                        ? 'Installing…'
+                                        ? downloadProgress
+                                            ? downloadProgress.total > 0
+                                                ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                                : 'Downloading…'
+                                            : 'Installing…'
                                         : isInstalled
                                           ? 'Installed'
                                           : 'Install'}
