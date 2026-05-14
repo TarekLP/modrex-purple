@@ -6,6 +6,8 @@ import { Select } from './Select'
 
 interface Props {
     gamePath: string | null
+    installed: InstalledMod[]
+    onRefreshInstalled: () => Promise<void>
 }
 
 function buildPages(current: number, last: number): (number | '...')[] {
@@ -33,14 +35,13 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'name', label: 'Name' },
 ]
 
-export function BrowsePage({ gamePath }: Props) {
+export function BrowsePage({ gamePath, installed, onRefreshInstalled }: Props) {
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
     const [sort, setSort] = useState<SortOption>('bumped_at')
     const [result, setResult] = useState<Paginated<Mod> | null>(null)
     const [categories, setCategories] = useState<Category[]>([])
-    const [installed, setInstalled] = useState<InstalledMod[]>([])
     const [loadingMods, setLoadingMods] = useState(false)
     const [loadingMod, setLoadingMod] = useState<number | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -68,15 +69,9 @@ export function BrowsePage({ gamePath }: Props) {
         []
     )
 
-    const refreshInstalled = useCallback(async () => {
-        const state = await window.api.getInstalled()
-        setInstalled(state.mods)
-    }, [])
-
     useEffect(() => {
         window.api.listCategories().then((r) => setCategories(r.data))
-        refreshInstalled()
-    }, [refreshInstalled])
+    }, [])
 
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -111,7 +106,7 @@ export function BrowsePage({ gamePath }: Props) {
         setLoadingMod(modId)
         try {
             await window.api.installMod(modId, gamePath)
-            await refreshInstalled()
+            await onRefreshInstalled()
         } catch (e) {
             setError(String(e))
         } finally {
@@ -124,7 +119,7 @@ export function BrowsePage({ gamePath }: Props) {
         setLoadingMod(modId)
         try {
             await window.api.uninstallMod(modId, gamePath)
-            await refreshInstalled()
+            await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
@@ -135,7 +130,7 @@ export function BrowsePage({ gamePath }: Props) {
         setLoadingMod(modId)
         try {
             await window.api.enableMod(modId, gamePath)
-            await refreshInstalled()
+            await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
@@ -146,7 +141,7 @@ export function BrowsePage({ gamePath }: Props) {
         setLoadingMod(modId)
         try {
             await window.api.disableMod(modId, gamePath)
-            await refreshInstalled()
+            await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }

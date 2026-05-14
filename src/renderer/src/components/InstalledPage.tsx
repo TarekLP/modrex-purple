@@ -4,10 +4,11 @@ import { ModCard } from './ModCard'
 
 interface Props {
     gamePath: string | null
+    installed: InstalledMod[]
+    onRefreshInstalled: () => Promise<void>
 }
 
-export function InstalledPage({ gamePath }: Props) {
-    const [installed, setInstalled] = useState<InstalledMod[]>([])
+export function InstalledPage({ gamePath, installed, onRefreshInstalled }: Props) {
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
     const fetchedIds = useRef<Set<number>>(new Set())
     const [initialized, setInitialized] = useState(false)
@@ -17,13 +18,20 @@ export function InstalledPage({ gamePath }: Props) {
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
     const refresh = useCallback(async () => {
-        const state = await window.api.getInstalled()
-        setInstalled(state.mods)
+        await onRefreshInstalled()
         setInitialized(true)
+    }, [onRefreshInstalled])
 
-        const missing = state.mods.filter((m) => !fetchedIds.current.has(m.id))
-        if (missing.length > 0) {
-            const results = await Promise.allSettled(missing.map((m) => window.api.getMod(m.id)))
+    useEffect(() => {
+        refresh()
+    }, [refresh])
+
+    // Fetch modData for any newly seen mod IDs
+    useEffect(() => {
+        const missing = installed.filter((m) => !fetchedIds.current.has(m.id))
+        if (missing.length === 0) return
+
+        Promise.allSettled(missing.map((m) => window.api.getMod(m.id))).then((results) => {
             const updates: [number, Mod][] = []
             results.forEach((r, i) => {
                 if (r.status === 'fulfilled') {
@@ -38,14 +46,8 @@ export function InstalledPage({ gamePath }: Props) {
                     return next
                 })
             }
-        }
-    }, [])
-
-    useEffect(() => {
-        refresh()
-        window.addEventListener('focus', refresh)
-        return () => window.removeEventListener('focus', refresh)
-    }, [refresh])
+        })
+    }, [installed])
 
     const updatable = installed.filter((ins) => {
         const mod = modData.get(ins.id)
@@ -57,7 +59,7 @@ export function InstalledPage({ gamePath }: Props) {
         setLoadingMod(modId)
         try {
             await window.api.uninstallMod(modId, gamePath)
-            await refresh()
+            await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
@@ -68,7 +70,7 @@ export function InstalledPage({ gamePath }: Props) {
         setLoadingMod(modId)
         try {
             await window.api.enableMod(modId, gamePath)
-            await refresh()
+            await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
@@ -79,7 +81,7 @@ export function InstalledPage({ gamePath }: Props) {
         setLoadingMod(modId)
         try {
             await window.api.disableMod(modId, gamePath)
-            await refresh()
+            await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
@@ -90,7 +92,7 @@ export function InstalledPage({ gamePath }: Props) {
         setLoadingMod(modId)
         try {
             await window.api.installMod(modId, gamePath)
-            await refresh()
+            await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
@@ -103,7 +105,7 @@ export function InstalledPage({ gamePath }: Props) {
             for (const ins of updatable.filter((m) => selectedIds.has(m.id))) {
                 await window.api.installMod(ins.id, gamePath)
             }
-            await refresh()
+            await onRefreshInstalled()
             setShowUpdates(false)
         } finally {
             setUpdatingAll(false)
