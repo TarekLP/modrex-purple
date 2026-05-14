@@ -19,6 +19,11 @@
     --color-success-text: oklch(0.792 0.209 152); /* green-400 */
 }
 
+button:not(:disabled),
+input[type='checkbox']:not(:disabled) {
+    cursor: pointer;
+}
+
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
