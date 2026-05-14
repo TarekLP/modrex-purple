@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface Props {
     gamePath: string | null
@@ -11,14 +11,21 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
     )
     const [picking, setPicking] = useState(false)
     const [launchOptions, setLaunchOptions] = useState('')
-    const [launchOptionsSaved, setLaunchOptionsSaved] = useState(false)
+    const launchOptionsLoaded = useRef(false)
 
     useEffect(() => {
         window.api.getSettings().then((s) => {
             setSettings(s)
             setLaunchOptions(s.launchOptions ?? '')
+            launchOptionsLoaded.current = true
         })
     }, [])
+
+    useEffect(() => {
+        if (!launchOptionsLoaded.current) return
+        const timer = setTimeout(() => window.api.setLaunchOptions(launchOptions), 500)
+        return () => clearTimeout(timer)
+    }, [launchOptions])
 
     const isManual = !!settings?.gamePath
 
@@ -39,12 +46,6 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
         await window.api.setGamePath(null)
         setSettings((s) => ({ ...s, gamePath: undefined }))
         await onGamePathChange()
-    }
-
-    async function handleSaveLaunchOptions() {
-        await window.api.setLaunchOptions(launchOptions)
-        setLaunchOptionsSaved(true)
-        setTimeout(() => setLaunchOptionsSaved(false), 2000)
     }
 
     return (
@@ -101,22 +102,13 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                         Extra arguments passed to PAYDAY 3 on launch via Steam. Example:{' '}
                         <span className="font-mono">-high -dx12 -fileopenlog</span>
                     </p>
-                    <div className="flex gap-2 mt-1">
-                        <input
-                            type="text"
-                            value={launchOptions}
-                            onChange={(e) => setLaunchOptions(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSaveLaunchOptions()}
-                            placeholder="-high -dx12 -fileopenlog"
-                            className="flex-1 text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent"
-                        />
-                        <button
-                            onClick={handleSaveLaunchOptions}
-                            className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0"
-                        >
-                            {launchOptionsSaved ? 'Saved' : 'Save'}
-                        </button>
-                    </div>
+                    <input
+                        type="text"
+                        value={launchOptions}
+                        onChange={(e) => setLaunchOptions(e.target.value)}
+                        placeholder="-high -dx12 -fileopenlog"
+                        className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent mt-1"
+                    />
                 </section>
             </div>
         </div>
