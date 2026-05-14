@@ -14,6 +14,9 @@ declare global {
             uninstallMod(modId: number, gamePath: string): Promise<void>
             enableMod(modId: number, gamePath: string): Promise<void>
             disableMod(modId: number, gamePath: string): Promise<void>
+
+            launchModded(): Promise<void>
+            launchWithoutMods(gamePath: string): Promise<void>
         }
     }
 }

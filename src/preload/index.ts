@@ -16,4 +16,8 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('mods:enable', modId, gamePath),
     disableMod: (modId: number, gamePath: string) =>
         ipcRenderer.invoke('mods:disable', modId, gamePath),
+
+    launchModded: () => ipcRenderer.invoke('app:launch-modded'),
+    launchWithoutMods: (gamePath: string) =>
+        ipcRenderer.invoke('app:launch-without-mods', gamePath),
 })
