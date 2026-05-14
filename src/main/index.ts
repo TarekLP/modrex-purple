@@ -78,7 +78,6 @@ function createWindow(): BrowserWindow {
 
     if (process.env['ELECTRON_RENDERER_URL']) {
         win.loadURL(process.env['ELECTRON_RENDERER_URL'])
-        win.webContents.openDevTools()
     } else {
         win.loadFile(join(__dirname, '../renderer/index.html'))
     }
@@ -138,5 +137,7 @@ app.whenReady().then(async () => {
 
     registerHandlers()
     const win = createWindow()
-    globalShortcut.register('F12', () => win.webContents.toggleDevTools())
+    if (!app.isPackaged) {
+        globalShortcut.register('CommandOrControl+Shift+I', () => win.webContents.toggleDevTools())
+    }
 })
