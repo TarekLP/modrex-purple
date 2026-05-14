@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 
@@ -9,6 +9,7 @@ interface Props {
 export function InstalledPage({ gamePath }: Props) {
     const [installed, setInstalled] = useState<InstalledMod[]>([])
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
+    const fetchedIds = useRef<Set<number>>(new Set())
     const [initialized, setInitialized] = useState(false)
     const [loadingMod, setLoadingMod] = useState<number | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
@@ -18,12 +19,26 @@ export function InstalledPage({ gamePath }: Props) {
     const refresh = useCallback(async () => {
         const state = await window.api.getInstalled()
         setInstalled(state.mods)
-        const results = await Promise.allSettled(state.mods.map((m) => window.api.getMod(m.id)))
-        const data = new Map<number, Mod>()
-        results.forEach((r, i) => {
-            if (r.status === 'fulfilled') data.set(state.mods[i].id, r.value)
-        })
-        setModData(data)
+
+        const missing = state.mods.filter((m) => !fetchedIds.current.has(m.id))
+        if (missing.length > 0) {
+            const results = await Promise.allSettled(missing.map((m) => window.api.getMod(m.id)))
+            const updates: [number, Mod][] = []
+            results.forEach((r, i) => {
+                if (r.status === 'fulfilled') {
+                    fetchedIds.current.add(missing[i].id)
+                    updates.push([missing[i].id, r.value])
+                }
+            })
+            if (updates.length > 0) {
+                setModData((prev) => {
+                    const next = new Map(prev)
+                    updates.forEach(([id, mod]) => next.set(id, mod))
+                    return next
+                })
+            }
+        }
+
         setInitialized(true)
     }, [])
 
