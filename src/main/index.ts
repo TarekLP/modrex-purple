@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, shell } from 'electron'
 import { join } from 'path'
 import { rmSync, renameSync, existsSync, readdirSync, writeFileSync } from 'fs'
+import { execSync } from 'child_process'
 import { listMods, getMod, listCategories, registerDownload, type ListModsParams } from './api'
 import { findGamePath } from './steam'
 import { installMod, uninstallMod, enableMod, disableMod, readState, reconcileState } from './mods'
@@ -52,6 +53,23 @@ function registerHandlers(): void {
     ipcMain.handle('mods:disable', (_, modId: number, gamePath: string) =>
         disableMod(gamePath, statePath, modId)
     )
+
+    ipcMain.handle('app:is-game-running', () => {
+        try {
+            const out = execSync('tasklist /FI "IMAGENAME eq PAYDAY3-Win64-Shipping.exe" /NH', {
+                encoding: 'utf8',
+            })
+            return out.includes('PAYDAY3-Win64-Shipping')
+        } catch {
+            return false
+        }
+    })
+
+    ipcMain.handle('app:stop-game', () => {
+        try {
+            execSync('taskkill /F /IM PAYDAY3-Win64-Shipping.exe')
+        } catch {}
+    })
 
     ipcMain.handle('app:launch-modded', async () => {
         await shell.openExternal('steam://rungameid/1272080')

@@ -15,6 +15,8 @@ declare global {
             enableMod(modId: number, gamePath: string): Promise<void>
             disableMod(modId: number, gamePath: string): Promise<void>
 
+            isGameRunning(): Promise<boolean>
+            stopGame(): Promise<void>
             launchModded(): Promise<void>
             launchWithoutMods(gamePath: string): Promise<void>
         }
