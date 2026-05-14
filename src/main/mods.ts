@@ -41,6 +41,25 @@ export function readState(statePath: string): ModsState {
     }
 }
 
+export function reconcileState(gamePath: string, statePath: string): ModsState {
+    // ~mods.bak means mods are temporarily hidden for a vanilla launch — trust state as-is
+    const modsBak = join(gamePath, 'PAYDAY3', 'Content', '~mods.bak')
+    if (existsSync(modsBak)) return readState(statePath)
+
+    const state = readState(statePath)
+    const valid = state.mods.filter(
+        (m) =>
+            existsSync(activeModPath(gamePath, m.filename)) ||
+            existsSync(disabledModPath(gamePath, m.filename))
+    )
+    if (valid.length !== state.mods.length) {
+        const cleaned = { mods: valid }
+        saveState(statePath, cleaned)
+        return cleaned
+    }
+    return state
+}
+
 function saveState(statePath: string, state: ModsState): void {
     writeFileSync(statePath, JSON.stringify(state, null, 4))
 }

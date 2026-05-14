@@ -16,6 +16,8 @@ export function InstalledPage({ gamePath }: Props) {
 
     useEffect(() => {
         refresh()
+        window.addEventListener('focus', refresh)
+        return () => window.removeEventListener('focus', refresh)
     }, [refresh])
 
     async function handleUninstall(modId: number) {
