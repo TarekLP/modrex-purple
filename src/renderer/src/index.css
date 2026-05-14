@@ -41,3 +41,74 @@ input[type='checkbox']:not(:disabled) {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--color-text-subtle);
 }
+
+.mod-desc h1,
+.mod-desc h2,
+.mod-desc h3,
+.mod-desc h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.mod-desc p {
+    margin-bottom: 0.5rem;
+}
+
+.mod-desc ul,
+.mod-desc ol {
+    margin-left: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.mod-desc li {
+    margin-bottom: 0.2rem;
+}
+
+.mod-desc ul {
+    list-style-type: disc;
+}
+
+.mod-desc ol {
+    list-style-type: decimal;
+}
+
+.mod-desc a {
+    color: var(--color-accent-bright);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.mod-desc strong,
+.mod-desc b {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.mod-desc em,
+.mod-desc i {
+    font-style: italic;
+}
+
+.mod-desc code {
+    font-family: monospace;
+    font-size: 0.85em;
+    background: var(--color-surface-hover);
+    padding: 0.1em 0.3em;
+    border-radius: 0.2em;
+}
+
+.mod-desc img {
+    max-width: 100%;
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.mod-desc hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 0.75rem 0;
+}

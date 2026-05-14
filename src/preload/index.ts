@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('api', {
     listMods: (params?: ListModsParams) => ipcRenderer.invoke('api:list-mods', params),
     listCategories: () => ipcRenderer.invoke('api:list-categories'),
     getMod: (id: number) => ipcRenderer.invoke('api:get-mod', id),
+    listModFiles: (modId: number) => ipcRenderer.invoke('api:list-mod-files', modId),
 
     findGamePath: () => ipcRenderer.invoke('mods:find-game-path'),
     getInstalled: () => ipcRenderer.invoke('mods:get-installed'),
@@ -16,6 +17,8 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('mods:enable', modId, gamePath),
     disableMod: (modId: number, gamePath: string) =>
         ipcRenderer.invoke('mods:disable', modId, gamePath),
+
+    openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
 
     isGameRunning: () => ipcRenderer.invoke('app:is-game-running'),
     stopGame: () => ipcRenderer.invoke('app:stop-game'),

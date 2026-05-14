@@ -6,9 +6,10 @@ interface Props {
     gamePath: string | null
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
+    onOpenDetail: (modId: number) => void
 }
 
-export function InstalledPage({ gamePath, installed, onRefreshInstalled }: Props) {
+export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenDetail }: Props) {
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
     const fetchedIds = useRef<Set<number>>(new Set())
     const [initialized, setInitialized] = useState(false)
@@ -171,6 +172,7 @@ export function InstalledPage({ gamePath, installed, onRefreshInstalled }: Props
                                         installed={ins}
                                         gamePath={gamePath}
                                         loading={loadingMod === ins.id}
+                                        onOpen={() => onOpenDetail(ins.id)}
                                         onInstall={() => {}}
                                         onUninstall={() => handleUninstall(ins.id)}
                                         onEnable={() => handleEnable(ins.id)}

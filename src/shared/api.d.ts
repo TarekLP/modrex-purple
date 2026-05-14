@@ -1,4 +1,4 @@
-import type { Mod, Category, Paginated, ModsState, InstalledMod } from './types'
+import type { Mod, ModFile, Category, Paginated, ModsState, InstalledMod } from './types'
 import type { ListModsParams } from '../main/api'
 
 declare global {
@@ -7,6 +7,7 @@ declare global {
             listMods(params?: ListModsParams): Promise<Paginated<Mod>>
             listCategories(): Promise<Paginated<Category>>
             getMod(id: number): Promise<Mod>
+            listModFiles(modId: number): Promise<Paginated<ModFile>>
 
             findGamePath(): Promise<string | null>
             getInstalled(): Promise<ModsState>
@@ -14,6 +15,8 @@ declare global {
             uninstallMod(modId: number, gamePath: string): Promise<void>
             enableMod(modId: number, gamePath: string): Promise<void>
             disableMod(modId: number, gamePath: string): Promise<void>
+
+            openExternal(url: string): Promise<void>
 
             isGameRunning(): Promise<boolean>
             stopGame(): Promise<void>

@@ -17,6 +17,7 @@ function timeAgo(iso: string): string {
 interface Props {
     mod: Mod
     installed: InstalledMod | undefined
+    onOpen: () => void
     onInstall: () => void
     onUninstall: () => void
     onEnable: () => void
@@ -28,6 +29,7 @@ interface Props {
 export function ModCard({
     mod,
     installed,
+    onOpen,
     onInstall,
     onUninstall,
     onEnable,
@@ -39,76 +41,81 @@ export function ModCard({
 
     return (
         <div className="bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col">
-            {mod.thumbnail ? (
-                <img
-                    src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
-                    alt={mod.name}
-                    className="w-full h-36 object-cover"
-                />
-            ) : (
-                <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
-                    <span className="text-text-subtle text-xs">No image</span>
-                </div>
-            )}
-            <div className="p-3 flex flex-col gap-2 flex-1">
-                <div>
-                    <h3 className="text-sm font-semibold leading-snug line-clamp-2">{mod.name}</h3>
-                    <p className="text-xs text-text-muted mt-0.5">{mod.user.name}</p>
-                </div>
-                <p className="text-xs text-text-subtle line-clamp-2 flex-1">{mod.short_desc}</p>
-                <div className="flex items-center justify-between mt-auto">
-                    <div className="flex flex-col">
-                        {installed ? (
-                            <span className="text-xs text-text-subtle">v{installed.version}</span>
-                        ) : (
-                            <>
-                                <span className="text-xs text-text-subtle">
-                                    {mod.downloads.toLocaleString()} dl
-                                </span>
-                                <span className="text-xs text-text-subtle">
-                                    {timeAgo(mod.bumped_at)}
-                                </span>
-                            </>
-                        )}
+            {/* Clickable area — opens detail modal */}
+            <div className="cursor-pointer group" onClick={onOpen}>
+                {mod.thumbnail ? (
+                    <img
+                        src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
+                        alt={mod.name}
+                        className="w-full h-36 object-cover group-hover:brightness-110 transition-[filter]"
+                    />
+                ) : (
+                    <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
+                        <span className="text-text-subtle text-xs">No image</span>
                     </div>
-                    {!installed && (
-                        <button
-                            disabled={!canAct || !mod.has_download}
-                            onClick={onInstall}
-                            className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                            {loading ? 'Installing…' : 'Install'}
-                        </button>
+                )}
+                <div className="px-3 pt-3 pb-1 flex flex-col gap-1">
+                    <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-accent-bright transition-colors">
+                        {mod.name}
+                    </h3>
+                    <p className="text-xs text-text-muted">{mod.user.name}</p>
+                    <p className="text-xs text-text-subtle line-clamp-2">{mod.short_desc}</p>
+                </div>
+            </div>
+
+            {/* Action row — not part of the clickable area */}
+            <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
+                <div className="flex flex-col">
+                    {installed ? (
+                        <span className="text-xs text-text-subtle">v{installed.version}</span>
+                    ) : (
+                        <>
+                            <span className="text-xs text-text-subtle">
+                                {mod.downloads.toLocaleString()} dl
+                            </span>
+                            <span className="text-xs text-text-subtle">
+                                {timeAgo(mod.bumped_at)}
+                            </span>
+                        </>
                     )}
-                    {installed && (
-                        <div className="flex gap-1">
-                            {installed.enabled ? (
-                                <button
-                                    disabled={!canAct}
-                                    onClick={onDisable}
-                                    className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors"
-                                >
-                                    Disable
-                                </button>
-                            ) : (
-                                <button
-                                    disabled={!canAct}
-                                    onClick={onEnable}
-                                    className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors"
-                                >
-                                    Enable
-                                </button>
-                            )}
+                </div>
+                {!installed && (
+                    <button
+                        disabled={!canAct || !mod.has_download}
+                        onClick={onInstall}
+                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {loading ? 'Installing…' : 'Install'}
+                    </button>
+                )}
+                {installed && (
+                    <div className="flex gap-1">
+                        {installed.enabled ? (
                             <button
                                 disabled={!canAct}
-                                onClick={onUninstall}
-                                className="text-xs px-2 py-1 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
+                                onClick={onDisable}
+                                className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors"
                             >
-                                Remove
+                                Disable
                             </button>
-                        </div>
-                    )}
-                </div>
+                        ) : (
+                            <button
+                                disabled={!canAct}
+                                onClick={onEnable}
+                                className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors"
+                            >
+                                Enable
+                            </button>
+                        )}
+                        <button
+                            disabled={!canAct}
+                            onClick={onUninstall}
+                            className="text-xs px-2 py-1 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
+                        >
+                            Remove
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     )

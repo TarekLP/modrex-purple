@@ -8,6 +8,7 @@ interface Props {
     gamePath: string | null
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
+    onOpenDetail: (modId: number) => void
 }
 
 function buildPages(current: number, last: number): (number | '...')[] {
@@ -35,7 +36,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'name', label: 'Name' },
 ]
 
-export function BrowsePage({ gamePath, installed, onRefreshInstalled }: Props) {
+export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDetail }: Props) {
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
@@ -207,6 +208,7 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled }: Props) {
                                 installed={installed.find((m) => m.id === mod.id)}
                                 gamePath={gamePath}
                                 loading={loadingMod === mod.id}
+                                onOpen={() => onOpenDetail(mod.id)}
                                 onInstall={() => handleInstall(mod.id)}
                                 onUninstall={() => handleUninstall(mod.id)}
                                 onEnable={() => handleEnable(mod.id)}

@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import type { View } from '../App'
+
+type NavView = 'browse' | 'installed'
 
 interface Props {
-    view: View
-    onViewChange: (v: View) => void
+    view: NavView
+    onViewChange: (v: NavView) => void
 }
 
-const navItems: { id: View; label: string; short: string }[] = [
+const navItems: { id: NavView; label: string; short: string }[] = [
     { id: 'browse', label: 'Browse Mods', short: 'B' },
     { id: 'installed', label: 'Installed', short: 'I' },
 ]

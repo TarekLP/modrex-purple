@@ -2,7 +2,14 @@ import { app, BrowserWindow, ipcMain, globalShortcut, shell } from 'electron'
 import { join } from 'path'
 import { rmSync, renameSync, existsSync, readdirSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
-import { listMods, getMod, listCategories, registerDownload, type ListModsParams } from './api'
+import {
+    listMods,
+    getMod,
+    listModFiles,
+    listCategories,
+    registerDownload,
+    type ListModsParams,
+} from './api'
 import { findGamePath } from './steam'
 import { installMod, uninstallMod, enableMod, disableMod, readState, reconcileState } from './mods'
 import { downloadFile } from './download'
@@ -14,6 +21,7 @@ function registerHandlers(): void {
     ipcMain.handle('api:list-mods', (_, params: ListModsParams) => listMods(params))
     ipcMain.handle('api:list-categories', () => listCategories())
     ipcMain.handle('api:get-mod', (_, id: number) => getMod(id))
+    ipcMain.handle('api:list-mod-files', (_, modId: number) => listModFiles(modId))
 
     ipcMain.handle('mods:find-game-path', () => findGamePath())
     ipcMain.handle('mods:get-installed', () =>
@@ -74,6 +82,8 @@ function registerHandlers(): void {
     ipcMain.handle('app:launch-modded', async () => {
         await shell.openExternal('steam://rungameid/1272080')
     })
+
+    ipcMain.handle('shell:open-external', (_, url: string) => shell.openExternal(url))
 
     ipcMain.handle('app:launch-without-mods', async (_, gamePath: string) => {
         const modsDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')

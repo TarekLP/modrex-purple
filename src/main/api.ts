@@ -45,6 +45,8 @@ export const getMod = (id: number) => get<Mod>(`/mods/${id}`)
 
 export const getLatestFile = (modId: number) => get<ModFile>(`/mods/${modId}/files/latest`)
 
+export const listModFiles = (modId: number) => get<Paginated<ModFile>>(`/mods/${modId}/files`)
+
 export const listCategories = () => get<Paginated<Category>>(`/games/${GAME_ID}/categories`)
 
 export const registerDownload = (fileId: number) =>
