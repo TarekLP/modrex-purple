@@ -99,14 +99,15 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                 <section className="max-w-xl flex flex-col gap-2 mt-6">
                     <h2 className="text-sm font-semibold">Launch Options</h2>
                     <p className="text-xs text-text-subtle">
-                        Extra arguments passed to PAYDAY 3 on launch via Steam. Example:{' '}
-                        <span className="font-mono">-high -dx12 -fileopenlog</span>
+                        Extra arguments passed to PAYDAY 3 on launch via Steam.{' '}
+                        <span className="font-mono text-text">-fileopenlog</span> is required for
+                        mods to load correctly.
                     </p>
                     <input
                         type="text"
                         value={launchOptions}
                         onChange={(e) => setLaunchOptions(e.target.value)}
-                        placeholder="-high -dx12 -fileopenlog"
+                        placeholder="-fileopenlog"
                         className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent mt-1"
                     />
                 </section>

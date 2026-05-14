@@ -26,9 +26,14 @@ declare global {
             disableMod(modId: number, gamePath: string): Promise<void>
 
             openExternal(url: string): Promise<void>
-            getSettings(): Promise<{ gamePath?: string; launchOptions?: string }>
+            getSettings(): Promise<{
+                gamePath?: string
+                launchOptions?: string
+                skipFileOpenLogWarning?: boolean
+            }>
             setGamePath(gamePath: string | null): Promise<void>
             setLaunchOptions(launchOptions: string): Promise<void>
+            setSkipFileOpenLogWarning(skip: boolean): Promise<void>
             pickFolder(): Promise<string | null>
             onDownloadProgress(
                 callback: (info: { downloaded: number; total: number }) => void

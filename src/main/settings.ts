@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 export interface Settings {
     gamePath?: string
     launchOptions?: string
+    skipFileOpenLogWarning?: boolean
 }
 
 export function readSettings(settingsPath: string): Settings {

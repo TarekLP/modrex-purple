@@ -247,6 +247,11 @@ function registerHandlers(): void {
         settings.launchOptions = launchOptions || undefined
         writeSettings(settingsPath, settings)
     })
+    ipcMain.handle('settings:set-skip-fileopenlog-warning', (_, skip: boolean) => {
+        const settings = readSettings(settingsPath)
+        settings.skipFileOpenLogWarning = skip || undefined
+        writeSettings(settingsPath, settings)
+    })
 }
 
 function createWindow(): BrowserWindow {
