@@ -9,8 +9,29 @@ interface Props {
     onOpenDetail: (modId: number) => void
 }
 
+function syntheticMod(ins: InstalledMod): Mod {
+    return {
+        id: ins.id,
+        name: ins.name,
+        desc: '',
+        short_desc: 'Manually installed — not on modworkshop',
+        version: ins.version,
+        downloads: 0,
+        likes: 0,
+        views: 0,
+        published_at: ins.installedAt,
+        bumped_at: ins.installedAt,
+        category_id: 0,
+        has_download: false,
+        thumbnail: null,
+        download: null,
+        user: { name: 'Unknown' },
+    }
+}
+
 export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenDetail }: Props) {
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
+    const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
     const fetchedIds = useRef<Set<number>>(new Set())
     const [initialized, setInitialized] = useState(false)
     const [loadingMod, setLoadingMod] = useState<number | null>(null)
@@ -34,10 +55,13 @@ export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenD
 
         Promise.allSettled(missing.map((m) => window.api.getMod(m.id))).then((results) => {
             const updates: [number, Mod][] = []
+            const failed: number[] = []
             results.forEach((r, i) => {
+                fetchedIds.current.add(missing[i].id)
                 if (r.status === 'fulfilled') {
-                    fetchedIds.current.add(missing[i].id)
                     updates.push([missing[i].id, r.value])
+                } else {
+                    failed.push(missing[i].id)
                 }
             })
             if (updates.length > 0) {
@@ -46,6 +70,9 @@ export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenD
                     updates.forEach(([id, mod]) => next.set(id, mod))
                     return next
                 })
+            }
+            if (failed.length > 0) {
+                setFailedIds((prev) => new Set([...prev, ...failed]))
             }
         })
     }, [installed])
@@ -163,8 +190,9 @@ export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenD
 
                         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                             {installed.map((ins) => {
-                                const mod = modData.get(ins.id)
-                                if (!mod) return null
+                                const apiMod = modData.get(ins.id)
+                                if (!apiMod && !failedIds.has(ins.id)) return null
+                                const mod = apiMod ?? syntheticMod(ins)
                                 return (
                                     <ModCard
                                         key={ins.id}
@@ -172,7 +200,7 @@ export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenD
                                         installed={ins}
                                         gamePath={gamePath}
                                         loading={loadingMod === ins.id}
-                                        onOpen={() => onOpenDetail(ins.id)}
+                                        onOpen={apiMod ? () => onOpenDetail(ins.id) : () => {}}
                                         onInstall={() => {}}
                                         onUninstall={() => handleUninstall(ins.id)}
                                         onEnable={() => handleEnable(ins.id)}

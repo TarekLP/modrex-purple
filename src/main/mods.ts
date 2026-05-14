@@ -7,6 +7,7 @@ import {
     existsSync,
     readFileSync,
     writeFileSync,
+    readdirSync,
 } from 'fs'
 import type { InstalledMod, ModsState } from '../shared/types'
 
@@ -39,6 +40,34 @@ export function readState(statePath: string): ModsState {
     } catch {
         return { mods: [] }
     }
+}
+
+export function findUntrackedPaks(
+    gamePath: string,
+    knownFilenames: Set<string>
+): { filename: string; enabled: boolean }[] {
+    const modsBak = join(gamePath, 'PAYDAY3', 'Content', '~mods.bak')
+    if (existsSync(modsBak)) return []
+
+    const activeDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
+    const disabledDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
+    const untracked: { filename: string; enabled: boolean }[] = []
+
+    if (existsSync(activeDir)) {
+        for (const file of readdirSync(activeDir)) {
+            if (file.endsWith('.pak') && !knownFilenames.has(file)) {
+                untracked.push({ filename: file, enabled: true })
+            }
+        }
+    }
+    if (existsSync(disabledDir)) {
+        for (const file of readdirSync(disabledDir)) {
+            if (file.endsWith('.pak') && !knownFilenames.has(file)) {
+                untracked.push({ filename: file, enabled: false })
+            }
+        }
+    }
+    return untracked
 }
 
 export function reconcileState(gamePath: string, statePath: string): ModsState {

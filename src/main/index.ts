@@ -12,8 +12,24 @@ import {
     type ListModsParams,
 } from './api'
 import { findGamePath } from './steam'
-import { installMod, uninstallMod, enableMod, disableMod, readState, reconcileState } from './mods'
+import {
+    installMod,
+    uninstallMod,
+    enableMod,
+    disableMod,
+    readState,
+    reconcileState,
+    findUntrackedPaks,
+} from './mods'
 import { downloadFile } from './download'
+
+function hashFilename(filename: string): number {
+    let h = 0
+    for (let i = 0; i < filename.length; i++) {
+        h = (Math.imul(31, h) + filename.charCodeAt(i)) | 0
+    }
+    return -Math.abs(h) || -1
+}
 
 const statePath = join(app.getPath('userData'), 'installed.json')
 let resolvedGamePath: string | null = null
@@ -25,9 +41,48 @@ function registerHandlers(): void {
     ipcMain.handle('api:list-mod-files', (_, modId: number) => listModFiles(modId))
 
     ipcMain.handle('mods:find-game-path', () => findGamePath())
-    ipcMain.handle('mods:get-installed', () =>
-        resolvedGamePath ? reconcileState(resolvedGamePath, statePath) : readState(statePath)
-    )
+    ipcMain.handle('mods:get-installed', async () => {
+        const state = resolvedGamePath
+            ? reconcileState(resolvedGamePath, statePath)
+            : readState(statePath)
+        if (!resolvedGamePath) return state
+
+        const knownFilenames = new Set(state.mods.map((m) => m.filename))
+        const untracked = findUntrackedPaks(resolvedGamePath, knownFilenames)
+        if (untracked.length === 0) return state
+
+        const results = await Promise.allSettled(
+            untracked.map(async ({ filename, enabled }) => {
+                const stem = filename.slice(0, -4)
+                const numId = parseInt(stem, 10)
+                if (!isNaN(numId) && String(numId) === stem) {
+                    const mod = await getMod(numId)
+                    return {
+                        id: mod.id,
+                        name: mod.name,
+                        version: mod.version,
+                        filename,
+                        enabled,
+                        installedAt: new Date().toISOString(),
+                    }
+                }
+                return {
+                    id: hashFilename(filename),
+                    name: stem,
+                    version: 'unknown',
+                    filename,
+                    enabled,
+                    installedAt: new Date().toISOString(),
+                }
+            })
+        )
+        const newMods = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
+        if (newMods.length === 0) return state
+
+        const updated = { mods: [...state.mods, ...newMods] }
+        writeFileSync(statePath, JSON.stringify(updated, null, 4))
+        return updated
+    })
 
     ipcMain.handle('mods:install', async (event, modId: number, gamePath: string) => {
         const mod = await getMod(modId)
