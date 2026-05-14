@@ -39,6 +39,11 @@ contextBridge.exposeInMainWorld('api', {
 
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
 
+    getSettings: () => ipcRenderer.invoke('settings:get'),
+    setGamePath: (gamePath: string | null) =>
+        ipcRenderer.invoke('settings:set-game-path', gamePath),
+    pickFolder: () => ipcRenderer.invoke('settings:pick-folder'),
+
     onDownloadProgress: (callback: (info: { downloaded: number; total: number }) => void) => {
         const handler = (_: IpcRendererEvent, info: { downloaded: number; total: number }) =>
             callback(info)

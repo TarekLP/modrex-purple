@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-type NavView = 'browse' | 'installed'
+type NavView = 'browse' | 'installed' | 'settings'
 
 interface Props {
     view: NavView
@@ -10,6 +10,7 @@ interface Props {
 const navItems: { id: NavView; label: string; short: string }[] = [
     { id: 'browse', label: 'Browse Mods', short: 'B' },
     { id: 'installed', label: 'Installed', short: 'I' },
+    { id: 'settings', label: 'Settings', short: 'S' },
 ]
 
 export function Sidebar({ view, onViewChange }: Props) {

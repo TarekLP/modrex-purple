@@ -4,9 +4,10 @@ import { Sidebar } from './components/Sidebar'
 import { BrowsePage } from './components/BrowsePage'
 import { InstalledPage } from './components/InstalledPage'
 import { ModDetailPage } from './components/ModDetailPage'
+import { SettingsPage } from './components/SettingsPage'
 import { TopBar } from './components/TopBar'
 
-export type View = 'browse' | 'installed' | 'detail'
+export type View = 'browse' | 'installed' | 'detail' | 'settings'
 
 export default function App() {
     const [view, setView] = useState<View>('browse')
@@ -41,18 +42,26 @@ export default function App() {
         setDetailModId(null)
     }
 
-    function handleSidebarChange(v: 'browse' | 'installed') {
+    const refreshGamePath = useCallback(async () => {
+        const path = await window.api.findGamePath()
+        setGamePath(path)
+    }, [])
+
+    function handleSidebarChange(v: 'browse' | 'installed' | 'settings') {
         setDetailModId(null)
         setView(v)
     }
 
-    const sidebarView = view === 'detail' ? prevView : view
+    const sidebarView = view === 'detail' ? prevView : (view as 'browse' | 'installed' | 'settings')
 
     return (
         <div className="flex flex-col h-screen bg-surface text-text">
             <TopBar gamePath={gamePath} />
             <div className="flex flex-1 overflow-hidden">
-                <Sidebar view={sidebarView} onViewChange={handleSidebarChange} />
+                <Sidebar
+                    view={sidebarView as 'browse' | 'installed' | 'settings'}
+                    onViewChange={handleSidebarChange}
+                />
                 <main className="flex-1 overflow-hidden">
                     <div className={`h-full ${view === 'browse' ? '' : 'hidden'}`}>
                         <BrowsePage
@@ -69,6 +78,9 @@ export default function App() {
                             onRefreshInstalled={refreshInstalled}
                             onOpenDetail={(id) => openDetail(id, 'installed')}
                         />
+                    </div>
+                    <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>
+                        <SettingsPage gamePath={gamePath} onGamePathChange={refreshGamePath} />
                     </div>
                     {view === 'detail' && detailModId !== null && (
                         <div className="h-full">

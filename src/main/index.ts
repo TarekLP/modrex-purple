@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, globalShortcut, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, globalShortcut, shell, dialog } from 'electron'
 import { join } from 'path'
 import { rmSync, renameSync, existsSync, readdirSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
@@ -22,6 +22,7 @@ import {
     findUntrackedPaks,
 } from './mods'
 import { downloadFile } from './download'
+import { readSettings, writeSettings } from './settings'
 
 function pakFilename(modName: string): string {
     return (
@@ -41,6 +42,7 @@ function hashFilename(filename: string): number {
 }
 
 const statePath = join(app.getPath('userData'), 'installed.json')
+const settingsPath = join(app.getPath('userData'), 'settings.json')
 let resolvedGamePath: string | null = null
 
 function registerHandlers(): void {
@@ -49,7 +51,27 @@ function registerHandlers(): void {
     ipcMain.handle('api:get-mod', (_, id: number) => getMod(id))
     ipcMain.handle('api:list-mod-files', (_, modId: number) => listModFiles(modId))
 
-    ipcMain.handle('mods:find-game-path', () => findGamePath())
+    ipcMain.handle('mods:find-game-path', () => resolvedGamePath)
+
+    ipcMain.handle('settings:get', () => readSettings(settingsPath))
+    ipcMain.handle('settings:set-game-path', (_, gamePath: string | null) => {
+        const settings = readSettings(settingsPath)
+        if (gamePath) {
+            settings.gamePath = gamePath
+        } else {
+            delete settings.gamePath
+        }
+        writeSettings(settingsPath, settings)
+        resolvedGamePath = gamePath ?? findGamePath()
+    })
+    ipcMain.handle('settings:pick-folder', async () => {
+        const result = await dialog.showOpenDialog({
+            title: 'Select PAYDAY 3 installation folder',
+            properties: ['openDirectory'],
+            ...(resolvedGamePath ? { defaultPath: resolvedGamePath } : {}),
+        })
+        return result.canceled ? null : result.filePaths[0]
+    })
     ipcMain.handle('mods:get-installed', async () => {
         const state = resolvedGamePath
             ? reconcileState(resolvedGamePath, statePath)
@@ -263,7 +285,7 @@ async function recoverStateIfNeeded(gamePath: string): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-    resolvedGamePath = findGamePath()
+    resolvedGamePath = readSettings(settingsPath).gamePath ?? findGamePath()
     if (resolvedGamePath) {
         const modsDir = join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak')
