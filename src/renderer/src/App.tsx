@@ -20,8 +20,12 @@ export default function App() {
             <div className="flex flex-1 overflow-hidden">
                 <Sidebar view={view} onViewChange={setView} />
                 <main className="flex-1 overflow-hidden">
-                    {view === 'browse' && <BrowsePage gamePath={gamePath} />}
-                    {view === 'installed' && <InstalledPage gamePath={gamePath} />}
+                    <div className={`h-full ${view === 'browse' ? '' : 'hidden'}`}>
+                        <BrowsePage gamePath={gamePath} />
+                    </div>
+                    <div className={`h-full ${view === 'installed' ? '' : 'hidden'}`}>
+                        <InstalledPage gamePath={gamePath} />
+                    </div>
                 </main>
             </div>
         </div>

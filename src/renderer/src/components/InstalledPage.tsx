@@ -19,6 +19,7 @@ export function InstalledPage({ gamePath }: Props) {
     const refresh = useCallback(async () => {
         const state = await window.api.getInstalled()
         setInstalled(state.mods)
+        setInitialized(true)
 
         const missing = state.mods.filter((m) => !fetchedIds.current.has(m.id))
         if (missing.length > 0) {
@@ -38,8 +39,6 @@ export function InstalledPage({ gamePath }: Props) {
                 })
             }
         }
-
-        setInitialized(true)
     }, [])
 
     useEffect(() => {
