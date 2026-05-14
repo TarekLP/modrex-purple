@@ -56,7 +56,7 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<Tab>('description')
     const [actionLoading, setActionLoading] = useState(false)
-    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
     const installedMod = installed.find((m) => m.id === modId)
 
@@ -81,16 +81,23 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
         fetchData()
     }, [fetchData])
 
+    const images = mod?.images ?? []
+
     useEffect(() => {
         function onKey(e: KeyboardEvent) {
-            if (e.key === 'Escape') {
-                if (lightboxUrl) setLightboxUrl(null)
-                else onBack()
+            if (lightboxIndex !== null) {
+                if (e.key === 'Escape') setLightboxIndex(null)
+                else if (e.key === 'ArrowLeft')
+                    setLightboxIndex((i) => (i! > 0 ? i! - 1 : images.length - 1))
+                else if (e.key === 'ArrowRight')
+                    setLightboxIndex((i) => (i! < images.length - 1 ? i! + 1 : 0))
+            } else if (e.key === 'Escape') {
+                onBack()
             }
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
-    }, [lightboxUrl, onBack])
+    }, [lightboxIndex, images.length, onBack])
 
     async function handleInstall() {
         if (!gamePath || !mod) return
@@ -315,7 +322,7 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                     {/* Tab content */}
                     <div className="px-6 py-5">
                         {tab === 'description' && <DescriptionTab mod={mod} />}
-                        {tab === 'images' && <ImagesTab mod={mod} onOpenImage={setLightboxUrl} />}
+                        {tab === 'images' && <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />}
                         {tab === 'downloads' && <DownloadsTab files={files} />}
                         {tab === 'deps' && <DepsTab mod={mod} deps={allDeps} />}
                     </div>
@@ -323,23 +330,52 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
             )}
 
             {/* Image lightbox */}
-            {lightboxUrl && (
+            {lightboxIndex !== null && images.length > 0 && (
                 <div
-                    className="absolute inset-0 bg-black/85 flex items-center justify-center z-50 p-8"
-                    onClick={() => setLightboxUrl(null)}
+                    className="absolute inset-0 bg-black/90 flex items-center justify-center z-50"
+                    onClick={() => setLightboxIndex(null)}
                 >
+                    {/* Prev */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setLightboxIndex((i) => (i! > 0 ? i! - 1 : images.length - 1))
+                        }}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white text-xl transition-colors"
+                    >
+                        ‹
+                    </button>
+
                     <img
-                        src={lightboxUrl}
+                        src={`${THUMBNAIL_BASE_URL}/${images[lightboxIndex].file}`}
                         alt=""
-                        className="max-w-full max-h-full object-contain rounded"
+                        className="max-w-[calc(100%-8rem)] max-h-[calc(100%-6rem)] object-contain rounded"
                         onClick={(e) => e.stopPropagation()}
                     />
+
+                    {/* Next */}
                     <button
-                        onClick={() => setLightboxUrl(null)}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setLightboxIndex((i) => (i! < images.length - 1 ? i! + 1 : 0))
+                        }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white text-xl transition-colors"
+                    >
+                        ›
+                    </button>
+
+                    {/* Close + counter */}
+                    <button
+                        onClick={() => setLightboxIndex(null)}
                         className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl leading-none"
                     >
                         ×
                     </button>
+                    {images.length > 1 && (
+                        <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/60">
+                            {lightboxIndex + 1} / {images.length}
+                        </span>
+                    )}
                 </div>
             )}
         </div>
@@ -383,25 +419,26 @@ function DescriptionTab({ mod }: { mod: Mod }) {
     )
 }
 
-function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (url: string) => void }) {
+function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (index: number) => void }) {
     const images = mod.images ?? []
     if (images.length === 0) {
         return <p className="text-sm text-text-subtle">No images uploaded for this mod.</p>
     }
     return (
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-            {images.map((img) => {
-                const url = `${THUMBNAIL_BASE_URL}/${img.file}`
-                return (
-                    <button
-                        key={img.id}
-                        onClick={() => onOpenImage(url)}
-                        className="rounded-lg overflow-hidden border border-border hover:border-accent transition-colors focus:outline-none"
-                    >
-                        <img src={url} alt="" className="w-full h-40 object-cover" />
-                    </button>
-                )
-            })}
+            {images.map((img, i) => (
+                <button
+                    key={img.id}
+                    onClick={() => onOpenImage(i)}
+                    className="rounded-lg overflow-hidden border border-border hover:border-accent transition-colors focus:outline-none"
+                >
+                    <img
+                        src={`${THUMBNAIL_BASE_URL}/${img.file}`}
+                        alt=""
+                        className="w-full h-40 object-cover"
+                    />
+                </button>
+            ))}
         </div>
     )
 }
