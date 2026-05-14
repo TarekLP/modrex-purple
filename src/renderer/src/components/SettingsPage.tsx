@@ -6,11 +6,18 @@ interface Props {
 }
 
 export function SettingsPage({ gamePath, onGamePathChange }: Props) {
-    const [settings, setSettings] = useState<{ gamePath?: string } | null>(null)
+    const [settings, setSettings] = useState<{ gamePath?: string; launchOptions?: string } | null>(
+        null
+    )
     const [picking, setPicking] = useState(false)
+    const [launchOptions, setLaunchOptions] = useState('')
+    const [launchOptionsSaved, setLaunchOptionsSaved] = useState(false)
 
     useEffect(() => {
-        window.api.getSettings().then(setSettings)
+        window.api.getSettings().then((s) => {
+            setSettings(s)
+            setLaunchOptions(s.launchOptions ?? '')
+        })
     }, [])
 
     const isManual = !!settings?.gamePath
@@ -32,6 +39,12 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
         await window.api.setGamePath(null)
         setSettings((s) => ({ ...s, gamePath: undefined }))
         await onGamePathChange()
+    }
+
+    async function handleSaveLaunchOptions() {
+        await window.api.setLaunchOptions(launchOptions)
+        setLaunchOptionsSaved(true)
+        setTimeout(() => setLaunchOptionsSaved(false), 2000)
     }
 
     return (
@@ -80,6 +93,30 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                             Could not detect PD3 installation — set the path manually.
                         </p>
                     )}
+                </section>
+
+                <section className="max-w-xl flex flex-col gap-2 mt-6">
+                    <h2 className="text-sm font-semibold">Launch Options</h2>
+                    <p className="text-xs text-text-subtle">
+                        Extra arguments passed to PAYDAY 3 on launch via Steam. Example:{' '}
+                        <span className="font-mono">-high -dx12 -fileopenlog</span>
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                        <input
+                            type="text"
+                            value={launchOptions}
+                            onChange={(e) => setLaunchOptions(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSaveLaunchOptions()}
+                            placeholder="-high -dx12 -fileopenlog"
+                            className="flex-1 text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent"
+                        />
+                        <button
+                            onClick={handleSaveLaunchOptions}
+                            className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0"
+                        >
+                            {launchOptionsSaved ? 'Saved' : 'Save'}
+                        </button>
+                    </div>
                 </section>
             </div>
         </div>

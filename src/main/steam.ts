@@ -12,6 +12,10 @@ export function buildGamePath(libraryPath: string): string {
     return join(parseSteamLibraryPath(libraryPath), PD3_RELATIVE_PATH)
 }
 
+export function findSteamPath(): string | null {
+    return readSteamInstallPath()
+}
+
 function readSteamInstallPath(): string | null {
     try {
         const output = execSync(

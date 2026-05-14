@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, shell, dialog } from 'electron'
 import { join } from 'path'
 import { rmSync, renameSync, existsSync, readdirSync, writeFileSync } from 'fs'
-import { execSync } from 'child_process'
+import { execSync, spawn } from 'child_process'
 import {
     listMods,
     getMod,
@@ -11,7 +11,7 @@ import {
     registerDownload,
     type ListModsParams,
 } from './api'
-import { findGamePath } from './steam'
+import { findGamePath, findSteamPath } from './steam'
 import {
     installMod,
     uninstallMod,
@@ -209,17 +209,43 @@ function registerHandlers(): void {
         } catch {}
     })
 
-    ipcMain.handle('app:launch-modded', async () => {
-        await shell.openExternal('steam://rungameid/1272080')
+    function launchGame(launchOptions: string | undefined): void {
+        const opts = launchOptions?.trim()
+        const steamPath = findSteamPath()
+        if (opts && steamPath) {
+            const child = spawn(
+                join(steamPath, 'steam.exe'),
+                ['-applaunch', '1272080', ...opts.split(/\s+/)],
+                {
+                    detached: true,
+                    stdio: 'ignore',
+                }
+            )
+            child.unref()
+        } else {
+            shell.openExternal('steam://rungameid/1272080')
+        }
+    }
+
+    ipcMain.handle('app:launch-modded', () => {
+        const { launchOptions } = readSettings(settingsPath)
+        launchGame(launchOptions)
     })
 
     ipcMain.handle('shell:open-external', (_, url: string) => shell.openExternal(url))
 
-    ipcMain.handle('app:launch-without-mods', async (_, gamePath: string) => {
+    ipcMain.handle('app:launch-without-mods', (_, gamePath: string) => {
         const modsDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(gamePath, 'PAYDAY3', 'Content', '~mods.bak')
         if (existsSync(modsDir)) renameSync(modsDir, modsBak)
-        await shell.openExternal('steam://rungameid/1272080')
+        const { launchOptions } = readSettings(settingsPath)
+        launchGame(launchOptions)
+    })
+
+    ipcMain.handle('settings:set-launch-options', (_, launchOptions: string) => {
+        const settings = readSettings(settingsPath)
+        settings.launchOptions = launchOptions || undefined
+        writeSettings(settingsPath, settings)
     })
 }
 

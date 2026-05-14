@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('api', {
     getSettings: () => ipcRenderer.invoke('settings:get'),
     setGamePath: (gamePath: string | null) =>
         ipcRenderer.invoke('settings:set-game-path', gamePath),
+    setLaunchOptions: (launchOptions: string) =>
+        ipcRenderer.invoke('settings:set-launch-options', launchOptions),
     pickFolder: () => ipcRenderer.invoke('settings:pick-folder'),
 
     onDownloadProgress: (callback: (info: { downloaded: number; total: number }) => void) => {
