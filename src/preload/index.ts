@@ -11,6 +11,25 @@ contextBridge.exposeInMainWorld('api', {
     getInstalled: () => ipcRenderer.invoke('mods:get-installed'),
     installMod: (modId: number, gamePath: string) =>
         ipcRenderer.invoke('mods:install', modId, gamePath),
+    installModFile: (
+        modId: number,
+        modName: string,
+        fileId: number,
+        downloadUrl: string,
+        fileType: string,
+        fileVersion: string,
+        gamePath: string
+    ) =>
+        ipcRenderer.invoke(
+            'mods:install-file',
+            modId,
+            modName,
+            fileId,
+            downloadUrl,
+            fileType,
+            fileVersion,
+            gamePath
+        ),
     uninstallMod: (modId: number, gamePath: string) =>
         ipcRenderer.invoke('mods:uninstall', modId, gamePath),
     enableMod: (modId: number, gamePath: string) =>

@@ -323,7 +323,15 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                     <div className="px-6 py-5">
                         {tab === 'description' && <DescriptionTab mod={mod} />}
                         {tab === 'images' && <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />}
-                        {tab === 'downloads' && <DownloadsTab files={files} />}
+                        {tab === 'downloads' && (
+                            <DownloadsTab
+                                files={files}
+                                mod={mod}
+                                gamePath={gamePath}
+                                installedMod={installedMod}
+                                onRefreshInstalled={onRefreshInstalled}
+                            />
+                        )}
                         {tab === 'deps' && <DepsTab mod={mod} deps={allDeps} />}
                     </div>
                 </div>
@@ -443,12 +451,54 @@ function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (index: number
     )
 }
 
-function DownloadsTab({ files }: { files: ModFile[] }) {
+function DownloadsTab({
+    files,
+    mod,
+    gamePath,
+    installedMod,
+    onRefreshInstalled,
+}: {
+    files: ModFile[]
+    mod: Mod
+    gamePath: string | null
+    installedMod: InstalledMod | undefined
+    onRefreshInstalled: () => Promise<void>
+}) {
+    const [installingId, setInstallingId] = useState<number | null>(null)
+    const [installError, setInstallError] = useState<string | null>(null)
+
+    async function handleInstallFile(file: ModFile) {
+        if (!gamePath) return
+        setInstallingId(file.id)
+        setInstallError(null)
+        try {
+            await window.api.installModFile(
+                mod.id,
+                mod.name,
+                file.id,
+                file.download_url,
+                file.type,
+                file.version || file.label || mod.version,
+                gamePath
+            )
+            await onRefreshInstalled()
+        } catch (e) {
+            setInstallError(String(e))
+        } finally {
+            setInstallingId(null)
+        }
+    }
+
     if (files.length === 0) {
         return <p className="text-sm text-text-subtle">No files available.</p>
     }
     return (
         <div className="flex flex-col gap-2">
+            {installError && (
+                <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
+                    {installError}
+                </div>
+            )}
             {files.map((file) => (
                 <div
                     key={file.id}
@@ -469,12 +519,35 @@ function DownloadsTab({ files }: { files: ModFile[] }) {
                             {file.created_at && <span>{formatDate(file.created_at)}</span>}
                         </div>
                     </div>
-                    <button
-                        onClick={() => window.api.openExternal(file.download_url)}
-                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0"
-                    >
-                        Download
-                    </button>
+                    <div className="flex gap-2 shrink-0">
+                        {(() => {
+                            const fileVersion = file.version || file.label || mod.version
+                            const isInstalled = installedMod?.version === fileVersion
+                            return (
+                                <button
+                                    disabled={!gamePath || installingId === file.id || isInstalled}
+                                    onClick={() => handleInstallFile(file)}
+                                    className={`text-xs px-3 py-1.5 rounded transition-colors disabled:cursor-not-allowed ${
+                                        isInstalled
+                                            ? 'bg-success/20 border border-success/40 text-success-text cursor-default'
+                                            : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
+                                    }`}
+                                >
+                                    {installingId === file.id
+                                        ? 'Installing…'
+                                        : isInstalled
+                                          ? 'Installed'
+                                          : 'Install'}
+                                </button>
+                            )
+                        })()}
+                        <button
+                            onClick={() => window.api.openExternal(file.download_url)}
+                            className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors"
+                        >
+                            Download ↗
+                        </button>
+                    </div>
                 </div>
             ))}
         </div>

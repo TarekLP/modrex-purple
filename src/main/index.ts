@@ -54,6 +54,40 @@ function registerHandlers(): void {
         }
     })
 
+    ipcMain.handle(
+        'mods:install-file',
+        async (
+            _,
+            modId: number,
+            modName: string,
+            fileId: number,
+            downloadUrl: string,
+            fileType: string,
+            fileVersion: string,
+            gamePath: string
+        ) => {
+            const tmp = await downloadFile(downloadUrl, fileType)
+            try {
+                installMod(
+                    gamePath,
+                    statePath,
+                    {
+                        id: modId,
+                        name: modName,
+                        version: fileVersion,
+                        filename: `${modId}.pak`,
+                        enabled: true,
+                        installedAt: new Date().toISOString(),
+                    },
+                    tmp
+                )
+                await registerDownload(fileId)
+            } finally {
+                rmSync(tmp, { force: true })
+            }
+        }
+    )
+
     ipcMain.handle('mods:uninstall', (_, modId: number, gamePath: string) =>
         uninstallMod(gamePath, statePath, modId)
     )

@@ -12,6 +12,15 @@ declare global {
             findGamePath(): Promise<string | null>
             getInstalled(): Promise<ModsState>
             installMod(modId: number, gamePath: string): Promise<void>
+            installModFile(
+                modId: number,
+                modName: string,
+                fileId: number,
+                downloadUrl: string,
+                fileType: string,
+                fileVersion: string,
+                gamePath: string
+            ): Promise<void>
             uninstallMod(modId: number, gamePath: string): Promise<void>
             enableMod(modId: number, gamePath: string): Promise<void>
             disableMod(modId: number, gamePath: string): Promise<void>
