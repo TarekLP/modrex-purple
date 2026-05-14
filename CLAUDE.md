@@ -40,10 +40,10 @@ Electron app with three processes wired by `electron-vite`:
 ### Renderer components
 
 - **`App.tsx`** — shell with TopBar + sidebar + view switcher. Fetches `gamePath` once on mount and passes it down.
-- **`components/TopBar.tsx`** — fixed header with "Launch modded" and "Launch without mods" buttons. "Launch without mods" renames `~mods` → `PAYDAY3/Content/~mods.bak` (one level above `Paks/`) before opening Steam — must be outside `Paks/` because UE5 scans all subdirectories there.
+- **`components/TopBar.tsx`** — fixed header that polls `isGameRunning` every 3s. When `PAYDAY3-Win64-Shipping.exe` is detected: shows a "Stop game" button. Otherwise: shows "Launch modded" and "Launch without mods". "Launch without mods" renames `~mods` → `PAYDAY3/Content/~mods.bak` (one level above `Paks/`) before opening Steam — must be outside `Paks/` because UE5 scans all subdirectories there. Game detection uses `tasklist /FI` — note that Windows truncates process names at 25 chars, so the check is for `PAYDAY3-Win64-Shipping` (not the full `.exe`).
 - **`components/Sidebar.tsx`** — nav between Browse and Installed views.
 - **`components/BrowsePage.tsx`** — paginated mod grid with search, category filter, and sort. Fetches `listMods` + `listCategories` + `getInstalled`; handles install/uninstall/enable/disable.
-- **`components/InstalledPage.tsx`** — fetches full `Mod` data from the API for each installed mod and renders `ModCard`. Detects updates by comparing `installed.version` vs `mod.version`; shows a banner and modal with per-mod checkboxes + "Update Selected" when updates exist. Refreshes on window focus.
+- **`components/InstalledPage.tsx`** — fetches full `Mod` data from the API for each installed mod and renders `ModCard`. Mod metadata is cached in a `useRef<Set<number>>` of already-fetched IDs — subsequent refreshes only call `getMod` for new mod IDs, never re-fetching existing ones. Detects updates by comparing `installed.version` vs `mod.version`; shows a banner and modal with per-mod checkboxes + "Update Selected" when updates exist. Refreshes on window focus.
 - **`components/ModCard.tsx`** — shared card used by both BrowsePage and InstalledPage. When `installed` prop is set: shows version + enable/disable/remove buttons. When not set: shows download count + last updated + install button.
 - **`components/Select.tsx`** — reusable custom dropdown. Use this instead of native `<select>` — native selects render with OS chrome that can't be themed.
 
