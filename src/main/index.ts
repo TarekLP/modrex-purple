@@ -5,6 +5,7 @@ import { execSync } from 'child_process'
 import {
     listMods,
     getMod,
+    getLatestFile,
     listModFiles,
     listCategories,
     registerDownload,
@@ -30,8 +31,9 @@ function registerHandlers(): void {
 
     ipcMain.handle('mods:install', async (_, modId: number, gamePath: string) => {
         const mod = await getMod(modId)
-        if (!mod.download) throw new Error('Mod has no download')
-        const tmp = await downloadFile(mod.download.download_url, mod.download.type)
+        const file = mod.download ?? (mod.has_download ? await getLatestFile(modId) : null)
+        if (!file) throw new Error('Mod has no download')
+        const tmp = await downloadFile(file.download_url, file.type)
         try {
             installMod(
                 gamePath,
@@ -46,7 +48,7 @@ function registerHandlers(): void {
                 },
                 tmp
             )
-            await registerDownload(mod.download.id)
+            await registerDownload(file.id)
         } finally {
             rmSync(tmp, { force: true })
         }
