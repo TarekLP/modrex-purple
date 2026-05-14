@@ -34,15 +34,17 @@ Electron app with three processes wired by `electron-vite`:
 
 - **`api.ts`** — modworkshop REST API calls. `listMods`, `getMod`, `getLatestFile`, `listCategories`, `registerDownload`. All public GET endpoints, no auth token needed. Params sent as query string (Node fetch rejects GET with body).
 - **`steam.ts`** — finds PD3 install path by reading Windows registry (`HKLM\SOFTWARE\WOW6432Node\Valve\Steam`) and scanning `libraryfolders.vdf`.
-- **`mods.ts`** — mod file operations. Installs `.pak` files to `{gamePath}/PAYDAY3/Content/Paks/~mods/`, moves to `~mods/disabled/` on disable, removes on uninstall. Tracks state in a JSON file. Pure functions (`addToState`, `removeFromState`, `setEnabled`, `activeModPath`, `disabledModPath`) are exported separately for testing.
+- **`mods.ts`** — mod file operations. Installs `.pak` files to `{gamePath}/PAYDAY3/Content/Paks/~mods/`, moves to `~mods/disabled/` on disable, removes on uninstall. Tracks state in a JSON file. Pure functions (`addToState`, `removeFromState`, `setEnabled`, `activeModPath`, `disabledModPath`) are exported separately for testing. `reconcileState` checks each state entry against disk on every `getInstalled` call and removes stale entries — but skips reconciliation when `~mods.bak` exists (mods are temporarily hidden, not deleted).
+- **`index.ts`** — registers all IPC handlers and caches `resolvedGamePath` at startup. On startup: restores `~mods.bak` → `~mods` if present, then runs `recoverStateIfNeeded` which scans `~mods` for orphaned `.pak` files and rebuilds `installed.json` via API calls if the state is empty. DevTools toggle is Ctrl+Shift+I, dev builds only.
 
 ### Renderer components
 
-- **`App.tsx`** — shell with sidebar + view switcher. Fetches `gamePath` once on mount and passes it down.
+- **`App.tsx`** — shell with TopBar + sidebar + view switcher. Fetches `gamePath` once on mount and passes it down.
+- **`components/TopBar.tsx`** — fixed header with "Launch modded" and "Launch without mods" buttons. "Launch without mods" renames `~mods` → `PAYDAY3/Content/~mods.bak` (one level above `Paks/`) before opening Steam — must be outside `Paks/` because UE5 scans all subdirectories there.
 - **`components/Sidebar.tsx`** — nav between Browse and Installed views.
 - **`components/BrowsePage.tsx`** — paginated mod grid with search, category filter, and sort. Fetches `listMods` + `listCategories` + `getInstalled`; handles install/uninstall/enable/disable.
-- **`components/InstalledPage.tsx`** — list of installed mods with enable/disable/remove.
-- **`components/ModCard.tsx`** — single mod card used by BrowsePage.
+- **`components/InstalledPage.tsx`** — fetches full `Mod` data from the API for each installed mod and renders `ModCard`. Detects updates by comparing `installed.version` vs `mod.version`; shows a banner and modal with per-mod checkboxes + "Update Selected" when updates exist. Refreshes on window focus.
+- **`components/ModCard.tsx`** — shared card used by both BrowsePage and InstalledPage. When `installed` prop is set: shows version + enable/disable/remove buttons. When not set: shows download count + last updated + install button.
 - **`components/Select.tsx`** — reusable custom dropdown. Use this instead of native `<select>` — native selects render with OS chrome that can't be themed.
 
 ### Styling
@@ -55,6 +57,7 @@ All colors are defined as semantic tokens in `src/renderer/src/index.css` via Ta
 - The modworkshop API at `api.modworkshop.net` requires a `User-Agent` header or returns 403.
 - Mod thumbnails: `thumbnail.file` is a bare filename. Full URL: `${THUMBNAIL_BASE_URL}/${file}` where `THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'` (exported from `src/shared/types.ts`).
 - PD3 mods are `.pak` files. Active path: `{gamePath}/PAYDAY3/Content/Paks/~mods/`. Disabled path: `{gamePath}/PAYDAY3/Content/Paks/~mods/disabled/`. The `gamePath` is the Steam library root (`steamapps/common/PAYDAY3`); game content lives one level deeper in the `PAYDAY3/` subdirectory.
+- Mod filenames are `{modId}.pak` — the ID encodes the modworkshop mod ID, used by `recoverStateIfNeeded` to re-fetch metadata for orphaned files.
 - Anti-cheat (Nebula) is not a concern — mods work online freely.
 
 ## Workflow
