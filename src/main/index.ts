@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, shell, dialog } from 'electron'
 import { join } from 'path'
-import { rmSync, renameSync, existsSync, readdirSync, writeFileSync } from 'fs'
+import { rmSync, renameSync, existsSync, writeFileSync } from 'fs'
 import { execSync, spawn } from 'child_process'
 import {
     listMods,
@@ -274,54 +274,12 @@ function createWindow(): BrowserWindow {
     return win
 }
 
-async function recoverStateIfNeeded(gamePath: string): Promise<void> {
-    if (readState(statePath).mods.length > 0) return
-
-    const activeDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
-    const disabledDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
-
-    const orphaned: { id: number; enabled: boolean }[] = []
-    if (existsSync(activeDir)) {
-        for (const file of readdirSync(activeDir)) {
-            if (file.endsWith('.pak')) {
-                const id = parseInt(file.slice(0, -4), 10)
-                if (!isNaN(id)) orphaned.push({ id, enabled: true })
-            }
-        }
-    }
-    if (existsSync(disabledDir)) {
-        for (const file of readdirSync(disabledDir)) {
-            if (file.endsWith('.pak')) {
-                const id = parseInt(file.slice(0, -4), 10)
-                if (!isNaN(id)) orphaned.push({ id, enabled: false })
-            }
-        }
-    }
-    if (orphaned.length === 0) return
-
-    const results = await Promise.allSettled(
-        orphaned.map(({ id, enabled }) =>
-            getMod(id).then((mod) => ({
-                id: mod.id,
-                name: mod.name,
-                version: mod.version,
-                filename: `${mod.id}.pak`,
-                enabled,
-                installedAt: new Date().toISOString(),
-            }))
-        )
-    )
-    const recovered = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
-    if (recovered.length > 0) writeFileSync(statePath, JSON.stringify({ mods: recovered }, null, 4))
-}
-
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
     resolvedGamePath = readSettings(settingsPath).gamePath ?? findGamePath()
     if (resolvedGamePath) {
         const modsDir = join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak')
         if (!existsSync(modsDir) && existsSync(modsBak)) renameSync(modsBak, modsDir)
-        await recoverStateIfNeeded(resolvedGamePath)
     }
 
     registerHandlers()
