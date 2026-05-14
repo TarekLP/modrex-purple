@@ -26,6 +26,7 @@ function buildPages(current: number, last: number): (number | '...')[] {
 }
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+    { value: 'bumped_at', label: 'Last Updated' },
     { value: 'downloads', label: 'Most Downloaded' },
     { value: 'likes', label: 'Most Liked' },
     { value: 'published_at', label: 'Newest' },
@@ -36,7 +37,7 @@ export function BrowsePage({ gamePath }: Props) {
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
-    const [sort, setSort] = useState<SortOption>('downloads')
+    const [sort, setSort] = useState<SortOption>('bumped_at')
     const [result, setResult] = useState<Paginated<Mod> | null>(null)
     const [categories, setCategories] = useState<Category[]>([])
     const [installed, setInstalled] = useState<InstalledMod[]>([])
