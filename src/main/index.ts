@@ -23,6 +23,15 @@ import {
 } from './mods'
 import { downloadFile } from './download'
 
+function pakFilename(modName: string): string {
+    return (
+        modName
+            .trim()
+            .replace(/[^\w.-]+/g, '_')
+            .replace(/^_+|_+$/g, '') + '.pak'
+    )
+}
+
 function hashFilename(filename: string): number {
     let h = 0
     for (let i = 0; i < filename.length; i++) {
@@ -99,7 +108,9 @@ function registerHandlers(): void {
                     id: mod.id,
                     name: mod.name,
                     version: mod.version,
-                    filename: `${mod.id}.pak`,
+                    filename:
+                        readState(statePath).mods.find((m) => m.id === mod.id)?.filename ??
+                        pakFilename(mod.name),
                     enabled: true,
                     installedAt: new Date().toISOString(),
                 },
@@ -134,7 +145,9 @@ function registerHandlers(): void {
                         id: modId,
                         name: modName,
                         version: fileVersion,
-                        filename: `${modId}.pak`,
+                        filename:
+                            readState(statePath).mods.find((m) => m.id === modId)?.filename ??
+                            pakFilename(modName),
                         enabled: true,
                         installedAt: new Date().toISOString(),
                     },
