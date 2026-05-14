@@ -18,14 +18,6 @@ export function Sidebar({ view, onViewChange }: Props) {
         <aside
             className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-200`}
         >
-            {!collapsed && (
-                <div className="px-4 py-5 border-b border-border">
-                    <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
-                        PD3 Mods
-                    </span>
-                </div>
-            )}
-
             <nav className={`flex flex-col gap-1 p-2 flex-1 ${collapsed ? 'items-center' : ''}`}>
                 {navItems.map((item) => (
                     <button

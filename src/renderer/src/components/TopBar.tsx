@@ -28,31 +28,36 @@ export function TopBar({ gamePath }: Props) {
     }
 
     return (
-        <div className="h-10 shrink-0 flex items-center justify-end gap-2 px-4 bg-surface border-b border-border">
-            {gameRunning ? (
-                <button
-                    onClick={stopGame}
-                    className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors"
-                >
-                    Stop game
-                </button>
-            ) : (
-                <>
+        <div className="h-10 shrink-0 flex items-center justify-between px-4 bg-surface border-b border-border">
+            <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
+                PD3 Mods
+            </span>
+            <div className="flex items-center gap-2">
+                {gameRunning ? (
                     <button
-                        disabled={!gamePath}
-                        onClick={launchWithoutMods}
-                        className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        onClick={stopGame}
+                        className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors"
                     >
-                        Launch without mods
+                        Stop game
                     </button>
-                    <button
-                        onClick={launchModded}
-                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors"
-                    >
-                        Launch modded
-                    </button>
-                </>
-            )}
+                ) : (
+                    <>
+                        <button
+                            disabled={!gamePath}
+                            onClick={launchWithoutMods}
+                            className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Launch without mods
+                        </button>
+                        <button
+                            onClick={launchModded}
+                            className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors"
+                        >
+                            Launch modded
+                        </button>
+                    </>
+                )}
+            </div>
         </div>
     )
 }
