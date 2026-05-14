@@ -58,10 +58,18 @@ export function ModCard({
                 <p className="text-xs text-text-subtle line-clamp-2 flex-1">{mod.short_desc}</p>
                 <div className="flex items-center justify-between mt-auto">
                     <div className="flex flex-col">
-                        <span className="text-xs text-text-subtle">
-                            {mod.downloads.toLocaleString()} dl
-                        </span>
-                        <span className="text-xs text-text-subtle">{timeAgo(mod.bumped_at)}</span>
+                        {installed ? (
+                            <span className="text-xs text-text-subtle">v{installed.version}</span>
+                        ) : (
+                            <>
+                                <span className="text-xs text-text-subtle">
+                                    {mod.downloads.toLocaleString()} dl
+                                </span>
+                                <span className="text-xs text-text-subtle">
+                                    {timeAgo(mod.bumped_at)}
+                                </span>
+                            </>
+                        )}
                     </div>
                     {!installed && (
                         <button
