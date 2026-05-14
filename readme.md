@@ -11,6 +11,7 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 ## Features
 
 - Browse and search mods from modworkshop
+- Full mod detail page: description, images, downloads, dependencies, and install instructions
 - One-click install, uninstall, enable, and disable
 - Update detection with selective per-mod updates
 - Launch modded or vanilla directly from the app
