@@ -8,6 +8,7 @@ export interface Mod {
     likes: number
     views: number
     published_at: string
+    bumped_at: string
     category_id: number
     has_download: boolean
     thumbnail: { file: string } | null
