@@ -1,21 +1,31 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Play, Square, TriangleAlert } from 'lucide-react'
 
 interface Props {
     gamePath: string | null
+    onRefreshInstalled: () => Promise<void>
 }
 
-export function TopBar({ gamePath }: Props) {
+export function TopBar({ gamePath, onRefreshInstalled }: Props) {
     const [gameRunning, setGameRunning] = useState(false)
     const [showWarning, setShowWarning] = useState(false)
     const [dontShowAgain, setDontShowAgain] = useState(false)
+    const wasRunning = useRef(false)
 
     useEffect(() => {
-        const check = () => window.api.isGameRunning().then(setGameRunning)
+        const check = async () => {
+            const running = await window.api.isGameRunning()
+            if (wasRunning.current && !running) {
+                await window.api.restoreMods()
+                await onRefreshInstalled()
+            }
+            wasRunning.current = running
+            setGameRunning(running)
+        }
         check()
         const id = setInterval(check, 3000)
         return () => clearInterval(id)
-    }, [])
+    }, [onRefreshInstalled])
 
     async function handleLaunchModded() {
         const settings = await window.api.getSettings()

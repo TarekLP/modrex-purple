@@ -45,6 +45,7 @@ declare global {
             stopGame(): Promise<void>
             launchModded(): Promise<void>
             launchWithoutMods(gamePath: string): Promise<void>
+            restoreMods(): Promise<void>
         }
     }
 }

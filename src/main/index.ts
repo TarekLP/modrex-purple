@@ -244,6 +244,13 @@ function registerHandlers(): void {
         launchGame(launchOptions)
     })
 
+    ipcMain.handle('app:restore-mods', () => {
+        if (!resolvedGamePath) return
+        const modsDir = join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
+        const modsBak = join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak')
+        if (!existsSync(modsDir) && existsSync(modsBak)) renameSync(modsBak, modsDir)
+    })
+
     ipcMain.handle('settings:set-launch-options', (_, launchOptions: string) => {
         const settings = readSettings(settingsPath)
         settings.launchOptions = launchOptions || undefined

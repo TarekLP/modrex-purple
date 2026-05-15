@@ -66,7 +66,7 @@ export default function App() {
 
     return (
         <div className="flex flex-col h-screen bg-surface text-text">
-            <TopBar gamePath={gamePath} />
+            <TopBar gamePath={gamePath} onRefreshInstalled={refreshInstalled} />
             <div className="flex flex-1 overflow-hidden">
                 <Sidebar
                     view={sidebarView as 'browse' | 'installed' | 'settings'}
