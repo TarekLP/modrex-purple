@@ -1,4 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+    ArrowLeft,
+    ToggleLeft,
+    ToggleRight,
+    Trash2,
+    Download,
+    ExternalLink,
+    ChevronLeft,
+    ChevronRight,
+    X,
+} from 'lucide-react'
 import { marked } from 'marked'
 import type { Mod, ModFile, ModDependency, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
@@ -207,7 +218,8 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                     onClick={onBack}
                     className="text-sm text-text-muted hover:text-text transition-colors flex items-center gap-1.5 shrink-0"
                 >
-                    ← Back
+                    <ArrowLeft className="w-4 h-4" />
+                    Back
                 </button>
                 {mod && (
                     <span className="text-sm text-text-subtle truncate hidden sm:block">
@@ -221,24 +233,27 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                                 <button
                                     disabled={!canAct}
                                     onClick={handleDisable}
-                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors"
+                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors flex items-center gap-1.5"
                                 >
+                                    <ToggleLeft className="w-3.5 h-3.5" />
                                     Disable
                                 </button>
                             ) : (
                                 <button
                                     disabled={!canAct}
                                     onClick={handleEnable}
-                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors"
+                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors flex items-center gap-1.5"
                                 >
+                                    <ToggleRight className="w-3.5 h-3.5" />
                                     Enable
                                 </button>
                             )}
                             <button
                                 disabled={!canAct}
                                 onClick={handleUninstall}
-                                className="text-xs px-3 py-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
+                                className="text-xs px-3 py-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors flex items-center gap-1.5"
                             >
+                                <Trash2 className="w-3.5 h-3.5" />
                                 {actionLoading ? 'Working…' : 'Remove'}
                             </button>
                         </>
@@ -247,8 +262,9 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                         <button
                             disabled={!canAct || !mod.has_download}
                             onClick={handleInstall}
-                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                         >
+                            {!actionLoading && <Download className="w-3.5 h-3.5" />}
                             {actionLoading
                                 ? downloadProgress
                                     ? downloadProgress.total > 0
@@ -312,9 +328,10 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                                                 onClick={() =>
                                                     window.api.openExternal(mod.repo_url!)
                                                 }
-                                                className="text-accent-bright hover:underline"
+                                                className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
                                             >
                                                 Source
+                                                <ExternalLink className="w-3 h-3" />
                                             </button>
                                         </>
                                     )}
@@ -420,9 +437,9 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                             e.stopPropagation()
                             setLightboxIndex((i) => (i! > 0 ? i! - 1 : images.length - 1))
                         }}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white text-xl transition-colors"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white transition-colors"
                     >
-                        ‹
+                        <ChevronLeft className="w-6 h-6" />
                     </button>
 
                     <img
@@ -438,17 +455,17 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                             e.stopPropagation()
                             setLightboxIndex((i) => (i! < images.length - 1 ? i! + 1 : 0))
                         }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white text-xl transition-colors"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white transition-colors"
                     >
-                        ›
+                        <ChevronRight className="w-6 h-6" />
                     </button>
 
                     {/* Close + counter */}
                     <button
                         onClick={() => setLightboxIndex(null)}
-                        className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl leading-none"
+                        className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
                     >
-                        ×
+                        <X className="w-5 h-5" />
                     </button>
                     {images.length > 1 && (
                         <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/60">
@@ -600,12 +617,15 @@ function DownloadsTab({
                                 <button
                                     disabled={!gamePath || installingId === file.id || isInstalled}
                                     onClick={() => handleInstallFile(file)}
-                                    className={`text-xs px-3 py-1.5 rounded transition-colors disabled:cursor-not-allowed ${
+                                    className={`text-xs px-3 py-1.5 rounded transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
                                         isInstalled
                                             ? 'bg-success/20 border border-success/40 text-success-text cursor-default'
                                             : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
                                     }`}
                                 >
+                                    {installingId !== file.id && !isInstalled && (
+                                        <Download className="w-3.5 h-3.5" />
+                                    )}
                                     {installingId === file.id
                                         ? downloadProgress
                                             ? downloadProgress.total > 0
@@ -620,9 +640,10 @@ function DownloadsTab({
                         })()}
                         <button
                             onClick={() => window.api.openExternal(file.download_url)}
-                            className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors"
+                            className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center gap-1.5"
                         >
-                            Download ↗
+                            Download
+                            <ExternalLink className="w-3 h-3" />
                         </button>
                     </div>
                 </div>
@@ -773,16 +794,18 @@ function DepRow({
                 <button
                     disabled={installing}
                     onClick={handleInstall}
-                    className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                    className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 flex items-center gap-1.5"
                 >
+                    {!installing && <Download className="w-3.5 h-3.5" />}
                     {installing ? 'Installing…' : 'Install'}
                 </button>
             )}
             <button
                 onClick={() => window.api.openExternal(`https://modworkshop.net/mod/${mod.id}`)}
-                className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors shrink-0"
+                className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors shrink-0 flex items-center gap-1.5"
             >
-                View ↗
+                View
+                <ExternalLink className="w-3 h-3" />
             </button>
         </div>
     )

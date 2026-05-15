@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { X, TriangleAlert } from 'lucide-react'
 import type { ModDependency } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 
@@ -31,16 +32,19 @@ export function DepsWarningModal({
             <div className="bg-surface-raised border border-border rounded-lg shadow-xl w-[480px] p-6 flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex flex-col gap-1">
-                        <h2 className="text-sm font-semibold">Missing required dependencies</h2>
+                        <h2 className="text-sm font-semibold flex items-center gap-2">
+                            <TriangleAlert className="w-4 h-4 text-yellow-400 shrink-0" />
+                            Missing required dependencies
+                        </h2>
                         <p className="text-xs text-text-muted">
                             This mod requires the following mods to be installed:
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-text-subtle hover:text-text transition-colors text-base leading-none shrink-0 mt-0.5"
+                        className="text-text-subtle hover:text-text transition-colors shrink-0 mt-0.5"
                     >
-                        ✕
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
                 <div className="flex flex-col gap-2">

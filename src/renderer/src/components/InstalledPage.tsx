@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { X } from 'lucide-react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 
@@ -225,9 +226,9 @@ export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenD
                             </h2>
                             <button
                                 onClick={() => setShowUpdates(false)}
-                                className="text-text-subtle hover:text-text transition-colors text-lg leading-none"
+                                className="text-text-subtle hover:text-text transition-colors"
                             >
-                                ×
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
 

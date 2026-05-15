@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Play, Square, TriangleAlert } from 'lucide-react'
 
 interface Props {
     gamePath: string | null
@@ -51,8 +52,9 @@ export function TopBar({ gamePath }: Props) {
                     {gameRunning ? (
                         <button
                             onClick={stopGame}
-                            className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors"
+                            className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors flex items-center gap-1.5"
                         >
+                            <Square className="w-3.5 h-3.5" fill="currentColor" />
                             Stop game
                         </button>
                     ) : (
@@ -60,14 +62,16 @@ export function TopBar({ gamePath }: Props) {
                             <button
                                 disabled={!gamePath}
                                 onClick={launchWithoutMods}
-                                className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                             >
+                                <Play className="w-3.5 h-3.5" fill="currentColor" />
                                 Launch without mods
                             </button>
                             <button
                                 onClick={handleLaunchModded}
-                                className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors"
+                                className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
                             >
+                                <Play className="w-3.5 h-3.5" fill="currentColor" />
                                 Launch modded
                             </button>
                         </>
@@ -79,7 +83,10 @@ export function TopBar({ gamePath }: Props) {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                     <div className="bg-surface-raised border border-border rounded-lg shadow-xl w-96 p-6 flex flex-col gap-4">
                         <div className="flex flex-col gap-1">
-                            <h2 className="text-sm font-semibold">Missing launch option</h2>
+                            <h2 className="text-sm font-semibold flex items-center gap-2">
+                                <TriangleAlert className="w-4 h-4 text-yellow-400 shrink-0" />
+                                Missing launch option
+                            </h2>
                             <p className="text-xs text-text-muted">
                                 <span className="font-mono text-text">-fileopenlog</span> is
                                 required for mods to load correctly. Add it in{' '}

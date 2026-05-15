@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Download, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 
@@ -100,8 +101,9 @@ export function ModCard({
                     <button
                         disabled={!canAct || !mod.has_download}
                         onClick={onInstall}
-                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                     >
+                        {!loading && <Download className="w-3.5 h-3.5" />}
                         {loading
                             ? progressPct !== null
                                 ? `${progressPct}%`
@@ -117,24 +119,27 @@ export function ModCard({
                             <button
                                 disabled={!canAct}
                                 onClick={onDisable}
-                                className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors"
+                                className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors flex items-center gap-1.5"
                             >
+                                <ToggleLeft className="w-3.5 h-3.5" />
                                 Disable
                             </button>
                         ) : (
                             <button
                                 disabled={!canAct}
                                 onClick={onEnable}
-                                className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors"
+                                className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors flex items-center gap-1.5"
                             >
+                                <ToggleRight className="w-3.5 h-3.5" />
                                 Enable
                             </button>
                         )}
                         <button
                             disabled={!canAct}
                             onClick={onUninstall}
-                            className="text-xs px-2 py-1 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
+                            className="text-xs px-2 py-1 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors flex items-center gap-1.5"
                         >
+                            <Trash2 className="w-3.5 h-3.5" />
                             Remove
                         </button>
                     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { FolderOpen, RotateCcw } from 'lucide-react'
 
 interface Props {
     gamePath: string | null
@@ -70,16 +71,18 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                             {isManual && (
                                 <button
                                     onClick={handleReset}
-                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors"
+                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center gap-1.5"
                                 >
+                                    <RotateCcw className="w-3.5 h-3.5" />
                                     Reset
                                 </button>
                             )}
                             <button
                                 disabled={picking}
                                 onClick={handleBrowse}
-                                className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                             >
+                                <FolderOpen className="w-3.5 h-3.5" />
                                 {picking ? 'Picking…' : 'Browse'}
                             </button>
                         </div>

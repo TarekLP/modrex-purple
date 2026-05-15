@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Search, X } from 'lucide-react'
 import type { Mod, Paginated, InstalledMod, Category, ModDependency } from '../../../shared/types'
 import type { SortOption } from '../../../main/api'
 import { ModCard } from './ModCard'
@@ -203,19 +204,20 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                 </div>
                 <div className="flex gap-2">
                     <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-subtle pointer-events-none" />
                         <input
                             type="text"
                             placeholder="Search mods…"
                             value={query}
                             onChange={(e) => handleQueryChange(e.target.value)}
-                            className={`w-full text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : ''}`}
+                            className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : 'pr-3'}`}
                         />
                         {query && (
                             <button
                                 onClick={() => handleQueryChange('')}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text transition-colors text-sm leading-none"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text transition-colors"
                             >
-                                ✕
+                                <X className="w-3.5 h-3.5" />
                             </button>
                         )}
                     </div>
