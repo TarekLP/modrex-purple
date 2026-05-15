@@ -7,8 +7,8 @@ import {
     existsSync,
     readFileSync,
     writeFileSync,
-    readdirSync,
 } from 'fs'
+import { promises as fsp } from 'fs'
 import type { InstalledMod, ModsState } from '../shared/types'
 
 export type { InstalledMod, ModsState }
@@ -42,45 +42,62 @@ export function readState(statePath: string): ModsState {
     }
 }
 
-export function findUntrackedPaks(
+export async function findUntrackedPaks(
     gamePath: string,
     knownFilenames: Set<string>
-): { filename: string; enabled: boolean }[] {
+): Promise<{ filename: string; enabled: boolean }[]> {
     const modsBak = join(gamePath, 'PAYDAY3', 'Content', '~mods.bak')
-    if (existsSync(modsBak)) return []
+    try {
+        await fsp.access(modsBak)
+        return []
+    } catch {}
 
     const activeDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
     const disabledDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
     const untracked: { filename: string; enabled: boolean }[] = []
 
-    if (existsSync(activeDir)) {
-        for (const file of readdirSync(activeDir)) {
+    try {
+        for (const file of await fsp.readdir(activeDir)) {
             if (file.endsWith('.pak') && !knownFilenames.has(file)) {
                 untracked.push({ filename: file, enabled: true })
             }
         }
-    }
-    if (existsSync(disabledDir)) {
-        for (const file of readdirSync(disabledDir)) {
+    } catch {}
+
+    try {
+        for (const file of await fsp.readdir(disabledDir)) {
             if (file.endsWith('.pak') && !knownFilenames.has(file)) {
                 untracked.push({ filename: file, enabled: false })
             }
         }
-    }
+    } catch {}
+
     return untracked
 }
 
-export function reconcileState(gamePath: string, statePath: string): ModsState {
+export async function reconcileState(gamePath: string, statePath: string): Promise<ModsState> {
     // ~mods.bak means mods are temporarily hidden for a vanilla launch — trust state as-is
     const modsBak = join(gamePath, 'PAYDAY3', 'Content', '~mods.bak')
-    if (existsSync(modsBak)) return readState(statePath)
+    try {
+        await fsp.access(modsBak)
+        return readState(statePath)
+    } catch {}
 
     const state = readState(statePath)
-    const valid = state.mods.filter(
-        (m) =>
-            existsSync(activeModPath(gamePath, m.filename)) ||
-            existsSync(disabledModPath(gamePath, m.filename))
+    const checks = await Promise.all(
+        state.mods.map(async (m) => {
+            try {
+                await fsp.access(activeModPath(gamePath, m.filename))
+                return true
+            } catch {}
+            try {
+                await fsp.access(disabledModPath(gamePath, m.filename))
+                return true
+            } catch {}
+            return false
+        })
     )
+    const valid = state.mods.filter((_, i) => checks[i])
     if (valid.length !== state.mods.length) {
         const cleaned = { mods: valid }
         saveState(statePath, cleaned)

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, shell, dialog } from 'electron'
 import { join } from 'path'
 import { rmSync, renameSync, existsSync, writeFileSync } from 'fs'
-import { execSync, spawn } from 'child_process'
+import { exec, execSync, spawn } from 'child_process'
 import {
     listMods,
     getMod,
@@ -74,12 +74,12 @@ function registerHandlers(): void {
     })
     ipcMain.handle('mods:get-installed', async () => {
         const state = resolvedGamePath
-            ? reconcileState(resolvedGamePath, statePath)
+            ? await reconcileState(resolvedGamePath, statePath)
             : readState(statePath)
         if (!resolvedGamePath) return state
 
         const knownFilenames = new Set(state.mods.map((m) => m.filename))
-        const untracked = findUntrackedPaks(resolvedGamePath, knownFilenames)
+        const untracked = await findUntrackedPaks(resolvedGamePath, knownFilenames)
         if (untracked.length === 0) return state
 
         const results = await Promise.allSettled(
@@ -195,14 +195,13 @@ function registerHandlers(): void {
     )
 
     ipcMain.handle('app:is-game-running', () => {
-        try {
-            const out = execSync('tasklist /FI "IMAGENAME eq PAYDAY3-Win64-Shipping.exe" /NH', {
-                encoding: 'utf8',
-            })
-            return out.includes('PAYDAY3-Win64-Shipping')
-        } catch {
-            return false
-        }
+        return new Promise<boolean>((resolve) => {
+            exec(
+                'tasklist /FI "IMAGENAME eq PAYDAY3-Win64-Shipping.exe" /NH',
+                { encoding: 'utf8' },
+                (error, stdout) => resolve(!error && stdout.includes('PAYDAY3-Win64-Shipping'))
+            )
+        })
     })
 
     ipcMain.handle('app:stop-game', () => {

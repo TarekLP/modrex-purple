@@ -153,54 +153,54 @@ describe('findUntrackedPaks', () => {
         return join(gp, 'PAYDAY3', 'Content', '~mods.bak')
     }
 
-    it('returns empty array when ~mods dir does not exist', () => {
-        expect(findUntrackedPaks(gamePath, new Set())).toEqual([])
+    it('returns empty array when ~mods dir does not exist', async () => {
+        expect(await findUntrackedPaks(gamePath, new Set())).toEqual([])
     })
 
-    it('returns empty array when ~mods.bak exists', () => {
+    it('returns empty array when ~mods.bak exists', async () => {
         mkdirSync(activeDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'SomeMod.pak'), '')
         mkdirSync(join(gamePath, 'PAYDAY3', 'Content'), { recursive: true })
         writeFileSync(modsBak(gamePath), '')
-        expect(findUntrackedPaks(gamePath, new Set())).toEqual([])
+        expect(await findUntrackedPaks(gamePath, new Set())).toEqual([])
     })
 
-    it('returns untracked pak from active dir as enabled', () => {
+    it('returns untracked pak from active dir as enabled', async () => {
         mkdirSync(activeDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'CoolMod.pak'), '')
-        const result = findUntrackedPaks(gamePath, new Set())
+        const result = await findUntrackedPaks(gamePath, new Set())
         expect(result).toEqual([{ filename: 'CoolMod.pak', enabled: true }])
     })
 
-    it('returns untracked pak from disabled dir as disabled', () => {
+    it('returns untracked pak from disabled dir as disabled', async () => {
         mkdirSync(disabledDir(gamePath), { recursive: true })
         writeFileSync(join(disabledDir(gamePath), 'OldMod.pak'), '')
-        const result = findUntrackedPaks(gamePath, new Set())
+        const result = await findUntrackedPaks(gamePath, new Set())
         expect(result).toEqual([{ filename: 'OldMod.pak', enabled: false }])
     })
 
-    it('skips known filenames', () => {
+    it('skips known filenames', async () => {
         mkdirSync(activeDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'Known.pak'), '')
         writeFileSync(join(activeDir(gamePath), 'Unknown.pak'), '')
-        const result = findUntrackedPaks(gamePath, new Set(['Known.pak']))
+        const result = await findUntrackedPaks(gamePath, new Set(['Known.pak']))
         expect(result).toEqual([{ filename: 'Unknown.pak', enabled: true }])
     })
 
-    it('ignores non-pak files', () => {
+    it('ignores non-pak files', async () => {
         mkdirSync(activeDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'readme.txt'), '')
         writeFileSync(join(activeDir(gamePath), 'Mod.pak'), '')
-        const result = findUntrackedPaks(gamePath, new Set())
+        const result = await findUntrackedPaks(gamePath, new Set())
         expect(result).toHaveLength(1)
         expect(result[0].filename).toBe('Mod.pak')
     })
 
-    it('returns paks from both active and disabled dirs', () => {
+    it('returns paks from both active and disabled dirs', async () => {
         mkdirSync(disabledDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'Active.pak'), '')
         writeFileSync(join(disabledDir(gamePath), 'Disabled.pak'), '')
-        const result = findUntrackedPaks(gamePath, new Set())
+        const result = await findUntrackedPaks(gamePath, new Set())
         expect(result).toHaveLength(2)
         expect(result.find((r) => r.filename === 'Active.pak')?.enabled).toBe(true)
         expect(result.find((r) => r.filename === 'Disabled.pak')?.enabled).toBe(false)
