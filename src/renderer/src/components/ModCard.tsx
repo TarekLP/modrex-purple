@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Download, Heart, Eye, Trash2 } from 'lucide-react'
+import { Download, Heart, Eye, Clock, Trash2 } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
@@ -8,6 +8,19 @@ function formatCount(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
     if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
     return String(n)
+}
+
+function formatRelativeTime(dateStr: string): string {
+    const ms = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(ms / 60_000)
+    if (mins < 60) return `${Math.max(1, mins)}m ago`
+    const hours = Math.floor(ms / 3_600_000)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(ms / 86_400_000)
+    if (days < 30) return `${days}d ago`
+    const months = Math.floor(days / 30)
+    if (months < 12) return `${months}mo ago`
+    return `${Math.floor(days / 365)}y ago`
 }
 
 interface Props {
@@ -93,6 +106,10 @@ export function ModCard({
                             <span className="flex items-center gap-1">
                                 <Eye className="w-3 h-3" />
                                 {formatCount(mod.views)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {formatRelativeTime(mod.bumped_at)}
                             </span>
                         </div>
                     )}
