@@ -12,9 +12,11 @@ export type View = 'browse' | 'installed' | 'detail' | 'settings'
 export default function App() {
     const [view, setView] = useState<View>('browse')
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
-    const [detailModId, setDetailModId] = useState<number | null>(null)
+    const [detailStack, setDetailStack] = useState<number[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
+
+    const detailModId = detailStack[detailStack.length - 1] ?? null
 
     useEffect(() => {
         window.api.findGamePath().then(setGamePath)
@@ -33,13 +35,21 @@ export default function App() {
 
     function openDetail(modId: number, from: 'browse' | 'installed') {
         setPrevView(from)
-        setDetailModId(modId)
+        setDetailStack([modId])
         setView('detail')
     }
 
+    function pushDetail(modId: number) {
+        setDetailStack((prev) => [...prev, modId])
+    }
+
     function closeDetail() {
-        setView(prevView)
-        setDetailModId(null)
+        if (detailStack.length <= 1) {
+            setView(prevView)
+            setDetailStack([])
+        } else {
+            setDetailStack((prev) => prev.slice(0, -1))
+        }
     }
 
     const refreshGamePath = useCallback(async () => {
@@ -48,7 +58,7 @@ export default function App() {
     }, [])
 
     function handleSidebarChange(v: 'browse' | 'installed' | 'settings') {
-        setDetailModId(null)
+        setDetailStack([])
         setView(v)
     }
 
@@ -90,7 +100,7 @@ export default function App() {
                                 installed={installed}
                                 onBack={closeDetail}
                                 onRefreshInstalled={refreshInstalled}
-                                onOpenDetail={(id) => openDetail(id, prevView)}
+                                onOpenDetail={pushDetail}
                             />
                         </div>
                     )}
