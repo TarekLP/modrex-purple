@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 import type { InstalledMod } from '../../shared/types'
 import { Sidebar } from './components/Sidebar'
 import { BrowsePage } from './components/BrowsePage'
@@ -6,6 +6,9 @@ import { InstalledPage } from './components/InstalledPage'
 import { ModDetailPage } from './components/ModDetailPage'
 import { SettingsPage } from './components/SettingsPage'
 import { TopBar } from './components/TopBar'
+
+const BrowsePageMemo = memo(BrowsePage)
+const InstalledPageMemo = memo(InstalledPage)
 
 export type View = 'browse' | 'installed' | 'detail' | 'settings'
 
@@ -31,19 +34,25 @@ export default function App() {
         return () => window.removeEventListener('focus', refreshInstalled)
     }, [refreshInstalled])
 
-    function openDetail(modId: number, from: 'browse' | 'installed') {
+    const openDetail = useCallback((modId: number, from: 'browse' | 'installed') => {
         setPrevView(from)
         setDetailStack([modId])
         setView('detail')
-    }
+    }, [])
 
-    function pushDetail(modId: number) {
+    const openDetailFromBrowse = useCallback((id: number) => openDetail(id, 'browse'), [openDetail])
+    const openDetailFromInstalled = useCallback(
+        (id: number) => openDetail(id, 'installed'),
+        [openDetail]
+    )
+
+    const pushDetail = useCallback((modId: number) => {
         setDetailStack((prev) => {
             const existingIndex = prev.indexOf(modId)
             if (existingIndex !== -1) return prev.slice(0, existingIndex + 1)
             return [...prev, modId]
         })
-    }
+    }, [])
 
     function closeDetail() {
         if (detailStack.length <= 1) {
@@ -76,19 +85,19 @@ export default function App() {
                 />
                 <main className="flex-1 overflow-hidden">
                     <div className={`h-full ${view === 'browse' ? '' : 'hidden'}`}>
-                        <BrowsePage
+                        <BrowsePageMemo
                             gamePath={gamePath}
                             installed={installed}
                             onRefreshInstalled={refreshInstalled}
-                            onOpenDetail={(id) => openDetail(id, 'browse')}
+                            onOpenDetail={openDetailFromBrowse}
                         />
                     </div>
                     <div className={`h-full ${view === 'installed' ? '' : 'hidden'}`}>
-                        <InstalledPage
+                        <InstalledPageMemo
                             gamePath={gamePath}
                             installed={installed}
                             onRefreshInstalled={refreshInstalled}
-                            onOpenDetail={(id) => openDetail(id, 'installed')}
+                            onOpenDetail={openDetailFromInstalled}
                         />
                     </div>
                     <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>

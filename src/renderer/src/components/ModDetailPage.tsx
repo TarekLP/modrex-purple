@@ -11,6 +11,7 @@ import {
 import { Toggle } from './Toggle'
 import ReactMarkdown from 'react-markdown'
 import type { Mod, ModFile, ModDependency, InstalledMod } from '../../../shared/types'
+import { getCachedMod } from '../modCache'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
@@ -128,7 +129,7 @@ export function ModDetailPage({
         setError(null)
         try {
             const [modData, filesData] = await Promise.all([
-                window.api.getMod(modId),
+                getCachedMod(modId),
                 window.api.listModFiles(modId),
             ])
             setMod(modData)

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
+import { getCachedMod } from '../modCache'
 
 interface Props {
     gamePath: string | null
@@ -54,7 +55,7 @@ export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenD
         const missing = installed.filter((m) => !fetchedIds.current.has(m.id))
         if (missing.length === 0) return
 
-        Promise.allSettled(missing.map((m) => window.api.getMod(m.id))).then((results) => {
+        Promise.allSettled(missing.map((m) => getCachedMod(m.id))).then((results) => {
             const updates: [number, Mod][] = []
             const failed: number[] = []
             results.forEach((r, i) => {
