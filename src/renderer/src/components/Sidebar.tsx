@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Compass, Package, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Compass, Package, Settings, ChevronLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 type NavView = 'browse' | 'installed' | 'settings'
@@ -20,9 +20,9 @@ export function Sidebar({ view, onViewChange }: Props) {
 
     return (
         <aside
-            className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-200`}
+            className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-200 overflow-hidden`}
         >
-            <nav className={`flex flex-col gap-1 p-2 flex-1 ${collapsed ? 'items-center' : ''}`}>
+            <nav className="flex flex-col gap-1 p-2 flex-1">
                 {navItems.map((item) => {
                     const Icon = item.icon
                     return (
@@ -30,22 +30,18 @@ export function Sidebar({ view, onViewChange }: Props) {
                             key={item.id}
                             onClick={() => onViewChange(item.id)}
                             title={collapsed ? item.label : undefined}
-                            className={`transition-colors rounded text-sm ${
-                                collapsed
-                                    ? `w-8 h-8 flex items-center justify-center ${
-                                          view === item.id
-                                              ? 'bg-surface-active text-text'
-                                              : 'text-text-muted hover:bg-surface-hover hover:text-text'
-                                      }`
-                                    : `w-full text-left px-3 py-2 flex items-center gap-2.5 ${
-                                          view === item.id
-                                              ? 'bg-surface-active text-text'
-                                              : 'text-text-muted hover:bg-surface-hover hover:text-text'
-                                      }`
+                            className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
+                                view === item.id
+                                    ? 'bg-surface-active text-text'
+                                    : 'text-text-muted hover:bg-surface-hover hover:text-text'
                             }`}
                         >
                             <Icon className="w-4 h-4 shrink-0" />
-                            {!collapsed && item.label}
+                            <span
+                                className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                            >
+                                {item.label}
+                            </span>
                         </button>
                     )
                 })}
@@ -55,14 +51,16 @@ export function Sidebar({ view, onViewChange }: Props) {
                 <button
                     onClick={() => setCollapsed((c) => !c)}
                     title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                    className={`w-full flex items-center py-1.5 rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors ${collapsed ? 'justify-center' : 'justify-between px-2'}`}
+                    className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
                 >
-                    {!collapsed && <span>Collapse</span>}
-                    {collapsed ? (
-                        <ChevronRight className="w-4 h-4" />
-                    ) : (
-                        <ChevronLeft className="w-4 h-4" />
-                    )}
+                    <ChevronLeft
+                        className={`w-4 h-4 shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
+                    />
+                    <span
+                        className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                    >
+                        Collapse menu
+                    </span>
                 </button>
             </div>
         </aside>
