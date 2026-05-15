@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { X } from 'lucide-react'
+import { X, LayoutGrid, List } from 'lucide-react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
+import { ModListRow } from './ModListRow'
 import { getCachedMod } from '../modCache'
+
+type ViewMode = 'grid' | 'list'
+
+function getSavedViewMode(): ViewMode {
+    const saved = localStorage.getItem('pd3mm:installed-view')
+    return saved === 'list' ? 'list' : 'grid'
+}
 
 interface Props {
     gamePath: string | null
@@ -39,6 +47,7 @@ export function InstalledPage({
     onRefreshInstalled,
     onOpenDetail,
 }: Props) {
+    const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
     const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
     const fetchedIds = useRef<Set<number>>(new Set())
@@ -46,6 +55,11 @@ export function InstalledPage({
     const [updatingAll, setUpdatingAll] = useState(false)
     const [showUpdates, setShowUpdates] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+
+    function setView(mode: ViewMode) {
+        setViewMode(mode)
+        localStorage.setItem('pd3mm:installed-view', mode)
+    }
 
     // Fetch modData for any newly seen mod IDs
     useEffect(() => {
@@ -151,11 +165,29 @@ export function InstalledPage({
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
                 <h1 className="text-lg font-semibold">Installed Mods</h1>
-                {installed.length > 0 && (
-                    <span className="text-xs text-text-subtle">
-                        {installed.length} mod{installed.length !== 1 ? 's' : ''}
-                    </span>
-                )}
+                <div className="flex items-center gap-3">
+                    {installed.length > 0 && (
+                        <span className="text-xs text-text-subtle">
+                            {installed.length} mod{installed.length !== 1 ? 's' : ''}
+                        </span>
+                    )}
+                    <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
+                        <button
+                            onClick={() => setView('grid')}
+                            title="Grid view"
+                            className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                        >
+                            <LayoutGrid className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onClick={() => setView('list')}
+                            title="List view"
+                            className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                        >
+                            <List className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
@@ -187,27 +219,50 @@ export function InstalledPage({
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-                            {installed.map((ins) => {
-                                const apiMod = modData.get(ins.id)
-                                if (!apiMod && !failedIds.has(ins.id)) return null
-                                const mod = apiMod ?? syntheticMod(ins)
-                                return (
-                                    <ModCard
-                                        key={ins.id}
-                                        mod={mod}
-                                        installed={ins}
-                                        gamePath={gamePath}
-                                        loading={loadingMod === ins.id}
-                                        onOpen={apiMod ? () => onOpenDetail(ins.id) : () => {}}
-                                        onInstall={() => {}}
-                                        onUninstall={() => handleUninstall(ins.id)}
-                                        onEnable={() => handleEnable(ins.id)}
-                                        onDisable={() => handleDisable(ins.id)}
-                                    />
-                                )
-                            })}
-                        </div>
+                        {viewMode === 'grid' ? (
+                            <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
+                                {installed.map((ins) => {
+                                    const apiMod = modData.get(ins.id)
+                                    if (!apiMod && !failedIds.has(ins.id)) return null
+                                    const mod = apiMod ?? syntheticMod(ins)
+                                    return (
+                                        <ModCard
+                                            key={ins.id}
+                                            mod={mod}
+                                            installed={ins}
+                                            gamePath={gamePath}
+                                            loading={loadingMod === ins.id}
+                                            onOpen={apiMod ? () => onOpenDetail(ins.id) : () => {}}
+                                            onInstall={() => {}}
+                                            onUninstall={() => handleUninstall(ins.id)}
+                                            onEnable={() => handleEnable(ins.id)}
+                                            onDisable={() => handleDisable(ins.id)}
+                                        />
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-1.5">
+                                {installed.map((ins) => {
+                                    const apiMod = modData.get(ins.id)
+                                    if (!apiMod && !failedIds.has(ins.id)) return null
+                                    const mod = apiMod ?? syntheticMod(ins)
+                                    return (
+                                        <ModListRow
+                                            key={ins.id}
+                                            mod={mod}
+                                            installed={ins}
+                                            gamePath={gamePath}
+                                            loading={loadingMod === ins.id}
+                                            onOpen={apiMod ? () => onOpenDetail(ins.id) : () => {}}
+                                            onUninstall={() => handleUninstall(ins.id)}
+                                            onEnable={() => handleEnable(ins.id)}
+                                            onDisable={() => handleDisable(ins.id)}
+                                        />
+                                    )
+                                })}
+                            </div>
+                        )}
                     </>
                 )}
             </div>
