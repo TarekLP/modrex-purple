@@ -46,7 +46,7 @@ export function TopBar({ gamePath }: Props) {
         <>
             <div className="h-10 shrink-0 flex items-center justify-between px-4 bg-surface border-b border-border">
                 <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
-                    PD3 Mods
+                    PD3 Mod Manager
                 </span>
                 <div className="flex items-center gap-2">
                     {gameRunning ? (
