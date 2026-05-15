@@ -90,6 +90,7 @@ export default function App() {
                                 installed={installed}
                                 onBack={closeDetail}
                                 onRefreshInstalled={refreshInstalled}
+                                onOpenDetail={(id) => openDetail(id, prevView)}
                             />
                         </div>
                     )}

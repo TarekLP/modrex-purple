@@ -59,9 +59,17 @@ interface Props {
     installed: InstalledMod[]
     onBack: () => void
     onRefreshInstalled: () => Promise<void>
+    onOpenDetail?: (modId: number) => void
 }
 
-export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshInstalled }: Props) {
+export function ModDetailPage({
+    modId,
+    gamePath,
+    installed,
+    onBack,
+    onRefreshInstalled,
+    onOpenDetail,
+}: Props) {
     const [mod, setMod] = useState<Mod | null>(null)
     const [files, setFiles] = useState<ModFile[]>([])
     const [loading, setLoading] = useState(true)
@@ -413,6 +421,7 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                                 installed={installed}
                                 gamePath={gamePath}
                                 onRefreshInstalled={onRefreshInstalled}
+                                onOpenDetail={onOpenDetail}
                             />
                         )}
                     </div>
@@ -651,12 +660,14 @@ function DepsTab({
     installed,
     gamePath,
     onRefreshInstalled,
+    onOpenDetail,
 }: {
     mod: Mod
     deps: ModDependency[]
     installed: InstalledMod[]
     gamePath: string | null
     onRefreshInstalled: () => Promise<void>
+    onOpenDetail?: (modId: number) => void
 }) {
     const hasInstructions = !!(mod.instructs_template?.instructions || mod.instructions)
     const hasDeps = deps.length > 0
@@ -701,6 +712,7 @@ function DepsTab({
                                 installed={installed}
                                 gamePath={gamePath}
                                 onRefreshInstalled={onRefreshInstalled}
+                                onOpenDetail={onOpenDetail}
                             />
                         ))}
                     </div>
@@ -718,6 +730,7 @@ function DepsTab({
                                 installed={installed}
                                 gamePath={gamePath}
                                 onRefreshInstalled={onRefreshInstalled}
+                                onOpenDetail={onOpenDetail}
                             />
                         ))}
                     </div>
@@ -732,18 +745,21 @@ function DepRow({
     installed,
     gamePath,
     onRefreshInstalled,
+    onOpenDetail,
 }: {
     dep: ModDependency
     installed: InstalledMod[]
     gamePath: string | null
     onRefreshInstalled: () => Promise<void>
+    onOpenDetail?: (modId: number) => void
 }) {
     const { mod } = dep
     const thumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
     const isInstalled = installed.some((m) => m.id === mod.id)
     const [installing, setInstalling] = useState(false)
 
-    async function handleInstall() {
+    async function handleInstall(e: React.MouseEvent) {
+        e.stopPropagation()
         if (!gamePath) return
         setInstalling(true)
         try {
@@ -755,7 +771,15 @@ function DepRow({
     }
 
     return (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border">
+        <div
+            role={onOpenDetail ? 'button' : undefined}
+            tabIndex={onOpenDetail ? 0 : undefined}
+            onClick={() => onOpenDetail?.(mod.id)}
+            onKeyDown={(e) => e.key === 'Enter' && onOpenDetail?.(mod.id)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border transition-colors ${
+                onOpenDetail ? 'cursor-pointer hover:border-accent/50 hover:bg-surface-raised' : ''
+            }`}
+        >
             {thumbUrl ? (
                 <img
                     src={thumbUrl}
@@ -794,11 +818,14 @@ function DepRow({
                 </button>
             )}
             <button
-                onClick={() => window.api.openExternal(`https://modworkshop.net/mod/${mod.id}`)}
-                className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors shrink-0 flex items-center gap-1.5"
+                onClick={(e) => {
+                    e.stopPropagation()
+                    window.api.openExternal(`https://modworkshop.net/mod/${mod.id}`)
+                }}
+                title="Open on modworkshop.net"
+                className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
             >
-                View
-                <ExternalLink className="w-3 h-3" />
+                <ExternalLink className="w-3.5 h-3.5" />
             </button>
         </div>
     )
