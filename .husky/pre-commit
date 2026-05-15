@@ -1,1 +1,1 @@
-npx prettier --check .
+npx prettier --check . || (echo "" && echo "Format errors found. Run: npm run format" && exit 1)
