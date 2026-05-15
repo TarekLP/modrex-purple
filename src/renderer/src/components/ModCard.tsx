@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Download, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
+import { Download, Trash2 } from 'lucide-react'
+import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 
@@ -114,33 +115,19 @@ export function ModCard({
                     </button>
                 )}
                 {installed && (
-                    <div className="flex gap-1">
-                        {installed.enabled ? (
-                            <button
-                                disabled={!canAct}
-                                onClick={onDisable}
-                                className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors flex items-center gap-1.5"
-                            >
-                                <ToggleLeft className="w-3.5 h-3.5" />
-                                Disable
-                            </button>
-                        ) : (
-                            <button
-                                disabled={!canAct}
-                                onClick={onEnable}
-                                className="text-xs px-2 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors flex items-center gap-1.5"
-                            >
-                                <ToggleRight className="w-3.5 h-3.5" />
-                                Enable
-                            </button>
-                        )}
+                    <div className="flex items-center gap-2">
+                        <Toggle
+                            checked={installed.enabled}
+                            onChange={(v) => (v ? onEnable() : onDisable())}
+                            disabled={!canAct}
+                        />
                         <button
                             disabled={!canAct}
                             onClick={onUninstall}
-                            className="text-xs px-2 py-1 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                            title="Remove"
+                            className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
                         >
                             <Trash2 className="w-3.5 h-3.5" />
-                            Remove
                         </button>
                     </div>
                 )}

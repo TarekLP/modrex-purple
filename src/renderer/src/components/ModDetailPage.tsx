@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
     ArrowLeft,
-    ToggleLeft,
-    ToggleRight,
     Trash2,
     Download,
     ExternalLink,
@@ -10,6 +8,7 @@ import {
     ChevronRight,
     X,
 } from 'lucide-react'
+import { Toggle } from './Toggle'
 import { marked } from 'marked'
 import type { Mod, ModFile, ModDependency, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
@@ -229,32 +228,18 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                 <div className="ml-auto flex items-center gap-2 shrink-0">
                     {mod && installedMod && (
                         <>
-                            {installedMod.enabled ? (
-                                <button
-                                    disabled={!canAct}
-                                    onClick={handleDisable}
-                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors flex items-center gap-1.5"
-                                >
-                                    <ToggleLeft className="w-3.5 h-3.5" />
-                                    Disable
-                                </button>
-                            ) : (
-                                <button
-                                    disabled={!canAct}
-                                    onClick={handleEnable}
-                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 transition-colors flex items-center gap-1.5"
-                                >
-                                    <ToggleRight className="w-3.5 h-3.5" />
-                                    Enable
-                                </button>
-                            )}
+                            <Toggle
+                                checked={installedMod.enabled}
+                                onChange={(v) => (v ? handleEnable() : handleDisable())}
+                                disabled={!canAct}
+                            />
                             <button
                                 disabled={!canAct}
                                 onClick={handleUninstall}
-                                className="text-xs px-3 py-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                                title="Remove"
+                                className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
-                                {actionLoading ? 'Working…' : 'Remove'}
                             </button>
                         </>
                     )}
@@ -358,13 +343,6 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                                 <div className="font-medium text-sm text-text">
                                     v{installedMod?.version ?? mod.version}
                                 </div>
-                                {installedMod && (
-                                    <div
-                                        className={`mt-0.5 ${installedMod.enabled ? 'text-success-text' : 'text-text-subtle'}`}
-                                    >
-                                        {installedMod.enabled ? 'Enabled' : 'Disabled'}
-                                    </div>
-                                )}
                             </div>
                         </div>
 
