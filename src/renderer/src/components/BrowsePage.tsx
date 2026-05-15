@@ -202,13 +202,23 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                     )}
                 </div>
                 <div className="flex gap-2">
-                    <input
-                        type="text"
-                        placeholder="Search mods…"
-                        value={query}
-                        onChange={(e) => handleQueryChange(e.target.value)}
-                        className="flex-1 text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors"
-                    />
+                    <div className="relative flex-1">
+                        <input
+                            type="text"
+                            placeholder="Search mods…"
+                            value={query}
+                            onChange={(e) => handleQueryChange(e.target.value)}
+                            className={`w-full text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : ''}`}
+                        />
+                        {query && (
+                            <button
+                                onClick={() => handleQueryChange('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text transition-colors text-sm leading-none"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
                     <Select
                         value={categoryId?.toString() ?? ''}
                         onChange={handleCategoryChange}
