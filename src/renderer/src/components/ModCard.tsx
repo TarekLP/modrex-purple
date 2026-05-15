@@ -1,20 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { Download, Trash2 } from 'lucide-react'
+import { Download, Heart, Eye, Trash2 } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 
-function timeAgo(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 60) return `${mins}m ago`
-    const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    if (days < 30) return `${days}d ago`
-    const months = Math.floor(days / 30)
-    if (months < 12) return `${months}mo ago`
-    return `${Math.floor(months / 12)}y ago`
+function formatCount(n: number): string {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+    return String(n)
 }
 
 interface Props {
@@ -84,18 +77,24 @@ export function ModCard({
 
             {/* Action row — not part of the clickable area */}
             <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
-                <div className="flex flex-col">
+                <div className="flex items-center">
                     {installed ? (
                         <span className="text-xs text-text-subtle">v{installed.version}</span>
                     ) : (
-                        <>
-                            <span className="text-xs text-text-subtle">
-                                {mod.downloads.toLocaleString()} dl
+                        <div className="flex items-center gap-3 text-xs text-text-subtle">
+                            <span className="flex items-center gap-1">
+                                <Heart className="w-3 h-3" />
+                                {formatCount(mod.likes)}
                             </span>
-                            <span className="text-xs text-text-subtle">
-                                {timeAgo(mod.bumped_at)}
+                            <span className="flex items-center gap-1">
+                                <Download className="w-3 h-3" />
+                                {formatCount(mod.downloads)}
                             </span>
-                        </>
+                            <span className="flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                {formatCount(mod.views)}
+                            </span>
+                        </div>
                     )}
                 </div>
                 {!installed && (
