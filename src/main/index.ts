@@ -76,11 +76,16 @@ function registerHandlers(): void {
         const state = resolvedGamePath
             ? await reconcileState(resolvedGamePath, statePath)
             : readState(statePath)
-        if (!resolvedGamePath) return state
+
+        const modsHidden =
+            !!resolvedGamePath &&
+            existsSync(join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak'))
+
+        if (!resolvedGamePath) return { mods: state.mods, modsHidden }
 
         const knownFilenames = new Set(state.mods.map((m) => m.filename))
         const untracked = await findUntrackedPaks(resolvedGamePath, knownFilenames)
-        if (untracked.length === 0) return state
+        if (untracked.length === 0) return { mods: state.mods, modsHidden }
 
         const results = await Promise.allSettled(
             untracked.map(async ({ filename, enabled }) => {
@@ -108,11 +113,11 @@ function registerHandlers(): void {
             })
         )
         const newMods = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
-        if (newMods.length === 0) return state
+        if (newMods.length === 0) return { mods: state.mods, modsHidden }
 
         const updated = { mods: [...state.mods, ...newMods] }
         writeFileSync(statePath, JSON.stringify(updated, null, 4))
-        return updated
+        return { mods: updated.mods, modsHidden }
     })
 
     ipcMain.handle('mods:install', async (event, modId: number, gamePath: string) => {
@@ -255,14 +260,18 @@ function registerHandlers(): void {
         if (!resolvedGamePath) return
         const modsDir = join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak')
-        if (!existsSync(modsDir) && existsSync(modsBak)) {
+        if (!existsSync(modsBak)) return
+        if (!existsSync(modsDir)) {
             try {
                 renameSync(modsBak, modsDir)
             } catch (e) {
+                rmSync(modsBak, { recursive: true, force: true })
                 throw new Error(
                     `Could not restore mods folder. You may need to manually rename ~mods.bak back to ~mods. (${(e as NodeJS.ErrnoException).code})`
                 )
             }
+        } else {
+            rmSync(modsBak, { recursive: true, force: true })
         }
     })
 

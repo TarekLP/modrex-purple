@@ -1,4 +1,4 @@
-import type { Mod, ModFile, Category, Paginated, ModsState, InstalledMod } from './types'
+import type { Mod, ModFile, Category, Paginated, InstalledMod } from './types'
 import type { ListModsParams } from '../main/api'
 
 declare global {
@@ -10,7 +10,7 @@ declare global {
             listModFiles(modId: number): Promise<Paginated<ModFile>>
 
             findGamePath(): Promise<string | null>
-            getInstalled(): Promise<ModsState>
+            getInstalled(): Promise<{ mods: InstalledMod[]; modsHidden: boolean }>
             installMod(modId: number, gamePath: string): Promise<void>
             installModFile(
                 modId: number,

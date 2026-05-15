@@ -19,16 +19,29 @@ export default function App() {
     const [gamePath, setGamePath] = useState<string | null>(null)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
     const [installedReady, setInstalledReady] = useState(false)
+    const [modsHidden, setModsHidden] = useState(false)
+    const [restoreError, setRestoreError] = useState<string | null>(null)
 
     useEffect(() => {
         window.api.findGamePath().then(setGamePath)
     }, [])
 
     const refreshInstalled = useCallback(async () => {
-        const state = await window.api.getInstalled()
-        setInstalled(state.mods)
+        const { mods, modsHidden } = await window.api.getInstalled()
+        setInstalled(mods)
+        setModsHidden(modsHidden)
         setInstalledReady(true)
     }, [])
+
+    async function handleRestoreMods() {
+        setRestoreError(null)
+        try {
+            await window.api.restoreMods()
+            await refreshInstalled()
+        } catch (e) {
+            setRestoreError(String(e))
+        }
+    }
 
     useEffect(() => {
         refreshInstalled()
@@ -80,6 +93,23 @@ export default function App() {
     return (
         <div className="flex flex-col h-screen bg-surface text-text">
             <TopBar gamePath={gamePath} onRefreshInstalled={refreshInstalled} />
+            {modsHidden && (
+                <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-yellow-400/10 border-b border-yellow-400/30 text-xs text-yellow-400">
+                    <span>
+                        Mods are hidden — the game was launched in vanilla mode and may still be
+                        running.
+                    </span>
+                    <div className="flex items-center gap-3 shrink-0">
+                        {restoreError && <span className="text-danger-text">{restoreError}</span>}
+                        <button
+                            onClick={handleRestoreMods}
+                            className="px-3 py-1 rounded bg-yellow-400/20 hover:bg-yellow-400/30 transition-colors"
+                        >
+                            Restore mods
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="flex flex-1 overflow-hidden">
                 <Sidebar
                     view={sidebarView as 'browse' | 'installed' | 'settings'}
