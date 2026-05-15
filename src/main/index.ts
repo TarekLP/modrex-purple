@@ -135,6 +135,7 @@ function registerHandlers(): void {
                         pakFilename(mod.name),
                     enabled: true,
                     installedAt: new Date().toISOString(),
+                    fileId: file.id,
                 },
                 tmp
             )
@@ -172,6 +173,7 @@ function registerHandlers(): void {
                             pakFilename(modName),
                         enabled: true,
                         installedAt: new Date().toISOString(),
+                        fileId,
                     },
                     tmp
                 )

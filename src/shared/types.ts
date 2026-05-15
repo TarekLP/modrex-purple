@@ -89,6 +89,7 @@ export interface InstalledMod {
     filename: string
     enabled: boolean
     installedAt: string
+    fileId?: number
 }
 
 export interface ModsState {

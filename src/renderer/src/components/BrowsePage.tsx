@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Search, X } from 'lucide-react'
-import type { Mod, Paginated, InstalledMod, Category, ModDependency } from '../../../shared/types'
+import type {
+    Mod,
+    ModFile,
+    Paginated,
+    InstalledMod,
+    Category,
+    ModDependency,
+} from '../../../shared/types'
 import type { SortOption } from '../../../main/api'
 import { ModCard } from './ModCard'
 import { Select } from './Select'
 import { DepsWarningModal } from './DepsWarningModal'
+import { FileSelectModal } from './FileSelectModal'
 
 interface Props {
     gamePath: string | null
@@ -52,6 +60,7 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
         modId: number
         allDeps: ModDependency[]
     } | null>(null)
+    const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const fetchMods = useCallback(
@@ -112,8 +121,15 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
         if (!gamePath) return
         setLoadingMod(modId)
         try {
+            const fullMod = await window.api.getMod(modId)
+            if (fullMod.download === null) {
+                const filesData = await window.api.listModFiles(modId)
+                if (filesData.data.length > 1) {
+                    setFileSelect({ mod: fullMod, files: filesData.data })
+                    return
+                }
+            }
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
-                const fullMod = await window.api.getMod(modId)
                 const allDeps = [
                     ...(fullMod.dependencies ?? []),
                     ...(fullMod.instructs_template?.dependencies ?? []),
@@ -179,6 +195,16 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
 
     return (
         <div className="h-full flex flex-col">
+            {fileSelect && (
+                <FileSelectModal
+                    mod={fileSelect.mod}
+                    files={fileSelect.files}
+                    gamePath={gamePath}
+                    installedMod={installed.find((m) => m.id === fileSelect.mod.id)}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setFileSelect(null)}
+                />
+            )}
             {depsWarning && (
                 <DepsWarningModal
                     modId={depsWarning.modId}

@@ -13,6 +13,7 @@ import { marked } from 'marked'
 import type { Mod, ModFile, ModDependency, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
+import { FileSelectModal } from './FileSelectModal'
 
 marked.use({ gfm: true, breaks: true })
 
@@ -69,6 +70,7 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
     const [actionLoading, setActionLoading] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
     const [showDepsWarning, setShowDepsWarning] = useState(false)
+    const [showFileSelect, setShowFileSelect] = useState(false)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -126,6 +128,10 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
 
     async function handleInstall() {
         if (!gamePath || !mod) return
+        if (mod.download === null && files.length > 1) {
+            setShowFileSelect(true)
+            return
+        }
         if (missingRequired.length > 0) {
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const s = await window.api.getSettings()
@@ -197,6 +203,16 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
 
     return (
         <div className="h-full flex flex-col">
+            {showFileSelect && mod && (
+                <FileSelectModal
+                    mod={mod}
+                    files={files}
+                    gamePath={gamePath}
+                    installedMod={installedMod}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setShowFileSelect(false)}
+                />
+            )}
             {showDepsWarning && (
                 <DepsWarningModal
                     modId={modId}
@@ -589,8 +605,7 @@ function DownloadsTab({
                     </div>
                     <div className="flex gap-2 shrink-0">
                         {(() => {
-                            const fileVersion = file.version || file.label || mod.version
-                            const isInstalled = installedMod?.version === fileVersion
+                            const isInstalled = installedMod?.fileId === file.id
                             return (
                                 <button
                                     disabled={!gamePath || installingId === file.id || isInstalled}
