@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('api', {
         fileId: number,
         downloadUrl: string,
         fileType: string,
-        fileVersion: string,
+        modVersion: string,
         gamePath: string
     ) =>
         ipcRenderer.invoke(
@@ -27,7 +27,7 @@ contextBridge.exposeInMainWorld('api', {
             fileId,
             downloadUrl,
             fileType,
-            fileVersion,
+            modVersion,
             gamePath
         ),
     uninstallMod: (modId: number, gamePath: string) =>

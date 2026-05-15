@@ -18,7 +18,7 @@ declare global {
                 fileId: number,
                 downloadUrl: string,
                 fileType: string,
-                fileVersion: string,
+                modVersion: string,
                 gamePath: string
             ): Promise<void>
             uninstallMod(modId: number, gamePath: string): Promise<void>

@@ -154,7 +154,7 @@ function registerHandlers(): void {
             fileId: number,
             downloadUrl: string,
             fileType: string,
-            fileVersion: string,
+            modVersion: string,
             gamePath: string
         ) => {
             const tmp = await downloadFile(downloadUrl, fileType, (downloaded, total) =>
@@ -167,7 +167,7 @@ function registerHandlers(): void {
                     {
                         id: modId,
                         name: modName,
-                        version: fileVersion,
+                        version: modVersion,
                         filename:
                             readState(statePath).mods.find((m) => m.id === modId)?.filename ??
                             pakFilename(modName),

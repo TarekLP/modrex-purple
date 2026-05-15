@@ -59,7 +59,7 @@ export function FileSelectModal({
                 file.id,
                 file.download_url,
                 file.type,
-                file.version || file.label || mod.version,
+                mod.version,
                 gamePath
             )
             await onRefreshInstalled()
