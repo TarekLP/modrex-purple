@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { marked } from 'marked'
 import type { Mod, ModFile, ModDependency, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
+import { DepsWarningModal } from './DepsWarningModal'
 
 marked.use({ gfm: true, breaks: true })
 
@@ -57,6 +58,7 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
     const [tab, setTab] = useState<Tab>('description')
     const [actionLoading, setActionLoading] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+    const [showDepsWarning, setShowDepsWarning] = useState(false)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -114,6 +116,15 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
 
     async function handleInstall() {
         if (!gamePath || !mod) return
+        if (missingRequired.length > 0) {
+            if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
+                const s = await window.api.getSettings()
+                if (!s.dismissedDepsWarnings?.includes(modId)) {
+                    setShowDepsWarning(true)
+                    return
+                }
+            }
+        }
         setActionLoading(true)
         try {
             await window.api.installMod(mod.id, gamePath)
@@ -163,6 +174,10 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
         ...(mod?.instructs_template?.dependencies ?? []),
     ]
 
+    const missingRequired = allDeps.filter(
+        (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
+    )
+
     const tabs: { id: Tab; label: string }[] = [
         { id: 'description', label: 'Description' },
         { id: 'images', label: `Images${mod?.images?.length ? ` (${mod.images.length})` : ''}` },
@@ -172,6 +187,20 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
 
     return (
         <div className="h-full flex flex-col">
+            {showDepsWarning && (
+                <DepsWarningModal
+                    modId={modId}
+                    missingRequired={missingRequired}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setShowDepsWarning(false)}
+                    onGotIt={async (permanent) => {
+                        sessionStorage.setItem(`depsWarningDismissed-${modId}`, '1')
+                        if (permanent) await window.api.dismissDepsWarning(modId)
+                        setShowDepsWarning(false)
+                    }}
+                />
+            )}
             {/* Top bar */}
             <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3 relative">
                 <button
@@ -366,7 +395,15 @@ export function ModDetailPage({ modId, gamePath, installed, onBack, onRefreshIns
                                 onRefreshInstalled={onRefreshInstalled}
                             />
                         )}
-                        {tab === 'deps' && <DepsTab mod={mod} deps={allDeps} />}
+                        {tab === 'deps' && (
+                            <DepsTab
+                                mod={mod}
+                                deps={allDeps}
+                                installed={installed}
+                                gamePath={gamePath}
+                                onRefreshInstalled={onRefreshInstalled}
+                            />
+                        )}
                     </div>
                 </div>
             )}
@@ -594,7 +631,19 @@ function DownloadsTab({
     )
 }
 
-function DepsTab({ mod, deps }: { mod: Mod; deps: ModDependency[] }) {
+function DepsTab({
+    mod,
+    deps,
+    installed,
+    gamePath,
+    onRefreshInstalled,
+}: {
+    mod: Mod
+    deps: ModDependency[]
+    installed: InstalledMod[]
+    gamePath: string | null
+    onRefreshInstalled: () => Promise<void>
+}) {
     const hasInstructions = !!(mod.instructs_template?.instructions || mod.instructions)
     const hasDeps = deps.length > 0
 
@@ -632,7 +681,13 @@ function DepsTab({ mod, deps }: { mod: Mod; deps: ModDependency[] }) {
                     <h2 className="text-sm font-semibold mb-3 text-text">Required Dependencies</h2>
                     <div className="flex flex-col gap-2">
                         {required.map((dep) => (
-                            <DepRow key={dep.id} dep={dep} />
+                            <DepRow
+                                key={dep.id}
+                                dep={dep}
+                                installed={installed}
+                                gamePath={gamePath}
+                                onRefreshInstalled={onRefreshInstalled}
+                            />
                         ))}
                     </div>
                 </section>
@@ -643,7 +698,13 @@ function DepsTab({ mod, deps }: { mod: Mod; deps: ModDependency[] }) {
                     <h2 className="text-sm font-semibold mb-3 text-text">Optional Dependencies</h2>
                     <div className="flex flex-col gap-2">
                         {optional.map((dep) => (
-                            <DepRow key={dep.id} dep={dep} />
+                            <DepRow
+                                key={dep.id}
+                                dep={dep}
+                                installed={installed}
+                                gamePath={gamePath}
+                                onRefreshInstalled={onRefreshInstalled}
+                            />
                         ))}
                     </div>
                 </section>
@@ -652,9 +713,32 @@ function DepsTab({ mod, deps }: { mod: Mod; deps: ModDependency[] }) {
     )
 }
 
-function DepRow({ dep }: { dep: ModDependency }) {
+function DepRow({
+    dep,
+    installed,
+    gamePath,
+    onRefreshInstalled,
+}: {
+    dep: ModDependency
+    installed: InstalledMod[]
+    gamePath: string | null
+    onRefreshInstalled: () => Promise<void>
+}) {
     const { mod } = dep
     const thumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
+    const isInstalled = installed.some((m) => m.id === mod.id)
+    const [installing, setInstalling] = useState(false)
+
+    async function handleInstall() {
+        if (!gamePath) return
+        setInstalling(true)
+        try {
+            await window.api.installMod(mod.id, gamePath)
+            await onRefreshInstalled()
+        } finally {
+            setInstalling(false)
+        }
+    }
 
     return (
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border">
@@ -670,7 +754,10 @@ function DepRow({ dep }: { dep: ModDependency }) {
             <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{mod.name}</div>
                 <div className="text-xs text-text-subtle mt-0.5">
-                    by {mod.user.name} · v{mod.version}
+                    by {mod.user.name} · v{mod.version} ·{' '}
+                    <span className={isInstalled ? 'text-success-text' : 'text-danger-text'}>
+                        {isInstalled ? 'Installed' : dep.optional ? 'Not installed' : 'Missing'}
+                    </span>
                 </div>
             </div>
             <span
@@ -682,6 +769,15 @@ function DepRow({ dep }: { dep: ModDependency }) {
             >
                 {dep.optional ? 'Optional' : 'Required'}
             </span>
+            {!isInstalled && mod.has_download && gamePath && (
+                <button
+                    disabled={installing}
+                    onClick={handleInstall}
+                    className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                >
+                    {installing ? 'Installing…' : 'Install'}
+                </button>
+            )}
             <button
                 onClick={() => window.api.openExternal(`https://modworkshop.net/mod/${mod.id}`)}
                 className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors shrink-0"

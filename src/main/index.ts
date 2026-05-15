@@ -252,6 +252,14 @@ function registerHandlers(): void {
         settings.skipFileOpenLogWarning = skip || undefined
         writeSettings(settingsPath, settings)
     })
+    ipcMain.handle('settings:dismiss-deps-warning', (_, modId: number) => {
+        const settings = readSettings(settingsPath)
+        const existing = settings.dismissedDepsWarnings ?? []
+        if (!existing.includes(modId)) {
+            settings.dismissedDepsWarnings = [...existing, modId]
+            writeSettings(settingsPath, settings)
+        }
+    })
 }
 
 function createWindow(): BrowserWindow {

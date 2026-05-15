@@ -30,10 +30,12 @@ declare global {
                 gamePath?: string
                 launchOptions?: string
                 skipFileOpenLogWarning?: boolean
+                dismissedDepsWarnings?: number[]
             }>
             setGamePath(gamePath: string | null): Promise<void>
             setLaunchOptions(launchOptions: string): Promise<void>
             setSkipFileOpenLogWarning(skip: boolean): Promise<void>
+            dismissDepsWarning(modId: number): Promise<void>
             pickFolder(): Promise<string | null>
             onDownloadProgress(
                 callback: (info: { downloaded: number; total: number }) => void

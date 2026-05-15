@@ -46,6 +46,8 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('settings:set-launch-options', launchOptions),
     setSkipFileOpenLogWarning: (skip: boolean) =>
         ipcRenderer.invoke('settings:set-skip-fileopenlog-warning', skip),
+    dismissDepsWarning: (modId: number) =>
+        ipcRenderer.invoke('settings:dismiss-deps-warning', modId),
     pickFolder: () => ipcRenderer.invoke('settings:pick-folder'),
 
     onDownloadProgress: (callback: (info: { downloaded: number; total: number }) => void) => {

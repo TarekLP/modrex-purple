@@ -4,6 +4,7 @@ export interface Settings {
     gamePath?: string
     launchOptions?: string
     skipFileOpenLogWarning?: boolean
+    dismissedDepsWarnings?: number[]
 }
 
 export function readSettings(settingsPath: string): Settings {

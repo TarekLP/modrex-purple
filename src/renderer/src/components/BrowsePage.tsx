@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { Mod, Paginated, InstalledMod, Category } from '../../../shared/types'
+import type { Mod, Paginated, InstalledMod, Category, ModDependency } from '../../../shared/types'
 import type { SortOption } from '../../../main/api'
 import { ModCard } from './ModCard'
 import { Select } from './Select'
+import { DepsWarningModal } from './DepsWarningModal'
 
 interface Props {
     gamePath: string | null
@@ -46,6 +47,10 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
     const [loadingMods, setLoadingMods] = useState(false)
     const [loadingMod, setLoadingMod] = useState<number | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [depsWarning, setDepsWarning] = useState<{
+        modId: number
+        allDeps: ModDependency[]
+    } | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const fetchMods = useCallback(
@@ -106,6 +111,23 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
         if (!gamePath) return
         setLoadingMod(modId)
         try {
+            if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
+                const fullMod = await window.api.getMod(modId)
+                const allDeps = [
+                    ...(fullMod.dependencies ?? []),
+                    ...(fullMod.instructs_template?.dependencies ?? []),
+                ]
+                const missingRequired = allDeps.filter(
+                    (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
+                )
+                if (missingRequired.length > 0) {
+                    const s = await window.api.getSettings()
+                    if (!s.dismissedDepsWarnings?.includes(modId)) {
+                        setDepsWarning({ modId, allDeps })
+                        return
+                    }
+                }
+            }
             await window.api.installMod(modId, gamePath)
             await onRefreshInstalled()
         } catch (e) {
@@ -148,8 +170,28 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
         }
     }
 
+    const missingDepsList = depsWarning
+        ? depsWarning.allDeps.filter(
+              (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
+          )
+        : []
+
     return (
         <div className="h-full flex flex-col">
+            {depsWarning && (
+                <DepsWarningModal
+                    modId={depsWarning.modId}
+                    missingRequired={missingDepsList}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setDepsWarning(null)}
+                    onGotIt={async (permanent) => {
+                        sessionStorage.setItem(`depsWarningDismissed-${depsWarning.modId}`, '1')
+                        if (permanent) await window.api.dismissDepsWarning(depsWarning.modId)
+                        setDepsWarning(null)
+                    }}
+                />
+            )}
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                     <h1 className="text-lg font-semibold">Browse Mods</h1>
