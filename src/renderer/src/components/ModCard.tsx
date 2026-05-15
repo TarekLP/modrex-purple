@@ -79,7 +79,7 @@ export function ModCard({
             <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
                 <div className="flex items-center">
                     {installed ? (
-                        <span className="text-xs text-text-subtle">v{installed.version}</span>
+                        <span className="text-xs text-text-subtle">{installed.version}</span>
                     ) : (
                         <div className="flex items-center gap-3 text-xs text-text-subtle">
                             <span className="flex items-center gap-1">
