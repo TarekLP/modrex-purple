@@ -41,4 +41,3 @@ input[type='checkbox']:not(:disabled) {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--color-text-subtle);
 }
-
