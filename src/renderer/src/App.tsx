@@ -38,7 +38,11 @@ export default function App() {
     }
 
     function pushDetail(modId: number) {
-        setDetailStack((prev) => [...prev, modId])
+        setDetailStack((prev) => {
+            const existingIndex = prev.indexOf(modId)
+            if (existingIndex !== -1) return prev.slice(0, existingIndex + 1)
+            return [...prev, modId]
+        })
     }
 
     function closeDetail() {
