@@ -18,6 +18,7 @@ export default function App() {
     const [detailStack, setDetailStack] = useState<number[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
+    const [installedReady, setInstalledReady] = useState(false)
 
     useEffect(() => {
         window.api.findGamePath().then(setGamePath)
@@ -26,6 +27,7 @@ export default function App() {
     const refreshInstalled = useCallback(async () => {
         const state = await window.api.getInstalled()
         setInstalled(state.mods)
+        setInstalledReady(true)
     }, [])
 
     useEffect(() => {
@@ -96,6 +98,7 @@ export default function App() {
                         <InstalledPageMemo
                             gamePath={gamePath}
                             installed={installed}
+                            installedReady={installedReady}
                             onRefreshInstalled={refreshInstalled}
                             onOpenDetail={openDetailFromInstalled}
                         />

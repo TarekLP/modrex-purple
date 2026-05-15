@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
@@ -7,6 +7,7 @@ import { getCachedMod } from '../modCache'
 interface Props {
     gamePath: string | null
     installed: InstalledMod[]
+    installedReady: boolean
     onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number) => void
 }
@@ -31,24 +32,20 @@ function syntheticMod(ins: InstalledMod): Mod {
     }
 }
 
-export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenDetail }: Props) {
+export function InstalledPage({
+    gamePath,
+    installed,
+    installedReady,
+    onRefreshInstalled,
+    onOpenDetail,
+}: Props) {
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
     const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
     const fetchedIds = useRef<Set<number>>(new Set())
-    const [initialized, setInitialized] = useState(false)
     const [loadingMod, setLoadingMod] = useState<number | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
     const [showUpdates, setShowUpdates] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-
-    const refresh = useCallback(async () => {
-        await onRefreshInstalled()
-        setInitialized(true)
-    }, [onRefreshInstalled])
-
-    useEffect(() => {
-        refresh()
-    }, [refresh])
 
     // Fetch modData for any newly seen mod IDs
     useEffect(() => {
@@ -162,7 +159,7 @@ export function InstalledPage({ gamePath, installed, onRefreshInstalled, onOpenD
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
-                {!initialized ? (
+                {!installedReady ? (
                     <div className="flex items-center justify-center h-full text-text-subtle text-sm">
                         Loading…
                     </div>
