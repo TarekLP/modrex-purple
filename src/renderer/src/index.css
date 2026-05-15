@@ -1,22 +1,22 @@
 @import 'tailwindcss';
 
 @theme {
-    --color-surface: oklch(0.145 0 0); /* zinc-950 */
-    --color-surface-raised: oklch(0.21 0.006 285); /* zinc-900 */
-    --color-surface-hover: oklch(0.274 0.006 286); /* zinc-800 */
-    --color-surface-active: oklch(0.371 0.013 286); /* zinc-700 */
-    --color-surface-light: oklch(0.442 0.017 286); /* zinc-600 */
-    --color-border: oklch(0.274 0.006 286); /* zinc-800 */
-    --color-text: oklch(0.967 0.001 286); /* zinc-100 */
-    --color-text-muted: oklch(0.651 0.013 286); /* zinc-400 */
-    --color-text-subtle: oklch(0.553 0.015 286); /* zinc-500 */
-    --color-accent: oklch(0.65 0.18 47); /* pd3 orange */
-    --color-accent-bright: oklch(0.72 0.17 47); /* pd3 orange light */
-    --color-danger: oklch(0.3 0.08 47); /* orange-900 */
-    --color-danger-hover: oklch(0.38 0.1 47); /* orange-800 */
-    --color-danger-text: oklch(0.8 0.12 47); /* orange-300 */
-    --color-success: oklch(0.264 0.065 153); /* green-900 */
-    --color-success-text: oklch(0.792 0.209 152); /* green-400 */
+    --color-surface: #0a0a0a;
+    --color-surface-raised: #18181b;
+    --color-surface-hover: #27272a;
+    --color-surface-active: #3f3f46;
+    --color-surface-light: #52525c;
+    --color-border: #27272a;
+    --color-text: #f4f4f3;
+    --color-text-muted: #8e8e96;
+    --color-text-subtle: #71717a;
+    --color-accent: #e36300;
+    --color-accent-bright: #f87d36;
+    --color-danger: #4d1e02;
+    --color-danger-hover: #6b2e05;
+    --color-danger-text: #fda578;
+    --color-success: #032e15;
+    --color-success-text: #00df72;
 }
 
 button:not(:disabled),
