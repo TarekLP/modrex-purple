@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, TriangleAlert } from 'lucide-react'
+import { Play, Square, TriangleAlert, X } from 'lucide-react'
 
 interface Props {
     gamePath: string | null
@@ -10,13 +10,18 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
     const [gameRunning, setGameRunning] = useState(false)
     const [showWarning, setShowWarning] = useState(false)
     const [dontShowAgain, setDontShowAgain] = useState(false)
+    const [launchError, setLaunchError] = useState<string | null>(null)
     const wasRunning = useRef(false)
 
     useEffect(() => {
         const check = async () => {
             const running = await window.api.isGameRunning()
             if (wasRunning.current && !running) {
-                await window.api.restoreMods()
+                try {
+                    await window.api.restoreMods()
+                } catch (e) {
+                    setLaunchError(String(e))
+                }
                 await onRefreshInstalled()
             }
             wasRunning.current = running
@@ -43,9 +48,13 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
         window.api.launchModded()
     }
 
-    function launchWithoutMods() {
+    async function launchWithoutMods() {
         if (!gamePath) return
-        window.api.launchWithoutMods(gamePath)
+        try {
+            await window.api.launchWithoutMods(gamePath)
+        } catch (e) {
+            setLaunchError(String(e))
+        }
     }
 
     function stopGame() {
@@ -54,6 +63,17 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
 
     return (
         <>
+            {launchError && (
+                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-danger border-b border-danger-hover text-xs text-danger-text">
+                    <span>{launchError}</span>
+                    <button
+                        onClick={() => setLaunchError(null)}
+                        className="shrink-0 hover:text-text transition-colors"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
             <div className="h-10 shrink-0 flex items-center justify-between px-4 bg-surface border-b border-border">
                 <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
                     PD3 Mod Manager

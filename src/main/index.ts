@@ -239,7 +239,15 @@ function registerHandlers(): void {
     ipcMain.handle('app:launch-without-mods', (_, gamePath: string) => {
         const modsDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(gamePath, 'PAYDAY3', 'Content', '~mods.bak')
-        if (existsSync(modsDir)) renameSync(modsDir, modsBak)
+        if (existsSync(modsDir)) {
+            try {
+                renameSync(modsDir, modsBak)
+            } catch (e) {
+                throw new Error(
+                    `Could not hide mods folder — the game may still have files open. Close the game first and try again. (${(e as NodeJS.ErrnoException).code})`
+                )
+            }
+        }
         const { launchOptions } = readSettings(settingsPath)
         launchGame(launchOptions)
     })
@@ -248,7 +256,15 @@ function registerHandlers(): void {
         if (!resolvedGamePath) return
         const modsDir = join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak')
-        if (!existsSync(modsDir) && existsSync(modsBak)) renameSync(modsBak, modsDir)
+        if (!existsSync(modsDir) && existsSync(modsBak)) {
+            try {
+                renameSync(modsBak, modsDir)
+            } catch (e) {
+                throw new Error(
+                    `Could not restore mods folder. You may need to manually rename ~mods.bak back to ~mods. (${(e as NodeJS.ErrnoException).code})`
+                )
+            }
+        }
     })
 
     ipcMain.handle('settings:set-launch-options', (_, launchOptions: string) => {
