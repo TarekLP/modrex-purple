@@ -16,8 +16,6 @@ export default function App() {
     const [gamePath, setGamePath] = useState<string | null>(null)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
 
-    const detailModId = detailStack[detailStack.length - 1] ?? null
-
     useEffect(() => {
         window.api.findGamePath().then(setGamePath)
     }, [])
@@ -92,10 +90,14 @@ export default function App() {
                     <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>
                         <SettingsPage gamePath={gamePath} onGamePathChange={refreshGamePath} />
                     </div>
-                    {view === 'detail' && detailModId !== null && (
-                        <div className="h-full">
+                    {detailStack.map((modId, i) => (
+                        <div
+                            key={modId}
+                            className={`h-full ${view === 'detail' && i === detailStack.length - 1 ? '' : 'hidden'}`}
+                        >
                             <ModDetailPage
-                                modId={detailModId}
+                                modId={modId}
+                                isActive={view === 'detail' && i === detailStack.length - 1}
                                 gamePath={gamePath}
                                 installed={installed}
                                 onBack={closeDetail}
@@ -103,7 +105,7 @@ export default function App() {
                                 onOpenDetail={pushDetail}
                             />
                         </div>
-                    )}
+                    ))}
                 </main>
             </div>
         </div>

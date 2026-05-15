@@ -89,6 +89,7 @@ function MarkdownContent({ text }: { text: string }) {
 
 interface Props {
     modId: number
+    isActive?: boolean
     gamePath: string | null
     installed: InstalledMod[]
     onBack: () => void
@@ -98,6 +99,7 @@ interface Props {
 
 export function ModDetailPage({
     modId,
+    isActive = true,
     gamePath,
     installed,
     onBack,
@@ -153,6 +155,7 @@ export function ModDetailPage({
     const images = mod?.images ?? []
 
     useEffect(() => {
+        if (!isActive) return
         function onKey(e: KeyboardEvent) {
             if (lightboxIndex !== null) {
                 if (e.key === 'Escape') setLightboxIndex(null)
@@ -166,7 +169,7 @@ export function ModDetailPage({
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
-    }, [lightboxIndex, images.length, onBack])
+    }, [isActive, lightboxIndex, images.length, onBack])
 
     async function handleInstall() {
         if (!gamePath || !mod) return
