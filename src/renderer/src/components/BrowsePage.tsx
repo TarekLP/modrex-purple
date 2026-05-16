@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
 import { Search, X } from 'lucide-react'
 import type {
     Mod,
@@ -89,10 +89,12 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                     query: q || undefined,
                     category_id: cat,
                 })
-                setResult(data)
+                startTransition(() => {
+                    setResult(data)
+                    setLoadingMods(false)
+                })
             } catch (e) {
                 setError(String(e))
-            } finally {
                 setLoadingMods(false)
             }
         },

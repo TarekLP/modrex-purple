@@ -7,7 +7,6 @@ import { ModDetailPage } from './components/ModDetailPage'
 import { SettingsPage } from './components/SettingsPage'
 import { TopBar } from './components/TopBar'
 
-const BrowsePageMemo = memo(BrowsePage)
 const InstalledPageMemo = memo(InstalledPage)
 
 export type View = 'browse' | 'installed' | 'detail' | 'settings'
@@ -116,14 +115,16 @@ export default function App() {
                     onViewChange={handleSidebarChange}
                 />
                 <main className="flex-1 overflow-hidden">
-                    <div className={`h-full ${view === 'browse' ? '' : 'hidden'}`}>
-                        <BrowsePageMemo
-                            gamePath={gamePath}
-                            installed={installed}
-                            onRefreshInstalled={refreshInstalled}
-                            onOpenDetail={openDetailFromBrowse}
-                        />
-                    </div>
+                    {view === 'browse' && (
+                        <div className="h-full">
+                            <BrowsePage
+                                gamePath={gamePath}
+                                installed={installed}
+                                onRefreshInstalled={refreshInstalled}
+                                onOpenDetail={openDetailFromBrowse}
+                            />
+                        </div>
+                    )}
                     <div className={`h-full ${view === 'installed' ? '' : 'hidden'}`}>
                         <InstalledPageMemo
                             gamePath={gamePath}
