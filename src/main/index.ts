@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, shell, dialog } from 'electron'
 import { join } from 'path'
-import { rmSync, renameSync, existsSync, writeFileSync } from 'fs'
+import { rmSync, renameSync, existsSync, writeFileSync, mkdirSync } from 'fs'
 import { exec, execSync, spawn } from 'child_process'
 import {
     listMods,
@@ -43,8 +43,13 @@ function hashFilename(filename: string): number {
     return -Math.abs(h) || -1
 }
 
-const statePath = join(app.getPath('userData'), 'installed.json')
+const legacyStatePath = join(app.getPath('userData'), 'installed.json')
 const settingsPath = join(app.getPath('userData'), 'settings.json')
+
+function getStatePath(gamePath: string | null): string {
+    if (!gamePath) return legacyStatePath
+    return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', '.pd3mm.json')
+}
 let resolvedGamePath: string | null = null
 
 function registerHandlers(): void {
@@ -75,6 +80,7 @@ function registerHandlers(): void {
         return result.canceled ? null : result.filePaths[0]
     })
     ipcMain.handle('mods:get-installed', async () => {
+        const statePath = getStatePath(resolvedGamePath)
         const state = resolvedGamePath
             ? await reconcileState(resolvedGamePath, statePath)
             : readState(statePath)
@@ -123,6 +129,7 @@ function registerHandlers(): void {
     })
 
     ipcMain.handle('mods:install', async (event, modId: number, gamePath: string) => {
+        const statePath = getStatePath(gamePath)
         const mod = await getMod(modId)
         const file = mod.download ?? (mod.has_download ? await getLatestFile(modId) : null)
         if (!file) throw new Error('Mod has no download')
@@ -164,6 +171,7 @@ function registerHandlers(): void {
             modVersion: string,
             gamePath: string
         ) => {
+            const statePath = getStatePath(gamePath)
             const tmp = await downloadFile(downloadUrl, fileType, (downloaded, total) =>
                 event.sender.send('download:progress', { downloaded, total })
             )
@@ -192,16 +200,16 @@ function registerHandlers(): void {
     )
 
     ipcMain.handle('mods:uninstall', (_, modId: number, gamePath: string) =>
-        uninstallMod(gamePath, statePath, modId)
+        uninstallMod(gamePath, getStatePath(gamePath), modId)
     )
     ipcMain.handle('mods:enable', (_, modId: number, gamePath: string) =>
-        enableMod(gamePath, statePath, modId)
+        enableMod(gamePath, getStatePath(gamePath), modId)
     )
     ipcMain.handle('mods:disable', (_, modId: number, gamePath: string) =>
-        disableMod(gamePath, statePath, modId)
+        disableMod(gamePath, getStatePath(gamePath), modId)
     )
     ipcMain.handle('mods:reorder', (_, orderedIds: number[], gamePath: string) =>
-        reorderMods(gamePath, statePath, orderedIds)
+        reorderMods(gamePath, getStatePath(gamePath), orderedIds)
     )
 
     ipcMain.handle('app:is-game-running', () => {
@@ -346,6 +354,12 @@ app.whenReady().then(() => {
         const modsDir = join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak')
         if (!existsSync(modsDir) && existsSync(modsBak)) renameSync(modsBak, modsDir)
+
+        const newStatePath = getStatePath(resolvedGamePath)
+        if (existsSync(legacyStatePath) && !existsSync(newStatePath)) {
+            if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true })
+            renameSync(legacyStatePath, newStatePath)
+        }
     }
 
     registerHandlers()
