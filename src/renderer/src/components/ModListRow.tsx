@@ -2,6 +2,7 @@ import { Trash2 } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
+import { t } from '../i18n'
 
 interface Props {
     mod: Mod
@@ -71,7 +72,7 @@ export function ModListRow({
             <div className="flex items-center gap-2 px-4 shrink-0">
                 {installed.missing && (
                     <span className="text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 px-2 py-0.5 rounded">
-                        File missing
+                        {t('common.fileMissing')}
                     </span>
                 )}
                 <Toggle
@@ -82,7 +83,7 @@ export function ModListRow({
                 <button
                     disabled={!canAct}
                     onClick={onUninstall}
-                    title="Remove"
+                    title={t('common.remove')}
                     className="p-2 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                     <Trash2 className="w-4 h-4" />

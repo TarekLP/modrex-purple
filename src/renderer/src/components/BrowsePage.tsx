@@ -14,6 +14,7 @@ import { ModCard } from './ModCard'
 import { Select } from './Select'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
+import { t } from '../i18n'
 
 interface Props {
     gamePath: string | null
@@ -40,11 +41,11 @@ function buildPages(current: number, last: number): (number | '...')[] {
 }
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-    { value: 'bumped_at', label: 'Last Updated' },
-    { value: 'downloads', label: 'Most Downloaded' },
-    { value: 'likes', label: 'Most Liked' },
-    { value: 'published_at', label: 'Newest' },
-    { value: 'name', label: 'Name' },
+    { value: 'bumped_at', label: t('browse.sort.lastUpdated') },
+    { value: 'downloads', label: t('browse.sort.mostDownloaded') },
+    { value: 'likes', label: t('browse.sort.mostLiked') },
+    { value: 'published_at', label: t('browse.sort.newest') },
+    { value: 'name', label: t('browse.sort.name') },
 ]
 
 export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDetail }: Props) {
@@ -239,10 +240,10 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
             )}
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-lg font-semibold">Browse Mods</h1>
+                    <h1 className="text-lg font-semibold">{t('browse.title')}</h1>
                     {!gamePath && (
                         <span className="text-xs text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded">
-                            Game not found — install disabled
+                            {t('browse.gameNotFound')}
                         </span>
                     )}
                 </div>
@@ -251,7 +252,7 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-subtle pointer-events-none" />
                         <input
                             type="text"
-                            placeholder="Search mods…"
+                            placeholder={t('browse.searchPlaceholder')}
                             value={query}
                             onChange={(e) => handleQueryChange(e.target.value)}
                             className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : 'pr-3'}`}
@@ -268,9 +269,9 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                     <Select
                         value={categoryId?.toString() ?? ''}
                         onChange={handleCategoryChange}
-                        placeholder="All categories"
+                        placeholder={t('browse.allCategories')}
                         options={[
-                            { value: '', label: 'All categories' },
+                            { value: '', label: t('browse.allCategories') },
                             ...categories.map((c) => ({ value: String(c.id), label: c.name })),
                         ]}
                     />
@@ -291,11 +292,11 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
             <div className="flex-1 overflow-y-auto px-6 py-4">
                 {loadingMods ? (
                     <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        Loading…
+                        {t('common.loading')}
                     </div>
                 ) : !result || result.data.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        {result ? 'No mods found' : 'Loading…'}
+                        {result ? t('browse.noMods') : t('common.loading')}
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
@@ -321,7 +322,8 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
             {result && result.meta.last_page > 1 && (
                 <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
                     <span className="text-xs text-text-subtle">
-                        {result.meta.total > 0 && `${result.meta.total} mods`}
+                        {result.meta.total > 0 &&
+                            t('browse.modCount', { total: result.meta.total })}
                     </span>
                     <div className="flex gap-1">
                         {buildPages(page, result.meta.last_page).map((p, i) =>

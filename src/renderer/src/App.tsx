@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react'
 import type { InstalledMod } from '../../shared/types'
+import { t } from './i18n'
 import { Sidebar } from './components/Sidebar'
 import { BrowsePage } from './components/BrowsePage'
 import { InstalledPage } from './components/InstalledPage'
@@ -94,17 +95,14 @@ export default function App() {
             <TopBar gamePath={gamePath} onRefreshInstalled={refreshInstalled} />
             {modsHidden && (
                 <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-yellow-400/10 border-b border-yellow-400/30 text-xs text-yellow-400">
-                    <span>
-                        Mods are hidden — the game was launched in vanilla mode and may still be
-                        running.
-                    </span>
+                    <span>{t('app.modsHidden')}</span>
                     <div className="flex items-center gap-3 shrink-0">
                         {restoreError && <span className="text-danger-text">{restoreError}</span>}
                         <button
                             onClick={handleRestoreMods}
                             className="px-3 py-1 rounded bg-yellow-400/20 hover:bg-yellow-400/30 transition-colors"
                         >
-                            Restore mods
+                            {t('app.restoreMods')}
                         </button>
                     </div>
                 </div>

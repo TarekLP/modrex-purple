@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Download, ExternalLink } from 'lucide-react'
 import type { Mod, ModFile, InstalledMod } from '../../../shared/types'
+import { t } from '../i18n'
 
 function formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
@@ -81,9 +82,9 @@ export function FileSelectModal({
             >
                 <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
                     <div className="min-w-0">
-                        <h2 className="text-sm font-semibold">Choose a file to install</h2>
+                        <h2 className="text-sm font-semibold">{t('fileSelect.title')}</h2>
                         <p className="text-xs text-text-muted mt-0.5 truncate">
-                            {mod.name} — this mod has multiple variants. Pick one.
+                            {t('fileSelect.subtitle', { modName: mod.name })}
                         </p>
                     </div>
                     <button
@@ -154,15 +155,15 @@ export function FileSelectModal({
                                             ? downloadProgress
                                                 ? downloadProgress.total > 0
                                                     ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                                    : 'Downloading…'
-                                                : 'Installing…'
+                                                    : t('common.downloading')
+                                                : t('common.installing')
                                             : isInstalled
-                                              ? 'Installed'
-                                              : 'Install'}
+                                              ? t('common.installed')
+                                              : t('common.install')}
                                     </button>
                                     <button
                                         onClick={() => window.api.openExternal(file.download_url)}
-                                        title="Download manually"
+                                        title={t('fileSelect.downloadManually')}
                                         className="text-xs px-2 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center"
                                     >
                                         <ExternalLink className="w-3 h-3" />

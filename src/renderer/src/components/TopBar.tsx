@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Play, Square, TriangleAlert, X } from 'lucide-react'
+import { t } from '../i18n'
 
 interface Props {
     gamePath: string | null
@@ -76,7 +77,7 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
             )}
             <div className="h-10 shrink-0 flex items-center justify-between px-4 bg-surface border-b border-border">
                 <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
-                    PD3 Mod Manager
+                    {t('topBar.title')}
                 </span>
                 <div className="flex items-center gap-2">
                     {gameRunning ? (
@@ -85,7 +86,7 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
                             className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors flex items-center gap-1.5"
                         >
                             <Square className="w-3.5 h-3.5" fill="currentColor" />
-                            Stop game
+                            {t('topBar.stopGame')}
                         </button>
                     ) : (
                         <>
@@ -95,14 +96,14 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
                                 className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                             >
                                 <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                Launch without mods
+                                {t('topBar.launchWithoutMods')}
                             </button>
                             <button
                                 onClick={handleLaunchModded}
                                 className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
                             >
                                 <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                Launch modded
+                                {t('topBar.launchModded')}
                             </button>
                         </>
                     )}
@@ -115,12 +116,15 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
                         <div className="flex flex-col gap-1">
                             <h2 className="text-sm font-semibold flex items-center gap-2">
                                 <TriangleAlert className="w-4 h-4 text-yellow-400 shrink-0" />
-                                Missing launch option
+                                {t('topBar.missingLaunchOption.title')}
                             </h2>
                             <p className="text-xs text-text-muted">
-                                <span className="font-mono text-text">-fileopenlog</span> is
-                                required for mods to load correctly. Add it in{' '}
-                                <span className="text-text">Settings → Launch Options</span>.
+                                <span className="font-mono text-text">-fileopenlog</span>{' '}
+                                {t('topBar.missingLaunchOption.bodyPre')}{' '}
+                                <span className="text-text">
+                                    {t('topBar.missingLaunchOption.location')}
+                                </span>
+                                .
                             </p>
                         </div>
                         <div className="flex items-center justify-between">
@@ -131,20 +135,22 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
                                     onChange={(e) => setDontShowAgain(e.target.checked)}
                                     className="accent-accent"
                                 />
-                                <span className="text-xs text-text-muted">Don't show again</span>
+                                <span className="text-xs text-text-muted">
+                                    {t('common.dontShowAgain')}
+                                </span>
                             </label>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setShowWarning(false)}
                                     className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active transition-colors"
                                 >
-                                    Cancel
+                                    {t('common.cancel')}
                                 </button>
                                 <button
                                     onClick={confirmLaunch}
                                     className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
                                 >
-                                    Launch anyway
+                                    {t('topBar.missingLaunchOption.launchAnyway')}
                                 </button>
                             </div>
                         </div>

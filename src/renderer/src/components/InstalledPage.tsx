@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, LayoutGrid, List, FolderOpen } from 'lucide-react'
+import { t } from '../i18n'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
@@ -235,13 +236,13 @@ export function InstalledPage({
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
-                    <h1 className="text-lg font-semibold">Installed Mods</h1>
+                    <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
                     {gamePath && (
                         <button
                             onClick={() =>
                                 window.api.openPath(`${gamePath}/PAYDAY3/Content/Paks/~mods`)
                             }
-                            title="Open mods folder"
+                            title={t('installed.openFolder')}
                             className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
                         >
                             <FolderOpen className="w-3.5 h-3.5" />
@@ -251,7 +252,12 @@ export function InstalledPage({
                 <div className="flex items-center gap-3">
                     {installed.length > 0 && (
                         <span className="text-xs text-text-subtle">
-                            {installed.length} mod{installed.length !== 1 ? 's' : ''}
+                            {t(
+                                installed.length === 1
+                                    ? 'installed.modCountSingle'
+                                    : 'installed.modCount',
+                                { count: installed.length }
+                            )}
                         </span>
                     )}
                     <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
@@ -276,19 +282,23 @@ export function InstalledPage({
             <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
                 {!installedReady ? (
                     <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        Loading…
+                        {t('common.loading')}
                     </div>
                 ) : installed.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        No mods installed yet
+                        {t('installed.empty')}
                     </div>
                 ) : (
                     <>
                         {updatable.length > 0 && (
                             <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-accent/10 border border-accent/30">
                                 <span className="text-sm font-medium text-accent">
-                                    {updatable.length} mod{updatable.length !== 1 ? 's' : ''} can be
-                                    updated
+                                    {t(
+                                        updatable.length === 1
+                                            ? 'installed.updatesAvailableSingle'
+                                            : 'installed.updatesAvailable',
+                                        { count: updatable.length }
+                                    )}
                                 </span>
                                 <button
                                     onClick={() => {
@@ -297,7 +307,7 @@ export function InstalledPage({
                                     }}
                                     className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors"
                                 >
-                                    Review updates
+                                    {t('installed.reviewUpdates')}
                                 </button>
                             </div>
                         )}
@@ -410,7 +420,7 @@ export function InstalledPage({
                     <div className="bg-surface-raised border border-border rounded-xl w-full max-w-lg mx-6 flex flex-col overflow-hidden">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                             <h2 className="text-sm font-semibold">
-                                Available updates ({updatable.length})
+                                {t('installed.updatesModal.title', { count: updatable.length })}
                             </h2>
                             <button
                                 onClick={() => setShowUpdates(false)}
@@ -450,7 +460,9 @@ export function InstalledPage({
                                             onClick={() => handleUpdate(ins.id)}
                                             className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
                                         >
-                                            {loadingMod === ins.id ? 'Updating…' : 'Update'}
+                                            {loadingMod === ins.id
+                                                ? t('installed.updatesModal.updating')
+                                                : t('installed.updatesModal.update')}
                                         </button>
                                     </div>
                                 )
@@ -462,7 +474,7 @@ export function InstalledPage({
                                 onClick={() => setShowUpdates(false)}
                                 className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
                             >
-                                Close
+                                {t('common.close')}
                             </button>
                             <button
                                 disabled={!gamePath || updatingAll || selectedIds.size === 0}
@@ -470,8 +482,10 @@ export function InstalledPage({
                                 className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             >
                                 {updatingAll
-                                    ? 'Updating…'
-                                    : `Update Selected (${selectedIds.size})`}
+                                    ? t('installed.updatesModal.updating')
+                                    : t('installed.updatesModal.updateSelected', {
+                                          count: selectedIds.size,
+                                      })}
                             </button>
                         </div>
                     </div>

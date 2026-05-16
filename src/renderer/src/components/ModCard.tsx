@@ -2,6 +2,7 @@ import { Download, Heart, Eye, Clock, Trash2 } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
+import { t } from '../i18n'
 
 function formatCount(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -56,7 +57,6 @@ export function ModCard({
 
     return (
         <div className="bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col">
-            {/* Clickable area — opens detail modal */}
             <div className="cursor-pointer group" onClick={onOpen}>
                 {mod.thumbnail ? (
                     <img
@@ -67,7 +67,7 @@ export function ModCard({
                     />
                 ) : (
                     <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
-                        <span className="text-text-subtle text-xs">No image</span>
+                        <span className="text-text-subtle text-xs">{t('common.noImage')}</span>
                     </div>
                 )}
                 <div className="px-3 pt-3 pb-1 flex flex-col gap-1">
@@ -79,7 +79,6 @@ export function ModCard({
                 </div>
             </div>
 
-            {/* Action row — not part of the clickable area */}
             <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
                 <div className="flex items-center">
                     {installed ? (
@@ -116,16 +115,16 @@ export function ModCard({
                             ? progressPct !== null
                                 ? `${progressPct}%`
                                 : progress
-                                  ? 'Downloading…'
-                                  : 'Installing…'
-                            : 'Install'}
+                                  ? t('common.downloading')
+                                  : t('common.installing')
+                            : t('common.install')}
                     </button>
                 )}
                 {installed && (
                     <div className="flex items-center gap-2">
                         {installed.missing && (
                             <span className="text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 px-2 py-0.5 rounded">
-                                File missing
+                                {t('common.fileMissing')}
                             </span>
                         )}
                         <Toggle
@@ -136,7 +135,7 @@ export function ModCard({
                         <button
                             disabled={!canAct}
                             onClick={onUninstall}
-                            title="Remove"
+                            title={t('common.remove')}
                             className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
                         >
                             <Trash2 className="w-3.5 h-3.5" />

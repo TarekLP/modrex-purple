@@ -8,6 +8,7 @@ import {
     ChevronRight,
     X,
 } from 'lucide-react'
+import { t } from '../i18n'
 import { Toggle } from './Toggle'
 import ReactMarkdown from 'react-markdown'
 import type { Mod, ModFile, ModDependency, InstalledMod } from '../../../shared/types'
@@ -242,10 +243,20 @@ export function ModDetailPage({
     )
 
     const tabs: { id: Tab; label: string }[] = [
-        { id: 'description', label: 'Description' },
-        { id: 'images', label: `Images${mod?.images?.length ? ` (${mod.images.length})` : ''}` },
-        { id: 'downloads', label: `Downloads${files.length ? ` (${files.length})` : ''}` },
-        { id: 'deps', label: 'Dependencies & Instructions' },
+        { id: 'description', label: t('detail.tabs.description') },
+        {
+            id: 'images',
+            label: mod?.images?.length
+                ? t('detail.tabs.imagesCount', { count: mod.images.length })
+                : t('detail.tabs.images'),
+        },
+        {
+            id: 'downloads',
+            label: files.length
+                ? t('detail.tabs.downloadsCount', { count: files.length })
+                : t('detail.tabs.downloads'),
+        },
+        { id: 'deps', label: t('detail.tabs.deps') },
     ]
 
     return (
@@ -281,7 +292,7 @@ export function ModDetailPage({
                     className="text-sm text-text-muted hover:text-text transition-colors flex items-center gap-1.5 shrink-0"
                 >
                     <ArrowLeft className="w-4 h-4" />
-                    Back
+                    {t('detail.back')}
                 </button>
                 {mod && (
                     <span className="text-sm text-text-subtle truncate hidden sm:block">
@@ -299,7 +310,7 @@ export function ModDetailPage({
                             <button
                                 disabled={!canAct}
                                 onClick={handleUninstall}
-                                title="Remove"
+                                title={t('common.remove')}
                                 className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -317,9 +328,9 @@ export function ModDetailPage({
                                 ? downloadProgress
                                     ? downloadProgress.total > 0
                                         ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                        : 'Downloading…'
-                                    : 'Installing…'
-                                : 'Install'}
+                                        : t('common.downloading')
+                                    : t('common.installing')
+                                : t('common.install')}
                         </button>
                     )}
                 </div>
@@ -341,7 +352,7 @@ export function ModDetailPage({
 
             {loading && (
                 <div className="flex items-center justify-center flex-1 text-text-subtle text-sm">
-                    Loading…
+                    {t('common.loading')}
                 </div>
             )}
 
@@ -379,7 +390,7 @@ export function ModDetailPage({
                                                 }
                                                 className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
                                             >
-                                                Source
+                                                {t('detail.source')}
                                                 <ExternalLink className="w-3 h-3" />
                                             </button>
                                         </>
@@ -411,31 +422,46 @@ export function ModDetailPage({
                         </div>
 
                         <div className="flex items-center gap-5 mt-4 text-sm">
-                            <Stat value={mod.downloads.toLocaleString()} label="Downloads" />
+                            <Stat
+                                value={mod.downloads.toLocaleString()}
+                                label={t('detail.stats.downloads')}
+                            />
                             <div className="w-px h-7 bg-border" />
-                            <Stat value={mod.likes.toLocaleString()} label="Likes" />
+                            <Stat
+                                value={mod.likes.toLocaleString()}
+                                label={t('detail.stats.likes')}
+                            />
                             <div className="w-px h-7 bg-border" />
-                            <Stat value={mod.views.toLocaleString()} label="Views" />
+                            <Stat
+                                value={mod.views.toLocaleString()}
+                                label={t('detail.stats.views')}
+                            />
                             <div className="ml-auto text-xs text-text-subtle text-right">
-                                <div>Published {formatDate(mod.published_at)}</div>
-                                <div>Updated {formatDate(mod.bumped_at)}</div>
+                                <div>
+                                    {t('detail.stats.published', {
+                                        date: formatDate(mod.published_at),
+                                    })}
+                                </div>
+                                <div>
+                                    {t('detail.stats.updated', { date: formatDate(mod.bumped_at) })}
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Tab bar */}
                     <div className="flex border-b border-border px-6">
-                        {tabs.map((t) => (
+                        {tabs.map((tabItem) => (
                             <button
-                                key={t.id}
-                                onClick={() => setTab(t.id)}
+                                key={tabItem.id}
+                                onClick={() => setTab(tabItem.id)}
                                 className={`text-xs px-4 py-3 border-b-2 transition-colors ${
-                                    tab === t.id
+                                    tab === tabItem.id
                                         ? 'border-accent text-accent'
                                         : 'border-transparent text-text-subtle hover:text-text-muted'
                                 }`}
                             >
-                                {t.label}
+                                {tabItem.label}
                             </button>
                         ))}
                     </div>
@@ -538,19 +564,23 @@ function DescriptionTab({ mod }: { mod: Mod }) {
                     <MarkdownContent text={mod.desc} />
                 </section>
             ) : (
-                <p className="text-sm text-text-subtle">No description provided.</p>
+                <p className="text-sm text-text-subtle">{t('detail.description.noDescription')}</p>
             )}
 
             {mod.changelog && (
                 <section>
-                    <h2 className="text-sm font-semibold mb-2 text-text">Changelog</h2>
+                    <h2 className="text-sm font-semibold mb-2 text-text">
+                        {t('detail.description.changelog')}
+                    </h2>
                     <MarkdownContent text={mod.changelog} />
                 </section>
             )}
 
             {mod.license && (
                 <section>
-                    <h2 className="text-sm font-semibold mb-2 text-text">License</h2>
+                    <h2 className="text-sm font-semibold mb-2 text-text">
+                        {t('detail.description.license')}
+                    </h2>
                     <p className="text-sm text-text-muted">{mod.license}</p>
                 </section>
             )}
@@ -561,7 +591,7 @@ function DescriptionTab({ mod }: { mod: Mod }) {
 function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (index: number) => void }) {
     const images = mod.images ?? []
     if (images.length === 0) {
-        return <p className="text-sm text-text-subtle">No images uploaded for this mod.</p>
+        return <p className="text-sm text-text-subtle">{t('detail.images.none')}</p>
     }
     return (
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
@@ -624,7 +654,7 @@ function DownloadsTab({
     }
 
     if (files.length === 0) {
-        return <p className="text-sm text-text-subtle">No files available.</p>
+        return <p className="text-sm text-text-subtle">{t('detail.downloads.none')}</p>
     }
     return (
         <div className="flex flex-col gap-2">
@@ -673,11 +703,11 @@ function DownloadsTab({
                                         ? downloadProgress
                                             ? downloadProgress.total > 0
                                                 ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                                : 'Downloading…'
-                                            : 'Installing…'
+                                                : t('common.downloading')
+                                            : t('common.installing')
                                         : isInstalled
-                                          ? 'Installed'
-                                          : 'Install'}
+                                          ? t('common.installed')
+                                          : t('common.install')}
                                 </button>
                             )
                         })()}
@@ -685,7 +715,7 @@ function DownloadsTab({
                             onClick={() => window.api.openExternal(file.download_url)}
                             className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center gap-1.5"
                         >
-                            Download
+                            {t('detail.downloads.external')}
                             <ExternalLink className="w-3 h-3" />
                         </button>
                     </div>
@@ -714,11 +744,7 @@ function DepsTab({
     const hasDeps = deps.length > 0
 
     if (!hasInstructions && !hasDeps) {
-        return (
-            <p className="text-sm text-text-subtle">
-                No installation instructions or dependencies listed.
-            </p>
-        )
+        return <p className="text-sm text-text-subtle">{t('detail.deps.none')}</p>
     }
 
     const required = deps.filter((d) => !d.optional)
@@ -729,7 +755,7 @@ function DepsTab({
             {hasInstructions && (
                 <section>
                     <h2 className="text-sm font-semibold mb-3 text-text">
-                        Installation Instructions
+                        {t('detail.deps.instructions')}
                     </h2>
                     {mod.instructs_template?.instructions && (
                         <MarkdownContent text={mod.instructs_template.instructions} />
@@ -744,7 +770,9 @@ function DepsTab({
 
             {required.length > 0 && (
                 <section>
-                    <h2 className="text-sm font-semibold mb-3 text-text">Required Dependencies</h2>
+                    <h2 className="text-sm font-semibold mb-3 text-text">
+                        {t('detail.deps.required')}
+                    </h2>
                     <div className="flex flex-col gap-2">
                         {required.map((dep) => (
                             <DepRow
@@ -762,7 +790,9 @@ function DepsTab({
 
             {optional.length > 0 && (
                 <section>
-                    <h2 className="text-sm font-semibold mb-3 text-text">Optional Dependencies</h2>
+                    <h2 className="text-sm font-semibold mb-3 text-text">
+                        {t('detail.deps.optional')}
+                    </h2>
                     <div className="flex flex-col gap-2">
                         {optional.map((dep) => (
                             <DepRow
@@ -834,9 +864,13 @@ function DepRow({
             <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{mod.name}</div>
                 <div className="text-xs text-text-subtle mt-0.5">
-                    by {mod.user.name} · v{mod.version} ·{' '}
+                    {t('common.by', { name: mod.user.name })} · v{mod.version} ·{' '}
                     <span className={isInstalled ? 'text-success-text' : 'text-danger-text'}>
-                        {isInstalled ? 'Installed' : dep.optional ? 'Not installed' : 'Missing'}
+                        {isInstalled
+                            ? t('detail.deps.statusInstalled')
+                            : dep.optional
+                              ? t('detail.deps.statusNotInstalled')
+                              : t('detail.deps.statusMissing')}
                     </span>
                 </div>
             </div>
@@ -847,7 +881,7 @@ function DepRow({
                         : 'border-accent/40 text-accent'
                 }`}
             >
-                {dep.optional ? 'Optional' : 'Required'}
+                {dep.optional ? t('detail.deps.badgeOptional') : t('detail.deps.badgeRequired')}
             </span>
             {!isInstalled && mod.has_download && gamePath && (
                 <button
@@ -856,7 +890,7 @@ function DepRow({
                     className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 flex items-center gap-1.5"
                 >
                     {!installing && <Download className="w-3.5 h-3.5" />}
-                    {installing ? 'Installing…' : 'Install'}
+                    {installing ? t('common.installing') : t('common.install')}
                 </button>
             )}
             <button
@@ -864,7 +898,7 @@ function DepRow({
                     e.stopPropagation()
                     window.api.openExternal(`https://modworkshop.net/mod/${mod.id}`)
                 }}
-                title="Open on modworkshop.net"
+                title={t('detail.deps.openOnSite')}
                 className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
             >
                 <ExternalLink className="w-3.5 h-3.5" />

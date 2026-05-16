@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Compass, Package, Settings, ChevronLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { t } from '../i18n'
+import type { StringKey } from '../i18n'
 
 type NavView = 'browse' | 'installed' | 'settings'
 
@@ -9,10 +11,10 @@ interface Props {
     onViewChange: (v: NavView) => void
 }
 
-const navItems: { id: NavView; label: string; icon: LucideIcon }[] = [
-    { id: 'browse', label: 'Browse Mods', icon: Compass },
-    { id: 'installed', label: 'Installed', icon: Package },
-    { id: 'settings', label: 'Settings', icon: Settings },
+const navItems: { id: NavView; labelKey: StringKey; icon: LucideIcon }[] = [
+    { id: 'browse', labelKey: 'sidebar.browse', icon: Compass },
+    { id: 'installed', labelKey: 'sidebar.installed', icon: Package },
+    { id: 'settings', labelKey: 'sidebar.settings', icon: Settings },
 ]
 
 export function Sidebar({ view, onViewChange }: Props) {
@@ -29,7 +31,7 @@ export function Sidebar({ view, onViewChange }: Props) {
                         <button
                             key={item.id}
                             onClick={() => onViewChange(item.id)}
-                            title={collapsed ? item.label : undefined}
+                            title={collapsed ? t(item.labelKey) : undefined}
                             className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
                                 view === item.id
                                     ? 'bg-surface-active text-text'
@@ -40,7 +42,7 @@ export function Sidebar({ view, onViewChange }: Props) {
                             <span
                                 className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                             >
-                                {item.label}
+                                {t(item.labelKey)}
                             </span>
                         </button>
                     )
@@ -50,7 +52,7 @@ export function Sidebar({ view, onViewChange }: Props) {
             <div className="p-2 border-t border-border">
                 <button
                     onClick={() => setCollapsed((c) => !c)}
-                    title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    title={collapsed ? t('sidebar.expandTitle') : t('sidebar.collapseTitle')}
                     className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
                 >
                     <ChevronLeft
@@ -59,7 +61,7 @@ export function Sidebar({ view, onViewChange }: Props) {
                     <span
                         className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                     >
-                        Collapse menu
+                        {t('sidebar.collapse')}
                     </span>
                 </button>
             </div>

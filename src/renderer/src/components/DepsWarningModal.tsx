@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, TriangleAlert } from 'lucide-react'
 import type { ModDependency } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
+import { t } from '../i18n'
 
 interface Props {
     modId: number
@@ -34,11 +35,9 @@ export function DepsWarningModal({
                     <div className="flex flex-col gap-1">
                         <h2 className="text-sm font-semibold flex items-center gap-2">
                             <TriangleAlert className="w-4 h-4 text-yellow-400 shrink-0" />
-                            Missing required dependencies
+                            {t('depsWarning.title')}
                         </h2>
-                        <p className="text-xs text-text-muted">
-                            This mod requires the following mods to be installed:
-                        </p>
+                        <p className="text-xs text-text-muted">{t('depsWarning.body')}</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -83,7 +82,7 @@ export function DepsWarningModal({
                                         {dep.mod.name}
                                     </div>
                                     <div className="text-xs text-text-subtle">
-                                        by {dep.mod.user.name}
+                                        {t('common.by', { name: dep.mod.user.name })}
                                     </div>
                                 </div>
                                 {dep.mod.has_download && gamePath && (
@@ -92,7 +91,9 @@ export function DepsWarningModal({
                                         onClick={handleInstallDep}
                                         className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
                                     >
-                                        {isInstalling ? 'Installing…' : 'Install'}
+                                        {isInstalling
+                                            ? t('common.installing')
+                                            : t('common.install')}
                                     </button>
                                 )}
                             </div>
@@ -110,13 +111,13 @@ export function DepsWarningModal({
                             onChange={() => {}}
                             className="accent-accent pointer-events-none"
                         />
-                        <span className="text-xs text-text-muted">Don't show again</span>
+                        <span className="text-xs text-text-muted">{t('common.dontShowAgain')}</span>
                     </div>
                     <button
                         onClick={() => onGotIt(dontShowAgain)}
                         className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
                     >
-                        Got it
+                        {t('depsWarning.gotIt')}
                     </button>
                 </div>
             </div>

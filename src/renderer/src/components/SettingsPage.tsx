@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { FolderOpen, RotateCcw } from 'lucide-react'
+import { t } from '../i18n'
 
 interface Props {
     gamePath: string | null
@@ -52,20 +53,17 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0">
-                <h1 className="text-lg font-semibold">Settings</h1>
+                <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-6">
                 <section className="max-w-xl flex flex-col gap-2">
-                    <h2 className="text-sm font-semibold">Game Path</h2>
-                    <p className="text-xs text-text-subtle">
-                        Path to your PAYDAY 3 installation. Detected automatically from Steam if not
-                        set manually.
-                    </p>
+                    <h2 className="text-sm font-semibold">{t('settings.gamePath.title')}</h2>
+                    <p className="text-xs text-text-subtle">{t('settings.gamePath.description')}</p>
 
                     <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
                         <span className="text-sm font-mono truncate flex-1 text-text-muted">
-                            {gamePath ?? 'Not found'}
+                            {gamePath ?? t('settings.gamePath.notFound')}
                         </span>
                         <div className="flex gap-2 shrink-0">
                             {isManual && (
@@ -74,7 +72,7 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                                     className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center gap-1.5"
                                 >
                                     <RotateCcw className="w-3.5 h-3.5" />
-                                    Reset
+                                    {t('settings.gamePath.reset')}
                                 </button>
                             )}
                             <button
@@ -83,34 +81,40 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                                 className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                             >
                                 <FolderOpen className="w-3.5 h-3.5" />
-                                {picking ? 'Picking…' : 'Browse'}
+                                {picking
+                                    ? t('settings.gamePath.picking')
+                                    : t('settings.gamePath.browse')}
                             </button>
                         </div>
                     </div>
 
                     {isManual ? (
-                        <p className="text-xs text-text-subtle">Manually set</p>
+                        <p className="text-xs text-text-subtle">
+                            {t('settings.gamePath.manuallySet')}
+                        </p>
                     ) : gamePath ? (
-                        <p className="text-xs text-success-text">Auto-detected from Steam</p>
+                        <p className="text-xs text-success-text">
+                            {t('settings.gamePath.autoDetected')}
+                        </p>
                     ) : (
                         <p className="text-xs text-danger-text">
-                            Could not detect PD3 installation — set the path manually.
+                            {t('settings.gamePath.notDetected')}
                         </p>
                     )}
                 </section>
 
                 <section className="max-w-xl flex flex-col gap-2 mt-6">
-                    <h2 className="text-sm font-semibold">Launch Options</h2>
+                    <h2 className="text-sm font-semibold">{t('settings.launchOptions.title')}</h2>
                     <p className="text-xs text-text-subtle">
-                        Extra arguments passed to PAYDAY 3 on launch via Steam.{' '}
-                        <span className="font-mono text-text">-fileopenlog</span> is required for
-                        mods to load correctly.
+                        {t('settings.launchOptions.descriptionPre')}{' '}
+                        <span className="font-mono text-text">-fileopenlog</span>{' '}
+                        {t('settings.launchOptions.descriptionPost')}
                     </p>
                     <input
                         type="text"
                         value={launchOptions}
                         onChange={(e) => setLaunchOptions(e.target.value)}
-                        placeholder="-fileopenlog"
+                        placeholder={t('settings.launchOptions.placeholder')}
                         className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent mt-1"
                     />
                 </section>
