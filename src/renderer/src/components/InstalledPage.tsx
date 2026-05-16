@@ -70,18 +70,30 @@ export function InstalledPage({
         )
     }, [installed])
 
+    function handleDragOver(id: number, e: React.DragEvent) {
+        e.preventDefault()
+        if (dragOverId !== id) setDragOverId(id)
+    }
+
     async function handleDrop(targetId: number) {
-        if (!draggedId || draggedId === targetId || !gamePath) return
-        const newOrder = [...localOrder]
-        const from = newOrder.indexOf(draggedId)
-        const to = newOrder.indexOf(targetId)
-        newOrder.splice(from, 1)
-        newOrder.splice(to, 0, draggedId)
-        setLocalOrder(newOrder)
+        if (!draggedId || !gamePath) return
+        const srcId = draggedId
         setDraggedId(null)
         setDragOverId(null)
+        if (targetId === srcId) return
+        const newOrder = [...localOrder]
+        const from = newOrder.indexOf(srcId)
+        const to = newOrder.indexOf(targetId)
+        newOrder.splice(from, 1)
+        newOrder.splice(to, 0, srcId)
+        setLocalOrder(newOrder)
         await window.api.reorderMods(newOrder, gamePath)
         await onRefreshInstalled()
+    }
+
+    function handleDragEnd() {
+        setDraggedId(null)
+        setDragOverId(null)
     }
 
     // Fetch modData for any newly seen mod IDs
@@ -244,32 +256,34 @@ export function InstalledPage({
 
                         {viewMode === 'grid' ? (
                             <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-                                {localOrder.map((id) => {
+                                {localOrder.flatMap((id) => {
                                     const ins = installed.find((m) => m.id === id)
-                                    if (!ins) return null
+                                    if (!ins) return []
                                     const apiMod = modData.get(id)
-                                    if (!apiMod && !failedIds.has(id)) return null
+                                    if (!apiMod && !failedIds.has(id)) return []
                                     const mod = apiMod ?? syntheticMod(ins)
-                                    return (
+                                    const isOver = dragOverId === id && draggedId !== id
+                                    const draggedIdx = localOrder.indexOf(draggedId ?? -1)
+                                    const thisIdx = localOrder.indexOf(id)
+                                    const insertBefore = isOver && draggedIdx > thisIdx
+                                    const insertAfter = isOver && draggedIdx < thisIdx
+                                    const placeholder = (key: string) => (
+                                        <div
+                                            key={key}
+                                            className="rounded-lg border-2 border-dashed border-accent bg-accent/5"
+                                        />
+                                    )
+                                    return [
+                                        insertBefore && placeholder(`slot-${id}`),
                                         <div
                                             key={id}
                                             draggable
                                             onDragStart={() => setDraggedId(id)}
-                                            onDragOver={(e) => {
-                                                e.preventDefault()
-                                                setDragOverId(id)
-                                            }}
+                                            onDragOver={(e) => handleDragOver(id, e)}
                                             onDrop={() => handleDrop(id)}
-                                            onDragEnd={() => {
-                                                setDraggedId(null)
-                                                setDragOverId(null)
-                                            }}
-                                            className={`rounded-lg cursor-grab active:cursor-grabbing transition-all ${
-                                                draggedId === id
-                                                    ? 'opacity-40'
-                                                    : dragOverId === id
-                                                      ? 'ring-2 ring-accent'
-                                                      : ''
+                                            onDragEnd={handleDragEnd}
+                                            className={`rounded-lg cursor-grab active:cursor-grabbing transition-opacity ${
+                                                draggedId === id ? 'opacity-40' : 'opacity-100'
                                             }`}
                                         >
                                             <ModCard
@@ -283,19 +297,31 @@ export function InstalledPage({
                                                 onEnable={() => handleEnable(id)}
                                                 onDisable={() => handleDisable(id)}
                                             />
-                                        </div>
-                                    )
+                                        </div>,
+                                        insertAfter && placeholder(`slot-after-${id}`),
+                                    ].filter(Boolean)
                                 })}
                             </div>
                         ) : (
                             <div className="flex flex-col gap-1.5">
-                                {localOrder.map((id, index) => {
+                                {localOrder.flatMap((id) => {
                                     const ins = installed.find((m) => m.id === id)
-                                    if (!ins) return null
+                                    if (!ins) return []
                                     const apiMod = modData.get(id)
-                                    if (!apiMod && !failedIds.has(id)) return null
+                                    if (!apiMod && !failedIds.has(id)) return []
                                     const mod = apiMod ?? syntheticMod(ins)
-                                    return (
+                                    const isOver = dragOverId === id && draggedId !== id
+                                    const draggedIdx = localOrder.indexOf(draggedId ?? -1)
+                                    const thisIdx = localOrder.indexOf(id)
+                                    const insertBefore = isOver && draggedIdx > thisIdx
+                                    const insertAfter = isOver && draggedIdx < thisIdx
+                                    return [
+                                        insertBefore && (
+                                            <div
+                                                key={`line-${id}`}
+                                                className="h-0.5 rounded-full bg-accent mx-2"
+                                            />
+                                        ),
                                         <ModListRow
                                             key={id}
                                             mod={mod}
@@ -303,23 +329,22 @@ export function InstalledPage({
                                             gamePath={gamePath}
                                             loading={loadingMod === id}
                                             isDragging={draggedId === id}
-                                            isDragOver={dragOverId === id}
                                             onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
                                             onUninstall={() => handleUninstall(id)}
                                             onEnable={() => handleEnable(id)}
                                             onDisable={() => handleDisable(id)}
                                             onDragStart={() => setDraggedId(id)}
-                                            onDragOver={(e) => {
-                                                e.preventDefault()
-                                                setDragOverId(id)
-                                            }}
+                                            onDragOver={(e) => handleDragOver(id, e)}
                                             onDrop={() => handleDrop(id)}
-                                            onDragEnd={() => {
-                                                setDraggedId(null)
-                                                setDragOverId(null)
-                                            }}
-                                        />
-                                    )
+                                            onDragEnd={handleDragEnd}
+                                        />,
+                                        insertAfter && (
+                                            <div
+                                                key={`line-${id}`}
+                                                className="h-0.5 rounded-full bg-accent mx-2"
+                                            />
+                                        ),
+                                    ].filter(Boolean)
                                 })}
                             </div>
                         )}

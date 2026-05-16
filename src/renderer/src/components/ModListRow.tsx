@@ -9,7 +9,6 @@ interface Props {
     gamePath: string | null
     loading: boolean
     isDragging?: boolean
-    isDragOver?: boolean
     onOpen: () => void
     onUninstall: () => void
     onEnable: () => void
@@ -26,7 +25,6 @@ export function ModListRow({
     gamePath,
     loading,
     isDragging,
-    isDragOver,
     onOpen,
     onUninstall,
     onEnable,
@@ -45,13 +43,9 @@ export function ModListRow({
             onDragOver={onDragOver}
             onDrop={onDrop}
             onDragEnd={onDragEnd}
-            className={`group flex items-stretch rounded-lg border overflow-hidden transition-all ${
-                isDragging
-                    ? 'opacity-40 border-border'
-                    : isDragOver
-                      ? 'border-accent bg-accent/5'
-                      : 'bg-surface-raised border-border hover:border-border/60'
-            } ${loading ? 'opacity-60' : ''}`}
+            className={`group flex items-stretch rounded-lg border bg-surface-raised border-border hover:border-border/60 overflow-hidden transition-opacity ${
+                isDragging || loading ? 'opacity-40' : 'opacity-100'
+            }`}
         >
             <div onClick={onOpen} className="shrink-0 w-28 bg-surface-hover cursor-pointer">
                 {mod.thumbnail ? (
