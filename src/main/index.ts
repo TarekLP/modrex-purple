@@ -1,4 +1,6 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, shell, dialog } from 'electron'
+
+app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
 import { join } from 'path'
 import { rmSync, renameSync, existsSync, writeFileSync, mkdirSync } from 'fs'
 import { exec, execSync, spawn } from 'child_process'
