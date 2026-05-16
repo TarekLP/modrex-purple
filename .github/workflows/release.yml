@@ -40,4 +40,4 @@ jobs:
             - run: npm run dist:win
             - uses: softprops/action-gh-release@v2
               with:
-                  files: dist/**/*.exe
+                  files: dist/*.exe
