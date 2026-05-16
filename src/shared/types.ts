@@ -90,6 +90,7 @@ export interface InstalledMod {
     enabled: boolean
     installedAt: string
     fileId?: number
+    priority?: number // higher = loads later in UE5 = overrides lower-priority mods
 }
 
 export interface ModsState {

@@ -24,6 +24,7 @@ declare global {
             uninstallMod(modId: number, gamePath: string): Promise<void>
             enableMod(modId: number, gamePath: string): Promise<void>
             disableMod(modId: number, gamePath: string): Promise<void>
+            reorderMods(orderedIds: number[], gamePath: string): Promise<void>
 
             openExternal(url: string): Promise<void>
             getSettings(): Promise<{

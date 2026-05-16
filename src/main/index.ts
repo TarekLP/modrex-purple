@@ -14,12 +14,14 @@ import {
 import { findGamePath, findSteamPath } from './steam'
 import {
     installMod,
+    reorderMods,
     uninstallMod,
     enableMod,
     disableMod,
     readState,
     reconcileState,
     findUntrackedPaks,
+    stripPriorityPrefix,
 } from './mods'
 import { downloadFile } from './download'
 import { readSettings, writeSettings } from './settings'
@@ -104,7 +106,7 @@ function registerHandlers(): void {
                 }
                 return {
                     id: hashFilename(filename),
-                    name: stem,
+                    name: stripPriorityPrefix(stem),
                     version: 'unknown',
                     filename,
                     enabled,
@@ -197,6 +199,9 @@ function registerHandlers(): void {
     )
     ipcMain.handle('mods:disable', (_, modId: number, gamePath: string) =>
         disableMod(gamePath, statePath, modId)
+    )
+    ipcMain.handle('mods:reorder', (_, orderedIds: number[], gamePath: string) =>
+        reorderMods(gamePath, statePath, orderedIds)
     )
 
     ipcMain.handle('app:is-game-running', () => {

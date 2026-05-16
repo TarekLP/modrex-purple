@@ -8,10 +8,16 @@ interface Props {
     installed: InstalledMod
     gamePath: string | null
     loading: boolean
+    isDragging?: boolean
+    isDragOver?: boolean
     onOpen: () => void
     onUninstall: () => void
     onEnable: () => void
     onDisable: () => void
+    onDragStart?: () => void
+    onDragOver?: (e: React.DragEvent) => void
+    onDrop?: () => void
+    onDragEnd?: () => void
 }
 
 export function ModListRow({
@@ -19,18 +25,35 @@ export function ModListRow({
     installed,
     gamePath,
     loading,
+    isDragging,
+    isDragOver,
     onOpen,
     onUninstall,
     onEnable,
     onDisable,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onDragEnd,
 }: Props) {
     const canAct = !!gamePath && !loading
 
     return (
         <div
-            className={`group flex items-stretch rounded-lg bg-surface-raised border border-border hover:border-border/60 overflow-hidden transition-opacity ${loading ? 'opacity-60' : ''}`}
+            draggable
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            onDragEnd={onDragEnd}
+            className={`group flex items-stretch rounded-lg border overflow-hidden transition-all ${
+                isDragging
+                    ? 'opacity-40 border-border'
+                    : isDragOver
+                      ? 'border-accent bg-accent/5'
+                      : 'bg-surface-raised border-border hover:border-border/60'
+            } ${loading ? 'opacity-60' : ''}`}
         >
-            <div onClick={onOpen} className="shrink-0 w-36 bg-surface-hover cursor-pointer">
+            <div onClick={onOpen} className="shrink-0 w-28 bg-surface-hover cursor-pointer">
                 {mod.thumbnail ? (
                     <img
                         src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
@@ -43,14 +66,14 @@ export function ModListRow({
             </div>
 
             <button onClick={onOpen} className="flex-1 min-w-0 text-left px-5 py-4">
-                <p className="text-base font-bold leading-snug truncate group-hover:text-accent-bright transition-colors">
+                <p className="text-sm font-bold leading-snug truncate group-hover:text-accent-bright transition-colors">
                     {mod.name}
                 </p>
-                <p className="text-sm text-text-muted mt-0.5 truncate">By {mod.user.name}</p>
+                <p className="text-xs text-text-muted mt-0.5 truncate">By {mod.user.name}</p>
                 <p className="text-xs text-text-subtle mt-1 tabular-nums">{installed.version}</p>
             </button>
 
-            <div className="flex flex-col items-center justify-center gap-2 px-4 py-4 shrink-0">
+            <div className="flex items-center gap-2 px-4 shrink-0">
                 <Toggle
                     checked={installed.enabled}
                     onChange={(v) => (v ? onEnable() : onDisable())}

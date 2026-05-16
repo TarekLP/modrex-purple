@@ -8,6 +8,7 @@ import {
     addToState,
     removeFromState,
     setEnabled,
+    readState,
     installMod,
     uninstallMod,
     enableMod,
@@ -104,39 +105,64 @@ afterEach(() => {
 })
 
 describe('installMod', () => {
-    it('copies pak to active mods folder', () => {
+    it('copies pak to active mods folder with priority prefix', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
-        expect(existsSync(activeModPath(gamePath, fakeMod.filename))).toBe(true)
+        const { mods } = readState(statePath)
+        expect(mods[0].filename).toBe('001_TestMod.pak')
+        expect(existsSync(activeModPath(gamePath, mods[0].filename))).toBe(true)
     })
 
     it('persists mod in state file', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
         expect(existsSync(statePath)).toBe(true)
     })
+
+    it('assigns priority 1 to first mod', () => {
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        expect(readState(statePath).mods[0].priority).toBe(1)
+    })
+
+    it('assigns incrementing priority to subsequent mods', () => {
+        const fakeMod2: InstalledMod = {
+            ...fakeMod,
+            id: 2,
+            name: 'TestMod2',
+            filename: 'TestMod2.pak',
+        }
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        installMod(gamePath, statePath, fakeMod2, sourceFile)
+        const { mods } = readState(statePath)
+        const priorities = mods.map((m) => m.priority).sort((a, b) => (a ?? 0) - (b ?? 0))
+        expect(priorities).toEqual([1, 2])
+    })
 })
 
 describe('uninstallMod', () => {
     it('removes pak and clears state', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
+        const filename = readState(statePath).mods[0].filename
         uninstallMod(gamePath, statePath, 1)
-        expect(existsSync(activeModPath(gamePath, fakeMod.filename))).toBe(false)
+        expect(existsSync(activeModPath(gamePath, filename))).toBe(false)
+        expect(readState(statePath).mods).toHaveLength(0)
     })
 })
 
 describe('disableMod / enableMod', () => {
     it('moves pak to disabled folder on disable', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
+        const filename = readState(statePath).mods[0].filename
         disableMod(gamePath, statePath, 1)
-        expect(existsSync(activeModPath(gamePath, fakeMod.filename))).toBe(false)
-        expect(existsSync(disabledModPath(gamePath, fakeMod.filename))).toBe(true)
+        expect(existsSync(activeModPath(gamePath, filename))).toBe(false)
+        expect(existsSync(disabledModPath(gamePath, filename))).toBe(true)
     })
 
     it('moves pak back to active folder on enable', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
+        const filename = readState(statePath).mods[0].filename
         disableMod(gamePath, statePath, 1)
         enableMod(gamePath, statePath, 1)
-        expect(existsSync(activeModPath(gamePath, fakeMod.filename))).toBe(true)
-        expect(existsSync(disabledModPath(gamePath, fakeMod.filename))).toBe(false)
+        expect(existsSync(activeModPath(gamePath, filename))).toBe(true)
+        expect(existsSync(disabledModPath(gamePath, filename))).toBe(false)
     })
 })
 

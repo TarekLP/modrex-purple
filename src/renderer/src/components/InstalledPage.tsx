@@ -55,10 +55,33 @@ export function InstalledPage({
     const [updatingAll, setUpdatingAll] = useState(false)
     const [showUpdates, setShowUpdates] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+    const [localOrder, setLocalOrder] = useState<number[]>([])
+    const [draggedId, setDraggedId] = useState<number | null>(null)
+    const [dragOverId, setDragOverId] = useState<number | null>(null)
 
     function setView(mode: ViewMode) {
         setViewMode(mode)
         localStorage.setItem('pd3mm:installed-view', mode)
+    }
+
+    useEffect(() => {
+        setLocalOrder(
+            [...installed].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0)).map((m) => m.id)
+        )
+    }, [installed])
+
+    async function handleDrop(targetId: number) {
+        if (!draggedId || draggedId === targetId || !gamePath) return
+        const newOrder = [...localOrder]
+        const from = newOrder.indexOf(draggedId)
+        const to = newOrder.indexOf(targetId)
+        newOrder.splice(from, 1)
+        newOrder.splice(to, 0, draggedId)
+        setLocalOrder(newOrder)
+        setDraggedId(null)
+        setDragOverId(null)
+        await window.api.reorderMods(newOrder, gamePath)
+        await onRefreshInstalled()
     }
 
     // Fetch modData for any newly seen mod IDs
@@ -221,43 +244,80 @@ export function InstalledPage({
 
                         {viewMode === 'grid' ? (
                             <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-                                {installed.map((ins) => {
-                                    const apiMod = modData.get(ins.id)
-                                    if (!apiMod && !failedIds.has(ins.id)) return null
+                                {localOrder.map((id) => {
+                                    const ins = installed.find((m) => m.id === id)
+                                    if (!ins) return null
+                                    const apiMod = modData.get(id)
+                                    if (!apiMod && !failedIds.has(id)) return null
                                     const mod = apiMod ?? syntheticMod(ins)
                                     return (
-                                        <ModCard
-                                            key={ins.id}
-                                            mod={mod}
-                                            installed={ins}
-                                            gamePath={gamePath}
-                                            loading={loadingMod === ins.id}
-                                            onOpen={apiMod ? () => onOpenDetail(ins.id) : () => {}}
-                                            onInstall={() => {}}
-                                            onUninstall={() => handleUninstall(ins.id)}
-                                            onEnable={() => handleEnable(ins.id)}
-                                            onDisable={() => handleDisable(ins.id)}
-                                        />
+                                        <div
+                                            key={id}
+                                            draggable
+                                            onDragStart={() => setDraggedId(id)}
+                                            onDragOver={(e) => {
+                                                e.preventDefault()
+                                                setDragOverId(id)
+                                            }}
+                                            onDrop={() => handleDrop(id)}
+                                            onDragEnd={() => {
+                                                setDraggedId(null)
+                                                setDragOverId(null)
+                                            }}
+                                            className={`rounded-lg cursor-grab active:cursor-grabbing transition-all ${
+                                                draggedId === id
+                                                    ? 'opacity-40'
+                                                    : dragOverId === id
+                                                      ? 'ring-2 ring-accent'
+                                                      : ''
+                                            }`}
+                                        >
+                                            <ModCard
+                                                mod={mod}
+                                                installed={ins}
+                                                gamePath={gamePath}
+                                                loading={loadingMod === id}
+                                                onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
+                                                onInstall={() => {}}
+                                                onUninstall={() => handleUninstall(id)}
+                                                onEnable={() => handleEnable(id)}
+                                                onDisable={() => handleDisable(id)}
+                                            />
+                                        </div>
                                     )
                                 })}
                             </div>
                         ) : (
                             <div className="flex flex-col gap-1.5">
-                                {installed.map((ins) => {
-                                    const apiMod = modData.get(ins.id)
-                                    if (!apiMod && !failedIds.has(ins.id)) return null
+                                {localOrder.map((id, index) => {
+                                    const ins = installed.find((m) => m.id === id)
+                                    if (!ins) return null
+                                    const apiMod = modData.get(id)
+                                    if (!apiMod && !failedIds.has(id)) return null
                                     const mod = apiMod ?? syntheticMod(ins)
                                     return (
                                         <ModListRow
-                                            key={ins.id}
+                                            key={id}
                                             mod={mod}
                                             installed={ins}
                                             gamePath={gamePath}
-                                            loading={loadingMod === ins.id}
-                                            onOpen={apiMod ? () => onOpenDetail(ins.id) : () => {}}
-                                            onUninstall={() => handleUninstall(ins.id)}
-                                            onEnable={() => handleEnable(ins.id)}
-                                            onDisable={() => handleDisable(ins.id)}
+                                            loading={loadingMod === id}
+                                            isDragging={draggedId === id}
+                                            isDragOver={dragOverId === id}
+                                            onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
+                                            onUninstall={() => handleUninstall(id)}
+                                            onEnable={() => handleEnable(id)}
+                                            onDisable={() => handleDisable(id)}
+                                            onDragStart={() => setDraggedId(id)}
+                                            onDragOver={(e) => {
+                                                e.preventDefault()
+                                                setDragOverId(id)
+                                            }}
+                                            onDrop={() => handleDrop(id)}
+                                            onDragEnd={() => {
+                                                setDraggedId(null)
+                                                setDragOverId(null)
+                                            }}
                                         />
                                     )
                                 })}

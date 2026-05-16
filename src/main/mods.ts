@@ -13,6 +13,14 @@ import type { InstalledMod, ModsState } from '../shared/types'
 
 export type { InstalledMod, ModsState }
 
+export function stripPriorityPrefix(filename: string): string {
+    return filename.replace(/^\d+_/, '')
+}
+
+export function applyPriorityPrefix(filename: string, priority: number): string {
+    return priority.toString().padStart(3, '0') + '_' + stripPriorityPrefix(filename)
+}
+
 export function activeModPath(gamePath: string, filename: string): string {
     return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', filename)
 }
@@ -99,11 +107,20 @@ export async function reconcileState(gamePath: string, statePath: string): Promi
     )
     const valid = state.mods.filter((_, i) => checks[i])
     if (valid.length !== state.mods.length) {
-        const cleaned = { mods: valid }
-        saveState(statePath, cleaned)
-        return cleaned
+        saveState(statePath, { mods: valid })
     }
-    return state
+
+    if (valid.some((m) => m.priority === undefined)) {
+        const maxExisting = valid.reduce((max, m) => Math.max(max, m.priority ?? 0), 0)
+        let next = maxExisting
+        const migrated = valid.map((m) =>
+            m.priority !== undefined ? m : { ...m, priority: ++next }
+        )
+        saveState(statePath, { mods: migrated })
+        return { mods: migrated }
+    }
+
+    return { mods: valid }
 }
 
 function saveState(statePath: string, state: ModsState): void {
@@ -119,15 +136,53 @@ export function installMod(
     const modsDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
     if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true })
 
-    copyFileSync(sourcePath, activeModPath(gamePath, mod.filename))
+    const state = readState(statePath)
+    const existing = state.mods.find((m) => m.id === mod.id)
+    const priority =
+        existing?.priority ?? state.mods.reduce((max, m) => Math.max(max, m.priority ?? 0), 0) + 1
+    const filename = applyPriorityPrefix(mod.filename, priority)
+
+    copyFileSync(sourcePath, activeModPath(gamePath, filename))
+
+    if (existing && existing.filename !== filename) {
+        const oldPath = existing.enabled
+            ? activeModPath(gamePath, existing.filename)
+            : disabledModPath(gamePath, existing.filename)
+        if (existsSync(oldPath)) rmSync(oldPath, { force: true })
+    }
+
     saveState(
         statePath,
-        addToState(readState(statePath), {
+        addToState(state, {
             ...mod,
+            filename,
+            priority,
             enabled: true,
             installedAt: new Date().toISOString(),
         })
     )
+}
+
+export function reorderMods(gamePath: string, statePath: string, orderedIds: number[]): void {
+    const state = readState(statePath)
+    const total = orderedIds.length
+    const updated = state.mods.map((mod) => {
+        const pos = orderedIds.indexOf(mod.id)
+        if (pos === -1) return mod
+        const priority = total - pos
+        const newFilename = applyPriorityPrefix(mod.filename, priority)
+        if (newFilename !== mod.filename) {
+            const oldPath = mod.enabled
+                ? activeModPath(gamePath, mod.filename)
+                : disabledModPath(gamePath, mod.filename)
+            const newPath = mod.enabled
+                ? activeModPath(gamePath, newFilename)
+                : disabledModPath(gamePath, newFilename)
+            if (existsSync(oldPath)) renameSync(oldPath, newPath)
+        }
+        return { ...mod, filename: newFilename, priority }
+    })
+    saveState(statePath, { mods: updated })
 }
 
 export function uninstallMod(gamePath: string, statePath: string, modId: number): void {

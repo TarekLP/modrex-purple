@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('mods:enable', modId, gamePath),
     disableMod: (modId: number, gamePath: string) =>
         ipcRenderer.invoke('mods:disable', modId, gamePath),
+    reorderMods: (orderedIds: number[], gamePath: string) =>
+        ipcRenderer.invoke('mods:reorder', orderedIds, gamePath),
 
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
 
