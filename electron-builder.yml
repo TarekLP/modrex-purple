@@ -20,6 +20,8 @@ nsis:
     createDesktopShortcut: true
     createStartMenuShortcut: true
     runAfterFinish: true
+    menuCategory: Games
+    license: LICENSE
 
 linux:
     target:
