@@ -1,0 +1,42 @@
+appId: io.github.shulhaoleh.pd3modmanager
+productName: PD3 Mod Manager
+copyright: Copyright © 2026 Oleh Shulha
+
+directories:
+    buildResources: assets
+    output: dist
+
+files:
+    - out/**
+
+win:
+    target:
+        - target: nsis
+    icon: assets/icon.ico
+
+nsis:
+    oneClick: false
+    allowToChangeInstallationDirectory: true
+    createDesktopShortcut: true
+    createStartMenuShortcut: true
+
+linux:
+    target:
+        - target: AppImage
+        - target: deb
+        - target: rpm
+    icon: assets/icon.png
+    category: Game
+    maintainer: Oleh Shulha <broo20544@gmail.com>
+
+deb:
+    depends:
+        - libgtk-3-0
+        - libnotify4
+        - libnss3
+        - libxss1
+        - libxtst6
+        - xdg-utils
+        - libatspi2.0-0
+        - libuuid1
+        - libsecret-1-0

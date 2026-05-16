@@ -333,7 +333,10 @@ function createWindow(): BrowserWindow {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
-        icon: join(__dirname, '../../assets/icon.ico'),
+        icon: join(
+            __dirname,
+            process.platform === 'linux' ? '../../assets/icon.png' : '../../assets/icon.ico'
+        ),
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
         },
