@@ -78,7 +78,7 @@ function MarkdownContent({ text }: { text: string }) {
                     </code>
                 ),
                 img: ({ src, alt }) => (
-                    <img src={src} alt={alt} className="max-w-full rounded my-2" />
+                    <img src={src} alt={alt} loading="lazy" className="max-w-full rounded my-2" />
                 ),
                 hr: () => <hr className="border-none border-t border-border my-3" />,
             }}
@@ -358,6 +358,7 @@ export function ModDetailPage({
                         <img
                             src={`${THUMBNAIL_BASE_URL}/${(mod.banner ?? mod.thumbnail)!.file}`}
                             alt={mod.name}
+                            loading="lazy"
                             className="w-full h-48 object-cover"
                         />
                     )}
@@ -573,6 +574,7 @@ function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (index: number
                     <img
                         src={`${THUMBNAIL_BASE_URL}/${img.file}`}
                         alt=""
+                        loading="lazy"
                         className="w-full h-40 object-cover"
                     />
                 </button>
@@ -823,6 +825,7 @@ function DepRow({
                 <img
                     src={thumbUrl}
                     alt={mod.name}
+                    loading="lazy"
                     className="w-10 h-10 rounded object-cover shrink-0"
                 />
             ) : (

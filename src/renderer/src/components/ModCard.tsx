@@ -62,6 +62,7 @@ export function ModCard({
                     <img
                         src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
                         alt={mod.name}
+                        loading="lazy"
                         className={`w-full h-36 object-cover transition-[filter] ${installed && !installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}
                     />
                 ) : (

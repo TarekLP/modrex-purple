@@ -72,6 +72,7 @@ export function DepsWarningModal({
                                     <img
                                         src={thumbUrl}
                                         alt={dep.mod.name}
+                                        loading="lazy"
                                         className="w-8 h-8 rounded object-cover shrink-0"
                                     />
                                 ) : (

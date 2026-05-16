@@ -52,6 +52,7 @@ export function ModListRow({
                     <img
                         src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
                         alt=""
+                        loading="lazy"
                         className={`w-full h-full object-cover transition-[filter] ${!installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}
                     />
                 ) : (
