@@ -32,11 +32,14 @@ function readSteamInstallPath(): string | null {
     }
 
     if (process.platform === 'linux') {
+        const xdgData = process.env['XDG_DATA_HOME'] ?? join(homedir(), '.local', 'share')
         const candidates = [
             process.env['STEAM_DIR'],
-            join(homedir(), '.local', 'share', 'Steam'),
+            join(xdgData, 'Steam'),
             join(homedir(), '.steam', 'steam'),
             join(homedir(), '.steam', 'Steam'),
+            join(homedir(), 'snap', 'steam', 'common', '.local', 'share', 'Steam'),
+            join(homedir(), '.var', 'app', 'com.valvesoftware.Steam', '.local', 'share', 'Steam'),
         ].filter(Boolean) as string[]
         for (const p of candidates) {
             if (existsSync(join(p, 'steamapps'))) return p
