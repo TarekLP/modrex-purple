@@ -122,10 +122,15 @@ export function ModCard({
                 )}
                 {installed && (
                     <div className="flex items-center gap-2">
+                        {installed.missing && (
+                            <span className="text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 px-2 py-0.5 rounded">
+                                File missing
+                            </span>
+                        )}
                         <Toggle
                             checked={installed.enabled}
                             onChange={(v) => (v ? onEnable() : onDisable())}
-                            disabled={!canAct}
+                            disabled={!canAct || !!installed.missing}
                         />
                         <button
                             disabled={!canAct}

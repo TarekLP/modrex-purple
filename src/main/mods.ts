@@ -105,22 +105,25 @@ export async function reconcileState(gamePath: string, statePath: string): Promi
             return false
         })
     )
-    const valid = state.mods.filter((_, i) => checks[i])
-    if (valid.length !== state.mods.length) {
-        saveState(statePath, { mods: valid })
+    const reconciled = state.mods.map((m, i) =>
+        checks[i] ? { ...m, missing: undefined } : { ...m, missing: true }
+    )
+    const stateChanged = reconciled.some((m, i) => !!m.missing !== !!state.mods[i].missing)
+    if (stateChanged) {
+        saveState(statePath, { mods: reconciled })
     }
 
-    if (valid.some((m) => m.priority === undefined)) {
-        const maxExisting = valid.reduce((max, m) => Math.max(max, m.priority ?? 0), 0)
+    if (reconciled.some((m) => m.priority === undefined)) {
+        const maxExisting = reconciled.reduce((max, m) => Math.max(max, m.priority ?? 0), 0)
         let next = maxExisting
-        const migrated = valid.map((m) =>
+        const migrated = reconciled.map((m) =>
             m.priority !== undefined ? m : { ...m, priority: ++next }
         )
         saveState(statePath, { mods: migrated })
         return { mods: migrated }
     }
 
-    return { mods: valid }
+    return { mods: reconciled }
 }
 
 function saveState(statePath: string, state: ModsState): void {

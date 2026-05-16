@@ -14,6 +14,7 @@ import {
     enableMod,
     disableMod,
     findUntrackedPaks,
+    reconcileState,
     type InstalledMod,
     type ModsState,
 } from './mods'
@@ -163,6 +164,43 @@ describe('disableMod / enableMod', () => {
         enableMod(gamePath, statePath, 1)
         expect(existsSync(activeModPath(gamePath, filename))).toBe(true)
         expect(existsSync(disabledModPath(gamePath, filename))).toBe(false)
+    })
+})
+
+// --- reconcileState ---
+
+describe('reconcileState', () => {
+    it('marks mod as missing when pak file is gone', async () => {
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        const { mods } = readState(statePath)
+        rmSync(activeModPath(gamePath, mods[0].filename))
+
+        const result = await reconcileState(gamePath, statePath)
+        expect(result.mods).toHaveLength(1)
+        expect(result.mods[0].missing).toBe(true)
+    })
+
+    it('clears missing flag when pak file is restored', async () => {
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        const { mods } = readState(statePath)
+        const pakPath = activeModPath(gamePath, mods[0].filename)
+        rmSync(pakPath)
+
+        await reconcileState(gamePath, statePath)
+
+        writeFileSync(pakPath, 'fake pak content')
+        const result = await reconcileState(gamePath, statePath)
+        expect(result.mods[0].missing).toBeUndefined()
+    })
+
+    it('keeps missing mod in state instead of dropping it', async () => {
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        const { mods } = readState(statePath)
+        rmSync(activeModPath(gamePath, mods[0].filename))
+
+        const result = await reconcileState(gamePath, statePath)
+        expect(result.mods).toHaveLength(1)
+        expect(result.mods[0].id).toBe(fakeMod.id)
     })
 })
 
