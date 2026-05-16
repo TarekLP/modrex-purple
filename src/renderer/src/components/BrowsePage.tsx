@@ -126,6 +126,7 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
             if (fullMod.download === null) {
                 const filesData = await window.api.listModFiles(modId)
                 if (filesData.data.length > 1) {
+                    setLoadingMod(null)
                     setFileSelect({ mod: fullMod, files: filesData.data })
                     return
                 }
@@ -141,6 +142,7 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                 if (missingRequired.length > 0) {
                     const s = await window.api.getSettings()
                     if (!s.dismissedDepsWarnings?.includes(modId)) {
+                        setLoadingMod(null)
                         setDepsWarning({ modId, allDeps })
                         return
                     }
