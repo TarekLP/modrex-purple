@@ -50,7 +50,7 @@ export function InstalledPage({
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
     const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
-    const fetchedIds = useRef<Set<number>>(new Set())
+    const fetchedAt = useRef<Map<number, number>>(new Map())
     const [loadingMod, setLoadingMod] = useState<number | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
     const [showUpdates, setShowUpdates] = useState(false)
@@ -96,20 +96,25 @@ export function InstalledPage({
         setDragOverId(null)
     }
 
-    // Fetch modData for any newly seen mod IDs
+    // Fetch modData for newly seen mod IDs and re-fetch expired cache entries
     useEffect(() => {
-        const missing = installed.filter((m) => !fetchedIds.current.has(m.id))
-        if (missing.length === 0) return
+        const TTL_MS = 5 * 60 * 1000
+        const now = Date.now()
+        const stale = installed.filter((m) => {
+            const t = fetchedAt.current.get(m.id)
+            return t === undefined || now - t >= TTL_MS
+        })
+        if (stale.length === 0) return
 
-        Promise.allSettled(missing.map((m) => getCachedMod(m.id))).then((results) => {
+        Promise.allSettled(stale.map((m) => getCachedMod(m.id))).then((results) => {
             const updates: [number, Mod][] = []
             const failed: number[] = []
             results.forEach((r, i) => {
-                fetchedIds.current.add(missing[i].id)
+                fetchedAt.current.set(stale[i].id, Date.now())
                 if (r.status === 'fulfilled') {
-                    updates.push([missing[i].id, r.value])
+                    updates.push([stale[i].id, r.value])
                 } else {
-                    failed.push(missing[i].id)
+                    failed.push(stale[i].id)
                 }
             })
             if (updates.length > 0) {
