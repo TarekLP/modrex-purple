@@ -27,6 +27,7 @@ declare global {
             reorderMods(orderedIds: number[], gamePath: string): Promise<void>
 
             openExternal(url: string): Promise<void>
+            openPath(path: string): Promise<void>
             getSettings(): Promise<{
                 gamePath?: string
                 launchOptions?: string

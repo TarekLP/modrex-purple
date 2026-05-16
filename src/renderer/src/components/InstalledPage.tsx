@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, LayoutGrid, List } from 'lucide-react'
+import { X, LayoutGrid, List, FolderOpen } from 'lucide-react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
@@ -234,7 +234,20 @@ export function InstalledPage({
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
-                <h1 className="text-lg font-semibold">Installed Mods</h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-lg font-semibold">Installed Mods</h1>
+                    {gamePath && (
+                        <button
+                            onClick={() =>
+                                window.api.openPath(`${gamePath}/PAYDAY3/Content/Paks/~mods`)
+                            }
+                            title="Open mods folder"
+                            className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                        >
+                            <FolderOpen className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
                 <div className="flex items-center gap-3">
                     {installed.length > 0 && (
                         <span className="text-xs text-text-subtle">

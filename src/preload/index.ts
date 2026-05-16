@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('mods:reorder', orderedIds, gamePath),
 
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
+    openPath: (path: string) => ipcRenderer.invoke('shell:open-path', path),
 
     getSettings: () => ipcRenderer.invoke('settings:get'),
     setGamePath: (gamePath: string | null) =>
