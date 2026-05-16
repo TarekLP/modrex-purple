@@ -19,6 +19,7 @@ nsis:
     allowToChangeInstallationDirectory: true
     createDesktopShortcut: true
     createStartMenuShortcut: true
+    runAfterFinish: true
 
 linux:
     target:
