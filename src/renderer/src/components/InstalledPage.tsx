@@ -58,6 +58,7 @@ export function InstalledPage({
     const [localOrder, setLocalOrder] = useState<number[]>([])
     const [draggedId, setDraggedId] = useState<number | null>(null)
     const [dragOverId, setDragOverId] = useState<number | null>(null)
+    const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
 
     function setView(mode: ViewMode) {
         setViewMode(mode)
@@ -73,6 +74,14 @@ export function InstalledPage({
     function handleDragOver(id: number, e: React.DragEvent) {
         e.preventDefault()
         if (dragOverId !== id) setDragOverId(id)
+    }
+
+    function handleGridDragOver(id: number, e: React.DragEvent) {
+        e.preventDefault()
+        if (dragOverId !== id) setDragOverId(id)
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        const pos: 'before' | 'after' = e.clientX - rect.left < rect.width / 2 ? 'before' : 'after'
+        if (dragOverPos !== pos) setDragOverPos(pos)
     }
 
     async function handleDrop(targetId: number) {
@@ -91,9 +100,30 @@ export function InstalledPage({
         await onRefreshInstalled()
     }
 
+    async function handleGridDrop(targetId: number, e: React.DragEvent) {
+        e.preventDefault()
+        if (!draggedId || !gamePath) return
+        const srcId = draggedId
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        const pos: 'before' | 'after' = e.clientX - rect.left < rect.width / 2 ? 'before' : 'after'
+        setDraggedId(null)
+        setDragOverId(null)
+        setDragOverPos(null)
+        if (targetId === srcId) return
+        const newOrder = [...localOrder]
+        const from = newOrder.indexOf(srcId)
+        newOrder.splice(from, 1)
+        const to = newOrder.indexOf(targetId)
+        newOrder.splice(pos === 'before' ? to : to + 1, 0, srcId)
+        setLocalOrder(newOrder)
+        await window.api.reorderMods(newOrder, gamePath)
+        await onRefreshInstalled()
+    }
+
     function handleDragEnd() {
         setDraggedId(null)
         setDragOverId(null)
+        setDragOverPos(null)
     }
 
     // Fetch modData for newly seen mod IDs and re-fetch expired cache entries
@@ -271,28 +301,27 @@ export function InstalledPage({
                                         if (!apiMod && !failedIds.has(id)) return []
                                         const mod = apiMod ?? syntheticMod(ins)
                                         const isOver = dragOverId === id && draggedId !== id
-                                        const thisIdx = localOrder.indexOf(id)
-                                        const insertBefore = isOver && draggedIdx > thisIdx
-                                        const insertAfter = isOver && draggedIdx < thisIdx
-                                        const placeholder = (key: string) => (
-                                            <div
-                                                key={key}
-                                                className="rounded-lg border-2 border-dashed border-accent bg-accent/5"
-                                            />
-                                        )
                                         return [
-                                            insertBefore && placeholder(`slot-${id}`),
                                             <div
                                                 key={id}
                                                 draggable
                                                 onDragStart={() => setDraggedId(id)}
-                                                onDragOver={(e) => handleDragOver(id, e)}
-                                                onDrop={() => handleDrop(id)}
+                                                onDragOver={(e) => handleGridDragOver(id, e)}
+                                                onDrop={(e) => handleGridDrop(id, e)}
                                                 onDragEnd={handleDragEnd}
-                                                className={`rounded-lg cursor-grab active:cursor-grabbing transition-opacity ${
+                                                className={`relative rounded-lg cursor-grab active:cursor-grabbing transition-opacity ${
                                                     draggedId === id ? 'opacity-40' : 'opacity-100'
                                                 }`}
                                             >
+                                                {isOver && dragOverPos && (
+                                                    <div
+                                                        className={`absolute top-0 bottom-0 w-1 bg-accent z-10 pointer-events-none ${
+                                                            dragOverPos === 'before'
+                                                                ? 'left-0 rounded-l-lg'
+                                                                : 'right-0 rounded-r-lg'
+                                                        }`}
+                                                    />
+                                                )}
                                                 <ModCard
                                                     mod={mod}
                                                     installed={ins}
@@ -307,8 +336,7 @@ export function InstalledPage({
                                                     onDisable={() => handleDisable(id)}
                                                 />
                                             </div>,
-                                            insertAfter && placeholder(`slot-after-${id}`),
-                                        ].filter(Boolean)
+                                        ]
                                     })}
                                 </div>
                             ) : (
