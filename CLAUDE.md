@@ -56,6 +56,18 @@ Electron app with three processes wired by `electron-vite`:
 - **`components/Toggle.tsx`** — pill-shaped switch for boolean state (enabled/disabled). Uses `bg-accent` when on, `bg-surface-active` when off. Accepts `checked`, `onChange`, `disabled`.
 - **`modCache.ts`** — session cache with a **5-minute TTL** for both mod metadata and file lists. `getCachedMod(id)` serves from cache if the entry is younger than 5 minutes, otherwise re-fetches via `window.api.getMod`. `getCachedModFiles(id)` does the same for file lists via `window.api.listModFiles`. Used by `BrowsePage`, `InstalledPage`, and `ModDetailPage` — never call `window.api.getMod` or `window.api.listModFiles` directly from the renderer. The TTL ensures update detection in `InstalledPage` stays fresh across long sessions without explicit polling.
 
+### Strings (i18n)
+
+All user-visible strings live in `src/renderer/src/i18n/en.json`, nested by feature area (`common`, `app`, `topBar`, `sidebar`, `browse`, `installed`, `detail`, `fileSelect`, `depsWarning`, `settings`). Import and call the typed helper — never write bare string literals in JSX:
+
+```ts
+import { t } from '../i18n'
+t('common.install') // → "Install"
+t('browse.modCount', { total: 42 }) // → "42 mods"
+```
+
+`t(key, vars?)` is fully type-safe — TypeScript will error on unknown keys. Dynamic values use `{variable}` placeholders in the JSON. Plural pairs are two separate keys (e.g. `installed.modCount` / `installed.modCountSingle`); the component picks based on count. For JSX strings that mix styled inline elements (e.g. a `<span>` wrapping a technical identifier), split the surrounding prose into prefix/suffix keys and keep the element hardcoded between them — do not put HTML in the JSON.
+
 ### Styling
 
 All colors are defined as semantic tokens in `src/renderer/src/index.css` via Tailwind v4's `@theme` block — never use hardcoded Tailwind color classes like `zinc-*` or `red-*` in components. Token names: `surface`, `surface-raised`, `surface-hover`, `surface-active`, `surface-light`, `border`, `text`, `text-muted`, `text-subtle`, `accent`, `accent-bright`, `danger`, `danger-hover`, `danger-text`, `success`, `success-text`.
