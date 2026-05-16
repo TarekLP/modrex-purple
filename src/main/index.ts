@@ -206,26 +206,44 @@ function registerHandlers(): void {
 
     ipcMain.handle('app:is-game-running', () => {
         return new Promise<boolean>((resolve) => {
-            exec(
-                'tasklist /FI "IMAGENAME eq PAYDAY3-Win64-Shipping.exe" /NH',
-                { encoding: 'utf8' },
-                (error, stdout) => resolve(!error && stdout.includes('PAYDAY3-Win64-Shipping'))
-            )
+            if (process.platform === 'linux') {
+                exec('pgrep -f "PAYDAY3-Win64-Shipping"', (error, stdout) =>
+                    resolve(!error && stdout.trim().length > 0)
+                )
+            } else {
+                exec(
+                    'tasklist /FI "IMAGENAME eq PAYDAY3-Win64-Shipping.exe" /NH',
+                    { encoding: 'utf8' },
+                    (error, stdout) => resolve(!error && stdout.includes('PAYDAY3-Win64-Shipping'))
+                )
+            }
         })
     })
 
     ipcMain.handle('app:stop-game', () => {
         try {
-            execSync('taskkill /F /IM PAYDAY3-Win64-Shipping.exe')
+            if (process.platform === 'linux') {
+                execSync('pkill -f "PAYDAY3-Win64-Shipping"')
+            } else {
+                execSync('taskkill /F /IM PAYDAY3-Win64-Shipping.exe')
+            }
         } catch {}
     })
+
+    function steamBin(steamPath: string): string {
+        if (process.platform !== 'win32') {
+            const sh = join(steamPath, 'steam.sh')
+            return existsSync(sh) ? sh : 'steam'
+        }
+        return join(steamPath, 'steam.exe')
+    }
 
     function launchGame(launchOptions: string | undefined): void {
         const opts = launchOptions?.trim()
         const steamPath = findSteamPath()
         if (opts && steamPath) {
             const child = spawn(
-                join(steamPath, 'steam.exe'),
+                steamBin(steamPath),
                 ['-applaunch', '1272080', ...opts.split(/\s+/)],
                 {
                     detached: true,

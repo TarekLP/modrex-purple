@@ -1,6 +1,7 @@
 import { execSync } from 'child_process'
 import { join, normalize } from 'path'
 import { existsSync } from 'fs'
+import { homedir } from 'os'
 
 const PD3_RELATIVE_PATH = join('steamapps', 'common', 'PAYDAY3')
 
@@ -17,16 +18,33 @@ export function findSteamPath(): string | null {
 }
 
 function readSteamInstallPath(): string | null {
-    try {
-        const output = execSync(
-            `reg query "HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam" /v InstallPath`,
-            { encoding: 'utf8' }
-        )
-        const match = output.match(/InstallPath\s+REG_SZ\s+(.+)/)
-        return match ? normalize(match[1].trim()) : null
-    } catch {
+    if (process.platform === 'win32') {
+        try {
+            const output = execSync(
+                `reg query "HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam" /v InstallPath`,
+                { encoding: 'utf8' }
+            )
+            const match = output.match(/InstallPath\s+REG_SZ\s+(.+)/)
+            return match ? normalize(match[1].trim()) : null
+        } catch {
+            return null
+        }
+    }
+
+    if (process.platform === 'linux') {
+        const candidates = [
+            process.env['STEAM_DIR'],
+            join(homedir(), '.local', 'share', 'Steam'),
+            join(homedir(), '.steam', 'steam'),
+            join(homedir(), '.steam', 'Steam'),
+        ].filter(Boolean) as string[]
+        for (const p of candidates) {
+            if (existsSync(join(p, 'steamapps'))) return p
+        }
         return null
     }
+
+    return null
 }
 
 function readSteamLibraries(steamPath: string): string[] {
