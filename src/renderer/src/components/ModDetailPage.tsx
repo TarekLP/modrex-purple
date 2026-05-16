@@ -146,12 +146,13 @@ export function ModDetailPage({
     }, [fetchData])
 
     useEffect(() => {
+        if (!isActive) return
         return window.api.onDownloadProgress(({ downloaded, total }) => {
             setDownloadProgress({ downloaded, total })
             if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
             progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
         })
-    }, [])
+    }, [isActive])
 
     const images = mod?.images ?? []
 
