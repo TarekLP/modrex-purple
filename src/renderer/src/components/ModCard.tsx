@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef } from 'react'
 import { Download, Heart, Eye, Clock, Trash2 } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
@@ -33,6 +32,7 @@ interface Props {
     onDisable: () => void
     loading: boolean
     gamePath: string | null
+    progress?: { downloaded: number; total: number } | null
 }
 
 export function ModCard({
@@ -45,18 +45,8 @@ export function ModCard({
     onDisable,
     loading,
     gamePath,
+    progress = null,
 }: Props) {
-    const [progress, setProgress] = useState<{ downloaded: number; total: number } | null>(null)
-    const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-    useEffect(() => {
-        return window.api.onDownloadProgress(({ downloaded, total }) => {
-            setProgress({ downloaded, total })
-            if (clearTimer.current) clearTimeout(clearTimer.current)
-            clearTimer.current = setTimeout(() => setProgress(null), 800)
-        })
-    }, [])
-
     const canAct = !!gamePath && !loading
 
     const progressPct =

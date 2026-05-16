@@ -63,6 +63,19 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
     } | null>(null)
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [downloadProgress, setDownloadProgress] = useState<{
+        downloaded: number
+        total: number
+    } | null>(null)
+    const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+        return window.api.onDownloadProgress(({ downloaded, total }) => {
+            setDownloadProgress({ downloaded, total })
+            if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
+            progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
+        })
+    }, [])
 
     const fetchMods = useCallback(
         async (p: number, q: string, cat: number | undefined, s: SortOption) => {
@@ -291,6 +304,7 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                                 installed={installed.find((m) => m.id === mod.id)}
                                 gamePath={gamePath}
                                 loading={loadingMod === mod.id}
+                                progress={loadingMod === mod.id ? downloadProgress : null}
                                 onOpen={() => onOpenDetail(mod.id)}
                                 onInstall={() => handleInstall(mod.id)}
                                 onUninstall={() => handleUninstall(mod.id)}
