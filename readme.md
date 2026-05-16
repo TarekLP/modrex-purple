@@ -17,9 +17,18 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 - Launch modded or vanilla directly from the app
 - Automatically detects your PD3 installation via Steam registry
 
+## Installation
+
+| Platform                     | Download                                                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Windows                      | [PD3.Mod.Manager.Setup.exe](https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest/download/PD3.Mod.Manager.Setup.exe) |
+| Linux (Debian/Ubuntu/Mint)   | [pd3-mod-manager.deb](https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest/download/pd3-mod-manager.deb)             |
+| Linux (Fedora/openSUSE/RHEL) | [pd3-mod-manager.rpm](https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest/download/pd3-mod-manager.rpm)             |
+| Linux (universal)            | [pd3-mod-manager.AppImage](https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest/download/pd3-mod-manager.AppImage)   |
+
 ## Requirements
 
-- Windows 10/11
+- Windows 10/11 or Linux
 - Steam version of PAYDAY 3
 
 ## Development

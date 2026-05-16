@@ -13,6 +13,7 @@ win:
     target:
         - target: nsis
     icon: assets/icon.ico
+    artifactName: PD3.Mod.Manager.Setup.exe
 
 nsis:
     oneClick: false
@@ -31,6 +32,7 @@ linux:
     icon: assets/icon.png
     category: Game
     maintainer: Oleh Shulha <broo20544@gmail.com>
+    artifactName: pd3-mod-manager.${ext}
 
 deb:
     depends:

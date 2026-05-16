@@ -31,7 +31,7 @@
         "url": "https://github.com/ShulhaOleh/pd3-mod-manager/issues"
     },
     "homepage": "https://github.com/ShulhaOleh/pd3-mod-manager#readme",
-    "description": "",
+    "description": "A desktop mod manager for PAYDAY 3 powered by modworkshop",
     "devDependencies": {
         "@commitlint/cli": "^21.0.1",
         "@commitlint/config-conventional": "^21.0.1",
