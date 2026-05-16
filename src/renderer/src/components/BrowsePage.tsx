@@ -8,7 +8,7 @@ import type {
     Category,
     ModDependency,
 } from '../../../shared/types'
-import { getCachedMod } from '../modCache'
+import { getCachedMod, getCachedModFiles } from '../modCache'
 import type { SortOption } from '../../../main/api'
 import { ModCard } from './ModCard'
 import { Select } from './Select'
@@ -137,10 +137,10 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
         try {
             const fullMod = await getCachedMod(modId)
             if (fullMod.download === null) {
-                const filesData = await window.api.listModFiles(modId)
-                if (filesData.data.length > 1) {
+                const files = await getCachedModFiles(modId)
+                if (files.length > 1) {
                     setLoadingMod(null)
-                    setFileSelect({ mod: fullMod, files: filesData.data })
+                    setFileSelect({ mod: fullMod, files })
                     return
                 }
             }

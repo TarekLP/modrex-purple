@@ -1,18 +1,32 @@
-import type { Mod } from '../../shared/types'
+import type { Mod, ModFile } from '../../shared/types'
 
 const TTL_MS = 5 * 60 * 1000
 
-interface CacheEntry {
+interface ModCacheEntry {
     mod: Mod
     fetchedAt: number
 }
 
-const cache = new Map<number, CacheEntry>()
+interface FilesCacheEntry {
+    files: ModFile[]
+    fetchedAt: number
+}
+
+const modCache = new Map<number, ModCacheEntry>()
+const filesCache = new Map<number, FilesCacheEntry>()
 
 export async function getCachedMod(id: number): Promise<Mod> {
-    const entry = cache.get(id)
+    const entry = modCache.get(id)
     if (entry && Date.now() - entry.fetchedAt < TTL_MS) return entry.mod
     const mod = await window.api.getMod(id)
-    cache.set(id, { mod, fetchedAt: Date.now() })
+    modCache.set(id, { mod, fetchedAt: Date.now() })
     return mod
+}
+
+export async function getCachedModFiles(id: number): Promise<ModFile[]> {
+    const entry = filesCache.get(id)
+    if (entry && Date.now() - entry.fetchedAt < TTL_MS) return entry.files
+    const { data } = await window.api.listModFiles(id)
+    filesCache.set(id, { files: data, fetchedAt: Date.now() })
+    return data
 }
