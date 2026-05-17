@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, TriangleAlert, X } from 'lucide-react'
+import { Play, Square, TriangleAlert, X, RefreshCw } from 'lucide-react'
 import { t } from '../i18n'
+
+interface UpdateState {
+    phase: 'downloading' | 'ready'
+    percent: number | null
+}
 
 interface Props {
     gamePath: string | null
     onRefreshInstalled: () => Promise<void>
+    update?: UpdateState | null
+    onDismissUpdate?: () => void
 }
 
-export function TopBar({ gamePath, onRefreshInstalled }: Props) {
+export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }: Props) {
     const [gameRunning, setGameRunning] = useState(false)
     const [showWarning, setShowWarning] = useState(false)
     const [dontShowAgain, setDontShowAgain] = useState(false)
@@ -75,44 +82,73 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
                     </button>
                 </div>
             )}
-            <div className="h-10 shrink-0 flex items-center justify-between px-4 bg-surface border-b border-border">
-                <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
-                        {t('topBar.title')}
-                    </span>
-                    <span className="text-xs text-text-subtle">
-                        {import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP_VERSION}`}
-                    </span>
-                </div>
-                <div className="flex items-center gap-2">
-                    {gameRunning ? (
-                        <button
-                            onClick={stopGame}
-                            className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors flex items-center gap-1.5"
-                        >
-                            <Square className="w-3.5 h-3.5" fill="currentColor" />
-                            {t('topBar.stopGame')}
-                        </button>
-                    ) : (
-                        <>
+            <div className="shrink-0 bg-surface border-b border-border">
+                <div className="h-10 flex items-center justify-between px-4">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
+                            {t('topBar.title')}
+                        </span>
+                        <span className="text-xs text-text-subtle">
+                            {import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP_VERSION}`}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {update?.phase === 'ready' && (
+                            <>
+                                <button
+                                    onClick={() => window.api.installUpdate()}
+                                    className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
+                                >
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    {t('app.updateInstall')}
+                                </button>
+                                <button
+                                    onClick={onDismissUpdate}
+                                    className="p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
+                                    title={t('common.dismiss')}
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                                <div className="w-px h-4 bg-border mx-1" />
+                            </>
+                        )}
+                        {gameRunning ? (
                             <button
-                                disabled={!gamePath}
-                                onClick={launchWithoutMods}
-                                className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                onClick={stopGame}
+                                className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors flex items-center gap-1.5"
                             >
-                                <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                {t('topBar.launchWithoutMods')}
+                                <Square className="w-3.5 h-3.5" fill="currentColor" />
+                                {t('topBar.stopGame')}
                             </button>
-                            <button
-                                onClick={handleLaunchModded}
-                                className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
-                            >
-                                <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                {t('topBar.launchModded')}
-                            </button>
-                        </>
-                    )}
+                        ) : (
+                            <>
+                                <button
+                                    disabled={!gamePath}
+                                    onClick={launchWithoutMods}
+                                    className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                >
+                                    <Play className="w-3.5 h-3.5" fill="currentColor" />
+                                    {t('topBar.launchWithoutMods')}
+                                </button>
+                                <button
+                                    onClick={handleLaunchModded}
+                                    className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
+                                >
+                                    <Play className="w-3.5 h-3.5" fill="currentColor" />
+                                    {t('topBar.launchModded')}
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
+                {update?.phase === 'downloading' && (
+                    <div className="h-0.5 bg-surface-hover">
+                        <div
+                            className="h-full bg-accent transition-all duration-300"
+                            style={{ width: `${update.percent ?? 0}%` }}
+                        />
+                    </div>
+                )}
             </div>
 
             {showWarning && (

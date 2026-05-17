@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, memo } from 'react'
-import { X, ExternalLink } from 'lucide-react'
+import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod } from '../../shared/types'
 import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
@@ -31,7 +31,7 @@ export default function App() {
         body: string
         releaseUrl: string
     } | null>(null)
-    const [showNotes, setShowNotes] = useState(false)
+    const [showUpdateModal, setShowUpdateModal] = useState(false)
 
     useEffect(() => {
         window.api.findGamePath().then(setGamePath)
@@ -70,7 +70,7 @@ export default function App() {
 
     useEffect(() => {
         const offAvailable = window.api.onUpdateAvailable(
-            ({ version, strategy, body, releaseUrl }) =>
+            ({ version, strategy, body, releaseUrl }) => {
                 setUpdate({
                     version,
                     strategy,
@@ -79,6 +79,8 @@ export default function App() {
                     body,
                     releaseUrl,
                 })
+                setShowUpdateModal(true)
+            }
         )
         const offProgress = window.api.onUpdateProgress((percent) =>
             setUpdate((prev) => (prev ? { ...prev, percent } : prev))
@@ -95,6 +97,7 @@ export default function App() {
 
     async function handleUpdate() {
         if (!update) return
+        setShowUpdateModal(false)
         setUpdate((prev) => (prev ? { ...prev, phase: 'downloading', percent: 0 } : prev))
         await window.api.download(update.version)
         if (update.strategy !== 'auto') setUpdate(null)
@@ -143,7 +146,16 @@ export default function App() {
 
     return (
         <div className="flex flex-col h-screen bg-surface text-text">
-            <TopBar gamePath={gamePath} onRefreshInstalled={refreshInstalled} />
+            <TopBar
+                gamePath={gamePath}
+                onRefreshInstalled={refreshInstalled}
+                update={
+                    update && update.phase !== 'available'
+                        ? { phase: update.phase, percent: update.percent }
+                        : null
+                }
+                onDismissUpdate={() => setUpdate(null)}
+            />
             {modsHidden && (
                 <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-yellow-400/10 border-b border-yellow-400/30 text-xs text-yellow-400">
                     <span>{t('app.modsHidden')}</span>
@@ -154,64 +166,6 @@ export default function App() {
                             className="px-3 py-1 rounded bg-yellow-400/20 hover:bg-yellow-400/30 transition-colors"
                         >
                             {t('app.restoreMods')}
-                        </button>
-                    </div>
-                </div>
-            )}
-            {update && (
-                <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-accent/10 border-b border-accent/30 text-xs text-accent">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <span className="shrink-0">
-                            {update.phase === 'downloading' && update.percent !== null
-                                ? t('app.updateDownloading', { percent: update.percent })
-                                : update.phase === 'ready'
-                                  ? t('app.updateReady')
-                                  : t('app.updateAvailable', { version: update.version })}
-                        </span>
-                        {update.body && update.phase === 'available' && (
-                            <button
-                                onClick={() => setShowNotes(true)}
-                                className="text-accent-bright underline text-xs hover:text-accent transition-colors shrink-0"
-                            >
-                                {t('app.updateWhatsNew')}
-                            </button>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        {update.phase === 'available' && update.strategy !== 'browser' && (
-                            <button
-                                onClick={handleUpdate}
-                                className="px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 transition-colors"
-                            >
-                                {t('app.updateAction')}
-                            </button>
-                        )}
-                        {update.phase === 'available' && update.strategy === 'browser' && (
-                            <button
-                                onClick={() =>
-                                    window.api.openExternal(
-                                        'https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest'
-                                    )
-                                }
-                                className="px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 transition-colors"
-                            >
-                                {t('app.updateDownload')}
-                            </button>
-                        )}
-                        {update.phase === 'ready' && (
-                            <button
-                                onClick={() => window.api.installUpdate()}
-                                className="px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 transition-colors"
-                            >
-                                {t('app.updateInstall')}
-                            </button>
-                        )}
-                        <button
-                            onClick={() => setUpdate(null)}
-                            className="p-1 rounded hover:bg-accent/20 transition-colors"
-                            title={t('common.dismiss')}
-                        >
-                            <X className="w-3.5 h-3.5" />
                         </button>
                     </div>
                 </div>
@@ -263,10 +217,10 @@ export default function App() {
                 </main>
             </div>
 
-            {showNotes && update && (
+            {showUpdateModal && update && update.phase === 'available' && (
                 <div
                     className="absolute inset-0 bg-black/60 flex items-center justify-center z-50"
-                    onClick={(e) => e.target === e.currentTarget && setShowNotes(false)}
+                    onClick={(e) => e.target === e.currentTarget && setShowUpdateModal(false)}
                 >
                     <div className="bg-surface-raised border border-border rounded-xl w-full max-w-lg mx-6 flex flex-col overflow-hidden max-h-[80vh]">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
@@ -274,15 +228,17 @@ export default function App() {
                                 {t('app.updateNotesTitle', { version: update.version })}
                             </h2>
                             <button
-                                onClick={() => setShowNotes(false)}
+                                onClick={() => setShowUpdateModal(false)}
                                 className="text-text-subtle hover:text-text transition-colors"
                             >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
-                        <div className="overflow-y-auto px-5 py-4 flex-1">
-                            <MarkdownContent text={update.body} />
-                        </div>
+                        {update.body && (
+                            <div className="overflow-y-auto px-5 py-4 flex-1">
+                                <MarkdownContent text={update.body} />
+                            </div>
+                        )}
                         <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
                             <button
                                 onClick={() => window.api.openExternal(update.releaseUrl)}
@@ -291,12 +247,31 @@ export default function App() {
                                 <ExternalLink className="w-3.5 h-3.5" />
                                 {t('app.updateViewOnGithub')}
                             </button>
-                            <button
-                                onClick={() => setShowNotes(false)}
-                                className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
-                            >
-                                {t('common.close')}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setShowUpdateModal(false)}
+                                    className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                                >
+                                    {t('app.updateLater')}
+                                </button>
+                                {update.strategy !== 'browser' ? (
+                                    <button
+                                        onClick={handleUpdate}
+                                        className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
+                                    >
+                                        <Download className="w-3.5 h-3.5" />
+                                        {t('app.updateAction')}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => window.api.openExternal(update.releaseUrl)}
+                                        className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        {t('app.updateDownload')}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
