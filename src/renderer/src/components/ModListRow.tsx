@@ -14,7 +14,7 @@ interface Props {
     onUninstall: () => void
     onEnable: () => void
     onDisable: () => void
-    onDragStart?: () => void
+    onDragStart?: (e: React.DragEvent) => void
     onDragOver?: (e: React.DragEvent) => void
     onDrop?: () => void
     onDragEnd?: () => void

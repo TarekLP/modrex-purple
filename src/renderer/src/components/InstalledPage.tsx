@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, LayoutGrid, List, FolderOpen } from 'lucide-react'
 import { t } from '../i18n'
 import type { Mod, InstalledMod } from '../../../shared/types'
+import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { getCachedMod } from '../modCache'
@@ -75,6 +76,35 @@ export function InstalledPage({
             [...installed].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0)).map((m) => m.id)
         )
     }, [installed])
+
+    function createDragImage(e: React.DragEvent, mod: Mod) {
+        const el = document.createElement('div')
+        el.style.cssText =
+            'position:fixed;top:-9999px;left:-9999px;display:flex;flex-direction:column;' +
+            'background:#18181b;border:1px solid #27272a;border-radius:8px;' +
+            'box-shadow:0 4px 16px rgba(0,0,0,0.6);width:160px;overflow:hidden;pointer-events:none;'
+
+        if (mod.thumbnail) {
+            const img = document.createElement('img')
+            img.src = `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`
+            img.style.cssText = 'width:160px;height:90px;object-fit:cover;display:block;'
+            el.appendChild(img)
+        } else {
+            const placeholder = document.createElement('div')
+            placeholder.style.cssText = 'width:160px;height:90px;background:#27272a;'
+            el.appendChild(placeholder)
+        }
+
+        const name = document.createElement('span')
+        name.textContent = mod.name
+        name.style.cssText =
+            'font-size:12px;color:#f4f4f3;padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+        el.appendChild(name)
+
+        document.body.appendChild(el)
+        e.dataTransfer.setDragImage(el, 80, 45)
+        requestAnimationFrame(() => document.body.removeChild(el))
+    }
 
     function stopAutoScroll() {
         if (dragScrollFrame.current !== null) {
@@ -379,7 +409,10 @@ export function InstalledPage({
                                             <div
                                                 key={id}
                                                 draggable
-                                                onDragStart={() => setDraggedId(id)}
+                                                onDragStart={(e) => {
+                                                    setDraggedId(id)
+                                                    createDragImage(e, mod)
+                                                }}
                                                 onDragOver={(e) => handleGridDragOver(id, e)}
                                                 onDrop={(e) => handleGridDrop(id, e)}
                                                 onDragEnd={handleDragEnd}
@@ -443,7 +476,10 @@ export function InstalledPage({
                                                 onUninstall={() => handleUninstall(id)}
                                                 onEnable={() => handleEnable(id)}
                                                 onDisable={() => handleDisable(id)}
-                                                onDragStart={() => setDraggedId(id)}
+                                                onDragStart={(e) => {
+                                                    setDraggedId(id)
+                                                    createDragImage(e, mod)
+                                                }}
                                                 onDragOver={(e) => handleDragOver(id, e)}
                                                 onDrop={() => handleDrop(id)}
                                                 onDragEnd={handleDragEnd}
