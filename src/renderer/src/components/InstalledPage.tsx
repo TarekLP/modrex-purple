@@ -332,7 +332,7 @@ export function InstalledPage({
                                                 onDragOver={(e) => handleGridDragOver(id, e)}
                                                 onDrop={(e) => handleGridDrop(id, e)}
                                                 onDragEnd={handleDragEnd}
-                                                className={`relative rounded-lg cursor-grab active:cursor-grabbing transition-opacity ${
+                                                className={`relative h-full rounded-lg cursor-grab active:cursor-grabbing transition-opacity ${
                                                     draggedId === id ? 'opacity-40' : 'opacity-100'
                                                 }`}
                                             >

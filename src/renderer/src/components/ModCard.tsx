@@ -56,7 +56,7 @@ export function ModCard({
             : null
 
     return (
-        <div className="bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col">
+        <div className="h-full bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col">
             <div className="cursor-pointer group" onClick={onOpen}>
                 {mod.thumbnail ? (
                     <img
