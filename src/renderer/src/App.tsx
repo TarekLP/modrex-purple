@@ -99,8 +99,17 @@ export default function App() {
         if (!update) return
         setShowUpdateModal(false)
         setUpdate((prev) => (prev ? { ...prev, phase: 'downloading', percent: 0 } : prev))
-        await window.api.download(update.version)
-        if (update.strategy !== 'auto') setUpdate(null)
+        try {
+            await window.api.download(update.version)
+        } catch {
+            setUpdate((prev) => (prev ? { ...prev, phase: 'available', percent: null } : prev))
+            setShowUpdateModal(true)
+            return
+        }
+        if (update.strategy !== 'auto') {
+            setUpdate((prev) => (prev ? { ...prev, phase: 'available', percent: null } : prev))
+            setShowUpdateModal(true)
+        }
     }
 
     const openDetail = useCallback((modId: number, from: 'browse' | 'installed') => {
