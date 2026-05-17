@@ -21,6 +21,8 @@ export default function App() {
     const [installedReady, setInstalledReady] = useState(false)
     const [modsHidden, setModsHidden] = useState(false)
     const [restoreError, setRestoreError] = useState<string | null>(null)
+    const [updatePercent, setUpdatePercent] = useState<number | null>(null)
+    const [updateReady, setUpdateReady] = useState(false)
 
     useEffect(() => {
         window.api.findGamePath().then(setGamePath)
@@ -48,6 +50,17 @@ export default function App() {
         window.addEventListener('focus', refreshInstalled)
         return () => window.removeEventListener('focus', refreshInstalled)
     }, [refreshInstalled])
+
+    useEffect(() => {
+        const offAvailable = window.api.onUpdateAvailable(() => setUpdatePercent(0))
+        const offProgress = window.api.onUpdateProgress(setUpdatePercent)
+        const offDownloaded = window.api.onUpdateDownloaded(() => setUpdateReady(true))
+        return () => {
+            offAvailable()
+            offProgress()
+            offDownloaded()
+        }
+    }, [])
 
     const openDetail = useCallback((modId: number, from: 'browse' | 'installed') => {
         setPrevView(from)
@@ -105,6 +118,23 @@ export default function App() {
                             {t('app.restoreMods')}
                         </button>
                     </div>
+                </div>
+            )}
+            {updatePercent !== null && (
+                <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-accent/10 border-b border-accent/30 text-xs text-accent">
+                    {updateReady ? (
+                        <>
+                            <span>{t('app.updateReady')}</span>
+                            <button
+                                onClick={() => window.api.installUpdate()}
+                                className="px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 transition-colors"
+                            >
+                                {t('app.updateInstall')}
+                            </button>
+                        </>
+                    ) : (
+                        <span>{t('app.updateDownloading', { percent: updatePercent })}</span>
+                    )}
                 </div>
             )}
             <div className="flex flex-1 overflow-hidden">

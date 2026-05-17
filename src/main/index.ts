@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, shell, dialog } from 'electron'
+import { autoUpdater } from 'electron-updater'
 
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
 import { join } from 'path'
@@ -371,5 +372,14 @@ app.whenReady().then(() => {
     const win = createWindow()
     if (!app.isPackaged) {
         globalShortcut.register('CommandOrControl+Shift+I', () => win.webContents.toggleDevTools())
+    } else {
+        autoUpdater.checkForUpdates()
+        autoUpdater.on('update-available', () => win.webContents.send('updater:update-available'))
+        autoUpdater.on('download-progress', ({ percent }: { percent: number }) =>
+            win.webContents.send('updater:download-progress', Math.round(percent))
+        )
+        autoUpdater.on('update-downloaded', () => win.webContents.send('updater:update-downloaded'))
     }
+
+    ipcMain.handle('updater:install', () => autoUpdater.quitAndInstall())
 })

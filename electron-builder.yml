@@ -2,6 +2,11 @@ appId: io.github.shulhaoleh.pd3modmanager
 productName: PD3 Mod Manager
 copyright: Copyright © 2026 Oleh Shulha
 
+publish:
+    provider: github
+    owner: ShulhaOleh
+    repo: pd3-mod-manager
+
 directories:
     buildResources: assets
     output: dist

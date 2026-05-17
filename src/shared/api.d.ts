@@ -48,6 +48,11 @@ declare global {
             launchModded(): Promise<void>
             launchWithoutMods(gamePath: string): Promise<void>
             restoreMods(): Promise<void>
+
+            onUpdateAvailable(callback: () => void): () => void
+            onUpdateProgress(callback: (percent: number) => void): () => void
+            onUpdateDownloaded(callback: () => void): () => void
+            installUpdate(): Promise<void>
         }
     }
 }

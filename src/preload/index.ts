@@ -66,4 +66,19 @@ contextBridge.exposeInMainWorld('api', {
     launchWithoutMods: (gamePath: string) =>
         ipcRenderer.invoke('app:launch-without-mods', gamePath),
     restoreMods: () => ipcRenderer.invoke('app:restore-mods'),
+
+    onUpdateAvailable: (callback: () => void) => {
+        ipcRenderer.on('updater:update-available', callback)
+        return () => ipcRenderer.removeListener('updater:update-available', callback)
+    },
+    onUpdateProgress: (callback: (percent: number) => void) => {
+        const handler = (_: IpcRendererEvent, percent: number) => callback(percent)
+        ipcRenderer.on('updater:download-progress', handler)
+        return () => ipcRenderer.removeListener('updater:download-progress', handler)
+    },
+    onUpdateDownloaded: (callback: () => void) => {
+        ipcRenderer.on('updater:update-downloaded', callback)
+        return () => ipcRenderer.removeListener('updater:update-downloaded', callback)
+    },
+    installUpdate: () => ipcRenderer.invoke('updater:install'),
 })

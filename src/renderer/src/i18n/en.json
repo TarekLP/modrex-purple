@@ -15,7 +15,10 @@
     },
     "app": {
         "modsHidden": "Mods are hidden — the game was launched in vanilla mode and may still be running.",
-        "restoreMods": "Restore mods"
+        "restoreMods": "Restore mods",
+        "updateDownloading": "Downloading update… {percent}%",
+        "updateReady": "Update downloaded and ready to install.",
+        "updateInstall": "Restart & Update"
     },
     "topBar": {
         "title": "PD3 Mod Manager",
