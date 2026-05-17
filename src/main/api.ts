@@ -15,6 +15,7 @@ async function get<T>(path: string, params?: object): Promise<T> {
             Accept: 'application/json',
             'User-Agent': 'pd3-mod-manager/0.1.0',
         },
+        signal: AbortSignal.timeout(15_000),
     })
     if (!res.ok) throw new Error(`modworkshop API ${res.status}: ${path}`)
     return res.json()
