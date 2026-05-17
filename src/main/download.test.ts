@@ -3,6 +3,8 @@ import { existsSync, readFileSync, rmSync } from 'fs'
 import { Readable } from 'stream'
 import { downloadFile } from './download'
 
+vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }))
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
