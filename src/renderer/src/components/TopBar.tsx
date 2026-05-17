@@ -76,9 +76,14 @@ export function TopBar({ gamePath, onRefreshInstalled }: Props) {
                 </div>
             )}
             <div className="h-10 shrink-0 flex items-center justify-between px-4 bg-surface border-b border-border">
-                <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
-                    {t('topBar.title')}
-                </span>
+                <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
+                        {t('topBar.title')}
+                    </span>
+                    <span className="text-xs text-text-subtle">
+                        {import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP_VERSION}`}
+                    </span>
+                </div>
                 <div className="flex items-center gap-2">
                     {gameRunning ? (
                         <button
