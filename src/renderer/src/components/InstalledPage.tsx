@@ -60,6 +60,10 @@ export function InstalledPage({
     const [draggedId, setDraggedId] = useState<number | null>(null)
     const [dragOverId, setDragOverId] = useState<number | null>(null)
     const [dragOverPos, setDragOverPos] = useState<'before' | 'after' | null>(null)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
+    const dragScrollFrame = useRef<number | null>(null)
+    const dragScrollDir = useRef<'up' | 'down' | null>(null)
+    const dragClientY = useRef<number>(0)
 
     function setView(mode: ViewMode) {
         setViewMode(mode)
@@ -71,6 +75,47 @@ export function InstalledPage({
             [...installed].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0)).map((m) => m.id)
         )
     }, [installed])
+
+    function stopAutoScroll() {
+        if (dragScrollFrame.current !== null) {
+            cancelAnimationFrame(dragScrollFrame.current)
+            dragScrollFrame.current = null
+        }
+    }
+
+    function handleContainerDragOver(e: React.DragEvent) {
+        dragClientY.current = e.clientY
+        const container = scrollContainerRef.current
+        if (!container) return
+        const { top, bottom } = container.getBoundingClientRect()
+        const ZONE = 80
+
+        let dir: 'up' | 'down' | null = null
+        if (e.clientY < top + ZONE) dir = 'up'
+        else if (e.clientY > bottom - ZONE) dir = 'down'
+
+        if (dir !== dragScrollDir.current) {
+            dragScrollDir.current = dir
+            stopAutoScroll()
+            if (dir) {
+                const loop = () => {
+                    if (!dragScrollDir.current) return
+                    const ct = scrollContainerRef.current
+                    if (!ct) return
+                    const { top: t, bottom: b } = ct.getBoundingClientRect()
+                    const y = dragClientY.current
+                    const ratio =
+                        dragScrollDir.current === 'up'
+                            ? (t + ZONE - y) / ZONE
+                            : (y - (b - ZONE)) / ZONE
+                    const speed = Math.round(Math.min(1, ratio) * 12)
+                    ct.scrollBy(0, dragScrollDir.current === 'up' ? -speed : speed)
+                    dragScrollFrame.current = requestAnimationFrame(loop)
+                }
+                dragScrollFrame.current = requestAnimationFrame(loop)
+            }
+        }
+    }
 
     function handleDragOver(id: number, e: React.DragEvent) {
         e.preventDefault()
@@ -125,6 +170,8 @@ export function InstalledPage({
         setDraggedId(null)
         setDragOverId(null)
         setDragOverPos(null)
+        stopAutoScroll()
+        dragScrollDir.current = null
     }
 
     // Fetch modData for newly seen mod IDs and re-fetch expired cache entries
@@ -279,7 +326,11 @@ export function InstalledPage({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
+            <div
+                ref={scrollContainerRef}
+                onDragOver={handleContainerDragOver}
+                className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6"
+            >
                 {!installedReady ? (
                     <div className="flex items-center justify-center h-full text-text-subtle text-sm">
                         {t('common.loading')}
