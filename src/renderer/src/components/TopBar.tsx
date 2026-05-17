@@ -131,8 +131,9 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
                                     {t('topBar.launchWithoutMods')}
                                 </button>
                                 <button
+                                    disabled={!gamePath}
                                     onClick={handleLaunchModded}
-                                    className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
+                                    className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                 >
                                     <Play className="w-3.5 h-3.5" fill="currentColor" />
                                     {t('topBar.launchModded')}
