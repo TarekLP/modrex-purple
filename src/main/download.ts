@@ -4,6 +4,7 @@ import { Transform } from 'stream'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { randomUUID } from 'crypto'
+import { app } from 'electron'
 
 export async function downloadFile(
     url: string,
@@ -11,7 +12,9 @@ export async function downloadFile(
     onProgress?: (downloaded: number, total: number) => void
 ): Promise<string> {
     const dest = join(tmpdir(), `pd3-mod-${randomUUID()}.${ext}`)
-    const res = await fetch(url, { headers: { 'User-Agent': 'pd3-mod-manager/0.1.0' } })
+    const res = await fetch(url, {
+        headers: { 'User-Agent': `pd3-mod-manager/${app.getVersion()}` },
+    })
     if (!res.ok) throw new Error(`Download failed ${res.status}: ${url}`)
     const total = parseInt(res.headers.get('content-length') ?? '0', 10)
     let downloaded = 0

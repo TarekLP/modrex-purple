@@ -1,3 +1,4 @@
+import { app } from 'electron'
 import type { Mod, ModFile, Category, Paginated } from '../shared/types'
 
 const BASE = 'https://api.modworkshop.net'
@@ -13,7 +14,7 @@ async function get<T>(path: string, params?: object): Promise<T> {
     const res = await fetch(url, {
         headers: {
             Accept: 'application/json',
-            'User-Agent': 'pd3-mod-manager/0.1.0',
+            'User-Agent': `pd3-mod-manager/${app.getVersion()}`,
         },
         signal: AbortSignal.timeout(15_000),
     })
