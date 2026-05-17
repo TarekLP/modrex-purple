@@ -13,6 +13,7 @@ import {
     uninstallMod,
     enableMod,
     disableMod,
+    reorderMods,
     findUntrackedPaks,
     reconcileState,
     type InstalledMod,
@@ -201,6 +202,98 @@ describe('reconcileState', () => {
         const result = await reconcileState(gamePath, statePath)
         expect(result.mods).toHaveLength(1)
         expect(result.mods[0].id).toBe(fakeMod.id)
+    })
+})
+
+// --- readState error handling ---
+
+describe('readState', () => {
+    it('returns empty state when file does not exist', () => {
+        expect(readState(join(tmp, 'nonexistent.json'))).toEqual({ mods: [] })
+    })
+
+    it('returns empty state when file contains invalid JSON', () => {
+        const corrupt = join(tmp, 'corrupt.json')
+        writeFileSync(corrupt, '{ this is not valid json }{{{')
+        expect(readState(corrupt)).toEqual({ mods: [] })
+    })
+
+    it('returns empty state when file is empty', () => {
+        const empty = join(tmp, 'empty.json')
+        writeFileSync(empty, '')
+        expect(readState(empty)).toEqual({ mods: [] })
+    })
+})
+
+// --- installMod edge cases ---
+
+describe('installMod priority preservation', () => {
+    it('preserves priority when reinstalling an existing mod', () => {
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        const before = readState(statePath).mods[0].priority
+
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        const after = readState(statePath).mods[0].priority
+
+        expect(after).toBe(before)
+    })
+})
+
+// --- uninstallMod edge cases ---
+
+describe('uninstallMod', () => {
+    it('does nothing when mod id does not exist in state', () => {
+        expect(() => uninstallMod(gamePath, statePath, 9999)).not.toThrow()
+    })
+})
+
+// --- reorderMods ---
+
+describe('reorderMods', () => {
+    it('reassigns priorities based on order (index 0 = highest priority)', () => {
+        const mod2: InstalledMod = { ...fakeMod, id: 2, name: 'Mod2', filename: 'Mod2.pak' }
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        writeFileSync(join(tmp, 'Mod2.pak'), 'fake')
+        installMod(gamePath, statePath, mod2, join(tmp, 'Mod2.pak'))
+
+        const { mods } = readState(statePath)
+        const ids = mods.map((m) => m.id)
+        reorderMods(gamePath, statePath, ids)
+
+        const reordered = readState(statePath).mods
+        const first = reordered.find((m) => m.id === ids[0])!
+        const second = reordered.find((m) => m.id === ids[1])!
+        expect(first.priority).toBeGreaterThan(second.priority!)
+    })
+
+    it('renames pak files on disk to reflect new priority prefix', () => {
+        const mod2: InstalledMod = { ...fakeMod, id: 2, name: 'Mod2', filename: 'Mod2.pak' }
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        writeFileSync(join(tmp, 'Mod2.pak'), 'fake')
+        installMod(gamePath, statePath, mod2, join(tmp, 'Mod2.pak'))
+
+        const before = readState(statePath).mods
+        reorderMods(gamePath, statePath, [before[1].id, before[0].id])
+
+        const after = readState(statePath).mods
+        for (const m of after) {
+            expect(existsSync(activeModPath(gamePath, m.filename))).toBe(true)
+        }
+    })
+})
+
+// --- reconcileState priority migration ---
+
+describe('reconcileState priority migration', () => {
+    it('assigns sequential priorities to mods missing the priority field', async () => {
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        const raw = readState(statePath)
+        const stripped = { mods: raw.mods.map(({ priority: _, ...m }) => m) }
+        writeFileSync(statePath, JSON.stringify(stripped, null, 4))
+
+        const result = await reconcileState(gamePath, statePath)
+        expect(result.mods[0].priority).toBeDefined()
+        expect(result.mods[0].priority).toBeGreaterThan(0)
     })
 })
 
