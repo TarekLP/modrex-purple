@@ -93,7 +93,7 @@ Markdown is rendered with `react-markdown` (not `marked`). The `MarkdownContent`
 
 ## Testing
 
-Tests live in `src/main/` only — the renderer has no tests. Vitest runs in a Node environment (no DOM). All test files match `src/**/*.test.ts`.
+Tests live in `src/main/` only — the renderer has no tests. Vitest runs in a Node environment (no DOM). All test files match `src/**/*.test.ts`. Current coverage: `mods.test.ts` (state ops, file ops, reconciliation, priority migration, reorder), `download.test.ts` (HTTP errors, progress callback, network failure, User-Agent), `settings.test.ts`, `steam.test.ts`. `download.test.ts` stubs global `fetch` via `vi.stubGlobal` and uses `Readable.from()` to mock the response body stream.
 
 ## Workflow
 
