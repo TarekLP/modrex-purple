@@ -475,5 +475,5 @@ app.whenReady().then(() => {
     if (!app.isPackaged) {
         globalShortcut.register('CommandOrControl+Shift+I', () => win.webContents.toggleDevTools())
     }
-    checkForUpdates(win)
+    win.webContents.once('did-finish-load', () => checkForUpdates(win))
 })
