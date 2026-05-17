@@ -34,6 +34,7 @@ interface Props {
     loading: boolean
     gamePath: string | null
     progress?: { downloaded: number; total: number } | null
+    showMeta?: boolean
 }
 
 export function ModCard({
@@ -47,6 +48,7 @@ export function ModCard({
     loading,
     gamePath,
     progress = null,
+    showMeta = false,
 }: Props) {
     const canAct = !!gamePath && !loading
 
@@ -81,7 +83,7 @@ export function ModCard({
 
             <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
                 <div className="flex items-center">
-                    {installed ? (
+                    {installed && !showMeta ? (
                         <span className="text-xs text-text-subtle">{installed.version}</span>
                     ) : (
                         <div className="flex items-center gap-3 text-xs text-text-subtle">

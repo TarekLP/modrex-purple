@@ -308,6 +308,7 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                                 gamePath={gamePath}
                                 loading={loadingMod === mod.id}
                                 progress={loadingMod === mod.id ? downloadProgress : null}
+                                showMeta
                                 onOpen={() => onOpenDetail(mod.id)}
                                 onInstall={() => handleInstall(mod.id)}
                                 onUninstall={() => handleUninstall(mod.id)}
