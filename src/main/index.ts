@@ -328,6 +328,108 @@ function registerHandlers(): void {
             writeSettings(settingsPath, settings)
         }
     })
+
+    ipcMain.handle('updater:download', async (event, version: string) => {
+        if (updateStrategy === 'auto') {
+            await autoUpdater.downloadUpdate()
+            return
+        }
+        const ext = updateStrategy === 'deb' ? 'deb' : 'rpm'
+        const url = `https://github.com/ShulhaOleh/pd3-mod-manager/releases/download/v${version}/pd3-mod-manager.${ext}`
+        const dest = await downloadFile(url, ext, (downloaded, total) => {
+            const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0
+            event.sender.send('updater:download-progress', percent)
+        })
+        await shell.openPath(dest)
+    })
+
+    ipcMain.handle('updater:install', () => autoUpdater.quitAndInstall())
+}
+
+type UpdateStrategy = 'auto' | 'deb' | 'rpm' | 'browser'
+let updateStrategy: UpdateStrategy = 'browser'
+
+function getUpdateStrategy(): UpdateStrategy {
+    if (process.platform === 'win32') return 'auto'
+    if (process.env.APPIMAGE) return 'auto'
+    if (existsSync('/usr/bin/dpkg')) return 'deb'
+    if (existsSync('/usr/bin/rpm')) return 'rpm'
+    return 'browser'
+}
+
+function newerVersion(latest: string, current: string): boolean {
+    const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number)
+    const [lMaj, lMin, lPatch] = parse(latest)
+    const [cMaj, cMin, cPatch] = parse(current)
+    if (lMaj !== cMaj) return lMaj > cMaj
+    if (lMin !== cMin) return lMin > cMin
+    return lPatch > cPatch
+}
+
+async function checkForUpdates(win: BrowserWindow): Promise<void> {
+    updateStrategy = app.isPackaged ? getUpdateStrategy() : 'browser'
+
+    if (updateStrategy === 'auto') {
+        autoUpdater.autoDownload = false
+        autoUpdater.checkForUpdates()
+        autoUpdater.on('update-available', async (info) => {
+            let body = ''
+            let releaseUrl = `https://github.com/ShulhaOleh/pd3-mod-manager/releases/tag/v${info.version}`
+            try {
+                const r = await fetch(
+                    `https://api.github.com/repos/ShulhaOleh/pd3-mod-manager/releases/tags/v${info.version}`,
+                    { headers: { 'User-Agent': `pd3-mod-manager/${app.getVersion()}` } }
+                )
+                if (r.ok) {
+                    const data = (await r.json()) as { body: string; html_url: string }
+                    body = data.body ?? ''
+                    releaseUrl = data.html_url
+                }
+            } catch {}
+            win.webContents.send('updater:update-available', {
+                version: info.version,
+                strategy: 'auto',
+                body,
+                releaseUrl,
+            })
+        })
+        autoUpdater.on('download-progress', ({ percent }: { percent: number }) => {
+            win.webContents.send('updater:download-progress', Math.round(percent))
+        })
+        autoUpdater.on('update-downloaded', () => {
+            win.webContents.send('updater:update-ready')
+        })
+        return
+    }
+
+    try {
+        const res = await fetch(
+            'https://api.github.com/repos/ShulhaOleh/pd3-mod-manager/releases/latest',
+            {
+                headers: { 'User-Agent': `pd3-mod-manager/${app.getVersion()}` },
+                signal: AbortSignal.timeout(10_000),
+            }
+        )
+        if (!res.ok) return
+        const { tag_name, body, html_url } = (await res.json()) as {
+            tag_name: string
+            body: string
+            html_url: string
+        }
+        const version = tag_name.replace(/^v/, '')
+        if (newerVersion(tag_name, app.getVersion())) {
+            const strategy =
+                updateStrategy === 'deb' || updateStrategy === 'rpm' ? 'manual' : 'browser'
+            win.webContents.send('updater:update-available', {
+                version,
+                strategy,
+                body: body ?? '',
+                releaseUrl: html_url,
+            })
+        }
+    } catch {
+        // best-effort — silently ignore network errors
+    }
 }
 
 function createWindow(): BrowserWindow {
@@ -372,14 +474,6 @@ app.whenReady().then(() => {
     const win = createWindow()
     if (!app.isPackaged) {
         globalShortcut.register('CommandOrControl+Shift+I', () => win.webContents.toggleDevTools())
-    } else {
-        autoUpdater.checkForUpdates()
-        autoUpdater.on('update-available', () => win.webContents.send('updater:update-available'))
-        autoUpdater.on('download-progress', ({ percent }: { percent: number }) =>
-            win.webContents.send('updater:download-progress', Math.round(percent))
-        )
-        autoUpdater.on('update-downloaded', () => win.webContents.send('updater:update-downloaded'))
     }
-
-    ipcMain.handle('updater:install', () => autoUpdater.quitAndInstall())
+    checkForUpdates(win)
 })

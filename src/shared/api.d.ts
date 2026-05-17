@@ -49,9 +49,17 @@ declare global {
             launchWithoutMods(gamePath: string): Promise<void>
             restoreMods(): Promise<void>
 
-            onUpdateAvailable(callback: () => void): () => void
+            onUpdateAvailable(
+                callback: (info: {
+                    version: string
+                    strategy: 'auto' | 'manual' | 'browser'
+                    body: string
+                    releaseUrl: string
+                }) => void
+            ): () => void
             onUpdateProgress(callback: (percent: number) => void): () => void
-            onUpdateDownloaded(callback: () => void): () => void
+            onUpdateReady(callback: () => void): () => void
+            download(version: string): Promise<void>
             installUpdate(): Promise<void>
         }
     }

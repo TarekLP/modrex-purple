@@ -67,18 +67,35 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('app:launch-without-mods', gamePath),
     restoreMods: () => ipcRenderer.invoke('app:restore-mods'),
 
-    onUpdateAvailable: (callback: () => void) => {
-        ipcRenderer.on('updater:update-available', callback)
-        return () => ipcRenderer.removeListener('updater:update-available', callback)
+    onUpdateAvailable: (
+        callback: (info: {
+            version: string
+            strategy: 'auto' | 'manual' | 'browser'
+            body: string
+            releaseUrl: string
+        }) => void
+    ) => {
+        const handler = (
+            _: IpcRendererEvent,
+            info: {
+                version: string
+                strategy: 'auto' | 'manual' | 'browser'
+                body: string
+                releaseUrl: string
+            }
+        ) => callback(info)
+        ipcRenderer.on('updater:update-available', handler)
+        return () => ipcRenderer.removeListener('updater:update-available', handler)
     },
     onUpdateProgress: (callback: (percent: number) => void) => {
         const handler = (_: IpcRendererEvent, percent: number) => callback(percent)
         ipcRenderer.on('updater:download-progress', handler)
         return () => ipcRenderer.removeListener('updater:download-progress', handler)
     },
-    onUpdateDownloaded: (callback: () => void) => {
-        ipcRenderer.on('updater:update-downloaded', callback)
-        return () => ipcRenderer.removeListener('updater:update-downloaded', callback)
+    onUpdateReady: (callback: () => void) => {
+        ipcRenderer.on('updater:update-ready', callback)
+        return () => ipcRenderer.removeListener('updater:update-ready', callback)
     },
+    download: (version: string) => ipcRenderer.invoke('updater:download', version),
     installUpdate: () => ipcRenderer.invoke('updater:install'),
 })

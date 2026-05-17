@@ -11,14 +11,21 @@
         "close": "Close",
         "dontShowAgain": "Don't show again",
         "by": "by {name}",
-        "noImage": "No image"
+        "noImage": "No image",
+        "dismiss": "Dismiss"
     },
     "app": {
         "modsHidden": "Mods are hidden — the game was launched in vanilla mode and may still be running.",
         "restoreMods": "Restore mods",
-        "updateDownloading": "Downloading update… {percent}%",
-        "updateReady": "Update downloaded and ready to install.",
-        "updateInstall": "Restart & Update"
+        "updateAvailable": "v{version} is available",
+        "updateDownloading": "Downloading… {percent}%",
+        "updateReady": "Update downloaded and ready to install",
+        "updateAction": "Update",
+        "updateInstall": "Restart & Install",
+        "updateDownload": "Download",
+        "updateWhatsNew": "What's new?",
+        "updateNotesTitle": "What's new in v{version}",
+        "updateViewOnGithub": "View on GitHub"
     },
     "topBar": {
         "title": "PD3 Mod Manager",
