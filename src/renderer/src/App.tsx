@@ -47,8 +47,16 @@ export default function App() {
 
     useEffect(() => {
         refreshInstalled()
-        window.addEventListener('focus', refreshInstalled)
-        return () => window.removeEventListener('focus', refreshInstalled)
+        let timer: ReturnType<typeof setTimeout> | null = null
+        function onFocus() {
+            if (timer) clearTimeout(timer)
+            timer = setTimeout(refreshInstalled, 500)
+        }
+        window.addEventListener('focus', onFocus)
+        return () => {
+            window.removeEventListener('focus', onFocus)
+            if (timer) clearTimeout(timer)
+        }
     }, [refreshInstalled])
 
     useEffect(() => {
