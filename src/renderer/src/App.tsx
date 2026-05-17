@@ -33,8 +33,9 @@ export default function App() {
     } | null>(null)
     const [showUpdateModal, setShowUpdateModal] = useState(false)
 
-    useEffect(() => {
-        window.api.findGamePath().then(setGamePath)
+    const refreshGamePath = useCallback(async () => {
+        const path = await window.api.findGamePath()
+        setGamePath(path)
     }, [])
 
     const refreshInstalled = useCallback(async () => {
@@ -55,18 +56,22 @@ export default function App() {
     }
 
     useEffect(() => {
+        refreshGamePath()
         refreshInstalled()
         let timer: ReturnType<typeof setTimeout> | null = null
         function onFocus() {
             if (timer) clearTimeout(timer)
-            timer = setTimeout(refreshInstalled, 500)
+            timer = setTimeout(() => {
+                refreshGamePath()
+                refreshInstalled()
+            }, 500)
         }
         window.addEventListener('focus', onFocus)
         return () => {
             window.removeEventListener('focus', onFocus)
             if (timer) clearTimeout(timer)
         }
-    }, [refreshInstalled])
+    }, [refreshGamePath, refreshInstalled])
 
     useEffect(() => {
         const offAvailable = window.api.onUpdateAvailable(
@@ -140,11 +145,6 @@ export default function App() {
             setDetailStack((prev) => prev.slice(0, -1))
         }
     }
-
-    const refreshGamePath = useCallback(async () => {
-        const path = await window.api.findGamePath()
-        setGamePath(path)
-    }, [])
 
     function handleSidebarChange(v: 'browse' | 'installed' | 'settings') {
         setDetailStack([])
