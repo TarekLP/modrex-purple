@@ -16,6 +16,7 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 - Update detection with selective per-mod updates
 - Launch modded or vanilla directly from the app
 - Automatically detects your PD3 installation via Steam registry
+- Identifies manually placed .pak files via SHA256 lookup against a live mod index
 
 ## Installation
 
