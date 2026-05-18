@@ -14,7 +14,8 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format:check": "prettier --check .",
+        "build-index": "tsx scripts/build-index.ts"
     },
     "repository": {
         "type": "git",
@@ -38,16 +39,19 @@
         "@electron-toolkit/preload": "^3.0.2",
         "@electron-toolkit/utils": "^4.0.0",
         "@tailwindcss/vite": "^4.3.0",
+        "@types/better-sqlite3": "^7.6.13",
         "@types/node": "^25.7.0",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^5.2.0",
+        "better-sqlite3": "^12.10.0",
         "electron": "^39.2.7",
         "electron-builder": "^26.8.1",
         "electron-vite": "^5.0.0",
         "husky": "^9.1.7",
         "prettier": "^3.8.3",
         "tailwindcss": "^4.3.0",
+        "tsx": "^4.22.1",
         "typescript": "^6.0.3",
         "vite": "^6.4.2",
         "vitest": "^4.1.6"
