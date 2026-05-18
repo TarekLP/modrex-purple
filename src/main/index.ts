@@ -114,7 +114,7 @@ function registerHandlers(): void {
                             return m
                         }
                     }
-                    const match = lookupSha256(sha256)
+                    const match = await lookupSha256(sha256)
                     if (!match) return { ...m, sha256 }
                     try {
                         const mod = await getMod(match.modRemoteId)
@@ -174,7 +174,7 @@ function registerHandlers(): void {
 
         const results = await Promise.allSettled(
             trulyUntracked.map(async ({ filename, enabled, sha256 }) => {
-                const indexMatch = sha256 ? lookupSha256(sha256) : null
+                const indexMatch = sha256 ? await lookupSha256(sha256) : null
                 if (indexMatch) {
                     const mod = await getMod(indexMatch.modRemoteId)
                     return {
