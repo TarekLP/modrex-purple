@@ -29,6 +29,7 @@
         "stopGame": "Stop game",
         "launchWithoutMods": "Launch without mods",
         "launchModded": "Launch modded",
+        "launching": "Launching...",
         "missingLaunchOption": {
             "title": "Missing launch option",
             "bodyPre": "is required for mods to load correctly. Add it in",

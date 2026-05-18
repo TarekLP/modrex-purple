@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Square, TriangleAlert, X, RefreshCw } from 'lucide-react'
+import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
 import { t } from '../i18n'
 
 interface UpdateState {
@@ -16,10 +16,19 @@ interface Props {
 
 export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }: Props) {
     const [gameRunning, setGameRunning] = useState(false)
+    const [launching, setLaunching] = useState<'modded' | 'vanilla' | null>(null)
     const [showWarning, setShowWarning] = useState(false)
     const [dontShowAgain, setDontShowAgain] = useState(false)
     const [launchError, setLaunchError] = useState<string | null>(null)
     const wasRunning = useRef(false)
+    const launchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    function startLaunching(mode: 'modded' | 'vanilla') {
+        setLaunching(mode)
+        if (launchTimeoutRef.current) clearTimeout(launchTimeoutRef.current)
+        // Safety fallback: clear launching state after 60s if game never appeared
+        launchTimeoutRef.current = setTimeout(() => setLaunching(null), 60_000)
+    }
 
     useEffect(() => {
         const check = async () => {
@@ -31,6 +40,13 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
                     setLaunchError(String(e))
                 }
                 await onRefreshInstalled()
+            }
+            if (running) {
+                setLaunching(null)
+                if (launchTimeoutRef.current) {
+                    clearTimeout(launchTimeoutRef.current)
+                    launchTimeoutRef.current = null
+                }
             }
             wasRunning.current = running
             setGameRunning(running)
@@ -47,20 +63,28 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
             setShowWarning(true)
             return
         }
+        startLaunching('modded')
         window.api.launchModded()
     }
 
     async function confirmLaunch() {
         if (dontShowAgain) await window.api.setSkipFileOpenLogWarning(true)
         setShowWarning(false)
+        startLaunching('modded')
         window.api.launchModded()
     }
 
     async function launchWithoutMods() {
         if (!gamePath) return
         try {
+            startLaunching('vanilla')
             await window.api.launchWithoutMods(gamePath)
         } catch (e) {
+            setLaunching(null)
+            if (launchTimeoutRef.current) {
+                clearTimeout(launchTimeoutRef.current)
+                launchTimeoutRef.current = null
+            }
             setLaunchError(String(e))
         }
     }
@@ -123,20 +147,32 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
                         ) : (
                             <>
                                 <button
-                                    disabled={!gamePath}
+                                    disabled={!gamePath || !!launching}
                                     onClick={launchWithoutMods}
                                     className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                 >
-                                    <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                    {t('topBar.launchWithoutMods')}
+                                    {launching === 'vanilla' ? (
+                                        <Loader className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Play className="w-3.5 h-3.5" fill="currentColor" />
+                                    )}
+                                    {launching === 'vanilla'
+                                        ? t('topBar.launching')
+                                        : t('topBar.launchWithoutMods')}
                                 </button>
                                 <button
-                                    disabled={!gamePath}
+                                    disabled={!gamePath || !!launching}
                                     onClick={handleLaunchModded}
                                     className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                 >
-                                    <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                    {t('topBar.launchModded')}
+                                    {launching === 'modded' ? (
+                                        <Loader className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Play className="w-3.5 h-3.5" fill="currentColor" />
+                                    )}
+                                    {launching === 'modded'
+                                        ? t('topBar.launching')
+                                        : t('topBar.launchModded')}
                                 </button>
                             </>
                         )}
