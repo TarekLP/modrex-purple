@@ -148,4 +148,4 @@ out/
 
 # Mod index build artifacts (belong in pd3-mod-index repo)
 scripts/index.json
-scripts/index.db
+scripts/index.db*
