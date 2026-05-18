@@ -31,6 +31,7 @@ import {
 } from './mods'
 import { downloadFile } from './download'
 import { readSettings, writeSettings } from './settings'
+import { ensureIndex, lookupSha256 } from './mod-index'
 
 function pakFilename(modName: string): string {
     return (
@@ -114,7 +115,7 @@ function registerHandlers(): void {
         )
 
         let reconciledMods = [...state.mods]
-        const trulyUntracked: { filename: string; enabled: boolean }[] = []
+        const trulyUntracked: { filename: string; enabled: boolean; sha256: string }[] = []
 
         for (const { filename, enabled, sha256 } of hashed) {
             const matched = sha256ToMod.get(sha256)
@@ -123,12 +124,26 @@ function registerHandlers(): void {
                     m.id === matched.id ? { ...m, filename, enabled, missing: undefined } : m
                 )
             } else {
-                trulyUntracked.push({ filename, enabled })
+                trulyUntracked.push({ filename, enabled, sha256 })
             }
         }
 
         const results = await Promise.allSettled(
-            trulyUntracked.map(async ({ filename, enabled }) => {
+            trulyUntracked.map(async ({ filename, enabled, sha256 }) => {
+                const indexMatch = lookupSha256(sha256)
+                if (indexMatch) {
+                    const mod = await getMod(indexMatch.modRemoteId)
+                    return {
+                        id: mod.id,
+                        name: mod.name,
+                        fileId: indexMatch.fileRemoteId,
+                        version: indexMatch.version,
+                        sha256,
+                        filename,
+                        enabled,
+                        installedAt: new Date().toISOString(),
+                    }
+                }
                 const stem = filename.slice(0, -4)
                 const numId = parseInt(stem, 10)
                 if (!isNaN(numId) && String(numId) === stem) {
@@ -501,6 +516,7 @@ app.whenReady().then(() => {
         }
     }
 
+    ensureIndex().catch((e) => console.warn('mod index update failed:', e))
     registerHandlers()
     const win = createWindow()
     if (!app.isPackaged) {
