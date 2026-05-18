@@ -91,7 +91,7 @@ export interface InstalledMod {
     installedAt: string
     fileId?: number
     priority?: number // higher = loads later in UE5 = overrides lower-priority mods
-    missing?: boolean // file not found on disk during last reconcile
+    missing?: boolean
 }
 
 export interface ModsState {

@@ -204,7 +204,6 @@ export function InstalledPage({
         dragScrollDir.current = null
     }
 
-    // Fetch modData for newly seen mod IDs and re-fetch expired cache entries
     useEffect(() => {
         const TTL_MS = 5 * 60 * 1000
         const now = Date.now()

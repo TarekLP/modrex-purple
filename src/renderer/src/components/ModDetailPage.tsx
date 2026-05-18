@@ -228,7 +228,6 @@ export function ModDetailPage({
                     }}
                 />
             )}
-            {/* Top bar */}
             <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3 relative">
                 <button
                     onClick={onBack}
@@ -307,7 +306,6 @@ export function ModDetailPage({
 
             {!loading && !error && mod && (
                 <div className="flex-1 overflow-y-auto">
-                    {/* Banner */}
                     {(mod.banner ?? mod.thumbnail) && (
                         <img
                             src={`${THUMBNAIL_BASE_URL}/${(mod.banner ?? mod.thumbnail)!.file}`}
@@ -317,7 +315,6 @@ export function ModDetailPage({
                         />
                     )}
 
-                    {/* Mod info */}
                     <div className="px-6 py-5 border-b border-border">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
@@ -392,7 +389,6 @@ export function ModDetailPage({
                         </div>
                     </div>
 
-                    {/* Tab bar */}
                     <div className="flex border-b border-border px-6">
                         {tabs.map((tabItem) => (
                             <button
@@ -409,7 +405,6 @@ export function ModDetailPage({
                         ))}
                     </div>
 
-                    {/* Tab content */}
                     <div className="px-6 py-5">
                         {tab === 'description' && <DescriptionTab mod={mod} />}
                         {tab === 'images' && <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />}
@@ -437,13 +432,11 @@ export function ModDetailPage({
                 </div>
             )}
 
-            {/* Image lightbox */}
             {lightboxIndex !== null && images.length > 0 && (
                 <div
                     className="absolute inset-0 bg-black/90 flex items-center justify-center z-50"
                     onClick={() => setLightboxIndex(null)}
                 >
-                    {/* Prev */}
                     <button
                         onClick={(e) => {
                             e.stopPropagation()
@@ -461,7 +454,6 @@ export function ModDetailPage({
                         onClick={(e) => e.stopPropagation()}
                     />
 
-                    {/* Next */}
                     <button
                         onClick={(e) => {
                             e.stopPropagation()
@@ -472,7 +464,6 @@ export function ModDetailPage({
                         <ChevronRight className="w-6 h-6" />
                     </button>
 
-                    {/* Close + counter */}
                     <button
                         onClick={() => setLightboxIndex(null)}
                         className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
