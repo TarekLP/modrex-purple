@@ -527,6 +527,8 @@ function createWindow(): BrowserWindow {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
+        show: false,
+        backgroundColor: '#0a0a0a',
         icon: join(
             __dirname,
             process.platform === 'linux' ? '../../assets/icon.png' : '../../assets/icon.ico'
@@ -543,6 +545,8 @@ function createWindow(): BrowserWindow {
     } else {
         win.loadFile(join(__dirname, '../renderer/index.html'))
     }
+
+    win.once('ready-to-show', () => win.show())
 
     return win
 }

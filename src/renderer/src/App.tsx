@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, memo } from 'react'
+import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod } from '../../shared/types'
 import { t } from './i18n'
@@ -155,6 +156,15 @@ export default function App() {
 
     return (
         <div className="flex flex-col h-screen bg-surface text-text">
+            {!installedReady && (
+                <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-4 z-50">
+                    <img src={appIcon} alt="PD3 Mod Manager" className="w-16 h-16 opacity-90" />
+                    <span className="text-sm font-semibold tracking-wide text-text-muted">
+                        PAYDAY 3 Mod Manager
+                    </span>
+                    <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
+                </div>
+            )}
             <TopBar
                 gamePath={gamePath}
                 onRefreshInstalled={refreshInstalled}
