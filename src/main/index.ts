@@ -88,7 +88,7 @@ function registerHandlers(): void {
     })
     ipcMain.handle('mods:get-installed', async () => {
         const statePath = getStatePath(resolvedGamePath)
-        const state = resolvedGamePath
+        let state = resolvedGamePath
             ? await reconcileState(resolvedGamePath, statePath)
             : readState(statePath)
 
@@ -98,13 +98,52 @@ function registerHandlers(): void {
 
         if (!resolvedGamePath) return { mods: state.mods, modsHidden }
 
+        // Upgrade any synthetic mods (id < 0) once the index becomes available
+        if (!modsHidden && state.mods.some((m) => m.id < 0)) {
+            const upgraded = await Promise.all(
+                state.mods.map(async (m) => {
+                    if (m.id >= 0) return m
+                    let sha256 = m.sha256
+                    if (!sha256) {
+                        try {
+                            const pakPath = m.enabled
+                                ? activeModPath(resolvedGamePath!, m.filename)
+                                : disabledModPath(resolvedGamePath!, m.filename)
+                            sha256 = await computeSha256(pakPath)
+                        } catch {
+                            return m
+                        }
+                    }
+                    const match = lookupSha256(sha256)
+                    if (!match) return { ...m, sha256 }
+                    try {
+                        const mod = await getMod(match.modRemoteId)
+                        return {
+                            ...m,
+                            id: mod.id,
+                            name: mod.name,
+                            fileId: match.fileRemoteId,
+                            version: match.version,
+                            sha256,
+                        }
+                    } catch {
+                        return { ...m, sha256 }
+                    }
+                })
+            )
+            if (upgraded.some((m, i) => m !== state.mods[i])) {
+                state = { mods: upgraded }
+                writeFileSync(statePath, JSON.stringify(state, null, 4))
+            }
+        }
+
         const knownFilenames = new Set(state.mods.map((m) => m.filename))
         const untracked = await findUntrackedPaks(resolvedGamePath, knownFilenames)
         if (untracked.length === 0) return { mods: state.mods, modsHidden }
 
         const sha256ToMod = new Map(state.mods.filter((m) => m.sha256).map((m) => [m.sha256!, m]))
 
-        const hashed = await Promise.all(
+        const hashedResults = await Promise.allSettled(
             untracked.map(async ({ filename, enabled }) => {
                 const pakPath = enabled
                     ? activeModPath(resolvedGamePath!, filename)
@@ -113,12 +152,17 @@ function registerHandlers(): void {
                 return { filename, enabled, sha256 }
             })
         )
+        const hashed = hashedResults.map((r, i) =>
+            r.status === 'fulfilled'
+                ? r.value
+                : { filename: untracked[i].filename, enabled: untracked[i].enabled, sha256: null }
+        )
 
         let reconciledMods = [...state.mods]
-        const trulyUntracked: { filename: string; enabled: boolean; sha256: string }[] = []
+        const trulyUntracked: { filename: string; enabled: boolean; sha256: string | null }[] = []
 
         for (const { filename, enabled, sha256 } of hashed) {
-            const matched = sha256ToMod.get(sha256)
+            const matched = sha256 ? sha256ToMod.get(sha256) : undefined
             if (matched) {
                 reconciledMods = reconciledMods.map((m) =>
                     m.id === matched.id ? { ...m, filename, enabled, missing: undefined } : m
@@ -130,7 +174,7 @@ function registerHandlers(): void {
 
         const results = await Promise.allSettled(
             trulyUntracked.map(async ({ filename, enabled, sha256 }) => {
-                const indexMatch = lookupSha256(sha256)
+                const indexMatch = sha256 ? lookupSha256(sha256) : null
                 if (indexMatch) {
                     const mod = await getMod(indexMatch.modRemoteId)
                     return {
@@ -161,6 +205,7 @@ function registerHandlers(): void {
                     id: hashFilename(filename),
                     name: stripPriorityPrefix(stem),
                     version: 'unknown',
+                    ...(sha256 ? { sha256 } : {}),
                     filename,
                     enabled,
                     installedAt: new Date().toISOString(),
