@@ -91,12 +91,12 @@ export async function reconcileState(gamePath: string, statePath: string): Promi
     const modsBak = join(gamePath, 'PAYDAY3', 'Content', '~mods.bak')
     try {
         await fsp.access(modsBak)
-        return readState(statePath)
+        // state file moved with ~mods into ~mods.bak — read from its new location
+        return readState(join(gamePath, 'PAYDAY3', 'Content', '~mods.bak', '.pd3mm.json'))
     } catch {}
 
     const state = readState(statePath)
 
-    // Migrate disabled mods from legacy .pak to .pak.disabled format
     const disabledDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
     for (const m of state.mods.filter((m) => !m.enabled)) {
         const newPath = disabledModPath(gamePath, m.filename)
