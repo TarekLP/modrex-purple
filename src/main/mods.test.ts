@@ -16,6 +16,7 @@ import {
     reorderMods,
     findUntrackedPaks,
     reconcileState,
+    computeSha256,
     type InstalledMod,
     type ModsState,
 } from './mods'
@@ -106,6 +107,25 @@ afterEach(() => {
     rmSync(tmp, { recursive: true, force: true })
 })
 
+describe('computeSha256', () => {
+    it('returns a 64-char lowercase hex string', async () => {
+        const hash = await computeSha256(sourceFile)
+        expect(hash).toMatch(/^[a-f0-9]{64}$/)
+    })
+
+    it('returns the same hash for identical content', async () => {
+        const copy = join(tmp, 'copy.pak')
+        writeFileSync(copy, 'fake pak content')
+        expect(await computeSha256(sourceFile)).toBe(await computeSha256(copy))
+    })
+
+    it('returns different hashes for different content', async () => {
+        const other = join(tmp, 'other.pak')
+        writeFileSync(other, 'different content')
+        expect(await computeSha256(sourceFile)).not.toBe(await computeSha256(other))
+    })
+})
+
 describe('installMod', () => {
     it('copies pak to active mods folder with priority prefix', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
@@ -122,6 +142,11 @@ describe('installMod', () => {
     it('assigns priority 1 to first mod', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
         expect(readState(statePath).mods[0].priority).toBe(1)
+    })
+
+    it('stores sha256 in state when provided', () => {
+        installMod(gamePath, statePath, { ...fakeMod, sha256: 'abc123' }, sourceFile)
+        expect(readState(statePath).mods[0].sha256).toBe('abc123')
     })
 
     it('assigns incrementing priority to subsequent mods', () => {

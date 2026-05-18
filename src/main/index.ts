@@ -24,6 +24,9 @@ import {
     readState,
     reconcileState,
     findUntrackedPaks,
+    computeSha256,
+    activeModPath,
+    disabledModPath,
     stripPriorityPrefix,
 } from './mods'
 import { downloadFile } from './download'
@@ -98,8 +101,34 @@ function registerHandlers(): void {
         const untracked = await findUntrackedPaks(resolvedGamePath, knownFilenames)
         if (untracked.length === 0) return { mods: state.mods, modsHidden }
 
-        const results = await Promise.allSettled(
+        const sha256ToMod = new Map(state.mods.filter((m) => m.sha256).map((m) => [m.sha256!, m]))
+
+        const hashed = await Promise.all(
             untracked.map(async ({ filename, enabled }) => {
+                const pakPath = enabled
+                    ? activeModPath(resolvedGamePath!, filename)
+                    : disabledModPath(resolvedGamePath!, filename)
+                const sha256 = await computeSha256(pakPath)
+                return { filename, enabled, sha256 }
+            })
+        )
+
+        let reconciledMods = [...state.mods]
+        const trulyUntracked: { filename: string; enabled: boolean }[] = []
+
+        for (const { filename, enabled, sha256 } of hashed) {
+            const matched = sha256ToMod.get(sha256)
+            if (matched) {
+                reconciledMods = reconciledMods.map((m) =>
+                    m.id === matched.id ? { ...m, filename, enabled, missing: undefined } : m
+                )
+            } else {
+                trulyUntracked.push({ filename, enabled })
+            }
+        }
+
+        const results = await Promise.allSettled(
+            trulyUntracked.map(async ({ filename, enabled }) => {
                 const stem = filename.slice(0, -4)
                 const numId = parseInt(stem, 10)
                 if (!isNaN(numId) && String(numId) === stem) {
@@ -124,11 +153,9 @@ function registerHandlers(): void {
             })
         )
         const newMods = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
-        if (newMods.length === 0) return { mods: state.mods, modsHidden }
-
-        const updated = { mods: [...state.mods, ...newMods] }
-        writeFileSync(statePath, JSON.stringify(updated, null, 4))
-        return { mods: updated.mods, modsHidden }
+        const finalMods = [...reconciledMods, ...newMods]
+        writeFileSync(statePath, JSON.stringify({ mods: finalMods }, null, 4))
+        return { mods: finalMods, modsHidden }
     })
 
     ipcMain.handle('mods:install', async (event, modId: number, gamePath: string) => {
@@ -140,6 +167,7 @@ function registerHandlers(): void {
             event.sender.send('download:progress', { downloaded, total })
         )
         try {
+            const sha256 = await computeSha256(tmp)
             installMod(
                 gamePath,
                 statePath,
@@ -153,6 +181,7 @@ function registerHandlers(): void {
                     enabled: true,
                     installedAt: new Date().toISOString(),
                     fileId: file.id,
+                    sha256,
                 },
                 tmp
             )
@@ -179,6 +208,7 @@ function registerHandlers(): void {
                 event.sender.send('download:progress', { downloaded, total })
             )
             try {
+                const sha256 = await computeSha256(tmp)
                 installMod(
                     gamePath,
                     statePath,
@@ -192,6 +222,7 @@ function registerHandlers(): void {
                         enabled: true,
                         installedAt: new Date().toISOString(),
                         fileId,
+                        sha256,
                     },
                     tmp
                 )

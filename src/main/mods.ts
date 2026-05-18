@@ -7,8 +7,10 @@ import {
     existsSync,
     readFileSync,
     writeFileSync,
+    createReadStream,
 } from 'fs'
 import { promises as fsp } from 'fs'
+import { createHash } from 'crypto'
 import type { InstalledMod, ModsState } from '../shared/types'
 
 export type { InstalledMod, ModsState }
@@ -27,6 +29,12 @@ export function activeModPath(gamePath: string, filename: string): string {
 
 export function disabledModPath(gamePath: string, filename: string): string {
     return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', filename + '.disabled')
+}
+
+export async function computeSha256(filePath: string): Promise<string> {
+    const hash = createHash('sha256')
+    for await (const chunk of createReadStream(filePath)) hash.update(chunk as Buffer)
+    return hash.digest('hex')
 }
 
 export function addToState(state: ModsState, mod: InstalledMod): ModsState {
