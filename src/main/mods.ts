@@ -26,7 +26,7 @@ export function activeModPath(gamePath: string, filename: string): string {
 }
 
 export function disabledModPath(gamePath: string, filename: string): string {
-    return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', filename)
+    return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', filename + '.disabled')
 }
 
 export function addToState(state: ModsState, mod: InstalledMod): ModsState {
@@ -74,8 +74,11 @@ export async function findUntrackedPaks(
 
     try {
         for (const file of await fsp.readdir(disabledDir)) {
-            if (file.endsWith('.pak') && !knownFilenames.has(file)) {
-                untracked.push({ filename: file, enabled: false })
+            if (file.endsWith('.pak.disabled')) {
+                const pakFilename = file.slice(0, -'.disabled'.length)
+                if (!knownFilenames.has(pakFilename)) {
+                    untracked.push({ filename: pakFilename, enabled: false })
+                }
             }
         }
     } catch {}
@@ -92,6 +95,22 @@ export async function reconcileState(gamePath: string, statePath: string): Promi
     } catch {}
 
     const state = readState(statePath)
+
+    // Migrate disabled mods from legacy .pak to .pak.disabled format
+    const disabledDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
+    for (const m of state.mods.filter((m) => !m.enabled)) {
+        const newPath = disabledModPath(gamePath, m.filename)
+        const legacyPath = join(disabledDir, m.filename)
+        try {
+            await fsp.access(newPath)
+        } catch {
+            try {
+                await fsp.access(legacyPath)
+                renameSync(legacyPath, newPath)
+            } catch {}
+        }
+    }
+
     const checks = await Promise.all(
         state.mods.map(async (m) => {
             try {

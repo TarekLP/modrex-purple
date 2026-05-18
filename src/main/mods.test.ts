@@ -40,9 +40,9 @@ describe('activeModPath', () => {
 })
 
 describe('disabledModPath', () => {
-    it('places file under PAYDAY3/Content/Paks/~mods/disabled', () => {
+    it('places file under PAYDAY3/Content/Paks/~mods/disabled with .disabled extension', () => {
         expect(disabledModPath('game', 'Mod.pak')).toBe(
-            join('game', 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', 'Mod.pak')
+            join('game', 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', 'Mod.pak.disabled')
         )
     })
 })
@@ -203,6 +203,27 @@ describe('reconcileState', () => {
         expect(result.mods).toHaveLength(1)
         expect(result.mods[0].id).toBe(fakeMod.id)
     })
+
+    it('migrates disabled mod from legacy .pak to .pak.disabled format', async () => {
+        installMod(gamePath, statePath, fakeMod, sourceFile)
+        const filename = readState(statePath).mods[0].filename
+
+        // simulate legacy state: file sitting in disabled/ as plain .pak
+        const disabledDirPath = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
+        mkdirSync(disabledDirPath, { recursive: true })
+        rmSync(activeModPath(gamePath, filename))
+        writeFileSync(join(disabledDirPath, filename), 'fake pak')
+        const raw = readState(statePath)
+        writeFileSync(
+            statePath,
+            JSON.stringify({ mods: raw.mods.map((m) => ({ ...m, enabled: false })) }, null, 4)
+        )
+
+        await reconcileState(gamePath, statePath)
+
+        expect(existsSync(join(disabledDirPath, filename))).toBe(false)
+        expect(existsSync(disabledModPath(gamePath, filename))).toBe(true)
+    })
 })
 
 // --- readState error handling ---
@@ -331,7 +352,7 @@ describe('findUntrackedPaks', () => {
 
     it('returns untracked pak from disabled dir as disabled', async () => {
         mkdirSync(disabledDir(gamePath), { recursive: true })
-        writeFileSync(join(disabledDir(gamePath), 'OldMod.pak'), '')
+        writeFileSync(join(disabledDir(gamePath), 'OldMod.pak.disabled'), '')
         const result = await findUntrackedPaks(gamePath, new Set())
         expect(result).toEqual([{ filename: 'OldMod.pak', enabled: false }])
     })
@@ -356,7 +377,7 @@ describe('findUntrackedPaks', () => {
     it('returns paks from both active and disabled dirs', async () => {
         mkdirSync(disabledDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'Active.pak'), '')
-        writeFileSync(join(disabledDir(gamePath), 'Disabled.pak'), '')
+        writeFileSync(join(disabledDir(gamePath), 'Disabled.pak.disabled'), '')
         const result = await findUntrackedPaks(gamePath, new Set())
         expect(result).toHaveLength(2)
         expect(result.find((r) => r.filename === 'Active.pak')?.enabled).toBe(true)
