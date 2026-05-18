@@ -476,4 +476,5 @@ app.whenReady().then(() => {
         globalShortcut.register('CommandOrControl+Shift+I', () => win.webContents.toggleDevTools())
     }
     win.webContents.once('did-finish-load', () => checkForUpdates(win))
+    ipcMain.handle('updater:check', () => checkForUpdates(win))
 })

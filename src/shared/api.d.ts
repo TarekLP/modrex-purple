@@ -61,6 +61,7 @@ declare global {
             onUpdateReady(callback: () => void): () => void
             download(version: string): Promise<void>
             installUpdate(): Promise<void>
+            checkForUpdates(): Promise<void>
         }
     }
 }

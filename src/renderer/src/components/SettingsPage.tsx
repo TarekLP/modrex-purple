@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FolderOpen, RotateCcw } from 'lucide-react'
+import { FolderOpen, RotateCcw, RefreshCw } from 'lucide-react'
 import { t } from '../i18n'
 
 interface Props {
@@ -12,6 +12,7 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
         null
     )
     const [picking, setPicking] = useState(false)
+    const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate'>('idle')
     const [launchOptions, setLaunchOptions] = useState('')
     const launchOptionsLoaded = useRef(false)
 
@@ -42,6 +43,13 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
         } finally {
             setPicking(false)
         }
+    }
+
+    async function handleCheckForUpdates() {
+        setCheckState('checking')
+        await window.api.checkForUpdates()
+        setCheckState('upToDate')
+        setTimeout(() => setCheckState('idle'), 3000)
     }
 
     async function handleReset() {
@@ -101,6 +109,29 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                             {t('settings.gamePath.notDetected')}
                         </p>
                     )}
+                </section>
+
+                <section className="max-w-xl flex flex-col gap-2 mt-6">
+                    <h2 className="text-sm font-semibold">{t('settings.updates.title')}</h2>
+                    <div className="flex items-center gap-3 mt-1">
+                        <button
+                            disabled={checkState === 'checking'}
+                            onClick={handleCheckForUpdates}
+                            className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                        >
+                            <RefreshCw
+                                className={`w-3.5 h-3.5 ${checkState === 'checking' ? 'animate-spin' : ''}`}
+                            />
+                            {checkState === 'checking'
+                                ? t('settings.updates.checking')
+                                : t('settings.updates.check')}
+                        </button>
+                        {checkState === 'upToDate' && (
+                            <span className="text-xs text-success-text">
+                                {t('settings.updates.upToDate')}
+                            </span>
+                        )}
+                    </div>
                 </section>
 
                 <section className="max-w-xl flex flex-col gap-2 mt-6">
