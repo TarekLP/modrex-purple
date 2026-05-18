@@ -1,3 +1,4 @@
+import { getLogPath } from './logger'
 import { app, BrowserWindow, ipcMain, globalShortcut, shell, dialog } from 'electron'
 import { autoUpdater } from 'electron-updater'
 
@@ -246,6 +247,10 @@ function registerHandlers(): void {
                 tmp
             )
             await registerDownload(file.id)
+            console.info(`Installed mod ${mod.id} (${mod.name})`)
+        } catch (e) {
+            console.error(`Failed to install mod ${modId}:`, e)
+            throw e
         } finally {
             rmSync(tmp, { force: true })
         }
@@ -365,6 +370,7 @@ function registerHandlers(): void {
 
     ipcMain.handle('shell:open-external', (_, url: string) => shell.openExternal(url))
     ipcMain.handle('shell:open-path', (_, path: string) => shell.openPath(path))
+    ipcMain.handle('app:open-log', () => shell.openPath(getLogPath()))
 
     ipcMain.handle('app:launch-without-mods', (_, gamePath: string) => {
         const modsDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
@@ -552,7 +558,9 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+    console.info(`PD3 Mod Manager ${app.getVersion()} starting on ${process.platform}`)
     resolvedGamePath = readSettings(settingsPath).gamePath ?? findGamePath()
+    console.info(`Game path: ${resolvedGamePath ?? 'not found'}`)
     if (resolvedGamePath) {
         const modsDir = join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak')

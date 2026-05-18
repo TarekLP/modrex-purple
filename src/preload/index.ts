@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('api', {
 
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
     openPath: (path: string) => ipcRenderer.invoke('shell:open-path', path),
+    openLog: () => ipcRenderer.invoke('app:open-log'),
 
     getSettings: () => ipcRenderer.invoke('settings:get'),
     setGamePath: (gamePath: string | null) =>

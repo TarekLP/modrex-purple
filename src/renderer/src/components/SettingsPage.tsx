@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FolderOpen, RotateCcw, RefreshCw } from 'lucide-react'
+import { FolderOpen, RotateCcw, RefreshCw, ScrollText } from 'lucide-react'
 import { t } from '../i18n'
 
 interface Props {
@@ -131,6 +131,20 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                                 {t('settings.updates.upToDate')}
                             </span>
                         )}
+                    </div>
+                </section>
+
+                <section className="max-w-xl flex flex-col gap-2 mt-6">
+                    <h2 className="text-sm font-semibold">{t('settings.logs.title')}</h2>
+                    <p className="text-xs text-text-subtle">{t('settings.logs.description')}</p>
+                    <div className="mt-1">
+                        <button
+                            onClick={() => window.api.openLog()}
+                            className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active transition-colors flex items-center gap-1.5"
+                        >
+                            <ScrollText className="w-3.5 h-3.5" />
+                            {t('settings.logs.open')}
+                        </button>
                     </div>
                 </section>
 
