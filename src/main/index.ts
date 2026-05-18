@@ -123,7 +123,7 @@ function registerHandlers(): void {
                             id: mod.id,
                             name: mod.name,
                             fileId: match.fileRemoteId,
-                            version: match.version,
+                            version: match.version || mod.version,
                             sha256,
                         }
                     } catch {
@@ -181,7 +181,7 @@ function registerHandlers(): void {
                         id: mod.id,
                         name: mod.name,
                         fileId: indexMatch.fileRemoteId,
-                        version: indexMatch.version,
+                        version: indexMatch.version || mod.version,
                         sha256,
                         filename,
                         enabled,
