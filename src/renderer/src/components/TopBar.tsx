@@ -193,7 +193,7 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
                     <div className="bg-surface-raised border border-border rounded-lg shadow-xl w-96 p-6 flex flex-col gap-4">
                         <div className="flex flex-col gap-1">
                             <h2 className="text-sm font-semibold flex items-center gap-2">
-                                <TriangleAlert className="w-4 h-4 text-yellow-400 shrink-0" />
+                                <TriangleAlert className="w-4 h-4 text-warning shrink-0" />
                                 {t('topBar.missingLaunchOption.title')}
                             </h2>
                             <p className="text-xs text-text-muted">

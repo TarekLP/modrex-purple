@@ -17,6 +17,7 @@
     --color-danger-text: #fda578;
     --color-success: #032e15;
     --color-success-text: #00df72;
+    --color-warning: #facc15;
 }
 
 button:not(:disabled),

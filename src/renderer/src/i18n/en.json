@@ -69,6 +69,8 @@
         "updatesAvailable": "{count} mods can be updated",
         "updatesAvailableSingle": "{count} mod can be updated",
         "reviewUpdates": "Review updates",
+        "gridView": "Grid view",
+        "listView": "List view",
         "updatesModal": {
             "title": "Available updates ({count})",
             "update": "Update",

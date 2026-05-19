@@ -242,7 +242,7 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                 <div className="flex items-center justify-between">
                     <h1 className="text-lg font-semibold">{t('browse.title')}</h1>
                     {!gamePath && (
-                        <span className="text-xs text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded">
+                        <span className="text-xs text-warning bg-warning/10 px-3 py-1 rounded">
                             {t('browse.gameNotFound')}
                         </span>
                     )}

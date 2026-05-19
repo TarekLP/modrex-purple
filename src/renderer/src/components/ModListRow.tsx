@@ -71,7 +71,7 @@ export function ModListRow({
 
             <div className="flex items-center gap-2 px-4 shrink-0">
                 {installed.missing && (
-                    <span className="text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 px-2 py-0.5 rounded">
+                    <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
                         {t('common.fileMissing')}
                     </span>
                 )}

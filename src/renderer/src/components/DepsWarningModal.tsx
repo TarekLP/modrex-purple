@@ -34,7 +34,7 @@ export function DepsWarningModal({
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex flex-col gap-1">
                         <h2 className="text-sm font-semibold flex items-center gap-2">
-                            <TriangleAlert className="w-4 h-4 text-yellow-400 shrink-0" />
+                            <TriangleAlert className="w-4 h-4 text-warning shrink-0" />
                             {t('depsWarning.title')}
                         </h2>
                         <p className="text-xs text-text-muted">{t('depsWarning.body')}</p>

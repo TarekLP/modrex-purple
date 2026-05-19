@@ -124,7 +124,6 @@ export default function App() {
         setView('detail')
     }, [])
 
-    const openDetailFromBrowse = useCallback((id: number) => openDetail(id, 'browse'), [openDetail])
     const openDetailFromInstalled = useCallback(
         (id: number) => openDetail(id, 'installed'),
         [openDetail]
@@ -176,13 +175,13 @@ export default function App() {
                 onDismissUpdate={() => setUpdate(null)}
             />
             {modsHidden && (
-                <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-yellow-400/10 border-b border-yellow-400/30 text-xs text-yellow-400">
+                <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
                     <span>{t('app.modsHidden')}</span>
                     <div className="flex items-center gap-3 shrink-0">
                         {restoreError && <span className="text-danger-text">{restoreError}</span>}
                         <button
                             onClick={handleRestoreMods}
-                            className="px-3 py-1 rounded bg-yellow-400/20 hover:bg-yellow-400/30 transition-colors"
+                            className="px-3 py-1 rounded bg-warning/20 hover:bg-warning/30 transition-colors"
                         >
                             {t('app.restoreMods')}
                         </button>
@@ -201,7 +200,7 @@ export default function App() {
                                 gamePath={gamePath}
                                 installed={installed}
                                 onRefreshInstalled={refreshInstalled}
-                                onOpenDetail={openDetailFromBrowse}
+                                onOpenDetail={(id) => openDetail(id, 'browse')}
                             />
                         </div>
                     )}

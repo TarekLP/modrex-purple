@@ -339,14 +339,14 @@ export function InstalledPage({
                     <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
                         <button
                             onClick={() => setView('grid')}
-                            title="Grid view"
+                            title={t('installed.gridView')}
                             className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
                         >
                             <LayoutGrid className="w-3.5 h-3.5" />
                         </button>
                         <button
                             onClick={() => setView('list')}
-                            title="List view"
+                            title={t('installed.listView')}
                             className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
                         >
                             <List className="w-3.5 h-3.5" />
