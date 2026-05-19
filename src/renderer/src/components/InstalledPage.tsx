@@ -586,6 +586,11 @@ export function InstalledPage({
         return (
             <div key={repUid} className="relative">
                 {isBefore && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
+                {mods.length > 1 && (
+                    <div className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none">
+                        {t('installed.fileCount', { count: mods.length })}
+                    </div>
+                )}
                 <ModListRow
                     mod={mod}
                     installed={combined}
