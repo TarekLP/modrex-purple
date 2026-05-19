@@ -48,6 +48,7 @@
     "browse": {
         "title": "Browse Mods",
         "gameNotFound": "Game not found — install disabled",
+        "goToSettings": "Configure in Settings",
         "searchPlaceholder": "Search mods…",
         "allCategories": "All categories",
         "noMods": "No mods found",
@@ -143,7 +144,8 @@
             "picking": "Picking…",
             "manuallySet": "Manually set",
             "autoDetected": "Auto-detected from Steam",
-            "notDetected": "Could not detect PD3 installation — set the path manually."
+            "notDetected": "Could not detect PD3 installation — set the path manually.",
+            "invalid": "Selected folder is not a valid PAYDAY 3 installation."
         },
         "launchOptions": {
             "title": "Launch Options",

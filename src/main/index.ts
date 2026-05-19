@@ -70,6 +70,9 @@ function registerHandlers(): void {
 
     ipcMain.handle('settings:get', () => readSettings(settingsPath))
     ipcMain.handle('settings:set-game-path', (_, gamePath: string | null) => {
+        if (gamePath && !existsSync(join(gamePath, 'PAYDAY3', 'Content', 'Paks'))) {
+            throw new Error('Not a valid PAYDAY 3 installation')
+        }
         const settings = readSettings(settingsPath)
         if (gamePath) {
             settings.gamePath = gamePath

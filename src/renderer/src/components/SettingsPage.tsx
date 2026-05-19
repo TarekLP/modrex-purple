@@ -12,6 +12,7 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
         null
     )
     const [picking, setPicking] = useState(false)
+    const [pathError, setPathError] = useState<string | null>(null)
     const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate'>('idle')
     const [launchOptions, setLaunchOptions] = useState('')
     const launchOptionsLoaded = useRef(false)
@@ -34,12 +35,17 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
 
     async function handleBrowse() {
         setPicking(true)
+        setPathError(null)
         try {
             const picked = await window.api.pickFolder()
             if (!picked) return
-            await window.api.setGamePath(picked)
-            setSettings((s) => ({ ...s, gamePath: picked }))
-            await onGamePathChange()
+            try {
+                await window.api.setGamePath(picked)
+                setSettings((s) => ({ ...s, gamePath: picked }))
+                await onGamePathChange()
+            } catch {
+                setPathError(t('settings.gamePath.invalid'))
+            }
         } finally {
             setPicking(false)
         }
@@ -53,6 +59,7 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
     }
 
     async function handleReset() {
+        setPathError(null)
         await window.api.setGamePath(null)
         setSettings((s) => ({ ...s, gamePath: undefined }))
         await onGamePathChange()
@@ -96,7 +103,9 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                         </div>
                     </div>
 
-                    {isManual ? (
+                    {pathError ? (
+                        <p className="text-xs text-danger-text">{pathError}</p>
+                    ) : isManual ? (
                         <p className="text-xs text-text-subtle">
                             {t('settings.gamePath.manuallySet')}
                         </p>

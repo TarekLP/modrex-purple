@@ -21,6 +21,7 @@ interface Props {
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number) => void
+    onGoToSettings?: () => void
 }
 
 function buildPages(current: number, last: number): (number | '...')[] {
@@ -48,7 +49,13 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'name', label: t('browse.sort.name') },
 ]
 
-export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDetail }: Props) {
+export function BrowsePage({
+    gamePath,
+    installed,
+    onRefreshInstalled,
+    onOpenDetail,
+    onGoToSettings,
+}: Props) {
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
@@ -242,9 +249,19 @@ export function BrowsePage({ gamePath, installed, onRefreshInstalled, onOpenDeta
                 <div className="flex items-center justify-between">
                     <h1 className="text-lg font-semibold">{t('browse.title')}</h1>
                     {!gamePath && (
-                        <span className="text-xs text-warning bg-warning/10 px-3 py-1 rounded">
-                            {t('browse.gameNotFound')}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-warning bg-warning/10 px-3 py-1 rounded">
+                                {t('browse.gameNotFound')}
+                            </span>
+                            {onGoToSettings && (
+                                <button
+                                    onClick={onGoToSettings}
+                                    className="text-xs text-accent hover:text-accent-bright underline transition-colors"
+                                >
+                                    {t('browse.goToSettings')}
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
                 <div className="flex gap-2">

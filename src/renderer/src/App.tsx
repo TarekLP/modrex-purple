@@ -201,6 +201,7 @@ export default function App() {
                                 installed={installed}
                                 onRefreshInstalled={refreshInstalled}
                                 onOpenDetail={(id) => openDetail(id, 'browse')}
+                                onGoToSettings={() => handleSidebarChange('settings')}
                             />
                         </div>
                     )}
