@@ -107,9 +107,11 @@ vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test' } }))
 
 `download.test.ts` stubs global `fetch` via `vi.stubGlobal` and uses `Readable.from()` to mock the response body stream.
 
-## Workflow
+## Agent skills
 
-- Commits must follow conventional commits: `type(scope): subject` — enforced by commitlint.
-- Keep commits focused — one logical change per commit.
-- When writing tests + implementation, commit tests first.
-- **Releasing**: run `npm version patch|minor|major` — bumps `package.json`, commits as `chore(release): X.Y.Z`, creates a `vX.Y.Z` tag. Pushing the tag triggers the CI release workflow. Never edit `package.json` version manually.
+Reusable skills live in `.agents/skills/` and are listed in `AGENTS.md`. Available as Claude Code slash commands:
+
+- `/commit` — read the current diff and propose a conventional commit message; waits for confirmation before committing.
+- `/deslop` — audit the branch diff for AI-generated slop (unnecessary comments, defensive checks, wrong abstractions, project convention violations) and fix each issue found.
+
+**Releasing**: run `npm version patch|minor|major` — bumps `package.json`, commits as `chore(release): X.Y.Z`, creates a `vX.Y.Z` tag. Pushing the tag triggers the CI release workflow. Never edit `package.json` version manually.
