@@ -5,7 +5,15 @@ description: Remove AI-generated code slop
 
 # deslop
 
-Check the diff against main, fix each issue you find, then report a 1–3 sentence summary of what you changed.
+## Mode
+
+Determine the target based on the argument passed:
+
+- **No argument** — scan the full codebase (`src/`)
+- **Path argument** (e.g. `src/renderer/`) — scan that path only
+- **`--diff`** — scan only the diff of the current branch against main (`git diff main...HEAD`)
+
+Fix each issue you find, then report a 1–3 sentence summary of what you changed.
 
 ## Generic AI slop
 
