@@ -6,6 +6,7 @@ Read `CLAUDE.md` — it is the canonical source of architecture, conventions, an
 
 Reusable agent skills live in `.agents/skills/`. Load the relevant skill before executing it.
 
-| Skill  | File                                                             | Description                                      |
-| ------ | ---------------------------------------------------------------- | ------------------------------------------------ |
-| deslop | [.agents/skills/deslop/SKILL.md](.agents/skills/deslop/SKILL.md) | Remove AI-generated code slop from a branch diff |
+| Skill  | File                                                             | Description                                                |
+| ------ | ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| deslop | [.agents/skills/deslop/SKILL.md](.agents/skills/deslop/SKILL.md) | Remove AI-generated code slop from a branch diff           |
+| commit | [.agents/skills/commit/SKILL.md](.agents/skills/commit/SKILL.md) | Propose a conventional commit message for the current diff |
