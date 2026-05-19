@@ -26,10 +26,10 @@ export function applyPriorityPrefix(filename: string, priority: number): string 
 export function activeModPath(
     gamePath: string,
     filename: string,
-    folderDiskName?: string | null
+    folderRelPath?: string | null
 ): string {
-    if (folderDiskName) {
-        return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', folderDiskName, filename)
+    if (folderRelPath) {
+        return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', folderRelPath, filename)
     }
     return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', filename)
 }
@@ -37,9 +37,9 @@ export function activeModPath(
 export function disabledModPath(
     gamePath: string,
     filename: string,
-    folderDiskName?: string | null
+    folderRelPath?: string | null
 ): string {
-    if (folderDiskName) {
+    if (folderRelPath) {
         return join(
             gamePath,
             'PAYDAY3',
@@ -47,7 +47,7 @@ export function disabledModPath(
             'Paks',
             '~mods',
             'disabled',
-            folderDiskName,
+            folderRelPath,
             filename + '.disabled'
         )
     }
@@ -77,7 +77,10 @@ export function readState(statePath: string): ModsState {
     try {
         const parsed = JSON.parse(readFileSync(statePath, 'utf8'))
         return {
-            folders: parsed.folders ?? [],
+            folders: (parsed.folders ?? []).map((f: Record<string, unknown>) => ({
+                parentId: null,
+                ...f,
+            })),
             mods: parsed.mods ?? [],
         }
     } catch {
@@ -89,18 +92,22 @@ function saveState(statePath: string, state: ModsState): void {
     writeFileSync(statePath, JSON.stringify(state, null, 4))
 }
 
-function getFolderDiskName(
+// Returns the full slash-separated path relative to ~mods/ for a folder, e.g. '001_weapons/002_rifles'.
+export function getFolderPath(
     folders: ModFolder[],
     folderId: string | null | undefined
 ): string | null {
     if (!folderId) return null
-    return folders.find((f) => f.id === folderId)?.diskName ?? null
+    const folder = folders.find((f) => f.id === folderId)
+    if (!folder) return null
+    const parentPath = getFolderPath(folders, folder.parentId)
+    return parentPath ? `${parentPath}/${folder.diskName}` : folder.diskName
 }
 
 export async function findUntrackedPaks(
     gamePath: string,
     knownRelPaths: Set<string>,
-    folders: ModFolder[]
+    _folders: ModFolder[]
 ): Promise<{ relPath: string; enabled: boolean }[]> {
     const modsBak = join(gamePath, 'PAYDAY3', 'Content', '~mods.bak')
     try {
@@ -112,53 +119,46 @@ export async function findUntrackedPaks(
     const disabledDir = join(modsDir, 'disabled')
     const untracked: { relPath: string; enabled: boolean }[] = []
 
-    try {
-        const entries = await fsp.readdir(modsDir, { withFileTypes: true })
+    async function scanActive(dir: string, prefix: string): Promise<void> {
+        let entries
+        try {
+            entries = await fsp.readdir(dir, { withFileTypes: true })
+        } catch {
+            return
+        }
         for (const entry of entries) {
-            if (entry.name === 'disabled') continue
+            if (prefix === '' && entry.name === 'disabled') continue
             if (entry.isDirectory()) {
-                try {
-                    const subEntries = await fsp.readdir(join(modsDir, entry.name))
-                    for (const file of subEntries) {
-                        if (!file.endsWith('.pak')) continue
-                        const relPath = `${entry.name}/${file}`
-                        if (!knownRelPaths.has(relPath)) {
-                            untracked.push({ relPath, enabled: true })
-                        }
-                    }
-                } catch {}
+                const sub = prefix ? `${prefix}/${entry.name}` : entry.name
+                await scanActive(join(dir, entry.name), sub)
             } else if (entry.name.endsWith('.pak')) {
-                if (!knownRelPaths.has(entry.name)) {
-                    untracked.push({ relPath: entry.name, enabled: true })
-                }
+                const relPath = prefix ? `${prefix}/${entry.name}` : entry.name
+                if (!knownRelPaths.has(relPath)) untracked.push({ relPath, enabled: true })
             }
         }
-    } catch {}
+    }
 
-    try {
-        const disabledEntries = await fsp.readdir(disabledDir, { withFileTypes: true })
-        for (const entry of disabledEntries) {
+    async function scanDisabled(dir: string, prefix: string): Promise<void> {
+        let entries
+        try {
+            entries = await fsp.readdir(dir, { withFileTypes: true })
+        } catch {
+            return
+        }
+        for (const entry of entries) {
             if (entry.isDirectory()) {
-                try {
-                    const subEntries = await fsp.readdir(join(disabledDir, entry.name))
-                    for (const file of subEntries) {
-                        if (!file.endsWith('.pak.disabled')) continue
-                        const pakFilename = file.slice(0, -'.disabled'.length)
-                        const relPath = `${entry.name}/${pakFilename}`
-                        if (!knownRelPaths.has(relPath)) {
-                            untracked.push({ relPath, enabled: false })
-                        }
-                    }
-                } catch {}
+                const sub = prefix ? `${prefix}/${entry.name}` : entry.name
+                await scanDisabled(join(dir, entry.name), sub)
             } else if (entry.name.endsWith('.pak.disabled')) {
                 const pakFilename = entry.name.slice(0, -'.disabled'.length)
-                if (!knownRelPaths.has(pakFilename)) {
-                    untracked.push({ relPath: pakFilename, enabled: false })
-                }
+                const relPath = prefix ? `${prefix}/${pakFilename}` : pakFilename
+                if (!knownRelPaths.has(relPath)) untracked.push({ relPath, enabled: false })
             }
         }
-    } catch {}
+    }
 
+    await scanActive(modsDir, '')
+    await scanDisabled(disabledDir, '')
     return untracked
 }
 
@@ -180,16 +180,16 @@ export async function reconcileState(gamePath: string, statePath: string): Promi
 
     const disabledDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
     for (const m of state.mods.filter((m) => !m.enabled)) {
-        const folderDiskName = getFolderDiskName(state.folders, m.folderId)
-        const newPath = disabledModPath(gamePath, m.filename, folderDiskName)
+        const folderRelPath = getFolderPath(state.folders, m.folderId)
+        const newPath = disabledModPath(gamePath, m.filename, folderRelPath)
         const legacyPath = join(disabledDir, m.filename)
         try {
             await fsp.access(newPath)
         } catch {
             try {
                 await fsp.access(legacyPath)
-                if (folderDiskName) {
-                    const subDir = join(disabledDir, folderDiskName)
+                if (folderRelPath) {
+                    const subDir = join(disabledDir, folderRelPath)
                     if (!existsSync(subDir)) mkdirSync(subDir, { recursive: true })
                 }
                 renameSync(legacyPath, newPath)
@@ -199,13 +199,13 @@ export async function reconcileState(gamePath: string, statePath: string): Promi
 
     const checks = await Promise.all(
         state.mods.map(async (m) => {
-            const folderDiskName = getFolderDiskName(state.folders, m.folderId)
+            const folderRelPath = getFolderPath(state.folders, m.folderId)
             try {
-                await fsp.access(activeModPath(gamePath, m.filename, folderDiskName))
+                await fsp.access(activeModPath(gamePath, m.filename, folderRelPath))
                 return true
             } catch {}
             try {
-                await fsp.access(disabledModPath(gamePath, m.filename, folderDiskName))
+                await fsp.access(disabledModPath(gamePath, m.filename, folderRelPath))
                 return true
             } catch {}
             return false
@@ -249,10 +249,10 @@ export function installMod(
     folderId: string | null = null
 ): void {
     const state = readState(statePath)
-    const folderDiskName = getFolderDiskName(state.folders, folderId)
+    const folderRelPath = getFolderPath(state.folders, folderId)
 
-    const modsDir = folderDiskName
-        ? join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', folderDiskName)
+    const modsDir = folderRelPath
+        ? join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', folderRelPath)
         : join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
     if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true })
 
@@ -262,13 +262,13 @@ export function installMod(
         existing?.priority ?? modsInFolder.reduce((max, m) => Math.max(max, m.priority ?? 0), 0) + 1
     const filename = applyPriorityPrefix(mod.filename, priority)
 
-    copyFileSync(sourcePath, activeModPath(gamePath, filename, folderDiskName))
+    copyFileSync(sourcePath, activeModPath(gamePath, filename, folderRelPath))
 
     if (existing && existing.filename !== filename) {
-        const existingFolderDiskName = getFolderDiskName(state.folders, existing.folderId)
+        const existingFolderRelPath = getFolderPath(state.folders, existing.folderId)
         const oldPath = existing.enabled
-            ? activeModPath(gamePath, existing.filename, existingFolderDiskName)
-            : disabledModPath(gamePath, existing.filename, existingFolderDiskName)
+            ? activeModPath(gamePath, existing.filename, existingFolderRelPath)
+            : disabledModPath(gamePath, existing.filename, existingFolderRelPath)
         if (existsSync(oldPath)) rmSync(oldPath, { force: true })
     }
 
@@ -292,7 +292,7 @@ export function reorderModsInFolder(
     orderedIds: number[]
 ): void {
     const state = readState(statePath)
-    const folderDiskName = getFolderDiskName(state.folders, folderId)
+    const folderRelPath = getFolderPath(state.folders, folderId)
     const total = orderedIds.length
     const updated = state.mods.map((mod) => {
         if ((mod.folderId ?? null) !== folderId) return mod
@@ -302,11 +302,11 @@ export function reorderModsInFolder(
         const newFilename = applyPriorityPrefix(mod.filename, priority)
         if (newFilename !== mod.filename) {
             const oldPath = mod.enabled
-                ? activeModPath(gamePath, mod.filename, folderDiskName)
-                : disabledModPath(gamePath, mod.filename, folderDiskName)
+                ? activeModPath(gamePath, mod.filename, folderRelPath)
+                : disabledModPath(gamePath, mod.filename, folderRelPath)
             const newPath = mod.enabled
-                ? activeModPath(gamePath, newFilename, folderDiskName)
-                : disabledModPath(gamePath, newFilename, folderDiskName)
+                ? activeModPath(gamePath, newFilename, folderRelPath)
+                : disabledModPath(gamePath, newFilename, folderRelPath)
             if (existsSync(oldPath)) renameSync(oldPath, newPath)
         }
         return { ...mod, filename: newFilename, priority }
@@ -325,8 +325,8 @@ export function moveModToFolder(
     const mod = state.mods.find((m) => m.id === modId)
     if (!mod) return
 
-    const sourceFolderDiskName = getFolderDiskName(state.folders, mod.folderId)
-    const targetFolderDiskName = getFolderDiskName(state.folders, targetFolderId)
+    const sourceFolderRelPath = getFolderPath(state.folders, mod.folderId)
+    const targetFolderRelPath = getFolderPath(state.folders, targetFolderId)
 
     const targetMods = state.mods
         .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== modId)
@@ -334,28 +334,20 @@ export function moveModToFolder(
     targetMods.splice(targetPosition, 0, mod)
     const total = targetMods.length
 
-    if (targetFolderDiskName) {
+    if (targetFolderRelPath) {
         const activeTargetDir = join(
             gamePath,
             'PAYDAY3',
             'Content',
             'Paks',
             '~mods',
-            targetFolderDiskName
+            targetFolderRelPath
         )
         if (!existsSync(activeTargetDir)) mkdirSync(activeTargetDir, { recursive: true })
     }
     if (!mod.enabled) {
-        const disabledTargetDir = targetFolderDiskName
-            ? join(
-                  gamePath,
-                  'PAYDAY3',
-                  'Content',
-                  'Paks',
-                  '~mods',
-                  'disabled',
-                  targetFolderDiskName
-              )
+        const disabledTargetDir = targetFolderRelPath
+            ? join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', targetFolderRelPath)
             : join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
         if (!existsSync(disabledTargetDir)) mkdirSync(disabledTargetDir, { recursive: true })
     }
@@ -366,18 +358,18 @@ export function moveModToFolder(
 
         const priority = total - posInTarget
         const newFilename = applyPriorityPrefix(m.filename, priority)
-        const currentFolderDiskName = m.id === modId ? sourceFolderDiskName : targetFolderDiskName
+        const currentFolderRelPath = m.id === modId ? sourceFolderRelPath : targetFolderRelPath
 
         if (
             newFilename !== m.filename ||
-            (m.id === modId && sourceFolderDiskName !== targetFolderDiskName)
+            (m.id === modId && sourceFolderRelPath !== targetFolderRelPath)
         ) {
             const oldPath = m.enabled
-                ? activeModPath(gamePath, m.filename, currentFolderDiskName)
-                : disabledModPath(gamePath, m.filename, currentFolderDiskName)
+                ? activeModPath(gamePath, m.filename, currentFolderRelPath)
+                : disabledModPath(gamePath, m.filename, currentFolderRelPath)
             const newPath = m.enabled
-                ? activeModPath(gamePath, newFilename, targetFolderDiskName)
-                : disabledModPath(gamePath, newFilename, targetFolderDiskName)
+                ? activeModPath(gamePath, newFilename, targetFolderRelPath)
+                : disabledModPath(gamePath, newFilename, targetFolderRelPath)
             if (existsSync(oldPath)) renameSync(oldPath, newPath)
         }
 
@@ -387,10 +379,21 @@ export function moveModToFolder(
     saveState(statePath, { ...state, mods: updatedMods })
 }
 
-export function reorderTopLevel(gamePath: string, statePath: string, items: TopLevelItem[]): void {
+// parentId=null means root level.
+export function reorderChildren(
+    gamePath: string,
+    statePath: string,
+    parentId: string | null,
+    items: TopLevelItem[]
+): void {
     const state = readState(statePath)
-    const modsDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
-    const disabledDir = join(modsDir, 'disabled')
+    const parentRelPath = getFolderPath(state.folders, parentId)
+    const modsDir = parentRelPath
+        ? join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', parentRelPath)
+        : join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
+    const disabledDir = parentRelPath
+        ? join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', parentRelPath)
+        : join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
     const total = items.length
 
     const folderRenames: { folder: ModFolder; newDiskName: string }[] = []
@@ -406,7 +409,7 @@ export function reorderTopLevel(gamePath: string, statePath: string, items: TopL
         }
     }
 
-    // Two-phase rename to avoid conflicts: first to tmp, then to final
+    // Two-phase rename to avoid conflicts
     for (const { folder } of folderRenames) {
         const tmpName = `__pd3mm_tmp_${folder.id}`
         const oldActive = join(modsDir, folder.diskName)
@@ -431,18 +434,19 @@ export function reorderTopLevel(gamePath: string, statePath: string, items: TopL
     })
 
     const updatedMods = state.mods.map((mod) => {
-        if ((mod.folderId ?? null) !== null) return mod
+        if ((mod.folderId ?? null) !== parentId) return mod
         const pos = items.findIndex((item) => item.type === 'mod' && item.id === mod.id)
         if (pos === -1) return mod
         const priority = total - pos
         const newFilename = applyPriorityPrefix(mod.filename, priority)
         if (newFilename !== mod.filename) {
+            const modFolderRelPath = getFolderPath(state.folders, mod.folderId)
             const oldPath = mod.enabled
-                ? activeModPath(gamePath, mod.filename)
-                : disabledModPath(gamePath, mod.filename)
+                ? activeModPath(gamePath, mod.filename, modFolderRelPath)
+                : disabledModPath(gamePath, mod.filename, modFolderRelPath)
             const newPath = mod.enabled
-                ? activeModPath(gamePath, newFilename)
-                : disabledModPath(gamePath, newFilename)
+                ? activeModPath(gamePath, newFilename, modFolderRelPath)
+                : disabledModPath(gamePath, newFilename, modFolderRelPath)
             if (existsSync(oldPath)) renameSync(oldPath, newPath)
         }
         return { ...mod, filename: newFilename, priority }
@@ -451,7 +455,12 @@ export function reorderTopLevel(gamePath: string, statePath: string, items: TopL
     saveState(statePath, { folders: updatedFolders, mods: updatedMods })
 }
 
-export function createFolder(gamePath: string, statePath: string, displayName: string): ModFolder {
+export function createFolder(
+    gamePath: string,
+    statePath: string,
+    displayName: string,
+    parentId: string | null = null
+): ModFolder {
     const state = readState(statePath)
     const slug =
         displayName
@@ -460,22 +469,87 @@ export function createFolder(gamePath: string, statePath: string, displayName: s
             .replace(/[^\w]+/g, '_')
             .replace(/^_+|_+$/g, '') || 'folder'
 
-    const rootMods = state.mods.filter((m) => (m.folderId ?? null) === null)
+    const siblingMods = state.mods.filter((m) => (m.folderId ?? null) === parentId)
+    const siblingFolders = state.folders.filter((f) => f.parentId === parentId)
     const maxPriority = Math.max(
         0,
-        ...state.folders.map((f) => f.priority),
-        ...rootMods.map((m) => m.priority ?? 0)
+        ...siblingFolders.map((f) => f.priority),
+        ...siblingMods.map((m) => m.priority ?? 0)
     )
     const priority = maxPriority + 1
     const diskName = applyPriorityPrefix(slug, priority)
     const id = randomUUID()
 
-    const folderDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', diskName)
+    const parentRelPath = getFolderPath(state.folders, parentId)
+    const folderDir = parentRelPath
+        ? join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', parentRelPath, diskName)
+        : join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', diskName)
     if (!existsSync(folderDir)) mkdirSync(folderDir, { recursive: true })
 
-    const folder: ModFolder = { id, diskName, displayName, priority }
+    const folder: ModFolder = { id, diskName, displayName, priority, parentId }
     saveState(statePath, { ...state, folders: [...state.folders, folder] })
     return folder
+}
+
+export function moveFolder(
+    gamePath: string,
+    statePath: string,
+    folderId: string,
+    targetParentId: string | null
+): void {
+    const state = readState(statePath)
+    const folder = state.folders.find((f) => f.id === folderId)
+    if (!folder || folder.parentId === targetParentId) return
+
+    // Cycle detection
+    let cur: string | null = targetParentId
+    while (cur !== null) {
+        if (cur === folderId) return
+        cur = state.folders.find((f) => f.id === cur)?.parentId ?? null
+    }
+
+    const modsBase = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
+    const disabledBase = join(modsBase, 'disabled')
+    const oldRelPath = getFolderPath(state.folders, folderId)!
+
+    const maxPriority = Math.max(
+        0,
+        ...state.folders.filter((f) => f.parentId === targetParentId).map((f) => f.priority),
+        ...state.mods
+            .filter((m) => (m.folderId ?? null) === targetParentId)
+            .map((m) => m.priority ?? 0)
+    )
+    const newPriority = maxPriority + 1
+    const newDiskName = applyPriorityPrefix(stripPriorityPrefix(folder.diskName), newPriority)
+
+    const updatedFolders = state.folders.map((f) =>
+        f.id === folderId
+            ? { ...f, parentId: targetParentId, diskName: newDiskName, priority: newPriority }
+            : f
+    )
+    const newRelPath = getFolderPath(updatedFolders, folderId)!
+
+    const targetParentRelPath = getFolderPath(state.folders, targetParentId)
+    const activeTargetParent = targetParentRelPath ? join(modsBase, targetParentRelPath) : modsBase
+    const disabledTargetParent = targetParentRelPath
+        ? join(disabledBase, targetParentRelPath)
+        : disabledBase
+
+    const oldActive = join(modsBase, oldRelPath)
+    const newActive = join(modsBase, newRelPath)
+    if (existsSync(oldActive)) {
+        if (!existsSync(activeTargetParent)) mkdirSync(activeTargetParent, { recursive: true })
+        renameSync(oldActive, newActive)
+    }
+
+    const oldDisabled = join(disabledBase, oldRelPath)
+    const newDisabled = join(disabledBase, newRelPath)
+    if (existsSync(oldDisabled)) {
+        if (!existsSync(disabledTargetParent)) mkdirSync(disabledTargetParent, { recursive: true })
+        renameSync(oldDisabled, newDisabled)
+    }
+
+    saveState(statePath, { ...state, folders: updatedFolders })
 }
 
 export function renameFolder(
@@ -496,44 +570,77 @@ export function deleteFolder(gamePath: string, statePath: string, folderId: stri
     const folder = state.folders.find((f) => f.id === folderId)
     if (!folder) return
 
-    const rootMods = state.mods.filter((m) => (m.folderId ?? null) === null)
-    let maxRootPriority = rootMods.reduce((max, m) => Math.max(max, m.priority ?? 0), 0)
+    const targetParentId = folder.parentId
+    const folderRelPath = getFolderPath(state.folders, folderId)!
+    const targetParentRelPath = getFolderPath(state.folders, targetParentId)
 
+    const modsBase = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
+    const disabledBase = join(modsBase, 'disabled')
+
+    // Ensure target parent dirs exist before moving content there
+    if (targetParentRelPath) {
+        const targetActiveDir = join(modsBase, targetParentRelPath)
+        if (!existsSync(targetActiveDir)) mkdirSync(targetActiveDir, { recursive: true })
+    }
+
+    let maxPriority = Math.max(
+        0,
+        ...state.folders
+            .filter((f) => f.parentId === targetParentId && f.id !== folderId)
+            .map((f) => f.priority),
+        ...state.mods
+            .filter((m) => (m.folderId ?? null) === targetParentId)
+            .map((m) => m.priority ?? 0)
+    )
+
+    // Move direct child mods to target parent
     const updatedMods = state.mods.map((m) => {
         if ((m.folderId ?? null) !== folderId) return m
-        maxRootPriority++
-        const newFilename = applyPriorityPrefix(m.filename, maxRootPriority)
+        maxPriority++
+        const newFilename = applyPriorityPrefix(m.filename, maxPriority)
         const oldPath = m.enabled
-            ? activeModPath(gamePath, m.filename, folder.diskName)
-            : disabledModPath(gamePath, m.filename, folder.diskName)
+            ? activeModPath(gamePath, m.filename, folderRelPath)
+            : disabledModPath(gamePath, m.filename, folderRelPath)
         const newPath = m.enabled
-            ? activeModPath(gamePath, newFilename)
-            : disabledModPath(gamePath, newFilename)
+            ? activeModPath(gamePath, newFilename, targetParentRelPath)
+            : disabledModPath(gamePath, newFilename, targetParentRelPath)
         if (existsSync(oldPath)) renameSync(oldPath, newPath)
-        return { ...m, filename: newFilename, priority: maxRootPriority, folderId: null }
+        return { ...m, filename: newFilename, priority: maxPriority, folderId: targetParentId }
     })
 
-    const folderDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', folder.diskName)
-    const disabledFolderDir = join(
-        gamePath,
-        'PAYDAY3',
-        'Content',
-        'Paks',
-        '~mods',
-        'disabled',
-        folder.diskName
-    )
+    // Move direct child folders to target parent
+    const childFolders = state.folders.filter((f) => f.parentId === folderId)
+    const updatedChildFolders = childFolders.map((cf) => {
+        maxPriority++
+        const newDiskName = applyPriorityPrefix(stripPriorityPrefix(cf.diskName), maxPriority)
+        const oldCfRelPath = getFolderPath(state.folders, cf.id)!
+        const oldActive = join(modsBase, oldCfRelPath)
+        const newActive = targetParentRelPath
+            ? join(modsBase, targetParentRelPath, newDiskName)
+            : join(modsBase, newDiskName)
+        if (existsSync(oldActive)) renameSync(oldActive, newActive)
+        const oldDisabled = join(disabledBase, oldCfRelPath)
+        const newDisabled = targetParentRelPath
+            ? join(disabledBase, targetParentRelPath, newDiskName)
+            : join(disabledBase, newDiskName)
+        if (existsSync(oldDisabled)) renameSync(oldDisabled, newDisabled)
+        return { ...cf, parentId: targetParentId, diskName: newDiskName, priority: maxPriority }
+    })
+
+    // Clean up the now-empty folder directories
     try {
-        rmSync(folderDir)
+        rmSync(join(modsBase, folderRelPath), { recursive: true, force: true })
     } catch {}
     try {
-        rmSync(disabledFolderDir)
+        rmSync(join(disabledBase, folderRelPath), { recursive: true, force: true })
     } catch {}
 
-    saveState(statePath, {
-        folders: state.folders.filter((f) => f.id !== folderId),
-        mods: updatedMods,
-    })
+    const childFolderIdSet = new Set(childFolders.map((f) => f.id))
+    const updatedFolders = state.folders
+        .filter((f) => f.id !== folderId)
+        .map((f) => updatedChildFolders.find((uf) => uf.id === f.id) ?? f)
+
+    saveState(statePath, { folders: updatedFolders, mods: updatedMods })
 }
 
 export function uninstallMod(gamePath: string, statePath: string, modId: number): void {
@@ -541,10 +648,10 @@ export function uninstallMod(gamePath: string, statePath: string, modId: number)
     const mod = state.mods.find((m) => m.id === modId)
     if (!mod) return
 
-    const folderDiskName = getFolderDiskName(state.folders, mod.folderId)
+    const folderRelPath = getFolderPath(state.folders, mod.folderId)
     const path = mod.enabled
-        ? activeModPath(gamePath, mod.filename, folderDiskName)
-        : disabledModPath(gamePath, mod.filename, folderDiskName)
+        ? activeModPath(gamePath, mod.filename, folderRelPath)
+        : disabledModPath(gamePath, mod.filename, folderRelPath)
     if (existsSync(path)) rmSync(path)
 
     saveState(statePath, removeFromState(state, modId))
@@ -555,15 +662,15 @@ export function enableMod(gamePath: string, statePath: string, modId: number): v
     const mod = state.mods.find((m) => m.id === modId)
     if (!mod || mod.enabled) return
 
-    const folderDiskName = getFolderDiskName(state.folders, mod.folderId)
+    const folderRelPath = getFolderPath(state.folders, mod.folderId)
 
-    if (folderDiskName) {
-        const activeDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', folderDiskName)
+    if (folderRelPath) {
+        const activeDir = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', folderRelPath)
         if (!existsSync(activeDir)) mkdirSync(activeDir, { recursive: true })
     }
 
-    const from = disabledModPath(gamePath, mod.filename, folderDiskName)
-    if (existsSync(from)) renameSync(from, activeModPath(gamePath, mod.filename, folderDiskName))
+    const from = disabledModPath(gamePath, mod.filename, folderRelPath)
+    if (existsSync(from)) renameSync(from, activeModPath(gamePath, mod.filename, folderRelPath))
 
     saveState(statePath, setEnabled(state, modId, true))
 }
@@ -573,14 +680,14 @@ export function disableMod(gamePath: string, statePath: string, modId: number): 
     const mod = state.mods.find((m) => m.id === modId)
     if (!mod || !mod.enabled) return
 
-    const folderDiskName = getFolderDiskName(state.folders, mod.folderId)
-    const disabledDir = folderDiskName
-        ? join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', folderDiskName)
+    const folderRelPath = getFolderPath(state.folders, mod.folderId)
+    const disabledDir = folderRelPath
+        ? join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled', folderRelPath)
         : join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', 'disabled')
     if (!existsSync(disabledDir)) mkdirSync(disabledDir, { recursive: true })
 
-    const from = activeModPath(gamePath, mod.filename, folderDiskName)
-    if (existsSync(from)) renameSync(from, disabledModPath(gamePath, mod.filename, folderDiskName))
+    const from = activeModPath(gamePath, mod.filename, folderRelPath)
+    if (existsSync(from)) renameSync(from, disabledModPath(gamePath, mod.filename, folderRelPath))
 
     saveState(statePath, setEnabled(state, modId, false))
 }

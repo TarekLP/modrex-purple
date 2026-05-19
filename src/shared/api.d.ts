@@ -47,8 +47,21 @@ declare global {
                 targetPosition: number,
                 gamePath: string
             ): Promise<void>
-            reorderTopLevel(items: TopLevelItem[], gamePath: string): Promise<void>
-            createFolder(displayName: string, gamePath: string): Promise<ModFolder>
+            reorderChildren(
+                parentId: string | null,
+                items: TopLevelItem[],
+                gamePath: string
+            ): Promise<void>
+            moveFolder(
+                folderId: string,
+                targetParentId: string | null,
+                gamePath: string
+            ): Promise<void>
+            createFolder(
+                displayName: string,
+                parentId: string | null,
+                gamePath: string
+            ): Promise<ModFolder>
             renameFolder(folderId: string, displayName: string, gamePath: string): Promise<void>
             deleteFolder(folderId: string, gamePath: string): Promise<void>
 

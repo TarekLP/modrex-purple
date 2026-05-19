@@ -21,7 +21,8 @@ import {
     installMod,
     reorderModsInFolder,
     moveModToFolder,
-    reorderTopLevel,
+    reorderChildren,
+    moveFolder,
     createFolder,
     renameFolder,
     deleteFolder,
@@ -35,8 +36,9 @@ import {
     activeModPath,
     disabledModPath,
     stripPriorityPrefix,
+    getFolderPath,
 } from './mods'
-import type { TopLevelItem } from '../shared/types'
+import type { ModFolder, TopLevelItem } from '../shared/types'
 import { downloadFile } from './download'
 import { readSettings, writeSettings } from './settings'
 import { ensureIndex, lookupSha256, lookupByName } from './mod-index'
@@ -148,47 +150,61 @@ function registerHandlers(): void {
 
         const knownRelPaths = new Set(
             state.mods.map((m) => {
-                const folder = state.folders.find((f) => f.id === m.folderId)
-                return folder ? `${folder.diskName}/${m.filename}` : m.filename
+                const relPath = getFolderPath(state.folders, m.folderId)
+                return relPath ? `${relPath}/${m.filename}` : m.filename
             })
         )
         const untracked = await findUntrackedPaks(resolvedGamePath, knownRelPaths, state.folders)
         if (untracked.length === 0) return { mods: state.mods, folders: state.folders, modsHidden }
 
-        const unknownDiskNames = new Set<string>()
+        function buildFolderByPath(foldersArr: ModFolder[]): Map<string, ModFolder> {
+            const map = new Map<string, ModFolder>()
+            for (const f of foldersArr) {
+                const fullPath = getFolderPath(foldersArr, f.id)
+                if (fullPath) map.set(fullPath, f)
+            }
+            return map
+        }
+
+        let folderByPath = buildFolderByPath(state.folders)
+
+        let maxPriority = Math.max(
+            0,
+            ...state.folders.map((f) => f.priority),
+            ...state.mods.filter((m) => !m.folderId).map((m) => m.priority ?? 0)
+        )
         for (const { relPath } of untracked) {
-            const slash = relPath.indexOf('/')
-            if (slash !== -1) {
-                const diskName = relPath.slice(0, slash)
-                if (!state.folders.find((f) => f.diskName === diskName)) {
-                    unknownDiskNames.add(diskName)
+            const parts = relPath.split('/')
+            if (parts.length <= 1) continue
+            const segments = parts.slice(0, -1)
+            let prefix = ''
+            for (let i = 0; i < segments.length; i++) {
+                prefix = i === 0 ? segments[i] : `${prefix}/${segments[i]}`
+                if (!folderByPath.has(prefix)) {
+                    const parentPath = i === 0 ? null : segments.slice(0, i).join('/')
+                    const parentId = parentPath ? (folderByPath.get(parentPath)?.id ?? null) : null
+                    const diskName = segments[i]
+                    const newFolder: ModFolder = {
+                        id: randomUUID(),
+                        diskName,
+                        displayName: stripPriorityPrefix(diskName).replace(/_/g, ' ').trim(),
+                        priority: ++maxPriority,
+                        parentId,
+                    }
+                    state = { ...state, folders: [...state.folders, newFolder] }
+                    folderByPath = buildFolderByPath(state.folders)
                 }
             }
-        }
-        if (unknownDiskNames.size > 0) {
-            const rootMods = state.mods.filter((m) => (m.folderId ?? null) === null)
-            let maxPriority = Math.max(
-                0,
-                ...state.folders.map((f) => f.priority),
-                ...rootMods.map((m) => m.priority ?? 0)
-            )
-            const newFolders = Array.from(unknownDiskNames).map((diskName) => ({
-                id: randomUUID(),
-                diskName,
-                displayName: stripPriorityPrefix(diskName).replace(/_/g, ' ').trim(),
-                priority: ++maxPriority,
-            }))
-            state = { ...state, folders: [...state.folders, ...newFolders] }
         }
 
         const sha256ToMod = new Map(state.mods.filter((m) => m.sha256).map((m) => [m.sha256!, m]))
 
         function parseRelPath(relPath: string): { filename: string; folderId: string | null } {
-            const slash = relPath.indexOf('/')
-            if (slash === -1) return { filename: relPath, folderId: null }
-            const diskName = relPath.slice(0, slash)
-            const filename = relPath.slice(slash + 1)
-            const folderId = state.folders.find((f) => f.diskName === diskName)?.id ?? null
+            const parts = relPath.split('/')
+            if (parts.length === 1) return { filename: parts[0], folderId: null }
+            const filename = parts[parts.length - 1]
+            const folderPath = parts.slice(0, -1).join('/')
+            const folderId = folderByPath.get(folderPath)?.id ?? null
             return { filename, folderId }
         }
 
@@ -406,11 +422,20 @@ function registerHandlers(): void {
         ) =>
             moveModToFolder(gamePath, getStatePath(gamePath), modId, targetFolderId, targetPosition)
     )
-    ipcMain.handle('folders:reorder-top-level', (_, items: TopLevelItem[], gamePath: string) =>
-        reorderTopLevel(gamePath, getStatePath(gamePath), items)
+    ipcMain.handle(
+        'folders:reorder-children',
+        (_, parentId: string | null, items: TopLevelItem[], gamePath: string) =>
+            reorderChildren(gamePath, getStatePath(gamePath), parentId, items)
     )
-    ipcMain.handle('folders:create', (_, displayName: string, gamePath: string) =>
-        createFolder(gamePath, getStatePath(gamePath), displayName)
+    ipcMain.handle(
+        'folders:move',
+        (_, folderId: string, targetParentId: string | null, gamePath: string) =>
+            moveFolder(gamePath, getStatePath(gamePath), folderId, targetParentId)
+    )
+    ipcMain.handle(
+        'folders:create',
+        (_, displayName: string, parentId: string | null, gamePath: string) =>
+            createFolder(gamePath, getStatePath(gamePath), displayName, parentId)
     )
     ipcMain.handle('folders:rename', (_, folderId: string, displayName: string, gamePath: string) =>
         renameFolder(gamePath, getStatePath(gamePath), folderId, displayName)

@@ -78,8 +78,9 @@
             "modCountSingle": "{count} mod",
             "rename": "Rename folder",
             "renamePlaceholder": "Folder name",
+            "newSubfolder": "New Subfolder",
             "delete": "Delete folder",
-            "deleteConfirm": "Delete folder and move its mods to root?",
+            "deleteConfirm": "Delete folder and move its contents to the parent?",
             "dropHere": "Drop mods here"
         },
         "updatesModal": {

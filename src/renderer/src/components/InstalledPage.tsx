@@ -60,45 +60,31 @@ type DropTarget =
     | { kind: 'before-mod'; id: number }
     | { kind: 'after-mod'; id: number }
     | { kind: 'into-folder'; folderId: string }
-    | { kind: 'before-top'; id: string | number; itemType: 'folder' | 'mod' }
+    | {
+          kind: 'before-child'
+          id: string | number
+          itemType: 'folder' | 'mod'
+          parentId: string | null
+      }
     | null
 
-type TopLevelEntry =
-    | { type: 'folder'; folder: ModFolder; mods: InstalledMod[] }
-    | { type: 'mod'; mod: InstalledMod }
+type ChildEntry = { type: 'folder'; folder: ModFolder } | { type: 'mod'; mod: InstalledMod }
 
-type TopLevelGroup =
-    | { type: 'folder'; folder: ModFolder; mods: InstalledMod[] }
+type ChildGroup =
+    | { type: 'folder'; folder: ModFolder }
     | { type: 'root-group'; mods: InstalledMod[] }
 
-function groupTopLevel(entries: TopLevelEntry[]): TopLevelGroup[] {
-    const groups: TopLevelGroup[] = []
-    let run: InstalledMod[] = []
-    for (const entry of entries) {
-        if (entry.type === 'folder') {
-            if (run.length > 0) {
-                groups.push({ type: 'root-group', mods: run })
-                run = []
-            }
-            groups.push({ type: 'folder', folder: entry.folder, mods: entry.mods })
-        } else {
-            run.push(entry.mod)
-        }
-    }
-    if (run.length > 0) groups.push({ type: 'root-group', mods: run })
-    return groups
-}
-
-function computeTopLevel(mods: InstalledMod[], folders: ModFolder[]): TopLevelEntry[] {
-    const items: TopLevelEntry[] = []
-    for (const mod of mods.filter((m) => (m.folderId ?? null) === null)) {
+function computeChildren(
+    mods: InstalledMod[],
+    folders: ModFolder[],
+    parentId: string | null
+): ChildEntry[] {
+    const items: ChildEntry[] = []
+    for (const mod of mods.filter((m) => (m.folderId ?? null) === parentId)) {
         items.push({ type: 'mod', mod })
     }
-    for (const folder of folders) {
-        const folderMods = mods
-            .filter((m) => m.folderId === folder.id)
-            .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
-        items.push({ type: 'folder', folder, mods: folderMods })
+    for (const folder of folders.filter((f) => f.parentId === parentId)) {
+        items.push({ type: 'folder', folder })
     }
     items.sort((a, b) => {
         const pa = a.type === 'folder' ? a.folder.priority : (a.mod.priority ?? 0)
@@ -106,6 +92,24 @@ function computeTopLevel(mods: InstalledMod[], folders: ModFolder[]): TopLevelEn
         return pb - pa
     })
     return items
+}
+
+function groupChildren(entries: ChildEntry[]): ChildGroup[] {
+    const groups: ChildGroup[] = []
+    let run: InstalledMod[] = []
+    for (const entry of entries) {
+        if (entry.type === 'folder') {
+            if (run.length > 0) {
+                groups.push({ type: 'root-group', mods: run })
+                run = []
+            }
+            groups.push({ type: 'folder', folder: entry.folder })
+        } else {
+            run.push(entry.mod)
+        }
+    }
+    if (run.length > 0) groups.push({ type: 'root-group', mods: run })
+    return groups
 }
 
 export function InstalledPage({
@@ -127,7 +131,10 @@ export function InstalledPage({
     const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
     const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
     const [renameValue, setRenameValue] = useState('')
-    const [creatingFolder, setCreatingFolder] = useState(false)
+    // undefined = not creating; null = creating at root; string = creating inside that folder
+    const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null | undefined>(
+        undefined
+    )
     const [newFolderName, setNewFolderName] = useState('')
 
     // Drag state
@@ -143,12 +150,12 @@ export function InstalledPage({
         localStorage.setItem('pd3mm:installed-view', mode)
     }
 
-    const topLevel = computeTopLevel(installed, folders)
+    const rootChildren = computeChildren(installed, folders, null)
 
-    // Only the first root mod in each consecutive run is a valid folder drop boundary.
+    // Only the first mod in each consecutive root-mod run is a valid folder drop boundary (grid view).
     const rootGroupLeaders = new Set<number>(
-        topLevel.reduce<number[]>((acc, item, i) => {
-            if (item.type === 'mod' && (i === 0 || topLevel[i - 1].type === 'folder'))
+        rootChildren.reduce<number[]>((acc, item, i) => {
+            if (item.type === 'mod' && (i === 0 || rootChildren[i - 1].type === 'folder'))
                 acc.push(item.mod.id)
             return acc
         }, [])
@@ -240,20 +247,32 @@ export function InstalledPage({
         setDropTarget(isTop ? { kind: 'before-mod', id: modId } : { kind: 'after-mod', id: modId })
     }
 
-    function onFolderHeaderDragOver(e: React.DragEvent, folderId: string) {
+    function onFolderHeaderDragOver(e: React.DragEvent, folder: ModFolder) {
         if (!dragItem) return
         e.preventDefault()
         if (dragItem.kind === 'mod') {
-            setDropTarget({ kind: 'into-folder', folderId })
+            setDropTarget({ kind: 'into-folder', folderId: folder.id })
         } else {
-            setDropTarget({ kind: 'before-top', id: folderId, itemType: 'folder' })
+            // folder dragged over folder header: bottom half = nest inside, top half = reorder before
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+            const isBottom = e.clientY - rect.top > rect.height / 2
+            if (isBottom && folder.id !== dragItem.id) {
+                setDropTarget({ kind: 'into-folder', folderId: folder.id })
+            } else {
+                setDropTarget({
+                    kind: 'before-child',
+                    id: folder.id,
+                    itemType: 'folder',
+                    parentId: folder.parentId,
+                })
+            }
         }
     }
 
-    function onTopLevelModDragOver(e: React.DragEvent, modId: number) {
+    function onChildModDragOver(e: React.DragEvent, modId: number, parentId: string | null) {
         if (!dragItem || dragItem.kind !== 'folder') return
         e.preventDefault()
-        setDropTarget({ kind: 'before-top', id: modId, itemType: 'mod' })
+        setDropTarget({ kind: 'before-child', id: modId, itemType: 'mod', parentId })
     }
 
     async function onModDrop(targetModId: number) {
@@ -267,16 +286,12 @@ export function InstalledPage({
         const targetMod = installed.find((m) => m.id === targetModId)!
         const srcFolderId = srcMod.folderId ?? null
         const targetFolderId = targetMod.folderId ?? null
-
         const isBefore = dropTarget?.kind === 'before-mod'
 
         if (srcFolderId === targetFolderId) {
-            const scopedMods = topLevel.flatMap((item) => {
-                if (item.type === 'mod' && (item.mod.folderId ?? null) === srcFolderId)
-                    return [item.mod]
-                if (item.type === 'folder' && item.folder.id === srcFolderId) return item.mods
-                return []
-            })
+            const scopedMods = installed
+                .filter((m) => (m.folderId ?? null) === srcFolderId)
+                .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
             const order = scopedMods.map((m) => m.id)
             const fromIdx = order.indexOf(srcId)
             order.splice(fromIdx, 1)
@@ -284,19 +299,9 @@ export function InstalledPage({
             order.splice(isBefore ? toIdx : toIdx + 1, 0, srcId)
             await window.api.reorderModsInFolder(srcFolderId, order, gamePath)
         } else {
-            const targetScopeMods = (
-                targetFolderId === null
-                    ? topLevel.flatMap((item) =>
-                          item.type === 'mod' && (item.mod.folderId ?? null) === null
-                              ? [item.mod]
-                              : []
-                      )
-                    : (topLevel.find(
-                          (item): item is Extract<TopLevelEntry, { type: 'folder' }> =>
-                              item.type === 'folder' && item.folder.id === targetFolderId
-                      )?.mods ?? [])
-            ).filter((m) => m.id !== srcId)
-
+            const targetScopeMods = installed
+                .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== srcId)
+                .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
             const toIdx = targetScopeMods.findIndex((m) => m.id === targetModId)
             const targetPosition = isBefore ? toIdx : toIdx + 1
             await window.api.moveModToFolder(srcId, targetFolderId, targetPosition, gamePath)
@@ -311,10 +316,7 @@ export function InstalledPage({
         setDropTarget(null)
         const srcMod = installed.find((m) => m.id === srcId)!
         if ((srcMod.folderId ?? null) === folderId) return
-        const folderEntry = topLevel.find(
-            (item) => item.type === 'folder' && item.folder.id === folderId
-        )
-        const folderMods = folderEntry?.type === 'folder' ? folderEntry.mods : []
+        const folderMods = installed.filter((m) => m.folderId === folderId)
         await window.api.moveModToFolder(srcId, folderId, folderMods.length, gamePath)
         await onRefreshInstalled()
     }
@@ -324,20 +326,28 @@ export function InstalledPage({
         setDragItem({ kind: 'folder', id: folderId })
     }
 
-    async function onTopLevelDrop(targetId: string | number, targetItemType: 'folder' | 'mod') {
-        if (!dragItem || dragItem.kind !== 'folder' || !gamePath) return
-        const srcFolderId = dragItem.id
+    // Handles folder being dragged before another item (mod or folder) within a parent context.
+    // If the dragged folder is from a different parent, moves it first then reorders.
+    async function onChildDrop(
+        srcFolderId: string,
+        targetId: string | number,
+        targetItemType: 'folder' | 'mod',
+        parentId: string | null
+    ) {
+        if (!gamePath) return
         setDragItem(null)
         setDropTarget(null)
         if (targetItemType === 'folder' && targetId === srcFolderId) return
 
-        const items: TopLevelItem[] = topLevel
-            .filter((item) => (item.type === 'folder' ? item.folder.id !== srcFolderId : true))
+        const contextItems = computeChildren(installed, folders, parentId)
+        const items: TopLevelItem[] = contextItems
+            .filter((item) => !(item.type === 'folder' && item.folder.id === srcFolderId))
             .map((item) =>
                 item.type === 'folder'
                     ? { type: 'folder' as const, id: item.folder.id }
                     : { type: 'mod' as const, id: item.mod.id }
             )
+
         const insertIdx = items.findIndex(
             (item) =>
                 item.type === targetItemType &&
@@ -345,8 +355,23 @@ export function InstalledPage({
                     ? (item as { type: 'folder'; id: string }).id === targetId
                     : (item as { type: 'mod'; id: number }).id === targetId)
         )
+        if (insertIdx === -1) return
         items.splice(insertIdx, 0, { type: 'folder', id: srcFolderId })
-        await window.api.reorderTopLevel(items, gamePath)
+
+        const draggedFolder = folders.find((f) => f.id === srcFolderId)
+        if (draggedFolder && draggedFolder.parentId !== parentId) {
+            await window.api.moveFolder(srcFolderId, parentId, gamePath)
+        }
+        await window.api.reorderChildren(parentId, items, gamePath)
+        await onRefreshInstalled()
+    }
+
+    // Nests a folder inside another folder (moves it to targetFolderId as parent).
+    async function onNestFolderInto(srcFolderId: string, targetFolderId: string) {
+        if (!gamePath || srcFolderId === targetFolderId) return
+        setDragItem(null)
+        setDropTarget(null)
+        await window.api.moveFolder(srcFolderId, targetFolderId, gamePath)
         await onRefreshInstalled()
     }
 
@@ -375,13 +400,18 @@ export function InstalledPage({
     }
 
     async function handleCreateFolder() {
-        if (!gamePath || !newFolderName.trim()) {
-            setCreatingFolder(false)
+        if (creatingFolderParentId === undefined || !newFolderName.trim()) {
+            setCreatingFolderParentId(undefined)
             setNewFolderName('')
             return
         }
-        await window.api.createFolder(newFolderName.trim(), gamePath)
-        setCreatingFolder(false)
+        if (!gamePath) {
+            setCreatingFolderParentId(undefined)
+            setNewFolderName('')
+            return
+        }
+        await window.api.createFolder(newFolderName.trim(), creatingFolderParentId, gamePath)
+        setCreatingFolderParentId(undefined)
         setNewFolderName('')
         await onRefreshInstalled()
     }
@@ -572,28 +602,70 @@ export function InstalledPage({
         )
     }
 
-    function renderFolderSection(folder: ModFolder, mods: InstalledMod[]) {
+    function renderNewFolderInput() {
+        return (
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-accent bg-accent/5">
+                <FolderPlus className="w-3.5 h-3.5 text-accent shrink-0" />
+                <input
+                    autoFocus
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCreateFolder()
+                        if (e.key === 'Escape') {
+                            setCreatingFolderParentId(undefined)
+                            setNewFolderName('')
+                        }
+                    }}
+                    onBlur={handleCreateFolder}
+                    placeholder={t('installed.folder.renamePlaceholder')}
+                    className="flex-1 min-w-0 bg-transparent text-sm outline-none"
+                />
+                <button
+                    onClick={handleCreateFolder}
+                    className="p-1 text-accent hover:text-accent-bright transition-colors shrink-0"
+                >
+                    <Check className="w-3.5 h-3.5" />
+                </button>
+            </div>
+        )
+    }
+
+    function renderFolderSection(folder: ModFolder) {
         const isCollapsed = collapsedFolders.has(folder.id)
         const isRenaming = renamingFolderId === folder.id
         const isDraggingThisFolder = dragItem?.kind === 'folder' && dragItem.id === folder.id
-        const isDropTarget = dropTarget?.kind === 'before-top' && dropTarget.id === folder.id
+        const isDropBeforeThis = dropTarget?.kind === 'before-child' && dropTarget.id === folder.id
         const isDropInto = dropTarget?.kind === 'into-folder' && dropTarget.folderId === folder.id
+
+        const children = computeChildren(installed, folders, folder.id)
+        const directMods = children
+            .filter((c): c is { type: 'mod'; mod: InstalledMod } => c.type === 'mod')
+            .map((c) => c.mod)
+        const isEmpty = children.length === 0
 
         return (
             <div
                 key={folder.id}
                 className={`transition-opacity ${isDraggingThisFolder ? 'opacity-40' : 'opacity-100'}`}
             >
-                {isDropTarget && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
-                {/* Folder header — the whole row is the drag handle */}
+                {isDropBeforeThis && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
+                {/* Folder header — entire row is draggable */}
                 <div
                     draggable={!isRenaming}
                     onDragStart={(e) => onFolderDragStart(e, folder.id)}
                     onDragEnd={handleDragEnd}
-                    onDragOver={(e) => onFolderHeaderDragOver(e, folder.id)}
+                    onDragOver={(e) => onFolderHeaderDragOver(e, folder)}
                     onDrop={() => {
-                        if (dragItem?.kind === 'mod') onDropIntoFolder(folder.id)
-                        else onTopLevelDrop(folder.id, 'folder')
+                        if (dragItem?.kind === 'mod') {
+                            onDropIntoFolder(folder.id)
+                        } else if (dragItem?.kind === 'folder') {
+                            if (isDropInto) {
+                                onNestFolderInto(dragItem.id, folder.id)
+                            } else {
+                                onChildDrop(dragItem.id, folder.id, 'folder', folder.parentId)
+                            }
+                        }
                     }}
                     className={`group flex items-center gap-1.5 px-2 py-2 rounded-lg border transition-colors ${
                         !isRenaming ? 'cursor-grab active:cursor-grabbing' : ''
@@ -663,12 +735,28 @@ export function InstalledPage({
                     {/* Mod count */}
                     <span className="text-xs text-text-subtle shrink-0">
                         {t(
-                            mods.length === 1
+                            directMods.length === 1
                                 ? 'installed.folder.modCountSingle'
                                 : 'installed.folder.modCount',
-                            { count: mods.length }
+                            { count: directMods.length }
                         )}
                     </span>
+
+                    {/* New subfolder button */}
+                    {!isRenaming && gamePath && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setCreatingFolderParentId(folder.id)
+                                setNewFolderName('')
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            title={t('installed.folder.newSubfolder')}
+                            className="p-1 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                        >
+                            <FolderPlus className="w-3.5 h-3.5" />
+                        </button>
+                    )}
 
                     {/* Delete */}
                     {!isRenaming && (
@@ -687,31 +775,69 @@ export function InstalledPage({
                 </div>
 
                 {/* Folder contents */}
-                {!isCollapsed && mods.length > 0 && (
-                    <div
-                        className={`ml-4 mt-1 ${viewMode === 'grid' ? 'grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4' : 'flex flex-col gap-1'}`}
-                    >
-                        {viewMode === 'list'
-                            ? mods.map((ins) => renderModCard(ins)).filter(Boolean)
-                            : mods.map((ins) => renderModGridCard(ins)).filter(Boolean)}
-                    </div>
-                )}
-                {!isCollapsed && mods.length === 0 && (
-                    <div
-                        className={`ml-4 mt-1 h-10 rounded-lg border border-dashed transition-colors flex items-center justify-center text-xs text-text-subtle ${
-                            isDropInto ? 'border-accent bg-accent/5' : 'border-border'
-                        }`}
-                        onDragOver={(e) => {
-                            if (dragItem?.kind === 'mod') {
-                                e.preventDefault()
-                                setDropTarget({ kind: 'into-folder', folderId: folder.id })
-                            }
-                        }}
-                        onDrop={() => {
-                            if (dragItem?.kind === 'mod') onDropIntoFolder(folder.id)
-                        }}
-                    >
-                        {t('installed.folder.dropHere')}
+                {!isCollapsed && (
+                    <div className="ml-4 mt-1 flex flex-col gap-1.5">
+                        {/* New subfolder input */}
+                        {creatingFolderParentId === folder.id && renderNewFolderInput()}
+
+                        {isEmpty && creatingFolderParentId !== folder.id ? (
+                            <div
+                                className={`h-10 rounded-lg border border-dashed transition-colors flex items-center justify-center text-xs text-text-subtle ${
+                                    isDropInto ? 'border-accent bg-accent/5' : 'border-border'
+                                }`}
+                                onDragOver={(e) => {
+                                    if (dragItem?.kind === 'mod') {
+                                        e.preventDefault()
+                                        setDropTarget({ kind: 'into-folder', folderId: folder.id })
+                                    }
+                                }}
+                                onDrop={() => {
+                                    if (dragItem?.kind === 'mod') onDropIntoFolder(folder.id)
+                                }}
+                            >
+                                {t('installed.folder.dropHere')}
+                            </div>
+                        ) : viewMode === 'list' ? (
+                            children.map((child) => {
+                                if (child.type === 'folder') {
+                                    return renderFolderSection(child.folder)
+                                }
+                                const ins = child.mod
+                                const isChildDropZone =
+                                    dragItem?.kind === 'folder' &&
+                                    dropTarget?.kind === 'before-child' &&
+                                    dropTarget.id === ins.id
+                                return (
+                                    <div
+                                        key={ins.id}
+                                        onDragOver={(e) => onChildModDragOver(e, ins.id, folder.id)}
+                                        onDrop={() =>
+                                            dragItem?.kind === 'folder' &&
+                                            onChildDrop(dragItem.id, ins.id, 'mod', folder.id)
+                                        }
+                                    >
+                                        {isChildDropZone && (
+                                            <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />
+                                        )}
+                                        {renderModCard(ins)}
+                                    </div>
+                                )
+                            })
+                        ) : (
+                            groupChildren(children).map((group) => {
+                                if (group.type === 'folder') {
+                                    return renderFolderSection(group.folder)
+                                }
+                                return (
+                                    <div
+                                        key={`rg-${group.mods[0].id}`}
+                                        className="grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
+                                    >
+                                        {group.mods.map((ins) => renderModGridCard(ins))}
+                                    </div>
+                                )
+                            })
+                        )}
                     </div>
                 )}
             </div>
@@ -722,7 +848,7 @@ export function InstalledPage({
         const isDropTarget =
             isFolderDropZone &&
             dragItem?.kind === 'folder' &&
-            dropTarget?.kind === 'before-top' &&
+            dropTarget?.kind === 'before-child' &&
             dropTarget.id === ins.id
 
         if (viewMode === 'list') {
@@ -730,9 +856,15 @@ export function InstalledPage({
                 <div
                     key={ins.id}
                     onDragOver={
-                        isFolderDropZone ? (e) => onTopLevelModDragOver(e, ins.id) : undefined
+                        isFolderDropZone ? (e) => onChildModDragOver(e, ins.id, null) : undefined
                     }
-                    onDrop={isFolderDropZone ? () => onTopLevelDrop(ins.id, 'mod') : undefined}
+                    onDrop={
+                        isFolderDropZone
+                            ? () =>
+                                  dragItem?.kind === 'folder' &&
+                                  onChildDrop(dragItem.id, ins.id, 'mod', null)
+                            : undefined
+                    }
                 >
                     {isDropTarget && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
                     {renderModCard(ins)}
@@ -776,7 +908,10 @@ export function InstalledPage({
                     )}
                     {gamePath && (
                         <button
-                            onClick={() => setCreatingFolder(true)}
+                            onClick={() => {
+                                setCreatingFolderParentId(null)
+                                setNewFolderName('')
+                            }}
                             title={t('installed.newFolder')}
                             className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
                         >
@@ -840,60 +975,40 @@ export function InstalledPage({
                             </div>
                         )}
 
-                        {/* New folder input */}
-                        {creatingFolder && (
-                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-accent bg-accent/5">
-                                <FolderPlus className="w-3.5 h-3.5 text-accent shrink-0" />
-                                <input
-                                    autoFocus
-                                    value={newFolderName}
-                                    onChange={(e) => setNewFolderName(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleCreateFolder()
-                                        if (e.key === 'Escape') {
-                                            setCreatingFolder(false)
-                                            setNewFolderName('')
-                                        }
-                                    }}
-                                    onBlur={handleCreateFolder}
-                                    placeholder={t('installed.folder.renamePlaceholder')}
-                                    className="flex-1 min-w-0 bg-transparent text-sm outline-none"
-                                />
-                                <button
-                                    onClick={handleCreateFolder}
-                                    className="p-1 text-accent hover:text-accent-bright transition-colors shrink-0"
-                                >
-                                    <Check className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                        )}
+                        {/* New root folder input */}
+                        {creatingFolderParentId === null && renderNewFolderInput()}
 
-                        {/* Top-level items: folders and root mods interleaved by priority */}
+                        {/* Root-level items: folders and root mods interleaved by priority */}
                         {viewMode === 'list' ? (
                             <div className="flex flex-col gap-1.5">
-                                {topLevel.map((item) =>
+                                {rootChildren.map((item) =>
                                     item.type === 'folder'
-                                        ? renderFolderSection(item.folder, item.mods)
+                                        ? renderFolderSection(item.folder)
                                         : renderRootMod(item.mod, rootGroupLeaders.has(item.mod.id))
                                 )}
                             </div>
                         ) : (
                             <div className="flex flex-col gap-4">
-                                {groupTopLevel(topLevel).map((group) => {
+                                {groupChildren(rootChildren).map((group) => {
                                     if (group.type === 'folder') {
-                                        return renderFolderSection(group.folder, group.mods)
+                                        return renderFolderSection(group.folder)
                                     }
                                     const leaderId = group.mods[0].id
                                     const isGroupDropTarget =
                                         dragItem?.kind === 'folder' &&
-                                        dropTarget?.kind === 'before-top' &&
+                                        dropTarget?.kind === 'before-child' &&
                                         dropTarget.id === leaderId
                                     return (
                                         <div
                                             key={`rg-${leaderId}`}
                                             className="relative grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
-                                            onDragOver={(e) => onTopLevelModDragOver(e, leaderId)}
-                                            onDrop={() => onTopLevelDrop(leaderId, 'mod')}
+                                            onDragOver={(e) =>
+                                                onChildModDragOver(e, leaderId, null)
+                                            }
+                                            onDrop={() =>
+                                                dragItem?.kind === 'folder' &&
+                                                onChildDrop(dragItem.id, leaderId, 'mod', null)
+                                            }
                                         >
                                             {isGroupDropTarget && (
                                                 <div className="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />

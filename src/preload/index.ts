@@ -45,10 +45,12 @@ contextBridge.exposeInMainWorld('api', {
         targetPosition: number,
         gamePath: string
     ) => ipcRenderer.invoke('mods:move-to-folder', modId, targetFolderId, targetPosition, gamePath),
-    reorderTopLevel: (items: TopLevelItem[], gamePath: string) =>
-        ipcRenderer.invoke('folders:reorder-top-level', items, gamePath),
-    createFolder: (displayName: string, gamePath: string) =>
-        ipcRenderer.invoke('folders:create', displayName, gamePath),
+    reorderChildren: (parentId: string | null, items: TopLevelItem[], gamePath: string) =>
+        ipcRenderer.invoke('folders:reorder-children', parentId, items, gamePath),
+    moveFolder: (folderId: string, targetParentId: string | null, gamePath: string) =>
+        ipcRenderer.invoke('folders:move', folderId, targetParentId, gamePath),
+    createFolder: (displayName: string, parentId: string | null, gamePath: string) =>
+        ipcRenderer.invoke('folders:create', displayName, parentId, gamePath),
     renameFolder: (folderId: string, displayName: string, gamePath: string) =>
         ipcRenderer.invoke('folders:rename', folderId, displayName, gamePath),
     deleteFolder: (folderId: string, gamePath: string) =>

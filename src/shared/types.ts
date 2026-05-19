@@ -86,7 +86,8 @@ export interface ModFolder {
     id: string
     diskName: string // priority-prefixed slug on disk, e.g. '002_weapons'
     displayName: string // user-facing label
-    priority: number // shared space with root mod priorities
+    priority: number // shared space with siblings in same parent
+    parentId: string | null // null = root level
 }
 
 export type TopLevelItem = { type: 'folder'; id: string } | { type: 'mod'; id: number }
