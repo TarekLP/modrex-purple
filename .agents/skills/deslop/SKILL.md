@@ -5,22 +5,25 @@ description: Remove AI-generated code slop
 
 # deslop
 
-Check the diff against main and remove all AI-generated slop introduced in this branch.
+Check the diff against main, fix each issue you find, then report a 1–3 sentence summary of what you changed.
 
-This includes:
+## Generic AI slop
 
-- Comments that explain WHAT the code does rather than WHY — remove them; well-named identifiers already do the explaining
-- Multi-line comment blocks or docstrings — one short line max, or delete entirely
-- Unnecessary defensive checks, fallbacks, or validation for scenarios that can't happen (trust internal code and framework guarantees)
-- Extra try/catch blocks that are abnormal for that area of the codebase
-- Casts to `any` to work around type issues — fix the types instead
-- Hardcoded Tailwind color classes like `zinc-*`, `red-*`, `gray-*` — use semantic tokens (`surface`, `text`, `accent`, `danger`, `border`, etc.) defined in `src/renderer/src/index.css`
-- Bare `ReactMarkdown` usage — must go through `components/MarkdownContent.tsx`
-- Native `<select>` elements — must use `components/Select.tsx`
-- Bare string literals in JSX — must use `t('key')` from `../i18n`
-- Direct `window.api.getMod` or `window.api.listModFiles` calls in the renderer — use `getCachedMod` / `getCachedModFiles` from `modCache.ts`
-- Premature abstractions or helper functions added beyond what the task required
-- Features, error handling, or validation added speculatively for hypothetical future use
-- Backwards-compatibility shims, renamed `_unused` vars, or `// removed` comments for deleted code
+- **Comments explaining WHAT** — remove them; well-named identifiers already do the explaining. One short WHY-comment max per block, only when the reason is non-obvious.
+- **Defensive checks and fallbacks** for scenarios that can't happen — trust internal code and framework guarantees; only validate at system boundaries.
+- **Extra try/catch blocks** that are abnormal for that area of the codebase.
+- **Casts to `any`** to work around type issues — fix the types instead.
+- **Premature abstractions** — helper functions or extra layers added beyond what the task required.
+- **Speculative features** — error handling, validation, or flags added for hypothetical future use.
+- **Backwards-compatibility cruft** — renamed `_unused` vars, `// removed` comments, re-exported types for deleted code.
+- **Unnecessary `useCallback`/`useMemo`** added speculatively without a measured performance reason.
 
-End with a 1–3 sentence summary of what you changed.
+## Project-specific violations
+
+- **Hardcoded Tailwind color classes** (`zinc-*`, `red-*`, `gray-*`, etc.) — use semantic tokens (`surface`, `text`, `accent`, `danger`, `border`, …) from `src/renderer/src/index.css`. Exception: hex equivalents inside `createDragImage` in `InstalledPage.tsx` only.
+- **Bare `ReactMarkdown`** — must go through `components/MarkdownContent.tsx`.
+- **Native `<select>`** — must use `components/Select.tsx`.
+- **Bare string literals in JSX** — must use `t('key')` from `../i18n`.
+- **Direct `window.api.getMod` or `window.api.listModFiles` in the renderer** — use `getCachedMod` / `getCachedModFiles` from `modCache.ts`.
+- **New IPC channels missing from any of the three required files** — every channel must appear in `src/main/index.ts` (handler), `src/preload/index.ts` (bridge), and `src/shared/api.d.ts` (type).
+- **Stray `console.log`/`console.warn` added for debugging** — `logger.ts` overrides console globally; debug logs added mid-task should be removed before committing.
