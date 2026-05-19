@@ -37,6 +37,7 @@ import {
     disabledModPath,
     stripPriorityPrefix,
     getFolderPath,
+    makeUid,
 } from './mods'
 import type { ModFolder, TopLevelItem } from '../shared/types'
 import { downloadFile } from './download'
@@ -136,7 +137,15 @@ function registerHandlers(): void {
                         const mod = await getMod(modRemoteId)
                         const fileId = match?.fileRemoteId ?? (await getLatestFile(modRemoteId)).id
                         const version = match?.version || mod.version
-                        return { ...m, id: mod.id, name: mod.name, fileId, version, sha256 }
+                        return {
+                            ...m,
+                            uid: String(fileId),
+                            id: mod.id,
+                            name: mod.name,
+                            fileId,
+                            version,
+                            sha256,
+                        }
                     } catch {
                         return { ...m, sha256 }
                     }
@@ -239,7 +248,7 @@ function registerHandlers(): void {
             const matched = sha256 ? sha256ToMod.get(sha256) : undefined
             if (matched) {
                 reconciledMods = reconciledMods.map((m) =>
-                    m.id === matched.id
+                    m.uid === matched.uid
                         ? { ...m, filename, folderId, enabled, missing: undefined }
                         : m
                 )
@@ -254,11 +263,12 @@ function registerHandlers(): void {
                 if (indexMatch) {
                     const mod = await getMod(indexMatch.modRemoteId)
                     return {
+                        uid: String(indexMatch.fileRemoteId),
                         id: mod.id,
                         name: mod.name,
                         fileId: indexMatch.fileRemoteId,
                         version: indexMatch.version || mod.version,
-                        sha256,
+                        ...(sha256 ? { sha256 } : {}),
                         filename,
                         folderId,
                         enabled,
@@ -270,6 +280,7 @@ function registerHandlers(): void {
                 if (!isNaN(numId) && String(numId) === stem) {
                     const mod = await getMod(numId)
                     return {
+                        uid: makeUid(undefined, filename),
                         id: mod.id,
                         name: mod.name,
                         version: mod.version,
@@ -287,6 +298,7 @@ function registerHandlers(): void {
                             getLatestFile(nameId),
                         ])
                         return {
+                            uid: String(latestFile.id),
                             id: mod.id,
                             name: mod.name,
                             fileId: latestFile.id,
@@ -300,6 +312,7 @@ function registerHandlers(): void {
                     } catch {}
                 }
                 return {
+                    uid: makeUid(undefined, filename),
                     id: hashFilename(filename),
                     name: stripPriorityPrefix(stem),
                     version: 'unknown',
@@ -312,7 +325,9 @@ function registerHandlers(): void {
             })
         )
         const newMods = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
-        const finalMods = [...reconciledMods, ...newMods]
+        const modsByUid = new Map(reconciledMods.map((m) => [m.uid, m]))
+        for (const m of newMods) modsByUid.set(m.uid, m)
+        const finalMods = [...modsByUid.values()]
         const finalState = { folders: state.folders, mods: finalMods }
         writeFileSync(statePath, JSON.stringify(finalState, null, 4))
         return { mods: finalMods, folders: state.folders, modsHidden }
@@ -328,19 +343,22 @@ function registerHandlers(): void {
         )
         try {
             const sha256 = await computeSha256(tmp)
+            const uid = String(file.id)
             installMod(
                 gamePath,
                 statePath,
                 {
+                    uid,
                     id: mod.id,
                     name: mod.name,
                     version: mod.version,
                     filename:
-                        readState(statePath).mods.find((m) => m.id === mod.id)?.filename ??
+                        readState(statePath).mods.find((m) => m.uid === uid)?.filename ??
                         pakFilename(mod.name),
                     enabled: true,
                     installedAt: new Date().toISOString(),
                     fileId: file.id,
+                    fileType: file.type,
                     sha256,
                 },
                 tmp
@@ -373,19 +391,22 @@ function registerHandlers(): void {
             )
             try {
                 const sha256 = await computeSha256(tmp)
+                const uid = String(fileId)
                 installMod(
                     gamePath,
                     statePath,
                     {
+                        uid,
                         id: modId,
                         name: modName,
                         version: modVersion,
                         filename:
-                            readState(statePath).mods.find((m) => m.id === modId)?.filename ??
-                            pakFilename(modName),
+                            readState(statePath).mods.find((m) => m.uid === uid)?.filename ??
+                            pakFilename(fileType === 'main' ? modName : `${modName}_${fileId}`),
                         enabled: true,
                         installedAt: new Date().toISOString(),
                         fileId,
+                        fileType,
                         sha256,
                     },
                     tmp
@@ -397,30 +418,24 @@ function registerHandlers(): void {
         }
     )
 
-    ipcMain.handle('mods:uninstall', (_, modId: number, gamePath: string) =>
-        uninstallMod(gamePath, getStatePath(gamePath), modId)
+    ipcMain.handle('mods:uninstall', (_, uid: string, gamePath: string) =>
+        uninstallMod(gamePath, getStatePath(gamePath), uid)
     )
-    ipcMain.handle('mods:enable', (_, modId: number, gamePath: string) =>
-        enableMod(gamePath, getStatePath(gamePath), modId)
+    ipcMain.handle('mods:enable', (_, uid: string, gamePath: string) =>
+        enableMod(gamePath, getStatePath(gamePath), uid)
     )
-    ipcMain.handle('mods:disable', (_, modId: number, gamePath: string) =>
-        disableMod(gamePath, getStatePath(gamePath), modId)
+    ipcMain.handle('mods:disable', (_, uid: string, gamePath: string) =>
+        disableMod(gamePath, getStatePath(gamePath), uid)
     )
     ipcMain.handle(
         'mods:reorder-in-folder',
-        (_, folderId: string | null, orderedIds: number[], gamePath: string) =>
-            reorderModsInFolder(gamePath, getStatePath(gamePath), folderId, orderedIds)
+        (_, folderId: string | null, orderedUids: string[], gamePath: string) =>
+            reorderModsInFolder(gamePath, getStatePath(gamePath), folderId, orderedUids)
     )
     ipcMain.handle(
         'mods:move-to-folder',
-        (
-            _,
-            modId: number,
-            targetFolderId: string | null,
-            targetPosition: number,
-            gamePath: string
-        ) =>
-            moveModToFolder(gamePath, getStatePath(gamePath), modId, targetFolderId, targetPosition)
+        (_, uid: string, targetFolderId: string | null, targetPosition: number, gamePath: string) =>
+            moveModToFolder(gamePath, getStatePath(gamePath), uid, targetFolderId, targetPosition)
     )
     ipcMain.handle(
         'folders:reorder-children',

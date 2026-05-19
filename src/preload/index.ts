@@ -31,20 +31,19 @@ contextBridge.exposeInMainWorld('api', {
             modVersion,
             gamePath
         ),
-    uninstallMod: (modId: number, gamePath: string) =>
-        ipcRenderer.invoke('mods:uninstall', modId, gamePath),
-    enableMod: (modId: number, gamePath: string) =>
-        ipcRenderer.invoke('mods:enable', modId, gamePath),
-    disableMod: (modId: number, gamePath: string) =>
-        ipcRenderer.invoke('mods:disable', modId, gamePath),
-    reorderModsInFolder: (folderId: string | null, orderedIds: number[], gamePath: string) =>
-        ipcRenderer.invoke('mods:reorder-in-folder', folderId, orderedIds, gamePath),
+    uninstallMod: (uid: string, gamePath: string) =>
+        ipcRenderer.invoke('mods:uninstall', uid, gamePath),
+    enableMod: (uid: string, gamePath: string) => ipcRenderer.invoke('mods:enable', uid, gamePath),
+    disableMod: (uid: string, gamePath: string) =>
+        ipcRenderer.invoke('mods:disable', uid, gamePath),
+    reorderModsInFolder: (folderId: string | null, orderedUids: string[], gamePath: string) =>
+        ipcRenderer.invoke('mods:reorder-in-folder', folderId, orderedUids, gamePath),
     moveModToFolder: (
-        modId: number,
+        uid: string,
         targetFolderId: string | null,
         targetPosition: number,
         gamePath: string
-    ) => ipcRenderer.invoke('mods:move-to-folder', modId, targetFolderId, targetPosition, gamePath),
+    ) => ipcRenderer.invoke('mods:move-to-folder', uid, targetFolderId, targetPosition, gamePath),
     reorderChildren: (parentId: string | null, items: TopLevelItem[], gamePath: string) =>
         ipcRenderer.invoke('folders:reorder-children', parentId, items, gamePath),
     moveFolder: (folderId: string, targetParentId: string | null, gamePath: string) =>

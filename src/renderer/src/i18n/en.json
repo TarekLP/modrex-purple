@@ -83,6 +83,7 @@
             "deleteConfirm": "Delete folder and move its contents to the parent?",
             "dropHere": "Drop mods here"
         },
+        "fileCount": "{count} files",
         "updatesModal": {
             "title": "Available updates ({count})",
             "update": "Update",
@@ -135,8 +136,9 @@
         }
     },
     "fileSelect": {
-        "title": "Choose a file to install",
-        "subtitle": "{modName} — this mod has multiple variants. Pick one.",
+        "title": "Install files",
+        "subtitle": "{modName} — select which files to install.",
+        "installSelected": "Install Selected ({count})",
         "downloadManually": "Download manually"
     },
     "depsWarning": {

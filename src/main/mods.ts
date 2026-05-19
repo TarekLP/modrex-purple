@@ -60,16 +60,20 @@ export async function computeSha256(filePath: string): Promise<string> {
     return hash.digest('hex')
 }
 
+export function makeUid(fileId: number | undefined, filename: string): string {
+    return fileId !== undefined ? String(fileId) : stripPriorityPrefix(filename)
+}
+
 export function addToState(state: ModsState, mod: InstalledMod): ModsState {
-    return { ...state, mods: [...state.mods.filter((m) => m.id !== mod.id), mod] }
+    return { ...state, mods: [...state.mods.filter((m) => m.uid !== mod.uid), mod] }
 }
 
-export function removeFromState(state: ModsState, modId: number): ModsState {
-    return { ...state, mods: state.mods.filter((m) => m.id !== modId) }
+export function removeFromState(state: ModsState, uid: string): ModsState {
+    return { ...state, mods: state.mods.filter((m) => m.uid !== uid) }
 }
 
-export function setEnabled(state: ModsState, modId: number, enabled: boolean): ModsState {
-    return { ...state, mods: state.mods.map((m) => (m.id === modId ? { ...m, enabled } : m)) }
+export function setEnabled(state: ModsState, uid: string, enabled: boolean): ModsState {
+    return { ...state, mods: state.mods.map((m) => (m.uid === uid ? { ...m, enabled } : m)) }
 }
 
 export function readState(statePath: string): ModsState {
@@ -81,7 +85,13 @@ export function readState(statePath: string): ModsState {
                 parentId: null,
                 ...f,
             })),
-            mods: parsed.mods ?? [],
+            mods: (parsed.mods ?? []).map((m: Record<string, unknown>) => ({
+                ...m,
+                uid:
+                    typeof m.uid === 'string'
+                        ? m.uid
+                        : makeUid(m.fileId as number | undefined, m.filename as string),
+            })) as InstalledMod[],
         }
     } catch {
         return { folders: [], mods: [] }
@@ -256,7 +266,7 @@ export function installMod(
         : join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
     if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true })
 
-    const existing = state.mods.find((m) => m.id === mod.id)
+    const existing = state.mods.find((m) => m.uid === mod.uid)
     const modsInFolder = state.mods.filter((m) => (m.folderId ?? null) === folderId)
     const priority =
         existing?.priority ?? modsInFolder.reduce((max, m) => Math.max(max, m.priority ?? 0), 0) + 1
@@ -289,14 +299,14 @@ export function reorderModsInFolder(
     gamePath: string,
     statePath: string,
     folderId: string | null,
-    orderedIds: number[]
+    orderedUids: string[]
 ): void {
     const state = readState(statePath)
     const folderRelPath = getFolderPath(state.folders, folderId)
-    const total = orderedIds.length
+    const total = orderedUids.length
     const updated = state.mods.map((mod) => {
         if ((mod.folderId ?? null) !== folderId) return mod
-        const pos = orderedIds.indexOf(mod.id)
+        const pos = orderedUids.indexOf(mod.uid)
         if (pos === -1) return mod
         const priority = total - pos
         const newFilename = applyPriorityPrefix(mod.filename, priority)
@@ -317,19 +327,19 @@ export function reorderModsInFolder(
 export function moveModToFolder(
     gamePath: string,
     statePath: string,
-    modId: number,
+    uid: string,
     targetFolderId: string | null,
     targetPosition: number
 ): void {
     const state = readState(statePath)
-    const mod = state.mods.find((m) => m.id === modId)
+    const mod = state.mods.find((m) => m.uid === uid)
     if (!mod) return
 
     const sourceFolderRelPath = getFolderPath(state.folders, mod.folderId)
     const targetFolderRelPath = getFolderPath(state.folders, targetFolderId)
 
     const targetMods = state.mods
-        .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== modId)
+        .filter((m) => (m.folderId ?? null) === targetFolderId && m.uid !== uid)
         .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
     targetMods.splice(targetPosition, 0, mod)
     const total = targetMods.length
@@ -353,16 +363,16 @@ export function moveModToFolder(
     }
 
     const updatedMods = state.mods.map((m) => {
-        const posInTarget = targetMods.findIndex((tm) => tm.id === m.id)
+        const posInTarget = targetMods.findIndex((tm) => tm.uid === m.uid)
         if (posInTarget === -1) return m
 
         const priority = total - posInTarget
         const newFilename = applyPriorityPrefix(m.filename, priority)
-        const currentFolderRelPath = m.id === modId ? sourceFolderRelPath : targetFolderRelPath
+        const currentFolderRelPath = m.uid === uid ? sourceFolderRelPath : targetFolderRelPath
 
         if (
             newFilename !== m.filename ||
-            (m.id === modId && sourceFolderRelPath !== targetFolderRelPath)
+            (m.uid === uid && sourceFolderRelPath !== targetFolderRelPath)
         ) {
             const oldPath = m.enabled
                 ? activeModPath(gamePath, m.filename, currentFolderRelPath)
@@ -435,7 +445,7 @@ export function reorderChildren(
 
     const updatedMods = state.mods.map((mod) => {
         if ((mod.folderId ?? null) !== parentId) return mod
-        const pos = items.findIndex((item) => item.type === 'mod' && item.id === mod.id)
+        const pos = items.findIndex((item) => item.type === 'mod' && item.id === mod.uid)
         if (pos === -1) return mod
         const priority = total - pos
         const newFilename = applyPriorityPrefix(mod.filename, priority)
@@ -643,9 +653,9 @@ export function deleteFolder(gamePath: string, statePath: string, folderId: stri
     saveState(statePath, { folders: updatedFolders, mods: updatedMods })
 }
 
-export function uninstallMod(gamePath: string, statePath: string, modId: number): void {
+export function uninstallMod(gamePath: string, statePath: string, uid: string): void {
     const state = readState(statePath)
-    const mod = state.mods.find((m) => m.id === modId)
+    const mod = state.mods.find((m) => m.uid === uid)
     if (!mod) return
 
     const folderRelPath = getFolderPath(state.folders, mod.folderId)
@@ -654,12 +664,12 @@ export function uninstallMod(gamePath: string, statePath: string, modId: number)
         : disabledModPath(gamePath, mod.filename, folderRelPath)
     if (existsSync(path)) rmSync(path)
 
-    saveState(statePath, removeFromState(state, modId))
+    saveState(statePath, removeFromState(state, uid))
 }
 
-export function enableMod(gamePath: string, statePath: string, modId: number): void {
+export function enableMod(gamePath: string, statePath: string, uid: string): void {
     const state = readState(statePath)
-    const mod = state.mods.find((m) => m.id === modId)
+    const mod = state.mods.find((m) => m.uid === uid)
     if (!mod || mod.enabled) return
 
     const folderRelPath = getFolderPath(state.folders, mod.folderId)
@@ -672,12 +682,12 @@ export function enableMod(gamePath: string, statePath: string, modId: number): v
     const from = disabledModPath(gamePath, mod.filename, folderRelPath)
     if (existsSync(from)) renameSync(from, activeModPath(gamePath, mod.filename, folderRelPath))
 
-    saveState(statePath, setEnabled(state, modId, true))
+    saveState(statePath, setEnabled(state, uid, true))
 }
 
-export function disableMod(gamePath: string, statePath: string, modId: number): void {
+export function disableMod(gamePath: string, statePath: string, uid: string): void {
     const state = readState(statePath)
-    const mod = state.mods.find((m) => m.id === modId)
+    const mod = state.mods.find((m) => m.uid === uid)
     if (!mod || !mod.enabled) return
 
     const folderRelPath = getFolderPath(state.folders, mod.folderId)
@@ -689,5 +699,5 @@ export function disableMod(gamePath: string, statePath: string, modId: number): 
     const from = activeModPath(gamePath, mod.filename, folderRelPath)
     if (existsSync(from)) renameSync(from, disabledModPath(gamePath, mod.filename, folderRelPath))
 
-    saveState(statePath, setEnabled(state, modId, false))
+    saveState(statePath, setEnabled(state, uid, false))
 }

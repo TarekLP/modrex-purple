@@ -54,41 +54,54 @@ function syntheticMod(ins: InstalledMod): Mod {
     }
 }
 
-type DragItem = { kind: 'mod'; id: number } | { kind: 'folder'; id: string }
+type DragItem = { kind: 'mod'; uid: string } | { kind: 'folder'; id: string }
 
 type DropTarget =
-    | { kind: 'before-mod'; id: number }
-    | { kind: 'after-mod'; id: number }
+    | { kind: 'before-mod'; uid: string }
+    | { kind: 'after-mod'; uid: string }
     | { kind: 'into-folder'; folderId: string }
     | {
           kind: 'before-child'
-          id: string | number
+          id: string
           itemType: 'folder' | 'mod'
           parentId: string | null
       }
     | null
 
-type ChildEntry = { type: 'folder'; folder: ModFolder } | { type: 'mod'; mod: InstalledMod }
+type ChildEntry = { type: 'folder'; folder: ModFolder } | { type: 'mod'; mods: InstalledMod[] }
 
 type ChildGroup =
     | { type: 'folder'; folder: ModFolder }
-    | { type: 'root-group'; mods: InstalledMod[] }
+    | { type: 'root-group'; groups: InstalledMod[][] }
 
 function computeChildren(
     mods: InstalledMod[],
     folders: ModFolder[],
     parentId: string | null
 ): ChildEntry[] {
+    const scopedMods = mods.filter((m) => (m.folderId ?? null) === parentId)
+    const groupMap = new Map<number, InstalledMod[]>()
+    for (const m of scopedMods) {
+        if (!groupMap.has(m.id)) groupMap.set(m.id, [])
+        groupMap.get(m.id)!.push(m)
+    }
     const items: ChildEntry[] = []
-    for (const mod of mods.filter((m) => (m.folderId ?? null) === parentId)) {
-        items.push({ type: 'mod', mod })
+    for (const groupMods of groupMap.values()) {
+        groupMods.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+        items.push({ type: 'mod', mods: groupMods })
     }
     for (const folder of folders.filter((f) => f.parentId === parentId)) {
         items.push({ type: 'folder', folder })
     }
     items.sort((a, b) => {
-        const pa = a.type === 'folder' ? a.folder.priority : (a.mod.priority ?? 0)
-        const pb = b.type === 'folder' ? b.folder.priority : (b.mod.priority ?? 0)
+        const pa =
+            a.type === 'folder'
+                ? a.folder.priority
+                : Math.min(...a.mods.map((m) => m.priority ?? 0))
+        const pb =
+            b.type === 'folder'
+                ? b.folder.priority
+                : Math.min(...b.mods.map((m) => m.priority ?? 0))
         return pb - pa
     })
     return items
@@ -96,19 +109,19 @@ function computeChildren(
 
 function groupChildren(entries: ChildEntry[]): ChildGroup[] {
     const groups: ChildGroup[] = []
-    let run: InstalledMod[] = []
+    let run: InstalledMod[][] = []
     for (const entry of entries) {
         if (entry.type === 'folder') {
             if (run.length > 0) {
-                groups.push({ type: 'root-group', mods: run })
+                groups.push({ type: 'root-group', groups: run })
                 run = []
             }
             groups.push({ type: 'folder', folder: entry.folder })
         } else {
-            run.push(entry.mod)
+            run.push(entry.mods)
         }
     }
-    if (run.length > 0) groups.push({ type: 'root-group', mods: run })
+    if (run.length > 0) groups.push({ type: 'root-group', groups: run })
     return groups
 }
 
@@ -124,7 +137,7 @@ export function InstalledPage({
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
     const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
     const fetchedAt = useRef<Map<number, number>>(new Map())
-    const [loadingMod, setLoadingMod] = useState<number | null>(null)
+    const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
     const [showUpdates, setShowUpdates] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -153,10 +166,10 @@ export function InstalledPage({
     const rootChildren = computeChildren(installed, folders, null)
 
     // Only the first mod in each consecutive root-mod run is a valid folder drop boundary (grid view).
-    const rootGroupLeaders = new Set<number>(
-        rootChildren.reduce<number[]>((acc, item, i) => {
+    const rootGroupLeaders = new Set<string>(
+        rootChildren.reduce<string[]>((acc, item, i) => {
             if (item.type === 'mod' && (i === 0 || rootChildren[i - 1].type === 'folder'))
-                acc.push(item.mod.id)
+                acc.push(item.mods[0].uid)
             return acc
         }, [])
     )
@@ -233,18 +246,19 @@ export function InstalledPage({
         dragScrollDir.current = null
     }
 
-    function onModDragStart(e: React.DragEvent, modId: number) {
-        const mod = modData.get(modId) ?? syntheticMod(installed.find((m) => m.id === modId)!)
-        setDragItem({ kind: 'mod', id: modId })
+    function onModDragStart(e: React.DragEvent, uid: string) {
+        const ins = installed.find((m) => m.uid === uid)!
+        const mod = modData.get(ins.id) ?? syntheticMod(ins)
+        setDragItem({ kind: 'mod', uid })
         createDragImage(e, mod)
     }
 
-    function onModDragOver(e: React.DragEvent, modId: number) {
-        if (!dragItem || dragItem.id === modId) return
+    function onModDragOver(e: React.DragEvent, uid: string) {
+        if (!dragItem || (dragItem.kind === 'mod' && dragItem.uid === uid)) return
         e.preventDefault()
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
         const isTop = e.clientY - rect.top < rect.height / 2
-        setDropTarget(isTop ? { kind: 'before-mod', id: modId } : { kind: 'after-mod', id: modId })
+        setDropTarget(isTop ? { kind: 'before-mod', uid } : { kind: 'after-mod', uid })
     }
 
     function onFolderHeaderDragOver(e: React.DragEvent, folder: ModFolder) {
@@ -269,55 +283,74 @@ export function InstalledPage({
         }
     }
 
-    function onChildModDragOver(e: React.DragEvent, modId: number, parentId: string | null) {
+    function onChildModDragOver(e: React.DragEvent, uid: string, parentId: string | null) {
         if (!dragItem || dragItem.kind !== 'folder') return
         e.preventDefault()
-        setDropTarget({ kind: 'before-child', id: modId, itemType: 'mod', parentId })
+        setDropTarget({ kind: 'before-child', id: uid, itemType: 'mod', parentId })
     }
 
-    async function onModDrop(targetModId: number) {
+    async function onModDrop(targetRepUid: string) {
         if (!dragItem || dragItem.kind !== 'mod' || !gamePath) return
-        const srcId = dragItem.id
+        const srcRepUid = dragItem.uid
         setDragItem(null)
         setDropTarget(null)
-        if (targetModId === srcId) return
+        if (targetRepUid === srcRepUid) return
 
-        const srcMod = installed.find((m) => m.id === srcId)!
-        const targetMod = installed.find((m) => m.id === targetModId)!
+        const srcMod = installed.find((m) => m.uid === srcRepUid)!
+        const targetMod = installed.find((m) => m.uid === targetRepUid)!
         const srcFolderId = srcMod.folderId ?? null
         const targetFolderId = targetMod.folderId ?? null
         const isBefore = dropTarget?.kind === 'before-mod'
+
+        const srcGroupMods = installed
+            .filter((m) => (m.folderId ?? null) === srcFolderId && m.id === srcMod.id)
+            .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
 
         if (srcFolderId === targetFolderId) {
             const scopedMods = installed
                 .filter((m) => (m.folderId ?? null) === srcFolderId)
                 .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
-            const order = scopedMods.map((m) => m.id)
-            const fromIdx = order.indexOf(srcId)
-            order.splice(fromIdx, 1)
-            const toIdx = order.indexOf(targetModId)
-            order.splice(isBefore ? toIdx : toIdx + 1, 0, srcId)
-            await window.api.reorderModsInFolder(srcFolderId, order, gamePath)
+            const withoutSrc = scopedMods.filter((m) => m.id !== srcMod.id)
+            const targetGroupMods = withoutSrc.filter((m) => m.id === targetMod.id)
+            const pivotUid = isBefore
+                ? targetGroupMods[0].uid
+                : targetGroupMods[targetGroupMods.length - 1].uid
+            const pivotIdx = withoutSrc.findIndex((m) => m.uid === pivotUid)
+            const insertAt = isBefore ? pivotIdx : pivotIdx + 1
+            const reordered = [...withoutSrc]
+            reordered.splice(insertAt, 0, ...srcGroupMods)
+            await window.api.reorderModsInFolder(
+                srcFolderId,
+                reordered.map((m) => m.uid),
+                gamePath
+            )
         } else {
             const targetScopeMods = installed
-                .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== srcId)
+                .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== srcMod.id)
                 .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
-            const toIdx = targetScopeMods.findIndex((m) => m.id === targetModId)
+            const toIdx = targetScopeMods.findIndex((m) => m.uid === targetRepUid)
             const targetPosition = isBefore ? toIdx : toIdx + 1
-            await window.api.moveModToFolder(srcId, targetFolderId, targetPosition, gamePath)
+            for (const m of srcGroupMods) {
+                await window.api.moveModToFolder(m.uid, targetFolderId, targetPosition, gamePath)
+            }
         }
         await onRefreshInstalled()
     }
 
     async function onDropIntoFolder(folderId: string) {
         if (!dragItem || dragItem.kind !== 'mod' || !gamePath) return
-        const srcId = dragItem.id
+        const srcRepUid = dragItem.uid
         setDragItem(null)
         setDropTarget(null)
-        const srcMod = installed.find((m) => m.id === srcId)!
+        const srcMod = installed.find((m) => m.uid === srcRepUid)!
         if ((srcMod.folderId ?? null) === folderId) return
+        const srcGroupMods = installed.filter(
+            (m) => (m.folderId ?? null) === (srcMod.folderId ?? null) && m.id === srcMod.id
+        )
         const folderMods = installed.filter((m) => m.folderId === folderId)
-        await window.api.moveModToFolder(srcId, folderId, folderMods.length, gamePath)
+        for (const m of srcGroupMods) {
+            await window.api.moveModToFolder(m.uid, folderId, folderMods.length, gamePath)
+        }
         await onRefreshInstalled()
     }
 
@@ -330,7 +363,7 @@ export function InstalledPage({
     // If the dragged folder is from a different parent, moves it first then reorders.
     async function onChildDrop(
         srcFolderId: string,
-        targetId: string | number,
+        targetId: string,
         targetItemType: 'folder' | 'mod',
         parentId: string | null
     ) {
@@ -342,18 +375,14 @@ export function InstalledPage({
         const contextItems = computeChildren(installed, folders, parentId)
         const items: TopLevelItem[] = contextItems
             .filter((item) => !(item.type === 'folder' && item.folder.id === srcFolderId))
-            .map((item) =>
+            .flatMap((item): TopLevelItem[] =>
                 item.type === 'folder'
-                    ? { type: 'folder' as const, id: item.folder.id }
-                    : { type: 'mod' as const, id: item.mod.id }
+                    ? [{ type: 'folder', id: item.folder.id }]
+                    : item.mods.map((m) => ({ type: 'mod', id: m.uid }))
             )
 
         const insertIdx = items.findIndex(
-            (item) =>
-                item.type === targetItemType &&
-                (targetItemType === 'folder'
-                    ? (item as { type: 'folder'; id: string }).id === targetId
-                    : (item as { type: 'mod'; id: number }).id === targetId)
+            (item) => item.type === targetItemType && item.id === targetId
         )
         if (insertIdx === -1) return
         items.splice(insertIdx, 0, { type: 'folder', id: srcFolderId })
@@ -458,47 +487,53 @@ export function InstalledPage({
         })
     }, [installed])
 
+    const seenModIds = new Set<number>()
     const updatable = installed.filter((ins) => {
+        if (seenModIds.has(ins.id)) return false
         const mod = modData.get(ins.id)
-        return mod && mod.version !== ins.version
+        if (mod && mod.version !== ins.version) {
+            seenModIds.add(ins.id)
+            return true
+        }
+        return false
     })
 
-    async function handleUninstall(modId: number) {
+    async function handleUninstall(mods: InstalledMod[]) {
         if (!gamePath) return
-        setLoadingMod(modId)
+        setLoadingMod(mods[0].uid)
         try {
-            await window.api.uninstallMod(modId, gamePath)
+            for (const m of mods) await window.api.uninstallMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
     }
 
-    async function handleEnable(modId: number) {
+    async function handleEnable(mods: InstalledMod[]) {
         if (!gamePath) return
-        setLoadingMod(modId)
+        setLoadingMod(mods[0].uid)
         try {
-            await window.api.enableMod(modId, gamePath)
+            for (const m of mods) await window.api.enableMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
     }
 
-    async function handleDisable(modId: number) {
+    async function handleDisable(mods: InstalledMod[]) {
         if (!gamePath) return
-        setLoadingMod(modId)
+        setLoadingMod(mods[0].uid)
         try {
-            await window.api.disableMod(modId, gamePath)
+            for (const m of mods) await window.api.disableMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
         }
     }
 
-    async function handleUpdate(modId: number) {
+    async function handleUpdate(uid: string, modId: number) {
         if (!gamePath) return
-        setLoadingMod(modId)
+        setLoadingMod(uid)
         try {
             await window.api.installMod(modId, gamePath)
             await onRefreshInstalled()
@@ -531,32 +566,39 @@ export function InstalledPage({
 
     // --- Render helpers ---
 
-    function renderModCard(ins: InstalledMod) {
+    function renderModCard(mods: InstalledMod[]) {
+        const ins = mods[0]
         const id = ins.id
+        const repUid = ins.uid
         const apiMod = modData.get(id)
         if (!apiMod && !failedIds.has(id)) return null
         const mod = apiMod ?? syntheticMod(ins)
-        const isDragging = dragItem?.kind === 'mod' && dragItem.id === id
-        const target = dropTarget
-        const isBefore = target?.kind === 'before-mod' && target.id === id
-        const isAfter = target?.kind === 'after-mod' && target.id === id
+        const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
+        const isBusy = mods.some((m) => loadingMod === m.uid)
+        const isBefore = dropTarget?.kind === 'before-mod' && dropTarget.uid === repUid
+        const isAfter = dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid
+        const combined: InstalledMod = {
+            ...ins,
+            enabled: mods.every((m) => m.enabled),
+            missing: mods.some((m) => m.missing) ? true : undefined,
+        }
 
         return (
-            <div key={id} className="relative">
+            <div key={repUid} className="relative">
                 {isBefore && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
                 <ModListRow
                     mod={mod}
-                    installed={ins}
+                    installed={combined}
                     gamePath={gamePath}
-                    loading={loadingMod === id}
+                    loading={isBusy}
                     isDragging={isDragging}
                     onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
-                    onUninstall={() => handleUninstall(id)}
-                    onEnable={() => handleEnable(id)}
-                    onDisable={() => handleDisable(id)}
-                    onDragStart={(e) => onModDragStart(e, id)}
-                    onDragOver={(e) => onModDragOver(e, id)}
-                    onDrop={() => onModDrop(id)}
+                    onUninstall={() => handleUninstall(mods)}
+                    onEnable={() => handleEnable(mods)}
+                    onDisable={() => handleDisable(mods)}
+                    onDragStart={(e) => onModDragStart(e, repUid)}
+                    onDragOver={(e) => onModDragOver(e, repUid)}
+                    onDrop={() => onModDrop(repUid)}
                     onDragEnd={handleDragEnd}
                 />
                 {isAfter && <div className="h-0.5 rounded-full bg-accent mx-2 mt-1" />}
@@ -564,39 +606,52 @@ export function InstalledPage({
         )
     }
 
-    function renderModGridCard(ins: InstalledMod) {
+    function renderModGridCard(mods: InstalledMod[]) {
+        const ins = mods[0]
         const id = ins.id
+        const repUid = ins.uid
         const apiMod = modData.get(id)
         if (!apiMod && !failedIds.has(id)) return null
         const mod = apiMod ?? syntheticMod(ins)
-        const isDragging = dragItem?.kind === 'mod' && dragItem.id === id
+        const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
+        const isBusy = mods.some((m) => loadingMod === m.uid)
+        const combined: InstalledMod = {
+            ...ins,
+            enabled: mods.every((m) => m.enabled),
+            missing: mods.some((m) => m.missing) ? true : undefined,
+        }
 
         return (
             <div
-                key={id}
+                key={repUid}
                 draggable
-                onDragStart={(e) => onModDragStart(e, id)}
-                onDragOver={(e) => onModDragOver(e, id)}
-                onDrop={() => onModDrop(id)}
+                onDragStart={(e) => onModDragStart(e, repUid)}
+                onDragOver={(e) => onModDragOver(e, repUid)}
+                onDrop={() => onModDrop(repUid)}
                 onDragEnd={handleDragEnd}
                 className={`relative h-full rounded-lg cursor-grab active:cursor-grabbing transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
             >
-                {dropTarget?.kind === 'before-mod' && dropTarget.id === id && (
+                {dropTarget?.kind === 'before-mod' && dropTarget.uid === repUid && (
                     <div className="absolute top-0 bottom-0 left-0 w-1 bg-accent z-10 pointer-events-none rounded-l-lg" />
                 )}
-                {dropTarget?.kind === 'after-mod' && dropTarget.id === id && (
+                {dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid && (
                     <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
+                )}
+                {mods.length > 1 && (
+                    <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none">
+                        {t('installed.fileCount', { count: mods.length })}
+                    </div>
                 )}
                 <ModCard
                     mod={mod}
-                    installed={ins}
+                    installed={combined}
                     gamePath={gamePath}
-                    loading={loadingMod === id}
+                    loading={isBusy}
                     onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
                     onInstall={() => {}}
-                    onUninstall={() => handleUninstall(id)}
-                    onEnable={() => handleEnable(id)}
-                    onDisable={() => handleDisable(id)}
+                    onUninstall={() => handleUninstall(mods)}
+                    onEnable={() => handleEnable(mods)}
+                    onDisable={() => handleDisable(mods)}
                 />
             </div>
         )
@@ -639,9 +694,9 @@ export function InstalledPage({
         const isDropInto = dropTarget?.kind === 'into-folder' && dropTarget.folderId === folder.id
 
         const children = computeChildren(installed, folders, folder.id)
-        const directMods = children
-            .filter((c): c is { type: 'mod'; mod: InstalledMod } => c.type === 'mod')
-            .map((c) => c.mod)
+        const directModGroups = children.filter(
+            (c): c is { type: 'mod'; mods: InstalledMod[] } => c.type === 'mod'
+        )
         const isEmpty = children.length === 0
 
         return (
@@ -735,10 +790,10 @@ export function InstalledPage({
                     {/* Mod count */}
                     <span className="text-xs text-text-subtle shrink-0">
                         {t(
-                            directMods.length === 1
+                            directModGroups.length === 1
                                 ? 'installed.folder.modCountSingle'
                                 : 'installed.folder.modCount',
-                            { count: directMods.length }
+                            { count: directModGroups.length }
                         )}
                     </span>
 
@@ -802,24 +857,24 @@ export function InstalledPage({
                                 if (child.type === 'folder') {
                                     return renderFolderSection(child.folder)
                                 }
-                                const ins = child.mod
+                                const repUid = child.mods[0].uid
                                 const isChildDropZone =
                                     dragItem?.kind === 'folder' &&
                                     dropTarget?.kind === 'before-child' &&
-                                    dropTarget.id === ins.id
+                                    dropTarget.id === repUid
                                 return (
                                     <div
-                                        key={ins.id}
-                                        onDragOver={(e) => onChildModDragOver(e, ins.id, folder.id)}
+                                        key={repUid}
+                                        onDragOver={(e) => onChildModDragOver(e, repUid, folder.id)}
                                         onDrop={() =>
                                             dragItem?.kind === 'folder' &&
-                                            onChildDrop(dragItem.id, ins.id, 'mod', folder.id)
+                                            onChildDrop(dragItem.id, repUid, 'mod', folder.id)
                                         }
                                     >
                                         {isChildDropZone && (
                                             <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />
                                         )}
-                                        {renderModCard(ins)}
+                                        {renderModCard(child.mods)}
                                     </div>
                                 )
                             })
@@ -830,10 +885,10 @@ export function InstalledPage({
                                 }
                                 return (
                                     <div
-                                        key={`rg-${group.mods[0].id}`}
+                                        key={`rg-${group.groups[0][0].uid}`}
                                         className="grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
                                     >
-                                        {group.mods.map((ins) => renderModGridCard(ins))}
+                                        {group.groups.map((mods) => renderModGridCard(mods))}
                                     </div>
                                 )
                             })
@@ -844,36 +899,37 @@ export function InstalledPage({
         )
     }
 
-    function renderRootMod(ins: InstalledMod, isFolderDropZone = false) {
+    function renderRootMod(mods: InstalledMod[], isFolderDropZone = false) {
+        const repUid = mods[0].uid
         const isDropTarget =
             isFolderDropZone &&
             dragItem?.kind === 'folder' &&
             dropTarget?.kind === 'before-child' &&
-            dropTarget.id === ins.id
+            dropTarget.id === repUid
 
         if (viewMode === 'list') {
             return (
                 <div
-                    key={ins.id}
+                    key={repUid}
                     onDragOver={
-                        isFolderDropZone ? (e) => onChildModDragOver(e, ins.id, null) : undefined
+                        isFolderDropZone ? (e) => onChildModDragOver(e, repUid, null) : undefined
                     }
                     onDrop={
                         isFolderDropZone
                             ? () =>
                                   dragItem?.kind === 'folder' &&
-                                  onChildDrop(dragItem.id, ins.id, 'mod', null)
+                                  onChildDrop(dragItem.id, repUid, 'mod', null)
                             : undefined
                     }
                 >
                     {isDropTarget && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
-                    {renderModCard(ins)}
+                    {renderModCard(mods)}
                 </div>
             )
         }
         return (
-            <div key={ins.id} className="relative">
-                {renderModGridCard(ins)}
+            <div key={repUid} className="relative">
+                {renderModGridCard(mods)}
             </div>
         )
     }
@@ -984,7 +1040,10 @@ export function InstalledPage({
                                 {rootChildren.map((item) =>
                                     item.type === 'folder'
                                         ? renderFolderSection(item.folder)
-                                        : renderRootMod(item.mod, rootGroupLeaders.has(item.mod.id))
+                                        : renderRootMod(
+                                              item.mods,
+                                              rootGroupLeaders.has(item.mods[0].uid)
+                                          )
                                 )}
                             </div>
                         ) : (
@@ -993,7 +1052,7 @@ export function InstalledPage({
                                     if (group.type === 'folder') {
                                         return renderFolderSection(group.folder)
                                     }
-                                    const leaderId = group.mods[0].id
+                                    const leaderId = group.groups[0][0].uid
                                     const isGroupDropTarget =
                                         dragItem?.kind === 'folder' &&
                                         dropTarget?.kind === 'before-child' &&
@@ -1013,7 +1072,7 @@ export function InstalledPage({
                                             {isGroupDropTarget && (
                                                 <div className="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />
                                             )}
-                                            {group.mods.map((ins) => renderRootMod(ins))}
+                                            {group.groups.map((mods) => renderRootMod(mods))}
                                         </div>
                                     )
                                 })}
@@ -1045,10 +1104,10 @@ export function InstalledPage({
                             {updatable.map((ins) => {
                                 const mod = modData.get(ins.id)!
                                 const checked = selectedIds.has(ins.id)
-                                const isLoading = loadingMod === ins.id || updatingAll
+                                const isLoading = loadingMod === ins.uid || updatingAll
                                 return (
                                     <div
-                                        key={ins.id}
+                                        key={ins.uid}
                                         className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0"
                                     >
                                         <input
@@ -1068,10 +1127,10 @@ export function InstalledPage({
                                         </div>
                                         <button
                                             disabled={!gamePath || isLoading}
-                                            onClick={() => handleUpdate(ins.id)}
+                                            onClick={() => handleUpdate(ins.uid, ins.id)}
                                             className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
                                         >
-                                            {loadingMod === ins.id
+                                            {loadingMod === ins.uid
                                                 ? t('installed.updatesModal.updating')
                                                 : t('installed.updatesModal.update')}
                                         </button>

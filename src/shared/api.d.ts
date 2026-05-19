@@ -33,16 +33,16 @@ declare global {
                 modVersion: string,
                 gamePath: string
             ): Promise<void>
-            uninstallMod(modId: number, gamePath: string): Promise<void>
-            enableMod(modId: number, gamePath: string): Promise<void>
-            disableMod(modId: number, gamePath: string): Promise<void>
+            uninstallMod(uid: string, gamePath: string): Promise<void>
+            enableMod(uid: string, gamePath: string): Promise<void>
+            disableMod(uid: string, gamePath: string): Promise<void>
             reorderModsInFolder(
                 folderId: string | null,
-                orderedIds: number[],
+                orderedUids: string[],
                 gamePath: string
             ): Promise<void>
             moveModToFolder(
-                modId: number,
+                uid: string,
                 targetFolderId: string | null,
                 targetPosition: number,
                 gamePath: string

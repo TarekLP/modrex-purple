@@ -22,6 +22,7 @@ import {
 } from './mods'
 
 const fakeMod: InstalledMod = {
+    uid: 'TestMod.pak',
     id: 1,
     name: 'TestMod',
     version: '1.0',
@@ -59,7 +60,7 @@ describe('addToState', () => {
         expect(state.mods[0].id).toBe(1)
     })
 
-    it('replaces existing mod with same id', () => {
+    it('replaces existing mod with same uid', () => {
         const state = addToState({ folders: [], mods: [fakeMod] }, { ...fakeMod, version: '2.0' })
         expect(state.mods).toHaveLength(1)
         expect(state.mods[0].version).toBe('2.0')
@@ -67,25 +68,29 @@ describe('addToState', () => {
 })
 
 describe('removeFromState', () => {
-    it('removes mod by id', () => {
-        const state = removeFromState({ folders: [], mods: [fakeMod] }, 1)
+    it('removes mod by uid', () => {
+        const state = removeFromState({ folders: [], mods: [fakeMod] }, fakeMod.uid)
         expect(state.mods).toHaveLength(0)
     })
 
-    it('does nothing for unknown id', () => {
-        const state = removeFromState({ folders: [], mods: [fakeMod] }, 99)
+    it('does nothing for unknown uid', () => {
+        const state = removeFromState({ folders: [], mods: [fakeMod] }, 'nonexistent-uid')
         expect(state.mods).toHaveLength(1)
     })
 })
 
 describe('setEnabled', () => {
     it('disables an enabled mod', () => {
-        const state = setEnabled({ folders: [], mods: [fakeMod] }, 1, false)
+        const state = setEnabled({ folders: [], mods: [fakeMod] }, fakeMod.uid, false)
         expect(state.mods[0].enabled).toBe(false)
     })
 
     it('enables a disabled mod', () => {
-        const state = setEnabled({ folders: [], mods: [{ ...fakeMod, enabled: false }] }, 1, true)
+        const state = setEnabled(
+            { folders: [], mods: [{ ...fakeMod, enabled: false }] },
+            fakeMod.uid,
+            true
+        )
         expect(state.mods[0].enabled).toBe(true)
     })
 })
@@ -154,6 +159,7 @@ describe('installMod', () => {
     it('assigns incrementing priority to subsequent mods', () => {
         const fakeMod2: InstalledMod = {
             ...fakeMod,
+            uid: 'TestMod2.pak',
             id: 2,
             name: 'TestMod2',
             filename: 'TestMod2.pak',
@@ -169,8 +175,8 @@ describe('installMod', () => {
 describe('uninstallMod', () => {
     it('removes pak and clears state', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
-        const filename = readState(statePath).mods[0].filename
-        uninstallMod(gamePath, statePath, 1)
+        const { uid, filename } = readState(statePath).mods[0]
+        uninstallMod(gamePath, statePath, uid)
         expect(existsSync(activeModPath(gamePath, filename))).toBe(false)
         expect(readState(statePath).mods).toHaveLength(0)
     })
@@ -179,17 +185,17 @@ describe('uninstallMod', () => {
 describe('disableMod / enableMod', () => {
     it('moves pak to disabled folder on disable', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
-        const filename = readState(statePath).mods[0].filename
-        disableMod(gamePath, statePath, 1)
+        const { uid, filename } = readState(statePath).mods[0]
+        disableMod(gamePath, statePath, uid)
         expect(existsSync(activeModPath(gamePath, filename))).toBe(false)
         expect(existsSync(disabledModPath(gamePath, filename))).toBe(true)
     })
 
     it('moves pak back to active folder on enable', () => {
         installMod(gamePath, statePath, fakeMod, sourceFile)
-        const filename = readState(statePath).mods[0].filename
-        disableMod(gamePath, statePath, 1)
-        enableMod(gamePath, statePath, 1)
+        const { uid, filename } = readState(statePath).mods[0]
+        disableMod(gamePath, statePath, uid)
+        enableMod(gamePath, statePath, uid)
         expect(existsSync(activeModPath(gamePath, filename))).toBe(true)
         expect(existsSync(disabledModPath(gamePath, filename))).toBe(false)
     })
@@ -290,8 +296,8 @@ describe('installMod priority preservation', () => {
 // --- uninstallMod edge cases ---
 
 describe('uninstallMod', () => {
-    it('does nothing when mod id does not exist in state', () => {
-        expect(() => uninstallMod(gamePath, statePath, 9999)).not.toThrow()
+    it('does nothing when uid does not exist in state', () => {
+        expect(() => uninstallMod(gamePath, statePath, 'nonexistent-uid')).not.toThrow()
     })
 })
 
@@ -299,29 +305,41 @@ describe('uninstallMod', () => {
 
 describe('reorderModsInFolder', () => {
     it('reassigns priorities based on order (index 0 = highest priority)', () => {
-        const mod2: InstalledMod = { ...fakeMod, id: 2, name: 'Mod2', filename: 'Mod2.pak' }
+        const mod2: InstalledMod = {
+            ...fakeMod,
+            uid: 'Mod2.pak',
+            id: 2,
+            name: 'Mod2',
+            filename: 'Mod2.pak',
+        }
         installMod(gamePath, statePath, fakeMod, sourceFile)
         writeFileSync(join(tmp, 'Mod2.pak'), 'fake')
         installMod(gamePath, statePath, mod2, join(tmp, 'Mod2.pak'))
 
         const { mods } = readState(statePath)
-        const ids = mods.map((m) => m.id)
-        reorderModsInFolder(gamePath, statePath, null, ids)
+        const uids = mods.map((m) => m.uid)
+        reorderModsInFolder(gamePath, statePath, null, uids)
 
         const reordered = readState(statePath).mods
-        const first = reordered.find((m) => m.id === ids[0])!
-        const second = reordered.find((m) => m.id === ids[1])!
+        const first = reordered.find((m) => m.uid === uids[0])!
+        const second = reordered.find((m) => m.uid === uids[1])!
         expect(first.priority).toBeGreaterThan(second.priority!)
     })
 
     it('renames pak files on disk to reflect new priority prefix', () => {
-        const mod2: InstalledMod = { ...fakeMod, id: 2, name: 'Mod2', filename: 'Mod2.pak' }
+        const mod2: InstalledMod = {
+            ...fakeMod,
+            uid: 'Mod2.pak',
+            id: 2,
+            name: 'Mod2',
+            filename: 'Mod2.pak',
+        }
         installMod(gamePath, statePath, fakeMod, sourceFile)
         writeFileSync(join(tmp, 'Mod2.pak'), 'fake')
         installMod(gamePath, statePath, mod2, join(tmp, 'Mod2.pak'))
 
         const before = readState(statePath).mods
-        reorderModsInFolder(gamePath, statePath, null, [before[1].id, before[0].id])
+        reorderModsInFolder(gamePath, statePath, null, [before[1].uid, before[0].uid])
 
         const after = readState(statePath).mods
         for (const m of after) {

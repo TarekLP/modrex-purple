@@ -66,7 +66,8 @@ export function ModDetailPage({
     } | null>(null)
     const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    const installedMod = installed.find((m) => m.id === modId)
+    const installedFiles = installed.filter((m) => m.id === modId)
+    const installedMod = installedFiles[0]
 
     const fetchData = useCallback(async () => {
         setLoading(true)
@@ -142,10 +143,10 @@ export function ModDetailPage({
     }
 
     async function handleUninstall() {
-        if (!gamePath || !mod) return
+        if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            await window.api.uninstallMod(mod.id, gamePath)
+            for (const m of installedFiles) await window.api.uninstallMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -153,10 +154,10 @@ export function ModDetailPage({
     }
 
     async function handleEnable() {
-        if (!gamePath || !mod) return
+        if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            await window.api.enableMod(mod.id, gamePath)
+            for (const m of installedFiles) await window.api.enableMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -164,10 +165,10 @@ export function ModDetailPage({
     }
 
     async function handleDisable() {
-        if (!gamePath || !mod) return
+        if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            await window.api.disableMod(mod.id, gamePath)
+            for (const m of installedFiles) await window.api.disableMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -209,7 +210,7 @@ export function ModDetailPage({
                     mod={mod}
                     files={files}
                     gamePath={gamePath}
-                    installedMod={installedMod}
+                    installedFiles={installedFiles}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setShowFileSelect(false)}
                 />
@@ -245,7 +246,7 @@ export function ModDetailPage({
                     {mod && installedMod && (
                         <>
                             <Toggle
-                                checked={installedMod.enabled}
+                                checked={installedFiles.every((m) => m.enabled)}
                                 onChange={(v) => (v ? handleEnable() : handleDisable())}
                                 disabled={!canAct}
                             />
@@ -259,9 +260,9 @@ export function ModDetailPage({
                             </button>
                         </>
                     )}
-                    {mod && !installedMod && (
+                    {mod && mod.has_download && installedFiles.length === 0 && (
                         <button
-                            disabled={!canAct || !mod.has_download}
+                            disabled={!canAct}
                             onClick={handleInstall}
                             className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                         >
@@ -413,7 +414,7 @@ export function ModDetailPage({
                                 files={files}
                                 mod={mod}
                                 gamePath={gamePath}
-                                installedMod={installedMod}
+                                installedFiles={installedFiles}
                                 downloadProgress={downloadProgress}
                                 onRefreshInstalled={onRefreshInstalled}
                             />
@@ -551,19 +552,33 @@ function DownloadsTab({
     files,
     mod,
     gamePath,
-    installedMod,
+    installedFiles,
     downloadProgress,
     onRefreshInstalled,
 }: {
     files: ModFile[]
     mod: Mod
     gamePath: string | null
-    installedMod: InstalledMod | undefined
+    installedFiles: InstalledMod[]
     downloadProgress: { downloaded: number; total: number } | null
     onRefreshInstalled: () => Promise<void>
 }) {
     const [installingId, setInstallingId] = useState<number | null>(null)
+    const [uninstallingId, setUninstallingId] = useState<number | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
+
+    async function handleUninstallFile(file: ModFile) {
+        if (!gamePath) return
+        const installedMod = installedFiles.find((m) => m.fileId === file.id)
+        if (!installedMod) return
+        setUninstallingId(file.id)
+        try {
+            await window.api.uninstallMod(installedMod.uid, gamePath)
+            await onRefreshInstalled()
+        } finally {
+            setUninstallingId(null)
+        }
+    }
 
     async function handleInstallFile(file: ModFile) {
         if (!gamePath) return
@@ -605,7 +620,7 @@ function DownloadsTab({
                     <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">{file.name}</div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-text-subtle">
-                            <span className="px-1.5 py-0.5 rounded bg-surface-active uppercase tracking-wide text-[10px]">
+                            <span className="px-1.5 py-0.5 rounded bg-surface-active text-text uppercase tracking-wide text-[10px]">
                                 {file.type}
                             </span>
                             <span>{formatBytes(file.size)}</span>
@@ -619,7 +634,7 @@ function DownloadsTab({
                     </div>
                     <div className="flex gap-2 shrink-0">
                         {(() => {
-                            const isInstalled = installedMod?.fileId === file.id
+                            const isInstalled = installedFiles.some((m) => m.fileId === file.id)
                             return (
                                 <button
                                     disabled={!gamePath || installingId === file.id || isInstalled}
@@ -645,6 +660,16 @@ function DownloadsTab({
                                 </button>
                             )
                         })()}
+                        {installedFiles.some((m) => m.fileId === file.id) && (
+                            <button
+                                disabled={!gamePath || uninstallingId === file.id}
+                                onClick={() => handleUninstallFile(file)}
+                                title={t('common.remove')}
+                                className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                        )}
                         <button
                             onClick={() => window.api.openExternal(file.download_url)}
                             className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center gap-1.5"

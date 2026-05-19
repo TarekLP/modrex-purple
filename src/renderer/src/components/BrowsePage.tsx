@@ -182,9 +182,11 @@ export function BrowsePage({
 
     async function handleUninstall(modId: number) {
         if (!gamePath) return
+        const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+        if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            await window.api.uninstallMod(modId, gamePath)
+            for (const uid of uids) await window.api.uninstallMod(uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -193,9 +195,11 @@ export function BrowsePage({
 
     async function handleEnable(modId: number) {
         if (!gamePath) return
+        const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+        if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            await window.api.enableMod(modId, gamePath)
+            for (const uid of uids) await window.api.enableMod(uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -204,9 +208,11 @@ export function BrowsePage({
 
     async function handleDisable(modId: number) {
         if (!gamePath) return
+        const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+        if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            await window.api.disableMod(modId, gamePath)
+            for (const uid of uids) await window.api.disableMod(uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -226,7 +232,7 @@ export function BrowsePage({
                     mod={fileSelect.mod}
                     files={fileSelect.files}
                     gamePath={gamePath}
-                    installedMod={installed.find((m) => m.id === fileSelect.mod.id)}
+                    installedFiles={installed.filter((m) => m.id === fileSelect.mod.id)}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setFileSelect(null)}
                 />

@@ -90,9 +90,10 @@ export interface ModFolder {
     parentId: string | null // null = root level
 }
 
-export type TopLevelItem = { type: 'folder'; id: string } | { type: 'mod'; id: number }
+export type TopLevelItem = { type: 'folder'; id: string } | { type: 'mod'; id: string }
 
 export interface InstalledMod {
+    uid: string // unique per installed file — stable identity across renames
     id: number
     name: string
     version: string
@@ -100,6 +101,7 @@ export interface InstalledMod {
     enabled: boolean
     installedAt: string
     fileId?: number
+    fileType?: string
     sha256?: string
     priority?: number // higher = loads later in UE5 = overrides lower-priority mods
     missing?: boolean

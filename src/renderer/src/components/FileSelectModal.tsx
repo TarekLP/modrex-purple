@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Download, ExternalLink } from 'lucide-react'
+import { X, ExternalLink } from 'lucide-react'
 import type { Mod, ModFile, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
 
@@ -12,7 +12,7 @@ interface Props {
     mod: Mod
     files: ModFile[]
     gamePath: string | null
-    installedMod: InstalledMod | undefined
+    installedFiles: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
 }
@@ -21,10 +21,15 @@ export function FileSelectModal({
     mod,
     files,
     gamePath,
-    installedMod,
+    installedFiles,
     onRefreshInstalled,
     onClose,
 }: Props) {
+    const uninstalledIds = files
+        .filter((f) => !installedFiles.some((m) => m.fileId === f.id))
+        .map((f) => f.id)
+
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set(uninstalledIds))
     const [installingId, setInstallingId] = useState<number | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
@@ -49,27 +54,52 @@ export function FileSelectModal({
         return () => window.removeEventListener('keydown', onKey)
     }, [onClose])
 
-    async function handleInstall(file: ModFile) {
-        if (!gamePath) return
-        setInstallingId(file.id)
-        setInstallError(null)
-        try {
-            await window.api.installModFile(
-                mod.id,
-                mod.name,
-                file.id,
-                file.download_url,
-                file.type,
-                mod.version,
-                gamePath
-            )
-            await onRefreshInstalled()
-            onClose()
-        } catch (e) {
-            setInstallError(String(e))
-            setInstallingId(null)
-        }
+    function toggleFile(fileId: number) {
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            next.has(fileId) ? next.delete(fileId) : next.add(fileId)
+            return next
+        })
     }
+
+    async function handleInstallSelected() {
+        if (!gamePath) return
+        setInstallError(null)
+        const toInstall = files.filter(
+            (f) => selectedIds.has(f.id) && !installedFiles.some((m) => m.fileId === f.id)
+        )
+        for (const file of toInstall) {
+            setInstallingId(file.id)
+            try {
+                await window.api.installModFile(
+                    mod.id,
+                    mod.name,
+                    file.id,
+                    file.download_url,
+                    file.type,
+                    mod.version,
+                    gamePath
+                )
+                await onRefreshInstalled()
+                setSelectedIds((prev) => {
+                    const next = new Set(prev)
+                    next.delete(file.id)
+                    return next
+                })
+            } catch (e) {
+                setInstallError(String(e))
+                setInstallingId(null)
+                return
+            }
+        }
+        setInstallingId(null)
+        onClose()
+    }
+
+    const pendingCount = [...selectedIds].filter(
+        (id) => !installedFiles.some((m) => m.fileId === id)
+    ).length
+    const isBusy = installingId !== null
 
     return (
         <div
@@ -117,17 +147,57 @@ export function FileSelectModal({
                         </div>
                     )}
                     {files.map((file) => {
-                        const isInstalled = installedMod?.fileId === file.id
+                        const isInstalled = installedFiles.some((m) => m.fileId === file.id)
                         const isInstalling = installingId === file.id
+                        const isSelected = selectedIds.has(file.id)
                         return (
                             <div
                                 key={file.id}
-                                className="flex items-center gap-4 px-4 py-3 rounded-lg bg-surface-hover border border-border"
+                                onClick={() => !isInstalled && !isBusy && toggleFile(file.id)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors ${
+                                    isInstalled
+                                        ? 'bg-surface-hover border-border opacity-60'
+                                        : isSelected
+                                          ? 'bg-accent/5 border-accent/40 cursor-pointer'
+                                          : 'bg-surface-hover border-border cursor-pointer hover:border-border'
+                                }`}
                             >
+                                <input
+                                    type="checkbox"
+                                    checked={isInstalled || isSelected}
+                                    disabled={isInstalled || isBusy}
+                                    onChange={() => toggleFile(file.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="accent-accent w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                                />
                                 <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-medium truncate">{file.name}</div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium truncate">
+                                            {file.name}
+                                        </span>
+                                        {isInstalled && (
+                                            <span className="text-xs text-success-text shrink-0">
+                                                {isInstalling
+                                                    ? downloadProgress
+                                                        ? downloadProgress.total > 0
+                                                            ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                                            : t('common.downloading')
+                                                        : t('common.installing')
+                                                    : t('common.installed')}
+                                            </span>
+                                        )}
+                                        {isInstalling && (
+                                            <span className="text-xs text-text-muted shrink-0">
+                                                {downloadProgress
+                                                    ? downloadProgress.total > 0
+                                                        ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                                        : t('common.downloading')
+                                                    : t('common.installing')}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="flex items-center gap-2 mt-1 text-xs text-text-subtle flex-wrap">
-                                        <span className="px-1.5 py-0.5 rounded bg-surface-active uppercase tracking-wide text-[10px]">
+                                        <span className="px-1.5 py-0.5 rounded bg-surface-active text-text uppercase tracking-wide text-[10px]">
                                             {file.type}
                                         </span>
                                         <span>{formatBytes(file.size)}</span>
@@ -138,40 +208,36 @@ export function FileSelectModal({
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex gap-2 shrink-0">
-                                    <button
-                                        disabled={!gamePath || !!installingId || isInstalled}
-                                        onClick={() => handleInstall(file)}
-                                        className={`text-xs px-3 py-1.5 rounded transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
-                                            isInstalled
-                                                ? 'bg-success/20 border border-success/40 text-success-text'
-                                                : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
-                                        }`}
-                                    >
-                                        {!isInstalling && !isInstalled && (
-                                            <Download className="w-3.5 h-3.5" />
-                                        )}
-                                        {isInstalling
-                                            ? downloadProgress
-                                                ? downloadProgress.total > 0
-                                                    ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                                    : t('common.downloading')
-                                                : t('common.installing')
-                                            : isInstalled
-                                              ? t('common.installed')
-                                              : t('common.install')}
-                                    </button>
-                                    <button
-                                        onClick={() => window.api.openExternal(file.download_url)}
-                                        title={t('fileSelect.downloadManually')}
-                                        className="text-xs px-2 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center"
-                                    >
-                                        <ExternalLink className="w-3 h-3" />
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        window.api.openExternal(file.download_url)
+                                    }}
+                                    title={t('fileSelect.downloadManually')}
+                                    className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                </button>
                             </div>
                         )
                     })}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+                    <button
+                        onClick={onClose}
+                        disabled={isBusy}
+                        className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
+                    >
+                        {t('common.close')}
+                    </button>
+                    <button
+                        disabled={!gamePath || isBusy || pendingCount === 0}
+                        onClick={handleInstallSelected}
+                        className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {t('fileSelect.installSelected', { count: pendingCount })}
+                    </button>
                 </div>
             </div>
         </div>
