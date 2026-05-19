@@ -767,9 +767,9 @@ export function InstalledPage({
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
                             title={t('installed.folder.delete')}
-                            className="p-1.5 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
+                            className="p-2 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
                         >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     )}
                 </div>
