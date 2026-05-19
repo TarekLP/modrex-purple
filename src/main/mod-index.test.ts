@@ -3,7 +3,7 @@ import initSqlJs from 'sql.js'
 import { mkdirSync, rmSync, writeFileSync, existsSync, utimesSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { ensureIndex, lookupSha256 } from './mod-index'
+import { ensureIndex, lookupSha256, lookupByName } from './mod-index'
 
 vi.mock('electron', () => ({
     app: {
@@ -79,7 +79,12 @@ async function writeTestDb(): Promise<void> {
     `)
     db.run(`INSERT INTO games VALUES (1, 'PAYDAY 3', 'pd3')`)
     db.run(`INSERT INTO sources VALUES (1, 1, 'modworkshop', 'https://api.modworkshop.net', '853')`)
-    db.run(`INSERT INTO mods VALUES (1, 1, 55590, 'TestMod', 'https://modworkshop.net/mod/55590')`)
+    db.run(
+        `INSERT INTO mods VALUES (1, 1, 55590, 'TestMod Alpha', 'https://modworkshop.net/mod/55590')`
+    )
+    db.run(
+        `INSERT INTO mods VALUES (2, 1, 99999, 'TestMod Beta', 'https://modworkshop.net/mod/99999')`
+    )
     db.run(`INSERT INTO file_contents VALUES ('${TEST_SHA256}')`)
     db.run(`INSERT INTO files VALUES (1, 1, '${TEST_SHA256}', 11111, '1.0.0', '2026-01-01')`)
     writeFileSync(INDEX_PATH, Buffer.from(db.export()))
@@ -102,10 +107,29 @@ describe('lookupSha256', () => {
         it('returns correct fields for known sha256', async () => {
             expect(await lookupSha256(TEST_SHA256)).toEqual({
                 modRemoteId: 55590,
-                modName: 'TestMod',
+                modName: 'TestMod Alpha',
                 fileRemoteId: 11111,
                 version: '1.0.0',
             })
+        })
+    })
+})
+
+describe('lookupByName', () => {
+    describe('with DB loaded', () => {
+        beforeAll(async () => writeTestDb())
+        afterAll(() => rmSync(INDEX_PATH, { force: true }))
+
+        it('returns null for unknown name', async () => {
+            expect(await lookupByName('NotAMod')).toBeNull()
+        })
+
+        it('returns remote_id for unique partial name match', async () => {
+            expect(await lookupByName('Alpha')).toBe(55590)
+        })
+
+        it('returns null when multiple mods match the search term', async () => {
+            expect(await lookupByName('TestMod')).toBeNull()
         })
     })
 })

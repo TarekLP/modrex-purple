@@ -32,7 +32,7 @@ import {
 } from './mods'
 import { downloadFile } from './download'
 import { readSettings, writeSettings } from './settings'
-import { ensureIndex, lookupSha256 } from './mod-index'
+import { ensureIndex, lookupSha256, lookupByName } from './mod-index'
 
 function pakFilename(modName: string): string {
     return (
@@ -116,17 +116,13 @@ function registerHandlers(): void {
                         }
                     }
                     const match = await lookupSha256(sha256)
-                    if (!match) return { ...m, sha256 }
+                    const modRemoteId = match?.modRemoteId ?? (await lookupByName(m.name))
+                    if (!modRemoteId) return { ...m, sha256 }
                     try {
-                        const mod = await getMod(match.modRemoteId)
-                        return {
-                            ...m,
-                            id: mod.id,
-                            name: mod.name,
-                            fileId: match.fileRemoteId,
-                            version: match.version || mod.version,
-                            sha256,
-                        }
+                        const mod = await getMod(modRemoteId)
+                        const fileId = match?.fileRemoteId ?? (await getLatestFile(modRemoteId)).id
+                        const version = match?.version || mod.version
+                        return { ...m, id: mod.id, name: mod.name, fileId, version, sha256 }
                     } catch {
                         return { ...m, sha256 }
                     }
@@ -201,6 +197,25 @@ function registerHandlers(): void {
                         enabled,
                         installedAt: new Date().toISOString(),
                     }
+                }
+                const nameId = await lookupByName(stripPriorityPrefix(stem))
+                if (nameId) {
+                    try {
+                        const [mod, latestFile] = await Promise.all([
+                            getMod(nameId),
+                            getLatestFile(nameId),
+                        ])
+                        return {
+                            id: mod.id,
+                            name: mod.name,
+                            fileId: latestFile.id,
+                            version: latestFile.version || mod.version,
+                            ...(sha256 ? { sha256 } : {}),
+                            filename,
+                            enabled,
+                            installedAt: new Date().toISOString(),
+                        }
+                    } catch {}
                 }
                 return {
                     id: hashFilename(filename),

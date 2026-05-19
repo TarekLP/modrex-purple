@@ -81,3 +81,16 @@ export async function lookupSha256(sha256: string): Promise<IndexMatch | null> {
     stmt.free()
     return row
 }
+
+export async function lookupByName(name: string): Promise<number | null> {
+    const database = await getDb()
+    if (!database) return null
+    const stmt = database.prepare(`SELECT remote_id FROM mods WHERE name LIKE ? LIMIT 2`)
+    stmt.bind([`%${name}%`])
+    const rows: number[] = []
+    while (stmt.step()) {
+        rows.push((stmt.getAsObject() as { remote_id: number }).remote_id)
+    }
+    stmt.free()
+    return rows.length === 1 ? rows[0] : null
+}
