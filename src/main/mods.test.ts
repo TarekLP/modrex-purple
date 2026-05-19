@@ -13,7 +13,7 @@ import {
     uninstallMod,
     enableMod,
     disableMod,
-    reorderMods,
+    reorderModsInFolder,
     findUntrackedPaks,
     reconcileState,
     computeSha256,
@@ -50,15 +50,17 @@ describe('disabledModPath', () => {
 
 // --- state operations ---
 
+const emptyState: ModsState = { folders: [], mods: [] }
+
 describe('addToState', () => {
     it('adds mod to empty state', () => {
-        const state = addToState({ mods: [] }, fakeMod)
+        const state = addToState(emptyState, fakeMod)
         expect(state.mods).toHaveLength(1)
         expect(state.mods[0].id).toBe(1)
     })
 
     it('replaces existing mod with same id', () => {
-        const state = addToState({ mods: [fakeMod] }, { ...fakeMod, version: '2.0' })
+        const state = addToState({ folders: [], mods: [fakeMod] }, { ...fakeMod, version: '2.0' })
         expect(state.mods).toHaveLength(1)
         expect(state.mods[0].version).toBe('2.0')
     })
@@ -66,24 +68,24 @@ describe('addToState', () => {
 
 describe('removeFromState', () => {
     it('removes mod by id', () => {
-        const state = removeFromState({ mods: [fakeMod] }, 1)
+        const state = removeFromState({ folders: [], mods: [fakeMod] }, 1)
         expect(state.mods).toHaveLength(0)
     })
 
     it('does nothing for unknown id', () => {
-        const state = removeFromState({ mods: [fakeMod] }, 99)
+        const state = removeFromState({ folders: [], mods: [fakeMod] }, 99)
         expect(state.mods).toHaveLength(1)
     })
 })
 
 describe('setEnabled', () => {
     it('disables an enabled mod', () => {
-        const state = setEnabled({ mods: [fakeMod] }, 1, false)
+        const state = setEnabled({ folders: [], mods: [fakeMod] }, 1, false)
         expect(state.mods[0].enabled).toBe(false)
     })
 
     it('enables a disabled mod', () => {
-        const state = setEnabled({ mods: [{ ...fakeMod, enabled: false }] }, 1, true)
+        const state = setEnabled({ folders: [], mods: [{ ...fakeMod, enabled: false }] }, 1, true)
         expect(state.mods[0].enabled).toBe(true)
     })
 })
@@ -255,19 +257,19 @@ describe('reconcileState', () => {
 
 describe('readState', () => {
     it('returns empty state when file does not exist', () => {
-        expect(readState(join(tmp, 'nonexistent.json'))).toEqual({ mods: [] })
+        expect(readState(join(tmp, 'nonexistent.json'))).toEqual({ folders: [], mods: [] })
     })
 
     it('returns empty state when file contains invalid JSON', () => {
         const corrupt = join(tmp, 'corrupt.json')
         writeFileSync(corrupt, '{ this is not valid json }{{{')
-        expect(readState(corrupt)).toEqual({ mods: [] })
+        expect(readState(corrupt)).toEqual({ folders: [], mods: [] })
     })
 
     it('returns empty state when file is empty', () => {
         const empty = join(tmp, 'empty.json')
         writeFileSync(empty, '')
-        expect(readState(empty)).toEqual({ mods: [] })
+        expect(readState(empty)).toEqual({ folders: [], mods: [] })
     })
 })
 
@@ -295,7 +297,7 @@ describe('uninstallMod', () => {
 
 // --- reorderMods ---
 
-describe('reorderMods', () => {
+describe('reorderModsInFolder', () => {
     it('reassigns priorities based on order (index 0 = highest priority)', () => {
         const mod2: InstalledMod = { ...fakeMod, id: 2, name: 'Mod2', filename: 'Mod2.pak' }
         installMod(gamePath, statePath, fakeMod, sourceFile)
@@ -304,7 +306,7 @@ describe('reorderMods', () => {
 
         const { mods } = readState(statePath)
         const ids = mods.map((m) => m.id)
-        reorderMods(gamePath, statePath, ids)
+        reorderModsInFolder(gamePath, statePath, null, ids)
 
         const reordered = readState(statePath).mods
         const first = reordered.find((m) => m.id === ids[0])!
@@ -319,7 +321,7 @@ describe('reorderMods', () => {
         installMod(gamePath, statePath, mod2, join(tmp, 'Mod2.pak'))
 
         const before = readState(statePath).mods
-        reorderMods(gamePath, statePath, [before[1].id, before[0].id])
+        reorderModsInFolder(gamePath, statePath, null, [before[1].id, before[0].id])
 
         const after = readState(statePath).mods
         for (const m of after) {
@@ -357,7 +359,7 @@ describe('findUntrackedPaks', () => {
     }
 
     it('returns empty array when ~mods dir does not exist', async () => {
-        expect(await findUntrackedPaks(gamePath, new Set())).toEqual([])
+        expect(await findUntrackedPaks(gamePath, new Set(), [])).toEqual([])
     })
 
     it('returns empty array when ~mods.bak exists', async () => {
@@ -365,47 +367,47 @@ describe('findUntrackedPaks', () => {
         writeFileSync(join(activeDir(gamePath), 'SomeMod.pak'), '')
         mkdirSync(join(gamePath, 'PAYDAY3', 'Content'), { recursive: true })
         writeFileSync(modsBak(gamePath), '')
-        expect(await findUntrackedPaks(gamePath, new Set())).toEqual([])
+        expect(await findUntrackedPaks(gamePath, new Set(), [])).toEqual([])
     })
 
     it('returns untracked pak from active dir as enabled', async () => {
         mkdirSync(activeDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'CoolMod.pak'), '')
-        const result = await findUntrackedPaks(gamePath, new Set())
-        expect(result).toEqual([{ filename: 'CoolMod.pak', enabled: true }])
+        const result = await findUntrackedPaks(gamePath, new Set(), [])
+        expect(result).toEqual([{ relPath: 'CoolMod.pak', enabled: true }])
     })
 
     it('returns untracked pak from disabled dir as disabled', async () => {
         mkdirSync(disabledDir(gamePath), { recursive: true })
         writeFileSync(join(disabledDir(gamePath), 'OldMod.pak.disabled'), '')
-        const result = await findUntrackedPaks(gamePath, new Set())
-        expect(result).toEqual([{ filename: 'OldMod.pak', enabled: false }])
+        const result = await findUntrackedPaks(gamePath, new Set(), [])
+        expect(result).toEqual([{ relPath: 'OldMod.pak', enabled: false }])
     })
 
-    it('skips known filenames', async () => {
+    it('skips known relative paths', async () => {
         mkdirSync(activeDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'Known.pak'), '')
         writeFileSync(join(activeDir(gamePath), 'Unknown.pak'), '')
-        const result = await findUntrackedPaks(gamePath, new Set(['Known.pak']))
-        expect(result).toEqual([{ filename: 'Unknown.pak', enabled: true }])
+        const result = await findUntrackedPaks(gamePath, new Set(['Known.pak']), [])
+        expect(result).toEqual([{ relPath: 'Unknown.pak', enabled: true }])
     })
 
     it('ignores non-pak files', async () => {
         mkdirSync(activeDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'readme.txt'), '')
         writeFileSync(join(activeDir(gamePath), 'Mod.pak'), '')
-        const result = await findUntrackedPaks(gamePath, new Set())
+        const result = await findUntrackedPaks(gamePath, new Set(), [])
         expect(result).toHaveLength(1)
-        expect(result[0].filename).toBe('Mod.pak')
+        expect(result[0].relPath).toBe('Mod.pak')
     })
 
     it('returns paks from both active and disabled dirs', async () => {
         mkdirSync(disabledDir(gamePath), { recursive: true })
         writeFileSync(join(activeDir(gamePath), 'Active.pak'), '')
         writeFileSync(join(disabledDir(gamePath), 'Disabled.pak.disabled'), '')
-        const result = await findUntrackedPaks(gamePath, new Set())
+        const result = await findUntrackedPaks(gamePath, new Set(), [])
         expect(result).toHaveLength(2)
-        expect(result.find((r) => r.filename === 'Active.pak')?.enabled).toBe(true)
-        expect(result.find((r) => r.filename === 'Disabled.pak')?.enabled).toBe(false)
+        expect(result.find((r) => r.relPath === 'Active.pak')?.enabled).toBe(true)
+        expect(result.find((r) => r.relPath === 'Disabled.pak')?.enabled).toBe(false)
     })
 })

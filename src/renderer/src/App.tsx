@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, memo } from 'react'
 import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
-import type { InstalledMod } from '../../shared/types'
+import type { InstalledMod, ModFolder } from '../../shared/types'
 import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
@@ -21,6 +21,7 @@ export default function App() {
     const [detailStack, setDetailStack] = useState<number[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
+    const [folders, setFolders] = useState<ModFolder[]>([])
     const [installedReady, setInstalledReady] = useState(false)
     const [modsHidden, setModsHidden] = useState(false)
     const [restoreError, setRestoreError] = useState<string | null>(null)
@@ -40,8 +41,9 @@ export default function App() {
     }, [])
 
     const refreshInstalled = useCallback(async () => {
-        const { mods, modsHidden } = await window.api.getInstalled()
+        const { mods, folders, modsHidden } = await window.api.getInstalled()
         setInstalled(mods)
+        setFolders(folders)
         setModsHidden(modsHidden)
         setInstalledReady(true)
     }, [])
@@ -209,6 +211,7 @@ export default function App() {
                         <InstalledPageMemo
                             gamePath={gamePath}
                             installed={installed}
+                            folders={folders}
                             installedReady={installedReady}
                             onRefreshInstalled={refreshInstalled}
                             onOpenDetail={openDetailFromInstalled}

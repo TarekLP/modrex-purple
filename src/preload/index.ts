@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import type { ListModsParams } from '../main/api'
+import type { TopLevelItem } from '../shared/types'
 
 contextBridge.exposeInMainWorld('api', {
     listMods: (params?: ListModsParams) => ipcRenderer.invoke('api:list-mods', params),
@@ -36,8 +37,22 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.invoke('mods:enable', modId, gamePath),
     disableMod: (modId: number, gamePath: string) =>
         ipcRenderer.invoke('mods:disable', modId, gamePath),
-    reorderMods: (orderedIds: number[], gamePath: string) =>
-        ipcRenderer.invoke('mods:reorder', orderedIds, gamePath),
+    reorderModsInFolder: (folderId: string | null, orderedIds: number[], gamePath: string) =>
+        ipcRenderer.invoke('mods:reorder-in-folder', folderId, orderedIds, gamePath),
+    moveModToFolder: (
+        modId: number,
+        targetFolderId: string | null,
+        targetPosition: number,
+        gamePath: string
+    ) => ipcRenderer.invoke('mods:move-to-folder', modId, targetFolderId, targetPosition, gamePath),
+    reorderTopLevel: (items: TopLevelItem[], gamePath: string) =>
+        ipcRenderer.invoke('folders:reorder-top-level', items, gamePath),
+    createFolder: (displayName: string, gamePath: string) =>
+        ipcRenderer.invoke('folders:create', displayName, gamePath),
+    renameFolder: (folderId: string, displayName: string, gamePath: string) =>
+        ipcRenderer.invoke('folders:rename', folderId, displayName, gamePath),
+    deleteFolder: (folderId: string, gamePath: string) =>
+        ipcRenderer.invoke('folders:delete', folderId, gamePath),
 
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
     openPath: (path: string) => ipcRenderer.invoke('shell:open-path', path),

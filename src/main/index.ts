@@ -5,6 +5,7 @@ import { autoUpdater } from 'electron-updater'
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
 import { join } from 'path'
 import { rmSync, renameSync, existsSync, writeFileSync, mkdirSync } from 'fs'
+import { randomUUID } from 'crypto'
 import { exec, execSync, spawn } from 'child_process'
 import {
     listMods,
@@ -18,7 +19,12 @@ import {
 import { findGamePath, findSteamPath } from './steam'
 import {
     installMod,
-    reorderMods,
+    reorderModsInFolder,
+    moveModToFolder,
+    reorderTopLevel,
+    createFolder,
+    renameFolder,
+    deleteFolder,
     uninstallMod,
     enableMod,
     disableMod,
@@ -30,6 +36,7 @@ import {
     disabledModPath,
     stripPriorityPrefix,
 } from './mods'
+import type { TopLevelItem } from '../shared/types'
 import { downloadFile } from './download'
 import { readSettings, writeSettings } from './settings'
 import { ensureIndex, lookupSha256, lookupByName } from './mod-index'
@@ -100,7 +107,7 @@ function registerHandlers(): void {
             !!resolvedGamePath &&
             existsSync(join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak'))
 
-        if (!resolvedGamePath) return { mods: state.mods, modsHidden }
+        if (!resolvedGamePath) return { mods: state.mods, folders: state.folders, modsHidden }
 
         // Upgrade any synthetic mods (id < 0) once the index becomes available
         if (!modsHidden && state.mods.some((m) => m.id < 0)) {
@@ -110,9 +117,11 @@ function registerHandlers(): void {
                     let sha256 = m.sha256
                     if (!sha256) {
                         try {
+                            const folderDiskName =
+                                state.folders.find((f) => f.id === m.folderId)?.diskName ?? null
                             const pakPath = m.enabled
-                                ? activeModPath(resolvedGamePath!, m.filename)
-                                : disabledModPath(resolvedGamePath!, m.filename)
+                                ? activeModPath(resolvedGamePath!, m.filename, folderDiskName)
+                                : disabledModPath(resolvedGamePath!, m.filename, folderDiskName)
                             sha256 = await computeSha256(pakPath)
                         } catch {
                             return m
@@ -132,48 +141,99 @@ function registerHandlers(): void {
                 })
             )
             if (upgraded.some((m, i) => m !== state.mods[i])) {
-                state = { mods: upgraded }
+                state = { folders: state.folders, mods: upgraded }
                 writeFileSync(statePath, JSON.stringify(state, null, 4))
             }
         }
 
-        const knownFilenames = new Set(state.mods.map((m) => m.filename))
-        const untracked = await findUntrackedPaks(resolvedGamePath, knownFilenames)
-        if (untracked.length === 0) return { mods: state.mods, modsHidden }
+        const knownRelPaths = new Set(
+            state.mods.map((m) => {
+                const folder = state.folders.find((f) => f.id === m.folderId)
+                return folder ? `${folder.diskName}/${m.filename}` : m.filename
+            })
+        )
+        const untracked = await findUntrackedPaks(resolvedGamePath, knownRelPaths, state.folders)
+        if (untracked.length === 0) return { mods: state.mods, folders: state.folders, modsHidden }
+
+        const unknownDiskNames = new Set<string>()
+        for (const { relPath } of untracked) {
+            const slash = relPath.indexOf('/')
+            if (slash !== -1) {
+                const diskName = relPath.slice(0, slash)
+                if (!state.folders.find((f) => f.diskName === diskName)) {
+                    unknownDiskNames.add(diskName)
+                }
+            }
+        }
+        if (unknownDiskNames.size > 0) {
+            const rootMods = state.mods.filter((m) => (m.folderId ?? null) === null)
+            let maxPriority = Math.max(
+                0,
+                ...state.folders.map((f) => f.priority),
+                ...rootMods.map((m) => m.priority ?? 0)
+            )
+            const newFolders = Array.from(unknownDiskNames).map((diskName) => ({
+                id: randomUUID(),
+                diskName,
+                displayName: stripPriorityPrefix(diskName).replace(/_/g, ' ').trim(),
+                priority: ++maxPriority,
+            }))
+            state = { ...state, folders: [...state.folders, ...newFolders] }
+        }
 
         const sha256ToMod = new Map(state.mods.filter((m) => m.sha256).map((m) => [m.sha256!, m]))
 
+        function parseRelPath(relPath: string): { filename: string; folderId: string | null } {
+            const slash = relPath.indexOf('/')
+            if (slash === -1) return { filename: relPath, folderId: null }
+            const diskName = relPath.slice(0, slash)
+            const filename = relPath.slice(slash + 1)
+            const folderId = state.folders.find((f) => f.diskName === diskName)?.id ?? null
+            return { filename, folderId }
+        }
+
         const hashedResults = await Promise.allSettled(
-            untracked.map(async ({ filename, enabled }) => {
+            untracked.map(async ({ relPath, enabled }) => {
+                const { filename, folderId } = parseRelPath(relPath)
+                const folderDiskName =
+                    state.folders.find((f) => f.id === folderId)?.diskName ?? null
                 const pakPath = enabled
-                    ? activeModPath(resolvedGamePath!, filename)
-                    : disabledModPath(resolvedGamePath!, filename)
+                    ? activeModPath(resolvedGamePath!, filename, folderDiskName)
+                    : disabledModPath(resolvedGamePath!, filename, folderDiskName)
                 const sha256 = await computeSha256(pakPath)
-                return { filename, enabled, sha256 }
+                return { filename, folderId, enabled, sha256 }
             })
         )
-        const hashed = hashedResults.map((r, i) =>
-            r.status === 'fulfilled'
+        const hashed = hashedResults.map((r, i) => {
+            const { filename, folderId } = parseRelPath(untracked[i].relPath)
+            return r.status === 'fulfilled'
                 ? r.value
-                : { filename: untracked[i].filename, enabled: untracked[i].enabled, sha256: null }
-        )
+                : { filename, folderId, enabled: untracked[i].enabled, sha256: null }
+        })
 
         let reconciledMods = [...state.mods]
-        const trulyUntracked: { filename: string; enabled: boolean; sha256: string | null }[] = []
+        const trulyUntracked: {
+            filename: string
+            folderId: string | null
+            enabled: boolean
+            sha256: string | null
+        }[] = []
 
-        for (const { filename, enabled, sha256 } of hashed) {
+        for (const { filename, folderId, enabled, sha256 } of hashed) {
             const matched = sha256 ? sha256ToMod.get(sha256) : undefined
             if (matched) {
                 reconciledMods = reconciledMods.map((m) =>
-                    m.id === matched.id ? { ...m, filename, enabled, missing: undefined } : m
+                    m.id === matched.id
+                        ? { ...m, filename, folderId, enabled, missing: undefined }
+                        : m
                 )
             } else {
-                trulyUntracked.push({ filename, enabled, sha256 })
+                trulyUntracked.push({ filename, folderId, enabled, sha256 })
             }
         }
 
         const results = await Promise.allSettled(
-            trulyUntracked.map(async ({ filename, enabled, sha256 }) => {
+            trulyUntracked.map(async ({ filename, folderId, enabled, sha256 }) => {
                 const indexMatch = sha256 ? await lookupSha256(sha256) : null
                 if (indexMatch) {
                     const mod = await getMod(indexMatch.modRemoteId)
@@ -184,6 +244,7 @@ function registerHandlers(): void {
                         version: indexMatch.version || mod.version,
                         sha256,
                         filename,
+                        folderId,
                         enabled,
                         installedAt: new Date().toISOString(),
                     }
@@ -197,6 +258,7 @@ function registerHandlers(): void {
                         name: mod.name,
                         version: mod.version,
                         filename,
+                        folderId,
                         enabled,
                         installedAt: new Date().toISOString(),
                     }
@@ -215,6 +277,7 @@ function registerHandlers(): void {
                             version: latestFile.version || mod.version,
                             ...(sha256 ? { sha256 } : {}),
                             filename,
+                            folderId,
                             enabled,
                             installedAt: new Date().toISOString(),
                         }
@@ -226,6 +289,7 @@ function registerHandlers(): void {
                     version: 'unknown',
                     ...(sha256 ? { sha256 } : {}),
                     filename,
+                    folderId,
                     enabled,
                     installedAt: new Date().toISOString(),
                 }
@@ -233,8 +297,9 @@ function registerHandlers(): void {
         )
         const newMods = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
         const finalMods = [...reconciledMods, ...newMods]
-        writeFileSync(statePath, JSON.stringify({ mods: finalMods }, null, 4))
-        return { mods: finalMods, modsHidden }
+        const finalState = { folders: state.folders, mods: finalMods }
+        writeFileSync(statePath, JSON.stringify(finalState, null, 4))
+        return { mods: finalMods, folders: state.folders, modsHidden }
     })
 
     ipcMain.handle('mods:install', async (event, modId: number, gamePath: string) => {
@@ -325,8 +390,33 @@ function registerHandlers(): void {
     ipcMain.handle('mods:disable', (_, modId: number, gamePath: string) =>
         disableMod(gamePath, getStatePath(gamePath), modId)
     )
-    ipcMain.handle('mods:reorder', (_, orderedIds: number[], gamePath: string) =>
-        reorderMods(gamePath, getStatePath(gamePath), orderedIds)
+    ipcMain.handle(
+        'mods:reorder-in-folder',
+        (_, folderId: string | null, orderedIds: number[], gamePath: string) =>
+            reorderModsInFolder(gamePath, getStatePath(gamePath), folderId, orderedIds)
+    )
+    ipcMain.handle(
+        'mods:move-to-folder',
+        (
+            _,
+            modId: number,
+            targetFolderId: string | null,
+            targetPosition: number,
+            gamePath: string
+        ) =>
+            moveModToFolder(gamePath, getStatePath(gamePath), modId, targetFolderId, targetPosition)
+    )
+    ipcMain.handle('folders:reorder-top-level', (_, items: TopLevelItem[], gamePath: string) =>
+        reorderTopLevel(gamePath, getStatePath(gamePath), items)
+    )
+    ipcMain.handle('folders:create', (_, displayName: string, gamePath: string) =>
+        createFolder(gamePath, getStatePath(gamePath), displayName)
+    )
+    ipcMain.handle('folders:rename', (_, folderId: string, displayName: string, gamePath: string) =>
+        renameFolder(gamePath, getStatePath(gamePath), folderId, displayName)
+    )
+    ipcMain.handle('folders:delete', (_, folderId: string, gamePath: string) =>
+        deleteFolder(gamePath, getStatePath(gamePath), folderId)
     )
 
     ipcMain.handle('app:is-game-running', () => {

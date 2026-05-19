@@ -72,6 +72,16 @@
         "reviewUpdates": "Review updates",
         "gridView": "Grid view",
         "listView": "List view",
+        "newFolder": "New Folder",
+        "folder": {
+            "modCount": "{count} mods",
+            "modCountSingle": "{count} mod",
+            "rename": "Rename folder",
+            "renamePlaceholder": "Folder name",
+            "delete": "Delete folder",
+            "deleteConfirm": "Delete folder and move its mods to root?",
+            "dropHere": "Drop mods here"
+        },
         "updatesModal": {
             "title": "Available updates ({count})",
             "update": "Update",

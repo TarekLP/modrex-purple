@@ -82,6 +82,15 @@ export interface Category {
 
 export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
 
+export interface ModFolder {
+    id: string
+    diskName: string // priority-prefixed slug on disk, e.g. '002_weapons'
+    displayName: string // user-facing label
+    priority: number // shared space with root mod priorities
+}
+
+export type TopLevelItem = { type: 'folder'; id: string } | { type: 'mod'; id: number }
+
 export interface InstalledMod {
     id: number
     name: string
@@ -93,9 +102,11 @@ export interface InstalledMod {
     sha256?: string
     priority?: number // higher = loads later in UE5 = overrides lower-priority mods
     missing?: boolean
+    folderId?: string | null // null or absent = root level
 }
 
 export interface ModsState {
+    folders: ModFolder[]
     mods: InstalledMod[]
 }
 

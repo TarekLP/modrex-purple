@@ -1,4 +1,12 @@
-import type { Mod, ModFile, Category, Paginated, InstalledMod } from './types'
+import type {
+    Mod,
+    ModFile,
+    Category,
+    Paginated,
+    InstalledMod,
+    ModFolder,
+    TopLevelItem,
+} from './types'
 import type { ListModsParams } from '../main/api'
 
 declare global {
@@ -10,7 +18,11 @@ declare global {
             listModFiles(modId: number): Promise<Paginated<ModFile>>
 
             findGamePath(): Promise<string | null>
-            getInstalled(): Promise<{ mods: InstalledMod[]; modsHidden: boolean }>
+            getInstalled(): Promise<{
+                mods: InstalledMod[]
+                folders: ModFolder[]
+                modsHidden: boolean
+            }>
             installMod(modId: number, gamePath: string): Promise<void>
             installModFile(
                 modId: number,
@@ -24,7 +36,21 @@ declare global {
             uninstallMod(modId: number, gamePath: string): Promise<void>
             enableMod(modId: number, gamePath: string): Promise<void>
             disableMod(modId: number, gamePath: string): Promise<void>
-            reorderMods(orderedIds: number[], gamePath: string): Promise<void>
+            reorderModsInFolder(
+                folderId: string | null,
+                orderedIds: number[],
+                gamePath: string
+            ): Promise<void>
+            moveModToFolder(
+                modId: number,
+                targetFolderId: string | null,
+                targetPosition: number,
+                gamePath: string
+            ): Promise<void>
+            reorderTopLevel(items: TopLevelItem[], gamePath: string): Promise<void>
+            createFolder(displayName: string, gamePath: string): Promise<ModFolder>
+            renameFolder(folderId: string, displayName: string, gamePath: string): Promise<void>
+            deleteFolder(folderId: string, gamePath: string): Promise<void>
 
             openExternal(url: string): Promise<void>
             openPath(path: string): Promise<void>
