@@ -46,11 +46,11 @@ Log file locations:
 ## Development
 
 ```bash
-npm install
-npm run dev        # start with hot reload
-npm run build      # production build → out/
-npm run typecheck  # type-check
-npm test           # run tests
+pnpm install
+pnpm dev        # start with hot reload
+pnpm build      # production build → out/
+pnpm typecheck  # type-check
+pnpm test       # run tests
 ```
 
 ## Tech stack
