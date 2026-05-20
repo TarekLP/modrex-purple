@@ -101,15 +101,14 @@ function computeChildren(
     }
     items.sort((a, b) => {
         if (a.type !== b.type) return a.type === 'mod' ? -1 : 1
-        const diskPrefix = (s: string) => parseInt(s.match(/^(\d+)_/)?.[1] ?? '0', 10)
         const pa =
             a.type === 'folder'
-                ? diskPrefix(a.folder.diskName)
-                : Math.min(...a.mods.map((m) => diskPrefix(m.filename)))
+                ? a.folder.priority
+                : Math.min(...a.mods.map((m) => m.priority ?? 0))
         const pb =
             b.type === 'folder'
-                ? diskPrefix(b.folder.diskName)
-                : Math.min(...b.mods.map((m) => diskPrefix(m.filename)))
+                ? b.folder.priority
+                : Math.min(...b.mods.map((m) => m.priority ?? 0))
         return pb - pa
     })
     return items
@@ -1095,7 +1094,7 @@ export function InstalledPage({
                                 {rootChildren.map((item) =>
                                     item.type === 'folder'
                                         ? renderFolderSection(item.folder)
-                                        : renderRootMod(item.mods, true)
+                                        : renderRootMod(item.mods)
                                 )}
                             </div>
                         ) : (
