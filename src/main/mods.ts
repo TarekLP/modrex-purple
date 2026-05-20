@@ -500,12 +500,7 @@ export function createFolder(
     parentId: string | null = null
 ): ModFolder {
     const state = readState(statePath)
-    const slug =
-        displayName
-            .toLowerCase()
-            .trim()
-            .replace(/[^\w]+/g, '_')
-            .replace(/^_+|_+$/g, '') || 'folder'
+    const slug = displayName.trim().replace(/[\\/:*?"<>|]/g, '') || 'folder'
 
     const siblingMods = state.mods.filter((m) => (m.folderId ?? null) === parentId)
     const siblingFolders = state.folders.filter((f) => f.parentId === parentId)
@@ -600,12 +595,7 @@ export function renameFolder(
     const folder = state.folders.find((f) => f.id === folderId)
     if (!folder) return
 
-    const slug =
-        displayName
-            .toLowerCase()
-            .trim()
-            .replace(/[^\w]+/g, '_')
-            .replace(/^_+|_+$/g, '') || 'folder'
+    const slug = displayName.trim().replace(/[\\/:*?"<>|]/g, '') || 'folder'
     const newDiskName = applyPriorityPrefix(slug, folder.priority)
 
     if (newDiskName !== folder.diskName) {
