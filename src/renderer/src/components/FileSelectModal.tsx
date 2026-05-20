@@ -175,6 +175,17 @@ export function FileSelectModal({
                                         <span className="text-sm font-medium truncate">
                                             {file.name}
                                         </span>
+                                        {file.label && (
+                                            <span
+                                                className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 uppercase tracking-wide ${
+                                                    file.label.toLowerCase() === 'main'
+                                                        ? 'bg-accent/15 text-accent border-accent/30'
+                                                        : 'bg-surface-active text-text-subtle border-border'
+                                                }`}
+                                            >
+                                                {file.label}
+                                            </span>
+                                        )}
                                         {isInstalled && (
                                             <span className="text-xs text-success-text shrink-0">
                                                 {isInstalling
@@ -202,7 +213,6 @@ export function FileSelectModal({
                                         </span>
                                         <span>{formatBytes(file.size)}</span>
                                         {file.version && <span>v{file.version}</span>}
-                                        {file.label && <span>{file.label}</span>}
                                         {file.downloads != null && (
                                             <span>{file.downloads.toLocaleString()} dl</span>
                                         )}
