@@ -267,9 +267,13 @@ export function installMod(
     if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true })
 
     const existing = state.mods.find((m) => m.uid === mod.uid)
-    const modsInFolder = state.mods.filter((m) => (m.folderId ?? null) === folderId)
-    const priority =
-        existing?.priority ?? modsInFolder.reduce((max, m) => Math.max(max, m.priority ?? 0), 0) + 1
+    const maxSiblingMod = state.mods
+        .filter((m) => (m.folderId ?? null) === folderId)
+        .reduce((max, m) => Math.max(max, m.priority ?? 0), 0)
+    const maxSiblingFolder = state.folders
+        .filter((f) => f.parentId === folderId)
+        .reduce((max, f) => Math.max(max, f.priority), 0)
+    const priority = existing?.priority ?? Math.max(maxSiblingMod, maxSiblingFolder) + 1
     const filename = applyPriorityPrefix(mod.filename, priority)
 
     copyFileSync(sourcePath, activeModPath(gamePath, filename, folderRelPath))
