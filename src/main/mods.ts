@@ -567,15 +567,50 @@ export function moveFolder(
 }
 
 export function renameFolder(
-    _gamePath: string,
+    gamePath: string,
     statePath: string,
     folderId: string,
     displayName: string
 ): void {
     const state = readState(statePath)
+    const folder = state.folders.find((f) => f.id === folderId)
+    if (!folder) return
+
+    const slug =
+        displayName
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w]+/g, '_')
+            .replace(/^_+|_+$/g, '') || 'folder'
+    const newDiskName = applyPriorityPrefix(slug, folder.priority)
+
+    if (newDiskName !== folder.diskName) {
+        const parentRelPath = getFolderPath(state.folders, folder.parentId)
+        const modsBase = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
+        const disabledBase = join(modsBase, 'disabled')
+
+        const oldActive = parentRelPath
+            ? join(modsBase, parentRelPath, folder.diskName)
+            : join(modsBase, folder.diskName)
+        const newActive = parentRelPath
+            ? join(modsBase, parentRelPath, newDiskName)
+            : join(modsBase, newDiskName)
+        if (existsSync(oldActive)) renameSync(oldActive, newActive)
+
+        const oldDisabled = parentRelPath
+            ? join(disabledBase, parentRelPath, folder.diskName)
+            : join(disabledBase, folder.diskName)
+        const newDisabled = parentRelPath
+            ? join(disabledBase, parentRelPath, newDiskName)
+            : join(disabledBase, newDiskName)
+        if (existsSync(oldDisabled)) renameSync(oldDisabled, newDisabled)
+    }
+
     saveState(statePath, {
         ...state,
-        folders: state.folders.map((f) => (f.id === folderId ? { ...f, displayName } : f)),
+        folders: state.folders.map((f) =>
+            f.id === folderId ? { ...f, displayName, diskName: newDiskName } : f
+        ),
     })
 }
 
