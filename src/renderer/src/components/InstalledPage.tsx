@@ -66,6 +66,12 @@ type DropTarget =
           itemType: 'folder' | 'mod'
           parentId: string | null
       }
+    | {
+          kind: 'after-child'
+          id: string
+          itemType: 'folder' | 'mod'
+          parentId: string | null
+      }
     | null
 
 type ChildEntry = { type: 'folder'; folder: ModFolder } | { type: 'mod'; mods: InstalledMod[] }
@@ -94,14 +100,16 @@ function computeChildren(
         items.push({ type: 'folder', folder })
     }
     items.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'mod' ? -1 : 1
+        const diskPrefix = (s: string) => parseInt(s.match(/^(\d+)_/)?.[1] ?? '0', 10)
         const pa =
             a.type === 'folder'
-                ? a.folder.priority
-                : Math.min(...a.mods.map((m) => m.priority ?? 0))
+                ? diskPrefix(a.folder.diskName)
+                : Math.min(...a.mods.map((m) => diskPrefix(m.filename)))
         const pb =
             b.type === 'folder'
-                ? b.folder.priority
-                : Math.min(...b.mods.map((m) => m.priority ?? 0))
+                ? diskPrefix(b.folder.diskName)
+                : Math.min(...b.mods.map((m) => diskPrefix(m.filename)))
         return pb - pa
     })
     return items
@@ -308,7 +316,13 @@ export function InstalledPage({
     function onChildModDragOver(e: React.DragEvent, uid: string, parentId: string | null) {
         if (!dragItem || dragItem.kind !== 'folder') return
         e.preventDefault()
-        setDropTarget({ kind: 'before-child', id: uid, itemType: 'mod', parentId })
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        const isBottom = e.clientY - rect.top > rect.height / 2
+        setDropTarget(
+            isBottom
+                ? { kind: 'after-child', id: uid, itemType: 'mod', parentId }
+                : { kind: 'before-child', id: uid, itemType: 'mod', parentId }
+        )
     }
 
     async function onModDrop(targetRepUid: string) {
@@ -407,7 +421,8 @@ export function InstalledPage({
             (item) => item.type === targetItemType && item.id === targetId
         )
         if (insertIdx === -1) return
-        items.splice(insertIdx, 0, { type: 'folder', id: srcFolderId })
+        const insertPos = dropTarget?.kind === 'after-child' ? insertIdx + 1 : insertIdx
+        items.splice(insertPos, 0, { type: 'folder', id: srcFolderId })
 
         const draggedFolder = folders.find((f) => f.id === srcFolderId)
         if (draggedFolder && draggedFolder.parentId !== parentId) {
@@ -885,9 +900,13 @@ export function InstalledPage({
                                     return renderFolderSection(child.folder)
                                 }
                                 const repUid = child.mods[0].uid
-                                const isChildDropZone =
+                                const isChildDropBefore =
                                     dragItem?.kind === 'folder' &&
                                     dropTarget?.kind === 'before-child' &&
+                                    dropTarget.id === repUid
+                                const isChildDropAfter =
+                                    dragItem?.kind === 'folder' &&
+                                    dropTarget?.kind === 'after-child' &&
                                     dropTarget.id === repUid
                                 return (
                                     <div
@@ -898,10 +917,13 @@ export function InstalledPage({
                                             onChildDrop(dragItem.id, repUid, 'mod', folder.id)
                                         }
                                     >
-                                        {isChildDropZone && (
+                                        {isChildDropBefore && (
                                             <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />
                                         )}
                                         {renderModCard(child.mods)}
+                                        {isChildDropAfter && (
+                                            <div className="h-0.5 rounded-full bg-accent mx-2 mt-1" />
+                                        )}
                                     </div>
                                 )
                             })
@@ -928,10 +950,15 @@ export function InstalledPage({
 
     function renderRootMod(mods: InstalledMod[], isFolderDropZone = false) {
         const repUid = mods[0].uid
-        const isDropTarget =
+        const isDropBefore =
             isFolderDropZone &&
             dragItem?.kind === 'folder' &&
             dropTarget?.kind === 'before-child' &&
+            dropTarget.id === repUid
+        const isDropAfter =
+            isFolderDropZone &&
+            dragItem?.kind === 'folder' &&
+            dropTarget?.kind === 'after-child' &&
             dropTarget.id === repUid
 
         if (viewMode === 'list') {
@@ -949,8 +976,9 @@ export function InstalledPage({
                             : undefined
                     }
                 >
-                    {isDropTarget && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
+                    {isDropBefore && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
                     {renderModCard(mods)}
+                    {isDropAfter && <div className="h-0.5 rounded-full bg-accent mx-2 mt-1" />}
                 </div>
             )
         }
@@ -1067,10 +1095,7 @@ export function InstalledPage({
                                 {rootChildren.map((item) =>
                                     item.type === 'folder'
                                         ? renderFolderSection(item.folder)
-                                        : renderRootMod(
-                                              item.mods,
-                                              rootGroupLeaders.has(item.mods[0].uid)
-                                          )
+                                        : renderRootMod(item.mods, true)
                                 )}
                             </div>
                         ) : (
@@ -1080,9 +1105,13 @@ export function InstalledPage({
                                         return renderFolderSection(group.folder)
                                     }
                                     const leaderId = group.groups[0][0].uid
-                                    const isGroupDropTarget =
+                                    const isGroupDropBefore =
                                         dragItem?.kind === 'folder' &&
                                         dropTarget?.kind === 'before-child' &&
+                                        dropTarget.id === leaderId
+                                    const isGroupDropAfter =
+                                        dragItem?.kind === 'folder' &&
+                                        dropTarget?.kind === 'after-child' &&
                                         dropTarget.id === leaderId
                                     return (
                                         <div
@@ -1096,8 +1125,11 @@ export function InstalledPage({
                                                 onChildDrop(dragItem.id, leaderId, 'mod', null)
                                             }
                                         >
-                                            {isGroupDropTarget && (
+                                            {isGroupDropBefore && (
                                                 <div className="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />
+                                            )}
+                                            {isGroupDropAfter && (
+                                                <div className="absolute -bottom-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />
                                             )}
                                             {group.groups.map((mods) => renderRootMod(mods))}
                                         </div>
