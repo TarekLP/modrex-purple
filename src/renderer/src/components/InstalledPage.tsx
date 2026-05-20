@@ -254,10 +254,32 @@ export function InstalledPage({
     }
 
     function onModDragOver(e: React.DragEvent, uid: string) {
-        if (!dragItem || (dragItem.kind === 'mod' && dragItem.uid === uid)) return
-        e.preventDefault()
+        if (!dragItem || dragItem.kind === 'folder') return
+        if (dragItem.uid === uid) return
+
+        const srcMod = installed.find((m) => m.uid === dragItem.uid)
+        const targetMod = installed.find((m) => m.uid === uid)
+        if (!srcMod || !targetMod) return
+
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
         const isTop = e.clientY - rect.top < rect.height / 2
+
+        if ((srcMod.folderId ?? null) === (targetMod.folderId ?? null)) {
+            const srcFolderId = srcMod.folderId ?? null
+            const scopedMods = installed
+                .filter((m) => (m.folderId ?? null) === srcFolderId)
+                .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+            const srcGroupSize = scopedMods.filter((m) => m.id === srcMod.id).length
+            const srcOrigIdx = scopedMods.findIndex((m) => m.uid === srcMod.uid)
+            const noOpNeighbor = isTop
+                ? scopedMods[srcOrigIdx + srcGroupSize]
+                : srcOrigIdx > 0
+                  ? scopedMods[srcOrigIdx - 1]
+                  : undefined
+            if (noOpNeighbor?.id === targetMod.id) return
+        }
+
+        e.preventDefault()
         setDropTarget(isTop ? { kind: 'before-mod', uid } : { kind: 'after-mod', uid })
     }
 
