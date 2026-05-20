@@ -229,6 +229,30 @@ export async function reconcileState(gamePath: string, statePath: string): Promi
         saveState(statePath, { ...state, mods: reconciled })
     }
 
+    // Drop folder entries whose directory no longer exists on disk (e.g. manually renamed).
+    // getFolderPath for a child of a phantom folder also returns the old path, so both parent
+    // and children get detected and removed in one pass.
+    const modsBase = join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
+    const phantomFolderIds = new Set(
+        state.folders
+            .filter((folder) => {
+                const relPath = getFolderPath(state.folders, folder.id)
+                if (!relPath) return false
+                return (
+                    !existsSync(join(modsBase, relPath)) &&
+                    !existsSync(join(modsBase, 'disabled', relPath))
+                )
+            })
+            .map((f) => f.id)
+    )
+    const cleanedFolders =
+        phantomFolderIds.size > 0
+            ? state.folders.filter((f) => !phantomFolderIds.has(f.id))
+            : state.folders
+    if (phantomFolderIds.size > 0) {
+        saveState(statePath, { folders: cleanedFolders, mods: reconciled })
+    }
+
     if (reconciled.some((m) => m.priority === undefined)) {
         const maxByFolder = new Map<string | null, number>()
         for (const m of reconciled) {
@@ -244,11 +268,11 @@ export async function reconcileState(gamePath: string, statePath: string): Promi
             maxByFolder.set(key, next)
             return { ...m, priority: next }
         })
-        saveState(statePath, { ...state, mods: migrated })
-        return { folders: state.folders, mods: migrated }
+        saveState(statePath, { folders: cleanedFolders, mods: migrated })
+        return { folders: cleanedFolders, mods: migrated }
     }
 
-    return { folders: state.folders, mods: reconciled }
+    return { folders: cleanedFolders, mods: reconciled }
 }
 
 export function installMod(
