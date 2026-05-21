@@ -16,6 +16,7 @@ import type { Mod, InstalledMod, ModFolder, TopLevelItem } from '../../../shared
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
+import { Toggle } from './Toggle'
 import { getCachedMod } from '../modCache'
 
 type ViewMode = 'grid' | 'list'
@@ -79,6 +80,16 @@ type ChildEntry = { type: 'folder'; folder: ModFolder } | { type: 'mod'; mods: I
 type ChildGroup =
     | { type: 'folder'; folder: ModFolder }
     | { type: 'root-group'; groups: InstalledMod[][] }
+
+function getAllModsInFolder(
+    mods: InstalledMod[],
+    folders: ModFolder[],
+    folderId: string
+): InstalledMod[] {
+    const direct = mods.filter((m) => (m.folderId ?? null) === folderId)
+    const childFolders = folders.filter((f) => f.parentId === folderId)
+    return [...direct, ...childFolders.flatMap((f) => getAllModsInFolder(mods, folders, f.id))]
+}
 
 function computeChildren(
     mods: InstalledMod[],
@@ -145,6 +156,7 @@ export function InstalledPage({
     const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
     const fetchedAt = useRef<Map<number, number>>(new Map())
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
+    const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
     const [showUpdates, setShowUpdates] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -545,6 +557,24 @@ export function InstalledPage({
         }
     }
 
+    async function handleToggleFolder(folderId: string, anyEnabled: boolean) {
+        if (!gamePath) return
+        setLoadingFolderId(folderId)
+        try {
+            const mods = getAllModsInFolder(installed, folders, folderId)
+            for (const mod of mods) {
+                if (anyEnabled) {
+                    await window.api.disableMod(mod.uid, gamePath)
+                } else {
+                    await window.api.enableMod(mod.uid, gamePath)
+                }
+            }
+            await onRefreshInstalled()
+        } finally {
+            setLoadingFolderId(null)
+        }
+    }
+
     async function handleEnable(mods: InstalledMod[]) {
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
@@ -739,6 +769,9 @@ export function InstalledPage({
             (c): c is { type: 'mod'; mods: InstalledMod[] } => c.type === 'mod'
         )
         const isEmpty = children.length === 0
+        const allMods = getAllModsInFolder(installed, folders, folder.id)
+        const anyEnabled = allMods.some((m) => m.enabled)
+        const isFolderLoading = loadingFolderId === folder.id
 
         return (
             <div
@@ -837,6 +870,21 @@ export function InstalledPage({
                             { count: directModGroups.length }
                         )}
                     </span>
+
+                    {!isRenaming && allMods.length > 0 && (
+                        <div onMouseDown={(e) => e.stopPropagation()}>
+                            <Toggle
+                                checked={anyEnabled}
+                                onChange={() => handleToggleFolder(folder.id, anyEnabled)}
+                                disabled={isFolderLoading || !gamePath}
+                                title={t(
+                                    anyEnabled
+                                        ? 'installed.folder.disable'
+                                        : 'installed.folder.enable'
+                                )}
+                            />
+                        </div>
+                    )}
 
                     {/* New subfolder button */}
                     {!isRenaming && gamePath && (

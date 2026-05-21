@@ -76,6 +76,8 @@
         "folder": {
             "modCount": "{count} mods",
             "modCountSingle": "{count} mod",
+            "enable": "Enable all mods in folder",
+            "disable": "Disable all mods in folder",
             "rename": "Rename folder",
             "renamePlaceholder": "Folder name",
             "newSubfolder": "New Subfolder",
