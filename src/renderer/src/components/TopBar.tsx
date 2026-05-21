@@ -21,24 +21,27 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
     const [dontShowAgain, setDontShowAgain] = useState(false)
     const [launchError, setLaunchError] = useState<string | null>(null)
     const wasRunning = useRef(false)
+    const pendingRestore = useRef(false)
+    const missedWhileLaunching = useRef(0)
     const launchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     function startLaunching(mode: 'modded' | 'vanilla') {
         setLaunching(mode)
+        missedWhileLaunching.current = 0
         if (launchTimeoutRef.current) clearTimeout(launchTimeoutRef.current)
-        // Safety fallback: clear launching state after 60s if game never appeared
         launchTimeoutRef.current = setTimeout(() => setLaunching(null), 60_000)
     }
 
     useEffect(() => {
         const check = async () => {
             const running = await window.api.isGameRunning()
-            if (wasRunning.current && !running) {
+            if (!running && (wasRunning.current || pendingRestore.current)) {
                 try {
                     await window.api.restoreMods()
                 } catch (e) {
                     setLaunchError(String(e))
                 }
+                pendingRestore.current = false
                 await onRefreshInstalled()
             }
             if (running) {
@@ -46,6 +49,14 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
                 if (launchTimeoutRef.current) {
                     clearTimeout(launchTimeoutRef.current)
                     launchTimeoutRef.current = null
+                }
+            } else if (launchTimeoutRef.current !== null) {
+                // 3 × 3 s = 9 s max before concluding the game crashed at startup
+                if (++missedWhileLaunching.current >= 3) {
+                    setLaunching(null)
+                    clearTimeout(launchTimeoutRef.current)
+                    launchTimeoutRef.current = null
+                    missedWhileLaunching.current = 0
                 }
             }
             wasRunning.current = running
@@ -79,6 +90,7 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
         try {
             startLaunching('vanilla')
             await window.api.launchWithoutMods(gamePath)
+            pendingRestore.current = true
         } catch (e) {
             setLaunching(null)
             if (launchTimeoutRef.current) {
