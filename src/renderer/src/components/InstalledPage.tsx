@@ -862,7 +862,7 @@ export function InstalledPage({
                     )}
 
                     {/* Mod count */}
-                    <span className="text-xs text-text-subtle shrink-0">
+                    <span className="text-xs text-text-subtle leading-none shrink-0">
                         {t(
                             directModGroups.length === 1
                                 ? 'installed.folder.modCountSingle'
@@ -872,7 +872,10 @@ export function InstalledPage({
                     </span>
 
                     {!isRenaming && allMods.length > 0 && (
-                        <div onMouseDown={(e) => e.stopPropagation()}>
+                        <div
+                            className="flex items-center shrink-0"
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
                             <Toggle
                                 checked={anyEnabled}
                                 onChange={() => handleToggleFolder(folder.id, anyEnabled)}
@@ -896,7 +899,7 @@ export function InstalledPage({
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
                             title={t('installed.folder.newSubfolder')}
-                            className="p-1 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                            className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
                         >
                             <FolderPlus className="w-3.5 h-3.5" />
                         </button>
@@ -911,9 +914,9 @@ export function InstalledPage({
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
                             title={t('installed.folder.delete')}
-                            className="p-2 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
+                            className="p-1.5 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
                         >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                         </button>
                     )}
                 </div>
