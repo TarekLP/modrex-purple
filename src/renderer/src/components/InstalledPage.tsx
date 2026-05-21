@@ -924,7 +924,7 @@ export function InstalledPage({
                 {/* Folder contents */}
                 {!isCollapsed && (
                     <div
-                        className={`ml-4 mt-1 flex flex-col ${viewMode === 'grid' ? 'gap-3' : 'gap-1.5'}`}
+                        className={`ml-4 flex flex-col ${viewMode === 'grid' ? 'mt-3 gap-3' : 'mt-1.5 gap-1.5'}`}
                     >
                         {/* New subfolder input */}
                         {creatingFolderParentId === folder.id && renderNewFolderInput()}
