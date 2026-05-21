@@ -80,11 +80,13 @@ t('browse.modCount', { total: 42 })
 
 ### Styling
 
-All colors are semantic tokens defined in `src/renderer/src/index.css` via Tailwind v4's `@theme` block — never use hardcoded Tailwind color classes like `zinc-*` or `red-*` in components. Token names: `surface`, `surface-raised`, `surface-hover`, `surface-active`, `surface-light`, `border`, `text`, `text-muted`, `text-subtle`, `accent`, `accent-bright`, `danger`, `danger-hover`, `danger-text`, `success`, `success-text`.
+All colors are semantic tokens defined in `src/renderer/src/index.css` via Tailwind v4's `@theme` block — never use hardcoded Tailwind color classes like `zinc-*` or `red-*` in components. Token names: `surface`, `surface-raised`, `surface-hover`, `surface-active`, `surface-light`, `border`, `text`, `text-muted`, `text-subtle`, `accent`, `accent-bright`, `danger`, `danger-hover`, `danger-text`, `success`, `success-text`, `warning`.
 
 The one exception: `createDragImage` in `InstalledPage.tsx` builds DOM elements outside React's render tree where Tailwind classes don't apply. Use hex equivalents there: `#18181b` = `surface-raised`, `#27272a` = `surface-hover`/`border`, `#f4f4f3` = `text`.
 
-Icons: `lucide-react`, imported individually by name. Custom dropdowns: use `components/Select.tsx` — native `<select>` can't be themed. Markdown: use the shared `components/MarkdownContent.tsx` — never inline `ReactMarkdown` directly.
+Icons: `lucide-react`, imported individually by name. Custom dropdowns: use `components/Select.tsx` — native `<select>` can't be themed. Toggles: use `components/Toggle.tsx`. Markdown: use `components/MarkdownContent.tsx` — never inline `ReactMarkdown` directly.
+
+**Confirm dialogs**: never use `window.confirm`. Add `fooId: string | null` state (null = closed), then render a modal inline: `absolute inset-0 bg-black/60` backdrop → `bg-surface-raised border border-border rounded-xl` dialog card with a `border-b border-border` header section and a footer with Cancel (`bg-surface-hover`) + destructive action (`bg-danger`) buttons. See `deletingFolderId` in `InstalledPage.tsx` as the reference implementation.
 
 ## Key domain facts
 
