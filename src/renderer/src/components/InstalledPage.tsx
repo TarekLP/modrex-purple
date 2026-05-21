@@ -174,6 +174,7 @@ export function InstalledPage({
 
     // Drag state
     const [dragItem, setDragItem] = useState<DragItem | null>(null)
+    const dragItemRef = useRef<DragItem | null>(null)
     const [dropTarget, setDropTarget] = useState<DropTarget>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
     const dragScrollFrame = useRef<number | null>(null)
@@ -262,6 +263,7 @@ export function InstalledPage({
     }
 
     function handleDragEnd() {
+        dragItemRef.current = null
         setDragItem(null)
         setDropTarget(null)
         stopAutoScroll()
@@ -271,7 +273,9 @@ export function InstalledPage({
     function onModDragStart(e: React.DragEvent, uid: string) {
         const ins = installed.find((m) => m.uid === uid)!
         const mod = modData.get(ins.id) ?? syntheticMod(ins)
-        setDragItem({ kind: 'mod', uid })
+        const item: DragItem = { kind: 'mod', uid }
+        dragItemRef.current = item
+        setDragItem(item)
         createDragImage(e, mod)
     }
 
@@ -339,9 +343,81 @@ export function InstalledPage({
         )
     }
 
+    function handleGapDragOver(e: React.DragEvent, uid: string, isBefore: boolean) {
+        const item = dragItemRef.current
+        if (!item || item.kind !== 'mod') return
+        if (item.uid === uid) return
+        const srcMod = installed.find((m) => m.uid === item.uid)
+        const targetMod = installed.find((m) => m.uid === uid)
+        if (!srcMod || !targetMod) return
+        if ((srcMod.folderId ?? null) === (targetMod.folderId ?? null)) {
+            const scopedMods = installed
+                .filter((m) => (m.folderId ?? null) === (srcMod.folderId ?? null))
+                .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+            const srcGroupSize = scopedMods.filter((m) => m.id === srcMod.id).length
+            const srcOrigIdx = scopedMods.findIndex((m) => m.uid === srcMod.uid)
+            if (isBefore) {
+                if (scopedMods[srcOrigIdx + srcGroupSize]?.id === targetMod.id) return
+            } else {
+                if (srcOrigIdx > 0 && scopedMods[srcOrigIdx - 1]?.id === targetMod.id) return
+            }
+        }
+        e.preventDefault()
+        setDropTarget(isBefore ? { kind: 'before-mod', uid } : { kind: 'after-mod', uid })
+    }
+
+    async function onModDropDirect(targetRepUid: string, isBefore: boolean) {
+        if (!dragItem || dragItem.kind !== 'mod' || !gamePath) return
+        const srcRepUid = dragItem.uid
+        dragItemRef.current = null
+        setDragItem(null)
+        setDropTarget(null)
+        if (targetRepUid === srcRepUid) return
+
+        const srcMod = installed.find((m) => m.uid === srcRepUid)!
+        const targetMod = installed.find((m) => m.uid === targetRepUid)!
+        const srcFolderId = srcMod.folderId ?? null
+        const targetFolderId = targetMod.folderId ?? null
+
+        const srcGroupMods = installed
+            .filter((m) => (m.folderId ?? null) === srcFolderId && m.id === srcMod.id)
+            .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+
+        if (srcFolderId === targetFolderId) {
+            const scopedMods = installed
+                .filter((m) => (m.folderId ?? null) === srcFolderId)
+                .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+            const withoutSrc = scopedMods.filter((m) => m.id !== srcMod.id)
+            const targetGroupMods = withoutSrc.filter((m) => m.id === targetMod.id)
+            const pivotUid = isBefore
+                ? targetGroupMods[0].uid
+                : targetGroupMods[targetGroupMods.length - 1].uid
+            const pivotIdx = withoutSrc.findIndex((m) => m.uid === pivotUid)
+            const insertAt = isBefore ? pivotIdx : pivotIdx + 1
+            const reordered = [...withoutSrc]
+            reordered.splice(insertAt, 0, ...srcGroupMods)
+            await window.api.reorderModsInFolder(
+                srcFolderId,
+                reordered.map((m) => m.uid),
+                gamePath
+            )
+        } else {
+            const targetScopeMods = installed
+                .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== srcMod.id)
+                .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+            const toIdx = targetScopeMods.findIndex((m) => m.uid === targetRepUid)
+            const targetPosition = isBefore ? toIdx : toIdx + 1
+            for (const m of srcGroupMods) {
+                await window.api.moveModToFolder(m.uid, targetFolderId, targetPosition, gamePath)
+            }
+        }
+        await onRefreshInstalled()
+    }
+
     async function onModDrop(targetRepUid: string) {
         if (!dragItem || dragItem.kind !== 'mod' || !gamePath) return
         const srcRepUid = dragItem.uid
+        dragItemRef.current = null
         setDragItem(null)
         setDropTarget(null)
         if (targetRepUid === srcRepUid) return
@@ -390,6 +466,7 @@ export function InstalledPage({
     async function onDropIntoFolder(folderId: string) {
         if (!dragItem || dragItem.kind !== 'mod' || !gamePath) return
         const srcRepUid = dragItem.uid
+        dragItemRef.current = null
         setDragItem(null)
         setDropTarget(null)
         const srcMod = installed.find((m) => m.uid === srcRepUid)!
@@ -406,7 +483,9 @@ export function InstalledPage({
 
     function onFolderDragStart(e: React.DragEvent, folderId: string) {
         e.dataTransfer.effectAllowed = 'move'
-        setDragItem({ kind: 'folder', id: folderId })
+        const item: DragItem = { kind: 'folder', id: folderId }
+        dragItemRef.current = item
+        setDragItem(item)
     }
 
     // Handles folder being dragged before another item (mod or folder) within a parent context.
@@ -418,6 +497,7 @@ export function InstalledPage({
         parentId: string | null
     ) {
         if (!gamePath) return
+        dragItemRef.current = null
         setDragItem(null)
         setDropTarget(null)
         if (targetItemType === 'folder' && targetId === srcFolderId) return
@@ -449,6 +529,7 @@ export function InstalledPage({
     // Nests a folder inside another folder (moves it to targetFolderId as parent).
     async function onNestFolderInto(srcFolderId: string, targetFolderId: string) {
         if (!gamePath || srcFolderId === targetFolderId) return
+        dragItemRef.current = null
         setDragItem(null)
         setDropTarget(null)
         await window.api.moveFolder(srcFolderId, targetFolderId, gamePath)
@@ -650,8 +731,8 @@ export function InstalledPage({
         const mod = apiMod ?? syntheticMod(ins)
         const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
         const isBusy = mods.some((m) => loadingMod === m.uid)
-        const isBefore = dropTarget?.kind === 'before-mod' && dropTarget.uid === repUid
-        const isAfter = dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid
+        const isBeforeActive = dropTarget?.kind === 'before-mod' && dropTarget.uid === repUid
+        const isAfterActive = dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid
         const combined: InstalledMod = {
             ...ins,
             enabled: mods.every((m) => m.enabled),
@@ -660,7 +741,32 @@ export function InstalledPage({
 
         return (
             <div key={repUid} className="relative">
-                {isBefore && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
+                <div
+                    className="absolute left-0 right-0 z-10 flex items-center"
+                    style={{ top: -9, height: 36 }}
+                    onDragOver={(e) => handleGapDragOver(e, repUid, true)}
+                    onDrop={(e) => {
+                        e.preventDefault()
+                        onModDropDirect(repUid, true)
+                    }}
+                >
+                    <div
+                        className={`h-0.5 w-full mx-2 rounded-full pointer-events-none ${isBeforeActive ? 'bg-accent' : 'opacity-0'}`}
+                    />
+                </div>
+                <div
+                    className="absolute left-0 right-0 z-10 flex items-center"
+                    style={{ bottom: -9, height: 36 }}
+                    onDragOver={(e) => handleGapDragOver(e, repUid, false)}
+                    onDrop={(e) => {
+                        e.preventDefault()
+                        onModDropDirect(repUid, false)
+                    }}
+                >
+                    <div
+                        className={`h-0.5 w-full mx-2 rounded-full pointer-events-none ${isAfterActive ? 'bg-accent' : 'opacity-0'}`}
+                    />
+                </div>
                 {mods.length > 1 && (
                     <div className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none">
                         {t('installed.fileCount', { count: mods.length })}
@@ -677,11 +783,8 @@ export function InstalledPage({
                     onEnable={() => handleEnable(mods)}
                     onDisable={() => handleDisable(mods)}
                     onDragStart={(e) => onModDragStart(e, repUid)}
-                    onDragOver={(e) => onModDragOver(e, repUid)}
-                    onDrop={() => onModDrop(repUid)}
                     onDragEnd={handleDragEnd}
                 />
-                {isAfter && <div className="h-0.5 rounded-full bg-accent mx-2 mt-1" />}
             </div>
         )
     }
