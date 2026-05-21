@@ -872,7 +872,9 @@ export function InstalledPage({
 
                 {/* Folder contents */}
                 {!isCollapsed && (
-                    <div className="ml-4 mt-1 flex flex-col gap-1.5">
+                    <div
+                        className={`ml-4 mt-1 flex flex-col ${viewMode === 'grid' ? 'gap-3' : 'gap-1.5'}`}
+                    >
                         {/* New subfolder input */}
                         {creatingFolderParentId === folder.id && renderNewFolderInput()}
 
@@ -1098,7 +1100,7 @@ export function InstalledPage({
                                 )}
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-3">
                                 {groupChildren(rootChildren).map((group) => {
                                     if (group.type === 'folder') {
                                         return renderFolderSection(group.folder)
