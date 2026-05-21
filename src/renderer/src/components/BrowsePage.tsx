@@ -11,6 +11,7 @@ import type {
 import { getCachedMod, getCachedModFiles } from '../modCache'
 import type { SortOption } from '../../../main/api'
 import { ModCard } from './ModCard'
+import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
@@ -313,13 +314,15 @@ export function BrowsePage({
             )}
 
             <div className="flex-1 overflow-y-auto px-6 py-4">
-                {loadingMods ? (
-                    <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        {t('common.loading')}
+                {loadingMods || !result ? (
+                    <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
+                        {Array.from({ length: 24 }, (_, i) => (
+                            <SkeletonCard key={i} />
+                        ))}
                     </div>
-                ) : !result || result.data.length === 0 ? (
+                ) : result.data.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        {result ? t('browse.noMods') : t('common.loading')}
+                        {t('browse.noMods')}
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">

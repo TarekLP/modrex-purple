@@ -16,6 +16,8 @@ import type { Mod, InstalledMod, ModFolder, TopLevelItem } from '../../../shared
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
+import { SkeletonCard } from './SkeletonCard'
+import { SkeletonListRow } from './SkeletonListRow'
 import { Toggle } from './Toggle'
 import { getCachedMod } from '../modCache'
 
@@ -644,7 +646,7 @@ export function InstalledPage({
         const id = ins.id
         const repUid = ins.uid
         const apiMod = modData.get(id)
-        if (!apiMod && !failedIds.has(id)) return null
+        if (!apiMod && !failedIds.has(id)) return <SkeletonListRow key={repUid} />
         const mod = apiMod ?? syntheticMod(ins)
         const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
         const isBusy = mods.some((m) => loadingMod === m.uid)
@@ -689,7 +691,7 @@ export function InstalledPage({
         const id = ins.id
         const repUid = ins.uid
         const apiMod = modData.get(id)
-        if (!apiMod && !failedIds.has(id)) return null
+        if (!apiMod && !failedIds.has(id)) return <SkeletonCard key={repUid} />
         const mod = apiMod ?? syntheticMod(ins)
         const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
         const isBusy = mods.some((m) => loadingMod === m.uid)
