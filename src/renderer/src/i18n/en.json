@@ -32,7 +32,7 @@
         "launching": "Launching...",
         "missingLaunchOption": {
             "title": "Missing launch option",
-            "bodyPre": "is required for mods to load correctly. Add it in",
+            "bodyPre": "is recommended for most mods to load correctly. Add it in",
             "location": "Settings → Launch Options",
             "launchAnyway": "Launch anyway"
         }
@@ -163,7 +163,7 @@
         "launchOptions": {
             "title": "Launch Options",
             "descriptionPre": "Extra arguments passed to PAYDAY 3 on launch via Steam.",
-            "descriptionPost": "is required for mods to load correctly.",
+            "descriptionPost": "is recommended for most mods to load correctly.",
             "placeholder": "-fileopenlog"
         },
         "updates": {
