@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
-import { ExternalLink, X } from 'lucide-react'
 import type { Components } from 'react-markdown'
 import { t } from '../i18n'
 
@@ -83,7 +82,7 @@ function EmbedPlayer({ embed }: { embed: Embed }) {
     const cfg = embedConfig(embed)
 
     return (
-        <div className="my-3 rounded-xl overflow-hidden border border-border bg-surface max-w-xl">
+        <div className="my-3 overflow-hidden border border-border bg-surface max-w-xl">
             <div className="relative" style={{ aspectRatio: '16 / 9' }}>
                 {playing ? (
                     <iframe
@@ -118,24 +117,6 @@ function EmbedPlayer({ embed }: { embed: Embed }) {
                         </button>
                     </>
                 )}
-            </div>
-            <div className="flex items-center justify-end gap-3 px-3 py-1.5 bg-surface-raised border-t border-border">
-                {playing && (
-                    <button
-                        onClick={() => setPlaying(false)}
-                        className="flex items-center gap-1 text-xs text-text-muted hover:text-text transition-colors"
-                    >
-                        <X className="w-3 h-3" />
-                        {t('common.close')}
-                    </button>
-                )}
-                <button
-                    onClick={() => window.api.openExternal(cfg.watchUrl)}
-                    className="flex items-center gap-1 text-xs text-text-muted hover:text-text transition-colors"
-                >
-                    <ExternalLink className="w-3 h-3" />
-                    {t('embed.openInBrowser')}
-                </button>
             </div>
         </div>
     )
