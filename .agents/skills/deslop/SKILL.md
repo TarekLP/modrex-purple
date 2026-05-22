@@ -25,6 +25,7 @@ Fix each issue you find, then report a 1–3 sentence summary of what you change
 - **Speculative features** — error handling, validation, or flags added for hypothetical future use.
 - **Backwards-compatibility cruft** — renamed `_unused` vars, `// removed` comments, re-exported types for deleted code.
 - **Unnecessary `useCallback`/`useMemo`** added speculatively without a measured performance reason.
+- **Non-standard symbols in comments or strings** — no `→`, `←`, `⇒`, `✓`, `✗`, or other Unicode arrows/symbols. Use plain words: "becomes", "to", "returns", "yes", "no", etc.
 
 ## Project-specific violations
 
