@@ -137,6 +137,11 @@
             "openOnSite": "Open on modworkshop.net"
         }
     },
+    "embed": {
+        "videoThumbnail": "Video thumbnail",
+        "play": "Play video",
+        "openInBrowser": "Open in browser"
+    },
     "fileSelect": {
         "title": "Install files",
         "subtitle": "{modName} — select which files to install.",
