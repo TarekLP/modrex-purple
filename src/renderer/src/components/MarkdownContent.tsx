@@ -54,7 +54,7 @@ function parseColorTags(text: string): string {
 // Collapsibles are split at the React level so their body is still parsed as markdown.
 function splitParts(text: string, defs: EmbedDef[]): Part[] {
     const result: Part[] = []
-    const re = /^!!! (.+)\n([\s\S]*?)^!!!$/gm
+    const re = /^!!! ?(.+)\n([\s\S]*?)^!!!$/gm
     let lastIndex = 0
     let match: RegExpExecArray | null
 
@@ -212,7 +212,8 @@ function makeMdComponents(defs: EmbedDef[]): Components {
 
 export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embeds?: EmbedDef[] }) {
     const components = useMemo(() => makeMdComponents(embeds), [embeds])
-    const parts = splitParts(parseColorTags(text), embeds)
+    const normalized = text.replace(/\r\n/g, '\n')
+    const parts = splitParts(parseColorTags(normalized), embeds)
 
     return (
         <div>
