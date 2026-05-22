@@ -616,6 +616,7 @@ function DownloadsTab({
     }
 
     const modThumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
+    const imageMap = new Map((mod.images ?? []).map((img) => [img.id, img]))
 
     return (
         <div className="flex flex-col gap-3">
@@ -628,9 +629,8 @@ function DownloadsTab({
                 const isInstalled = installedFiles.some((m) => m.fileId === file.id)
                 const isInstalling = installingId === file.id
                 const isUninstalling = uninstallingId === file.id
-                const thumbUrl = file.thumbnail
-                    ? `${THUMBNAIL_BASE_URL}/${file.thumbnail.file}`
-                    : modThumbUrl
+                const fileImage = file.image_id != null ? imageMap.get(file.image_id) : undefined
+                const thumbUrl = fileImage ? `${THUMBNAIL_BASE_URL}/${fileImage.file}` : modThumbUrl
                 return (
                     <div
                         key={file.id}
