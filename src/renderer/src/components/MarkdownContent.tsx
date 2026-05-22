@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import type { Components } from 'react-markdown'
 import { t } from '../i18n'
 import { detectEmbed, EMBEDS, type EmbedDef, type Embed } from '../embeds'
@@ -54,7 +55,7 @@ function parseColorTags(text: string): string {
 // Collapsibles are split at the React level so their body is still parsed as markdown.
 function splitParts(text: string, defs: EmbedDef[]): Part[] {
     const result: Part[] = []
-    const re = /^!!! ?(.+)\n([\s\S]*?)^!!!$/gm
+    const re = /^!!!(?: ?(.+))?\n([\s\S]*?)^!!!$/gm
     let lastIndex = 0
     let match: RegExpExecArray | null
 
@@ -62,7 +63,7 @@ function splitParts(text: string, defs: EmbedDef[]): Part[] {
         if (match.index > lastIndex) {
             result.push(...splitEmbeds(text.slice(lastIndex, match.index), defs))
         }
-        result.push({ type: 'collapsible', title: match[1].trim(), body: match[2] })
+        result.push({ type: 'collapsible', title: match[1]?.trim() ?? '', body: match[2] })
         lastIndex = match.index + match[0].length
     }
 
@@ -173,9 +174,9 @@ function makeMdComponents(defs: EmbedDef[]): Components {
             if (!src) return null
             return <img src={src} alt={alt} loading="lazy" className="max-w-full rounded my-2" />
         },
-        hr: () => <hr className="border-none border-t border-border my-3" />,
+        hr: () => <hr className="border-t border-border my-3" />,
         blockquote: ({ children }) => (
-            <blockquote className="border-l-2 border-border pl-3 text-text-muted italic my-2">
+            <blockquote className="border-l-2 border-border pl-3 text-text-muted my-2">
                 {children}
             </blockquote>
         ),
@@ -226,11 +227,11 @@ export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embed
                             className="my-2 border border-border rounded-lg overflow-hidden"
                         >
                             <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
-                                {part.title}
+                                {part.title || t('detail.spoiler')}
                             </summary>
                             <div className="px-3">
                                 <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
+                                    remarkPlugins={[remarkGfm, remarkBreaks]}
                                     rehypePlugins={[rehypeRaw]}
                                     components={components}
                                 >
@@ -243,7 +244,7 @@ export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embed
                 return (
                     <ReactMarkdown
                         key={i}
-                        remarkPlugins={[remarkGfm]}
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
                         rehypePlugins={[rehypeRaw]}
                         components={components}
                     >

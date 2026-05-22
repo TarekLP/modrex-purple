@@ -94,6 +94,7 @@
         }
     },
     "detail": {
+        "spoiler": "Spoiler!",
         "back": "Back",
         "source": "Source",
         "tabs": {
