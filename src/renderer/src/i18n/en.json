@@ -102,6 +102,7 @@
             "imagesCount": "Images ({count})",
             "downloads": "Downloads",
             "downloadsCount": "Downloads ({count})",
+            "changelog": "Changelog",
             "deps": "Dependencies & Instructions"
         },
         "stats": {
@@ -113,7 +114,6 @@
         },
         "description": {
             "noDescription": "No description provided.",
-            "changelog": "Changelog",
             "license": "License"
         },
         "images": {
@@ -125,7 +125,6 @@
             "count": "{count} dl"
         },
         "deps": {
-            "none": "No installation instructions or dependencies listed.",
             "instructions": "Installation Instructions",
             "required": "Required Dependencies",
             "optional": "Optional Dependencies",

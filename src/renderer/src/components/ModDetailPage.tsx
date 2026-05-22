@@ -17,7 +17,7 @@ import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 
-type Tab = 'description' | 'images' | 'downloads' | 'deps'
+type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'deps'
 
 function formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
@@ -186,6 +186,10 @@ export function ModDetailPage({
         (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
     )
 
+    const showChangelogTab = !!mod?.changelog
+    const showDepsTab =
+        !!(mod?.instructs_template?.instructions || mod?.instructions) || allDeps.length > 0
+
     const tabs: { id: Tab; label: string }[] = [
         { id: 'description', label: t('detail.tabs.description') },
         {
@@ -200,7 +204,10 @@ export function ModDetailPage({
                 ? t('detail.tabs.downloadsCount', { count: files.length })
                 : t('detail.tabs.downloads'),
         },
-        { id: 'deps', label: t('detail.tabs.deps') },
+        ...(showChangelogTab
+            ? [{ id: 'changelog' as Tab, label: t('detail.tabs.changelog') }]
+            : []),
+        ...(showDepsTab ? [{ id: 'deps' as Tab, label: t('detail.tabs.deps') }] : []),
     ]
 
     return (
@@ -408,6 +415,7 @@ export function ModDetailPage({
 
                     <div className="px-6 py-5">
                         {tab === 'description' && <DescriptionTab mod={mod} />}
+                        {tab === 'changelog' && <ChangelogTab mod={mod} />}
                         {tab === 'images' && <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />}
                         {tab === 'downloads' && (
                             <DownloadsTab
@@ -502,15 +510,6 @@ function DescriptionTab({ mod }: { mod: Mod }) {
                 <p className="text-sm text-text-subtle">{t('detail.description.noDescription')}</p>
             )}
 
-            {mod.changelog && (
-                <section>
-                    <h2 className="text-sm font-semibold mb-2 text-text">
-                        {t('detail.description.changelog')}
-                    </h2>
-                    <MarkdownContent text={mod.changelog} />
-                </section>
-            )}
-
             {mod.license && (
                 <section>
                     <h2 className="text-sm font-semibold mb-2 text-text">
@@ -519,6 +518,14 @@ function DescriptionTab({ mod }: { mod: Mod }) {
                     <p className="text-sm text-text-muted">{mod.license}</p>
                 </section>
             )}
+        </div>
+    )
+}
+
+function ChangelogTab({ mod }: { mod: Mod }) {
+    return (
+        <div className="max-w-3xl">
+            <MarkdownContent text={mod.changelog!} />
         </div>
     )
 }
@@ -700,12 +707,6 @@ function DepsTab({
     onOpenDetail?: (modId: number) => void
 }) {
     const hasInstructions = !!(mod.instructs_template?.instructions || mod.instructions)
-    const hasDeps = deps.length > 0
-
-    if (!hasInstructions && !hasDeps) {
-        return <p className="text-sm text-text-subtle">{t('detail.deps.none')}</p>
-    }
-
     const required = deps.filter((d) => !d.optional)
     const optional = deps.filter((d) => d.optional)
 
