@@ -1,50 +1,26 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import type { Components } from 'react-markdown'
 import { t } from '../i18n'
+import { detectEmbed, EMBEDS, type EmbedDef, type Embed } from '../embeds'
 
-type EmbedType = 'youtube' | 'streamable'
-type Embed = { type: EmbedType; id: string }
+type Part = { type: 'text'; text: string } | { type: 'embed'; embed: Embed }
 
-function detectEmbed(src: string): Embed | null {
-    // Normalize double-protocol bug: "https://https://youtu.be/..." → "https://youtu.be/..."
-    const url = src.replace(/^https?:\/\/https?:\/\//, 'https://')
-
-    // YouTube
-    const ytPatterns = [
-        /youtu\.be\/([^/?&]+)/,
-        /youtube(?:-nocookie)?\.com\/embed\/([^/?&]+)/,
-        /youtube(?:-nocookie)?\.com\/watch\?(?:[^&]*&)*v=([^/?&]+)/,
-    ]
-    for (const p of ytPatterns) {
-        const m = url.match(p)
-        if (m) return { type: 'youtube', id: m[1] }
-    }
-
-    // Streamable: https://streamable.com/VIDEOID
-    const stMatch = url.match(/streamable\.com\/(?!e\/)([a-zA-Z0-9]+)(?:[?#].*)?$/)
-    if (stMatch) return { type: 'streamable', id: stMatch[1] }
-
-    return null
-}
-
-type Part = { type: 'text'; text: string } | ({ type: EmbedType } & Embed)
-
-function splitEmbeds(text: string): Part[] {
+function splitEmbeds(text: string, defs: EmbedDef[]): Part[] {
     const parts: Part[] = []
     const re = /!\[[^\]]*\]\(([^)]+)\)/g
     let lastIndex = 0
     let match: RegExpExecArray | null
 
     while ((match = re.exec(text)) !== null) {
-        const embed = detectEmbed(match[1])
+        const embed = detectEmbed(match[1], defs)
         if (!embed) continue
 
         if (match.index > lastIndex) {
             parts.push({ type: 'text', text: text.slice(lastIndex, match.index) })
         }
-        parts.push(embed)
+        parts.push({ type: 'embed', embed })
         lastIndex = match.index + match[0].length
     }
 
@@ -55,38 +31,16 @@ function splitEmbeds(text: string): Part[] {
     return parts.length > 0 ? parts : [{ type: 'text', text }]
 }
 
-interface EmbedConfig {
-    thumbnailUrl: string
-    embedUrl: string
-    watchUrl: string
-}
-
-function embedConfig(embed: Embed): EmbedConfig {
-    if (embed.type === 'youtube') {
-        return {
-            thumbnailUrl: `https://img.youtube.com/vi/${embed.id}/hqdefault.jpg`,
-            embedUrl: `https://www.youtube.com/embed/${embed.id}?autoplay=1&rel=0`,
-            watchUrl: `https://www.youtube.com/watch?v=${embed.id}`,
-        }
-    }
-    // Streamable
-    return {
-        thumbnailUrl: `https://cdn-cf-east.streamable.com/image/${embed.id}.jpg`,
-        embedUrl: `https://streamable.com/e/${embed.id}`,
-        watchUrl: `https://streamable.com/${embed.id}`,
-    }
-}
-
 function EmbedPlayer({ embed }: { embed: Embed }) {
     const [playing, setPlaying] = useState(false)
-    const cfg = embedConfig(embed)
+    const { def, id } = embed
 
     return (
         <div className="my-3 overflow-hidden border border-border bg-surface max-w-xl">
             <div className="relative" style={{ aspectRatio: '16 / 9' }}>
                 {playing ? (
                     <iframe
-                        src={cfg.embedUrl}
+                        src={def.embedUrl(id)}
                         className="absolute inset-0 w-full h-full"
                         style={{ border: 'none' }}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -95,9 +49,10 @@ function EmbedPlayer({ embed }: { embed: Embed }) {
                 ) : (
                     <>
                         <img
-                            src={cfg.thumbnailUrl}
+                            src={def.thumbnailUrl(id)}
                             alt={t('embed.videoThumbnail')}
-                            className="absolute inset-0 w-full h-full object-cover"
+                            draggable={false}
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                         />
                         <button
                             className="absolute inset-0 flex items-center justify-center group"
@@ -122,98 +77,110 @@ function EmbedPlayer({ embed }: { embed: Embed }) {
     )
 }
 
-const mdComponents: Components = {
-    p: ({ children }) => (
-        <div className="text-sm text-text-muted leading-relaxed mb-2">{children}</div>
-    ),
-    h1: ({ children }) => <h1 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h3>,
-    h4: ({ children }) => <h4 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h4>,
-    ul: ({ children }) => (
-        <ul className="list-disc ml-5 mb-2 text-sm text-text-muted">{children}</ul>
-    ),
-    ol: ({ children }) => (
-        <ol className="list-decimal ml-5 mb-2 text-sm text-text-muted">{children}</ol>
-    ),
-    li: ({ children }) => <li className="mb-0.5">{children}</li>,
-    a: ({ href, children }) => {
-        if (!href || href.startsWith('javascript:')) return <>{children}</>
-        return (
-            <a
-                onClick={(e) => {
-                    e.preventDefault()
-                    window.api.openExternal(href)
-                }}
-                className="text-accent-bright underline cursor-pointer"
-            >
+function makeMdComponents(defs: EmbedDef[]): Components {
+    return {
+        p: ({ children }) => (
+            <div className="text-sm text-text-muted leading-relaxed mb-2">{children}</div>
+        ),
+        h1: ({ children }) => (
+            <h1 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h1>
+        ),
+        h2: ({ children }) => (
+            <h2 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h2>
+        ),
+        h3: ({ children }) => (
+            <h3 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h3>
+        ),
+        h4: ({ children }) => (
+            <h4 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h4>
+        ),
+        ul: ({ children }) => (
+            <ul className="list-disc ml-5 mb-2 text-sm text-text-muted">{children}</ul>
+        ),
+        ol: ({ children }) => (
+            <ol className="list-decimal ml-5 mb-2 text-sm text-text-muted">{children}</ol>
+        ),
+        li: ({ children }) => <li className="mb-0.5">{children}</li>,
+        a: ({ href, children }) => {
+            if (!href || href.startsWith('javascript:')) return <>{children}</>
+            return (
+                <a
+                    onClick={(e) => {
+                        e.preventDefault()
+                        window.api.openExternal(href)
+                    }}
+                    className="text-accent-bright underline cursor-pointer"
+                >
+                    {children}
+                </a>
+            )
+        },
+        strong: ({ children }) => <strong className="font-semibold text-text">{children}</strong>,
+        em: ({ children }) => <em className="italic">{children}</em>,
+        code: ({ children }) => (
+            <code className="font-mono text-[0.85em] bg-surface-hover px-1 py-0.5 rounded">
                 {children}
-            </a>
-        )
-    },
-    strong: ({ children }) => <strong className="font-semibold text-text">{children}</strong>,
-    em: ({ children }) => <em className="italic">{children}</em>,
-    code: ({ children }) => (
-        <code className="font-mono text-[0.85em] bg-surface-hover px-1 py-0.5 rounded">
-            {children}
-        </code>
-    ),
-    pre: ({ children }) => (
-        <pre className="bg-surface-hover rounded p-3 my-2 overflow-x-auto text-sm font-mono text-text-muted">
-            {children}
-        </pre>
-    ),
-    img: ({ src, alt }) => {
-        if (!src) return null
-        return <img src={src} alt={alt} loading="lazy" className="max-w-full rounded my-2" />
-    },
-    hr: () => <hr className="border-none border-t border-border my-3" />,
-    blockquote: ({ children }) => (
-        <blockquote className="border-l-2 border-border pl-3 text-text-muted italic my-2">
-            {children}
-        </blockquote>
-    ),
-    table: ({ children }) => (
-        <table className="w-full text-sm text-left border-collapse my-2">{children}</table>
-    ),
-    th: ({ children }) => (
-        <th className="border border-border px-3 py-1.5 text-text font-semibold bg-surface-raised">
-            {children}
-        </th>
-    ),
-    td: ({ children }) => (
-        <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
-    ),
-    div: ({ children }) => <div>{children}</div>,
-    span: ({ children }) => <span>{children}</span>,
-    section: ({ children }) => <section>{children}</section>,
-    figure: ({ children }) => <figure className="my-2">{children}</figure>,
-    figcaption: ({ children }) => (
-        <figcaption className="text-xs text-text-subtle mt-1">{children}</figcaption>
-    ),
-    br: () => <br />,
-    iframe: ({ src }) => {
-        if (!src) return null
-        const embed = detectEmbed(src)
-        return embed ? <EmbedPlayer embed={embed} /> : null
-    },
-    script: () => null,
-    style: () => null,
-    object: () => null,
-    embed: () => null,
+            </code>
+        ),
+        pre: ({ children }) => (
+            <pre className="bg-surface-hover rounded p-3 my-2 overflow-x-auto text-sm font-mono text-text-muted">
+                {children}
+            </pre>
+        ),
+        img: ({ src, alt }) => {
+            if (!src) return null
+            return <img src={src} alt={alt} loading="lazy" className="max-w-full rounded my-2" />
+        },
+        hr: () => <hr className="border-none border-t border-border my-3" />,
+        blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-border pl-3 text-text-muted italic my-2">
+                {children}
+            </blockquote>
+        ),
+        table: ({ children }) => (
+            <table className="w-full text-sm text-left border-collapse my-2">{children}</table>
+        ),
+        th: ({ children }) => (
+            <th className="border border-border px-3 py-1.5 text-text font-semibold bg-surface-raised">
+                {children}
+            </th>
+        ),
+        td: ({ children }) => (
+            <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
+        ),
+        div: ({ children }) => <div>{children}</div>,
+        span: ({ children }) => <span>{children}</span>,
+        section: ({ children }) => <section>{children}</section>,
+        figure: ({ children }) => <figure className="my-2">{children}</figure>,
+        figcaption: ({ children }) => (
+            <figcaption className="text-xs text-text-subtle mt-1">{children}</figcaption>
+        ),
+        br: () => <br />,
+        iframe: ({ src }) => {
+            if (!src) return null
+            const embed = detectEmbed(src, defs)
+            return embed ? <EmbedPlayer embed={embed} /> : null
+        },
+        script: () => null,
+        style: () => null,
+        object: () => null,
+        embed: () => null,
+    }
 }
 
-export function MarkdownContent({ text }: { text: string }) {
-    const parts = splitEmbeds(text)
+export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embeds?: EmbedDef[] }) {
+    const components = useMemo(() => makeMdComponents(embeds), [embeds])
+    const parts = splitEmbeds(text, embeds)
+
     return (
         <div>
             {parts.map((part, i) =>
                 part.type === 'text' ? (
-                    <ReactMarkdown key={i} rehypePlugins={[rehypeRaw]} components={mdComponents}>
+                    <ReactMarkdown key={i} rehypePlugins={[rehypeRaw]} components={components}>
                         {part.text}
                     </ReactMarkdown>
                 ) : (
-                    <EmbedPlayer key={i} embed={part} />
+                    <EmbedPlayer key={i} embed={part.embed} />
                 )
             )}
         </div>
