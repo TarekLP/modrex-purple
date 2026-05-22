@@ -1,19 +1,15 @@
 import { useState, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
+import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 import { t } from '../i18n'
 import { detectEmbed, EMBEDS, type EmbedDef, type Embed } from '../embeds'
 
-type Part = { type: 'text'; text: string } | { type: 'embed'; embed: Embed }
-
-// Modworkshop uses !!! Title ... !!! as a collapsible section syntax not in standard markdown.
-function expandCollapsibles(text: string): string {
-    return text.replace(
-        /^!!! (.+)\n([\s\S]*?)^!!!$/gm,
-        (_, title, body) => `<details>\n<summary>${title.trim()}</summary>\n\n${body}</details>`
-    )
-}
+type Part =
+    | { type: 'text'; text: string }
+    | { type: 'embed'; embed: Embed }
+    | { type: 'collapsible'; title: string; body: string }
 
 function splitEmbeds(text: string, defs: EmbedDef[]): Part[] {
     const parts: Part[] = []
@@ -37,6 +33,29 @@ function splitEmbeds(text: string, defs: EmbedDef[]): Part[] {
     }
 
     return parts.length > 0 ? parts : [{ type: 'text', text }]
+}
+
+// Modworkshop uses !!! Title ... !!! as a collapsible section syntax not in standard markdown.
+// Collapsibles are split at the React level so their body is still parsed as markdown.
+function splitParts(text: string, defs: EmbedDef[]): Part[] {
+    const result: Part[] = []
+    const re = /^!!! (.+)\n([\s\S]*?)^!!!$/gm
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+
+    while ((match = re.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            result.push(...splitEmbeds(text.slice(lastIndex, match.index), defs))
+        }
+        result.push({ type: 'collapsible', title: match[1].trim(), body: match[2] })
+        lastIndex = match.index + match[0].length
+    }
+
+    if (lastIndex < text.length) {
+        result.push(...splitEmbeds(text.slice(lastIndex), defs))
+    }
+
+    return result.length > 0 ? result : splitEmbeds(text, defs)
 }
 
 function EmbedPlayer({ embed }: { embed: Embed }) {
@@ -156,16 +175,6 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         td: ({ children }) => (
             <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
         ),
-        details: ({ children }) => (
-            <details className="my-2 border border-border rounded-lg overflow-hidden">
-                {children}
-            </details>
-        ),
-        summary: ({ children }) => (
-            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
-                {children}
-            </summary>
-        ),
         div: ({ children, className }) => <div className={className}>{children}</div>,
         span: ({ children }) => <span>{children}</span>,
         section: ({ children }) => <section>{children}</section>,
@@ -188,19 +197,44 @@ function makeMdComponents(defs: EmbedDef[]): Components {
 
 export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embeds?: EmbedDef[] }) {
     const components = useMemo(() => makeMdComponents(embeds), [embeds])
-    const parts = splitEmbeds(expandCollapsibles(text), embeds)
+    const parts = splitParts(text, embeds)
 
     return (
         <div>
-            {parts.map((part, i) =>
-                part.type === 'text' ? (
-                    <ReactMarkdown key={i} rehypePlugins={[rehypeRaw]} components={components}>
+            {parts.map((part, i) => {
+                if (part.type === 'embed') return <EmbedPlayer key={i} embed={part.embed} />
+                if (part.type === 'collapsible') {
+                    return (
+                        <details
+                            key={i}
+                            className="my-2 border border-border rounded-lg overflow-hidden"
+                        >
+                            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
+                                {part.title}
+                            </summary>
+                            <div className="px-3">
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    rehypePlugins={[rehypeRaw]}
+                                    components={components}
+                                >
+                                    {part.body}
+                                </ReactMarkdown>
+                            </div>
+                        </details>
+                    )
+                }
+                return (
+                    <ReactMarkdown
+                        key={i}
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw]}
+                        components={components}
+                    >
                         {part.text}
                     </ReactMarkdown>
-                ) : (
-                    <EmbedPlayer key={i} embed={part.embed} />
                 )
-            )}
+            })}
         </div>
     )
 }
