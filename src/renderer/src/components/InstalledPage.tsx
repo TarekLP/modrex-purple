@@ -669,9 +669,7 @@ export function InstalledPage({
                     <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
                     {gamePath && (
                         <button
-                            onClick={() =>
-                                window.api.openPath(`${gamePath}/PAYDAY3/Content/Paks/~mods`)
-                            }
+                            onClick={() => window.api.openModsFolder()}
                             title={t('installed.openFolder')}
                             className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
                         >

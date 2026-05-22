@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
     listModFiles: (modId: number) => ipcRenderer.invoke('api:list-mod-files', modId),
 
     findGamePath: () => ipcRenderer.invoke('mods:find-game-path'),
+    openModsFolder: () => ipcRenderer.invoke('mods:open-folder'),
     getInstalled: () => ipcRenderer.invoke('mods:get-installed'),
     installMod: (modId: number, gamePath: string) =>
         ipcRenderer.invoke('mods:install', modId, gamePath),

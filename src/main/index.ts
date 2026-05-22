@@ -77,6 +77,10 @@ function registerHandlers(): void {
     ipcMain.handle('api:list-mod-files', (_, modId: number) => listModFiles(modId))
 
     ipcMain.handle('mods:find-game-path', () => resolvedGamePath)
+    ipcMain.handle('mods:open-folder', () => {
+        if (!resolvedGamePath) return
+        shell.openPath(join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods'))
+    })
 
     ipcMain.handle('settings:get', () => readSettings(settingsPath))
     ipcMain.handle('settings:set-game-path', (_, gamePath: string | null) => {

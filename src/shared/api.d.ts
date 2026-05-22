@@ -18,6 +18,7 @@ declare global {
             listModFiles(modId: number): Promise<Paginated<ModFile>>
 
             findGamePath(): Promise<string | null>
+            openModsFolder(): Promise<void>
             getInstalled(): Promise<{
                 mods: InstalledMod[]
                 folders: ModFolder[]
