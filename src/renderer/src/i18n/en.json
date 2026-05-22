@@ -144,8 +144,7 @@
     "fileSelect": {
         "title": "Install files",
         "subtitle": "{modName} — select which files to install.",
-        "installSelected": "Install Selected ({count})",
-        "downloadManually": "Download manually"
+        "installSelected": "Install Selected ({count})"
     },
     "depsWarning": {
         "title": "Missing required dependencies",

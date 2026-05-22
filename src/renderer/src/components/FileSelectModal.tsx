@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, ExternalLink } from 'lucide-react'
+import { X, Tag, Download, Clock } from 'lucide-react'
 import type { Mod, ModFile, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
+import { MarkdownContent } from './MarkdownContent'
 
 function formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    return `${parseFloat((bytes / 1024 / 1024).toFixed(1))} MB`
 }
 
 interface Props {
@@ -154,12 +155,12 @@ export function FileSelectModal({
                             <div
                                 key={file.id}
                                 onClick={() => !isInstalled && !isBusy && toggleFile(file.id)}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors ${
+                                className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
                                     isInstalled
                                         ? 'bg-surface-hover border-border opacity-60'
                                         : isSelected
                                           ? 'bg-accent/5 border-accent/40 cursor-pointer'
-                                          : 'bg-surface-hover border-border cursor-pointer hover:border-border'
+                                          : 'bg-surface-hover border-border cursor-pointer'
                                 }`}
                             >
                                 <input
@@ -172,32 +173,15 @@ export function FileSelectModal({
                                 />
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium truncate">
-                                            {file.name}
-                                        </span>
                                         {file.label && (
-                                            <span
-                                                className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 uppercase tracking-wide ${
-                                                    file.label.toLowerCase() === 'main'
-                                                        ? 'bg-accent/15 text-accent border-accent/30'
-                                                        : 'bg-surface-active text-text-subtle border-border'
-                                                }`}
-                                            >
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent font-medium uppercase tracking-wide shrink-0">
                                                 {file.label}
                                             </span>
                                         )}
-                                        {isInstalled && (
-                                            <span className="text-xs text-success-text shrink-0">
-                                                {isInstalling
-                                                    ? downloadProgress
-                                                        ? downloadProgress.total > 0
-                                                            ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                                            : t('common.downloading')
-                                                        : t('common.installing')
-                                                    : t('common.installed')}
-                                            </span>
-                                        )}
-                                        {isInstalling && (
+                                        <span className="text-sm font-semibold truncate">
+                                            {file.name}
+                                        </span>
+                                        {isInstalling ? (
                                             <span className="text-xs text-text-muted shrink-0">
                                                 {downloadProgress
                                                     ? downloadProgress.total > 0
@@ -205,29 +189,47 @@ export function FileSelectModal({
                                                         : t('common.downloading')
                                                     : t('common.installing')}
                                             </span>
-                                        )}
+                                        ) : isInstalled ? (
+                                            <span className="text-xs text-success-text shrink-0">
+                                                {t('common.installed')}
+                                            </span>
+                                        ) : null}
                                     </div>
-                                    <div className="flex items-center gap-2 mt-1 text-xs text-text-subtle flex-wrap">
-                                        <span className="px-1.5 py-0.5 rounded bg-surface-active text-text uppercase tracking-wide text-[10px]">
-                                            {file.type}
-                                        </span>
+                                    {file.desc && (
+                                        <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
+                                            <MarkdownContent text={file.desc} />
+                                        </div>
+                                    )}
+                                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
+                                        <span className="uppercase">{file.type}</span>
                                         <span>{formatBytes(file.size)}</span>
-                                        {file.version && <span>v{file.version}</span>}
+                                        {file.version && (
+                                            <span className="flex items-center gap-1">
+                                                <Tag className="w-3 h-3 shrink-0" />
+                                                {file.version}
+                                            </span>
+                                        )}
                                         {file.downloads != null && (
-                                            <span>{file.downloads.toLocaleString()} dl</span>
+                                            <span className="flex items-center gap-1">
+                                                <Download className="w-3 h-3 shrink-0" />
+                                                {file.downloads.toLocaleString()}
+                                            </span>
+                                        )}
+                                        {file.created_at && (
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3 shrink-0" />
+                                                {new Date(file.created_at).toLocaleDateString(
+                                                    undefined,
+                                                    {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                    }
+                                                )}
+                                            </span>
                                         )}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        window.api.openExternal(file.download_url)
-                                    }}
-                                    title={t('fileSelect.downloadManually')}
-                                    className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
-                                >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                </button>
                             </div>
                         )
                     })}
