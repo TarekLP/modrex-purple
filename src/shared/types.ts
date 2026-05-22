@@ -69,6 +69,7 @@ export interface ModFile {
     size: number
     type: string
     download_url: string
+    thumbnail?: { file: string } | null
     desc?: string
     label?: string
     downloads?: number

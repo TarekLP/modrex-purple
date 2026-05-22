@@ -7,6 +7,8 @@ import {
     ChevronLeft,
     ChevronRight,
     X,
+    Tag,
+    Clock,
 } from 'lucide-react'
 import { t } from '../i18n'
 import { Toggle } from './Toggle'
@@ -21,7 +23,7 @@ type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'deps'
 
 function formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    return `${parseFloat((bytes / 1024 / 1024).toFixed(1))} MB`
 }
 
 function formatDate(iso: string): string {
@@ -612,81 +614,122 @@ function DownloadsTab({
     if (files.length === 0) {
         return <p className="text-sm text-text-subtle">{t('detail.downloads.none')}</p>
     }
+
+    const modThumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
+
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
             {installError && (
                 <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
                     {installError}
                 </div>
             )}
-            {files.map((file) => (
-                <div
-                    key={file.id}
-                    className="flex items-center gap-4 px-4 py-3 rounded-lg bg-surface-hover border border-border"
-                >
-                    <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium truncate">{file.name}</div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-text-subtle">
-                            <span className="px-1.5 py-0.5 rounded bg-surface-active text-text uppercase tracking-wide text-[10px]">
-                                {file.type}
-                            </span>
-                            <span>{formatBytes(file.size)}</span>
-                            {file.version && <span>v{file.version}</span>}
-                            {file.label && <span>{file.label}</span>}
-                            {file.downloads != null && (
-                                <span>{file.downloads.toLocaleString()} dl</span>
+            {files.map((file) => {
+                const isInstalled = installedFiles.some((m) => m.fileId === file.id)
+                const isInstalling = installingId === file.id
+                const isUninstalling = uninstallingId === file.id
+                const thumbUrl = file.thumbnail
+                    ? `${THUMBNAIL_BASE_URL}/${file.thumbnail.file}`
+                    : modThumbUrl
+                return (
+                    <div
+                        key={file.id}
+                        className="flex items-center gap-4 p-4 rounded-xl bg-surface-hover border border-border"
+                    >
+                        <div className="relative shrink-0">
+                            {thumbUrl ? (
+                                <img
+                                    src={thumbUrl}
+                                    alt=""
+                                    className="w-20 h-20 rounded-lg object-cover"
+                                />
+                            ) : (
+                                <div className="w-20 h-20 rounded-lg bg-surface-active" />
                             )}
-                            {file.created_at && <span>{formatDate(file.created_at)}</span>}
+                            {file.label && (
+                                <span className="absolute bottom-1 left-1 right-1 text-center text-[9px] font-bold uppercase tracking-wide bg-black/70 text-white rounded px-1 py-0.5 leading-tight">
+                                    {file.label}
+                                </span>
+                            )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent font-medium uppercase tracking-wide shrink-0">
+                                    {file.type}
+                                </span>
+                                <span className="text-sm font-semibold truncate">{file.name}</span>
+                            </div>
+                            {file.desc && (
+                                <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
+                                    <MarkdownContent text={file.desc} />
+                                </div>
+                            )}
+                            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
+                                {file.version && (
+                                    <span className="flex items-center gap-1">
+                                        <Tag className="w-3 h-3 shrink-0" />
+                                        {file.version}
+                                    </span>
+                                )}
+                                {file.downloads != null && (
+                                    <span className="flex items-center gap-1">
+                                        <Download className="w-3 h-3 shrink-0" />
+                                        {file.downloads.toLocaleString()}
+                                    </span>
+                                )}
+                                {file.created_at && (
+                                    <span className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3 shrink-0" />
+                                        {formatDate(file.created_at)}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                disabled={!gamePath || isInstalling || isInstalled}
+                                onClick={() => handleInstallFile(file)}
+                                className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
+                                    isInstalled
+                                        ? 'bg-success/20 border border-success/40 text-success-text'
+                                        : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
+                                }`}
+                            >
+                                {!isInstalling && !isInstalled && (
+                                    <Download className="w-3.5 h-3.5" />
+                                )}
+                                {isInstalling
+                                    ? downloadProgress
+                                        ? downloadProgress.total > 0
+                                            ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                            : t('common.downloading')
+                                        : t('common.installing')
+                                    : isInstalled
+                                      ? t('common.installed')
+                                      : `${t('common.install')} (${formatBytes(file.size)})`}
+                            </button>
+                            {isInstalled && (
+                                <button
+                                    disabled={!gamePath || isUninstalling}
+                                    onClick={() => handleUninstallFile(file)}
+                                    title={t('common.remove')}
+                                    className="p-2 rounded-lg bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                            <button
+                                onClick={() => window.api.openExternal(file.download_url)}
+                                title={t('detail.downloads.external')}
+                                className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
                         </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                        {(() => {
-                            const isInstalled = installedFiles.some((m) => m.fileId === file.id)
-                            return (
-                                <button
-                                    disabled={!gamePath || installingId === file.id || isInstalled}
-                                    onClick={() => handleInstallFile(file)}
-                                    className={`text-xs px-3 py-1.5 rounded transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
-                                        isInstalled
-                                            ? 'bg-success/20 border border-success/40 text-success-text cursor-default'
-                                            : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
-                                    }`}
-                                >
-                                    {installingId !== file.id && !isInstalled && (
-                                        <Download className="w-3.5 h-3.5" />
-                                    )}
-                                    {installingId === file.id
-                                        ? downloadProgress
-                                            ? downloadProgress.total > 0
-                                                ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                                : t('common.downloading')
-                                            : t('common.installing')
-                                        : isInstalled
-                                          ? t('common.installed')
-                                          : t('common.install')}
-                                </button>
-                            )
-                        })()}
-                        {installedFiles.some((m) => m.fileId === file.id) && (
-                            <button
-                                disabled={!gamePath || uninstallingId === file.id}
-                                onClick={() => handleUninstallFile(file)}
-                                title={t('common.remove')}
-                                className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                        )}
-                        <button
-                            onClick={() => window.api.openExternal(file.download_url)}
-                            className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center gap-1.5"
-                        >
-                            {t('detail.downloads.external')}
-                            <ExternalLink className="w-3 h-3" />
-                        </button>
-                    </div>
-                </div>
-            ))}
+                )
+            })}
         </div>
     )
 }

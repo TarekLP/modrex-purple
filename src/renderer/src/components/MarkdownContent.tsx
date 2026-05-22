@@ -35,6 +35,21 @@ function splitEmbeds(text: string, defs: EmbedDef[]): Part[] {
     return parts.length > 0 ? parts : [{ type: 'text', text }]
 }
 
+// Modworkshop uses {#HEX}(text) or {ColorName}(text) for inline colored text.
+// Tags can be nested, so run repeatedly until no more replacements are made.
+function parseColorTags(text: string): string {
+    let result = text
+    let prev = ''
+    while (result !== prev) {
+        prev = result
+        result = result.replace(
+            /\{(#[0-9A-Fa-f]{3,8}|[A-Za-z]+)\}\(((?:[^()]*|\([^)]*\))*)\)/g,
+            (_, color, content) => `<span style="color:${color}">${content}</span>`
+        )
+    }
+    return result
+}
+
 // Modworkshop uses !!! Title ... !!! as a collapsible section syntax not in standard markdown.
 // Collapsibles are split at the React level so their body is still parsed as markdown.
 function splitParts(text: string, defs: EmbedDef[]): Part[] {
@@ -176,7 +191,7 @@ function makeMdComponents(defs: EmbedDef[]): Components {
             <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
         ),
         div: ({ children, className }) => <div className={className}>{children}</div>,
-        span: ({ children }) => <span>{children}</span>,
+        span: ({ children, style }) => <span style={style}>{children}</span>,
         section: ({ children }) => <section>{children}</section>,
         figure: ({ children }) => <figure className="my-2">{children}</figure>,
         figcaption: ({ children }) => (
@@ -197,7 +212,7 @@ function makeMdComponents(defs: EmbedDef[]): Components {
 
 export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embeds?: EmbedDef[] }) {
     const components = useMemo(() => makeMdComponents(embeds), [embeds])
-    const parts = splitParts(text, embeds)
+    const parts = splitParts(parseColorTags(text), embeds)
 
     return (
         <div>
