@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import {
     X,
     LayoutGrid,
@@ -19,7 +19,7 @@ import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
 import { Toggle } from './Toggle'
-import { getCachedMod } from '../modCache'
+import { useModData } from '../hooks/useModData'
 
 type ViewMode = 'grid' | 'list'
 
@@ -154,9 +154,7 @@ export function InstalledPage({
     onOpenDetail,
 }: Props) {
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
-    const [modData, setModData] = useState<Map<number, Mod>>(new Map())
-    const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
-    const fetchedAt = useRef<Map<number, number>>(new Map())
+    const { modData, failedIds, updatable } = useModData(installed)
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
@@ -590,51 +588,6 @@ export function InstalledPage({
             return next
         })
     }
-
-    // --- Mod data fetching ---
-
-    useEffect(() => {
-        const TTL_MS = 5 * 60 * 1000
-        const now = Date.now()
-        const stale = installed.filter((m) => {
-            const t = fetchedAt.current.get(m.id)
-            return t === undefined || now - t >= TTL_MS
-        })
-        if (stale.length === 0) return
-        Promise.allSettled(stale.map((m) => getCachedMod(m.id))).then((results) => {
-            const updates: [number, Mod][] = []
-            const failed: number[] = []
-            results.forEach((r, i) => {
-                fetchedAt.current.set(stale[i].id, Date.now())
-                if (r.status === 'fulfilled') {
-                    updates.push([stale[i].id, r.value])
-                } else {
-                    failed.push(stale[i].id)
-                }
-            })
-            if (updates.length > 0) {
-                setModData((prev) => {
-                    const next = new Map(prev)
-                    updates.forEach(([id, mod]) => next.set(id, mod))
-                    return next
-                })
-            }
-            if (failed.length > 0) {
-                setFailedIds((prev) => new Set([...prev, ...failed]))
-            }
-        })
-    }, [installed])
-
-    const seenModIds = new Set<number>()
-    const updatable = installed.filter((ins) => {
-        if (seenModIds.has(ins.id)) return false
-        const mod = modData.get(ins.id)
-        if (mod && mod.version !== ins.version) {
-            seenModIds.add(ins.id)
-            return true
-        }
-        return false
-    })
 
     async function handleUninstall(mods: InstalledMod[]) {
         if (!gamePath) return
