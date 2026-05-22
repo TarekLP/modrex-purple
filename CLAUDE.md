@@ -76,7 +76,7 @@ t('common.install')
 t('browse.modCount', { total: 42 })
 ```
 
-`t(key, vars?)` is fully type-safe — TypeScript errors on unknown keys. Plural pairs are two separate keys; the component picks based on count. For JSX with styled inline elements, split surrounding prose into prefix/suffix keys.
+`t(key, vars?)` is fully type-safe — TypeScript errors on unknown keys. Plural pairs are two separate keys; the component picks based on count. For JSX with styled inline elements, split surrounding prose into prefix/suffix keys. Top-level namespaces: `common`, `app`, `topBar`, `sidebar`, `browse`, `installed`, `detail`, `embed`, `fileSelect`, `depsWarning`, `settings`.
 
 ### Styling
 
@@ -84,7 +84,7 @@ All colors are semantic tokens defined in `src/renderer/src/index.css` via Tailw
 
 The one exception: `createDragImage` in `InstalledPage.tsx` builds DOM elements outside React's render tree where Tailwind classes don't apply. Use hex equivalents there: `#18181b` = `surface-raised`, `#27272a` = `surface-hover`/`border`, `#f4f4f3` = `text`.
 
-Icons: `lucide-react`, imported individually by name. Custom dropdowns: use `components/Select.tsx` — native `<select>` can't be themed. Toggles: use `components/Toggle.tsx`. Markdown: use `components/MarkdownContent.tsx` — never inline `ReactMarkdown` directly. Skeleton loading: use `components/SkeletonCard.tsx` (grid) and `components/SkeletonListRow.tsx` (list) — never replace a grid or list with a centered loading string.
+Icons: `lucide-react`, imported individually by name. Custom dropdowns: use `components/Select.tsx` — native `<select>` can't be themed. Toggles: use `components/Toggle.tsx`. Markdown: use `components/MarkdownContent.tsx` — never inline `ReactMarkdown` directly. It renders full HTML via `rehype-raw`, pre-parses `![](url)` tokens for YouTube and Streamable into inline `EmbedPlayer` components (thumbnail → iframe on click), and handles all markdown elements with semantic token classes. To add a new embed platform, extend `detectEmbed` and `embedConfig` in that file. Skeleton loading: use `components/SkeletonCard.tsx` (grid) and `components/SkeletonListRow.tsx` (list) — never replace a grid or list with a centered loading string.
 
 **Confirm dialogs**: never use `window.confirm`. Add `fooId: string | null` state (null = closed), then render a modal inline: `absolute inset-0 bg-black/60` backdrop → `bg-surface-raised border border-border rounded-xl` dialog card with a `border-b border-border` header section and a footer with Cancel (`bg-surface-hover`) + destructive action (`bg-danger`) buttons. See `deletingFolderId` in `InstalledPage.tsx` as the reference implementation.
 
