@@ -1,0 +1,91 @@
+import type { Mod, InstalledMod, ModFolder } from '../../../shared/types'
+
+export type ChildEntry =
+    | { type: 'folder'; folder: ModFolder }
+    | { type: 'mod'; mods: InstalledMod[] }
+
+export type ChildGroup =
+    | { type: 'folder'; folder: ModFolder }
+    | { type: 'root-group'; groups: InstalledMod[][] }
+
+export function syntheticMod(ins: InstalledMod): Mod {
+    return {
+        id: ins.id,
+        name: ins.name,
+        desc: '',
+        short_desc: 'Manually installed — not on modworkshop',
+        version: ins.version,
+        downloads: 0,
+        likes: 0,
+        views: 0,
+        published_at: ins.installedAt,
+        bumped_at: ins.installedAt,
+        category_id: 0,
+        has_download: false,
+        thumbnail: null,
+        download: null,
+        user: { name: 'Unknown' },
+    }
+}
+
+export function getAllModsInFolder(
+    mods: InstalledMod[],
+    folders: ModFolder[],
+    folderId: string
+): InstalledMod[] {
+    const direct = mods.filter((m) => (m.folderId ?? null) === folderId)
+    const childFolders = folders.filter((f) => f.parentId === folderId)
+    return [...direct, ...childFolders.flatMap((f) => getAllModsInFolder(mods, folders, f.id))]
+}
+
+export function computeChildren(
+    mods: InstalledMod[],
+    folders: ModFolder[],
+    parentId: string | null
+): ChildEntry[] {
+    const scopedMods = mods.filter((m) => (m.folderId ?? null) === parentId)
+    const groupMap = new Map<number, InstalledMod[]>()
+    for (const m of scopedMods) {
+        if (!groupMap.has(m.id)) groupMap.set(m.id, [])
+        groupMap.get(m.id)!.push(m)
+    }
+    const items: ChildEntry[] = []
+    for (const groupMods of groupMap.values()) {
+        groupMods.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+        items.push({ type: 'mod', mods: groupMods })
+    }
+    for (const folder of folders.filter((f) => f.parentId === parentId)) {
+        items.push({ type: 'folder', folder })
+    }
+    items.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'mod' ? -1 : 1
+        const pa =
+            a.type === 'folder'
+                ? a.folder.priority
+                : Math.min(...a.mods.map((m) => m.priority ?? 0))
+        const pb =
+            b.type === 'folder'
+                ? b.folder.priority
+                : Math.min(...b.mods.map((m) => m.priority ?? 0))
+        return pb - pa
+    })
+    return items
+}
+
+export function groupChildren(entries: ChildEntry[]): ChildGroup[] {
+    const groups: ChildGroup[] = []
+    let run: InstalledMod[][] = []
+    for (const entry of entries) {
+        if (entry.type === 'folder') {
+            if (run.length > 0) {
+                groups.push({ type: 'root-group', groups: run })
+                run = []
+            }
+            groups.push({ type: 'folder', folder: entry.folder })
+        } else {
+            run.push(entry.mods)
+        }
+    }
+    if (run.length > 0) groups.push({ type: 'root-group', groups: run })
+    return groups
+}
