@@ -634,29 +634,26 @@ function DownloadsTab({
                 return (
                     <div
                         key={file.id}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-surface-hover border border-border"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-surface-hover border border-border"
                     >
                         <div className="relative shrink-0">
                             {thumbUrl ? (
                                 <img
                                     src={thumbUrl}
                                     alt=""
-                                    className="w-20 h-20 rounded-lg object-cover"
+                                    className="w-14 h-14 rounded-lg object-cover"
                                 />
                             ) : (
-                                <div className="w-20 h-20 rounded-lg bg-surface-active" />
-                            )}
-                            {file.label && (
-                                <span className="absolute bottom-1 left-1 right-1 text-center text-[9px] font-bold uppercase tracking-wide bg-black/70 text-white rounded px-1 py-0.5 leading-tight">
-                                    {file.label}
-                                </span>
+                                <div className="w-14 h-14 rounded-lg bg-surface-active" />
                             )}
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent font-medium uppercase tracking-wide shrink-0">
-                                    {file.type}
-                                </span>
+                                {file.label && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent font-medium uppercase tracking-wide shrink-0">
+                                        {file.label}
+                                    </span>
+                                )}
                                 <span className="text-sm font-semibold truncate">{file.name}</span>
                             </div>
                             {file.desc && (
@@ -707,7 +704,7 @@ function DownloadsTab({
                                         : t('common.installing')
                                     : isInstalled
                                       ? t('common.installed')
-                                      : `${t('common.install')} (${formatBytes(file.size)})`}
+                                      : `${t('common.install')} ${file.type.toUpperCase()} (${formatBytes(file.size)})`}
                             </button>
                             {isInstalled && (
                                 <button
