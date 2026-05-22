@@ -7,6 +7,14 @@ import { detectEmbed, EMBEDS, type EmbedDef, type Embed } from '../embeds'
 
 type Part = { type: 'text'; text: string } | { type: 'embed'; embed: Embed }
 
+// Modworkshop uses !!! Title ... !!! as a collapsible section syntax not in standard markdown.
+function expandCollapsibles(text: string): string {
+    return text.replace(
+        /^!!! (.+)\n([\s\S]*?)^!!!$/gm,
+        (_, title, body) => `<details>\n<summary>${title.trim()}</summary>\n\n${body}</details>`
+    )
+}
+
 function splitEmbeds(text: string, defs: EmbedDef[]): Part[] {
     const parts: Part[] = []
     const re = /!\[[^\]]*\]\(([^)]+)\)/g
@@ -148,7 +156,17 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         td: ({ children }) => (
             <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
         ),
-        div: ({ children }) => <div>{children}</div>,
+        details: ({ children }) => (
+            <details className="my-2 border border-border rounded-lg overflow-hidden">
+                {children}
+            </details>
+        ),
+        summary: ({ children }) => (
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
+                {children}
+            </summary>
+        ),
+        div: ({ children, className }) => <div className={className}>{children}</div>,
         span: ({ children }) => <span>{children}</span>,
         section: ({ children }) => <section>{children}</section>,
         figure: ({ children }) => <figure className="my-2">{children}</figure>,
@@ -170,7 +188,7 @@ function makeMdComponents(defs: EmbedDef[]): Components {
 
 export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embeds?: EmbedDef[] }) {
     const components = useMemo(() => makeMdComponents(embeds), [embeds])
-    const parts = splitEmbeds(text, embeds)
+    const parts = splitEmbeds(expandCollapsibles(text), embeds)
 
     return (
         <div>
