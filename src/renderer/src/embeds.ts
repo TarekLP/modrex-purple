@@ -1,3 +1,5 @@
+// Registry of video embed platforms used by MarkdownContent to detect and render inline players
+
 export interface EmbedDef {
     type: string
     detect: (url: string) => string | null
