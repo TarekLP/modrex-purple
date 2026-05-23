@@ -61,4 +61,4 @@ pnpm test       # run tests
 
 ## Tech stack
 
-Electron · React · Tailwind CSS · electron-vite · TypeScript · Vitest
+Electron · React · Tailwind CSS · Lucide · electron-vite · TypeScript · Vitest
