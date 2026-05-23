@@ -1,11 +1,15 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, createContext, useContext } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
+import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import type { Components } from 'react-markdown'
 import { t } from '../i18n'
 import { detectEmbed, EMBEDS, type EmbedDef, type Embed } from '../embeds'
+import 'highlight.js/styles/github-dark.css'
+
+const InsidePreContext = createContext(false)
 
 type Part =
     | { type: 'text'; text: string }
@@ -160,15 +164,22 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         },
         strong: ({ children }) => <strong className="font-semibold text-text">{children}</strong>,
         em: ({ children }) => <em className="italic">{children}</em>,
-        code: ({ children }) => (
-            <code className="font-mono text-[0.85em] bg-surface-hover px-1 py-0.5 rounded">
-                {children}
-            </code>
-        ),
+        code: ({ children }) => {
+            const inPre = useContext(InsidePreContext)
+            return inPre ? (
+                <code>{children}</code>
+            ) : (
+                <code className="font-mono text-[0.85em] bg-surface-hover px-1 py-0.5 rounded">
+                    {children}
+                </code>
+            )
+        },
         pre: ({ children }) => (
-            <pre className="bg-surface-hover rounded p-3 my-2 overflow-x-auto text-sm font-mono text-text-muted">
-                {children}
-            </pre>
+            <InsidePreContext.Provider value={true}>
+                <pre className="bg-surface-hover rounded p-3 my-2 overflow-x-auto text-sm font-mono text-text">
+                    {children}
+                </pre>
+            </InsidePreContext.Provider>
         ),
         img: ({ src, alt }) => {
             if (!src) return null
@@ -192,7 +203,11 @@ function makeMdComponents(defs: EmbedDef[]): Components {
             <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
         ),
         div: ({ children, className }) => <div className={className}>{children}</div>,
-        span: ({ children, style }) => <span style={style}>{children}</span>,
+        span: ({ children, style, className }) => (
+            <span style={style} className={className}>
+                {children}
+            </span>
+        ),
         section: ({ children }) => <section>{children}</section>,
         figure: ({ children }) => <figure className="my-2">{children}</figure>,
         figcaption: ({ children }) => (
@@ -232,7 +247,7 @@ export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embed
                             <div className="px-3">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkBreaks]}
-                                    rehypePlugins={[rehypeRaw]}
+                                    rehypePlugins={[rehypeRaw, [rehypeHighlight, { detect: true }]]}
                                     components={components}
                                 >
                                     {part.body}
@@ -245,7 +260,7 @@ export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embed
                     <ReactMarkdown
                         key={i}
                         remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[rehypeRaw]}
+                        rehypePlugins={[rehypeRaw, [rehypeHighlight, { detect: true }]]}
                         components={components}
                     >
                         {part.text}
