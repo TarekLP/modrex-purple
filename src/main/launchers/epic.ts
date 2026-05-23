@@ -20,7 +20,10 @@ interface EpicManifest {
 function readManifest(game: GameDef): EpicManifest | null {
     const epicDef = game.launchers.epic
     if (!epicDef) return null
-    if (!existsSync(MANIFEST_DIR)) return null
+    if (!existsSync(MANIFEST_DIR)) {
+        console.warn('Epic manifest directory not found:', MANIFEST_DIR)
+        return null
+    }
 
     let files: string[]
     try {
@@ -35,8 +38,8 @@ function readManifest(game: GameDef): EpicManifest | null {
                 readFileSync(join(MANIFEST_DIR, file), 'utf8')
             ) as EpicManifest
             if (manifest.DisplayName === epicDef.displayName) return manifest
-        } catch {
-            // skip malformed manifests
+        } catch (e) {
+            console.warn(`Failed to parse Epic manifest ${file}:`, e)
         }
     }
     return null
