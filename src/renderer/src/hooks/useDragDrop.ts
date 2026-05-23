@@ -41,7 +41,7 @@ export function useDragDrop({
         const el = document.createElement('div')
         el.style.cssText =
             'position:fixed;top:-9999px;left:-9999px;display:flex;flex-direction:column;' +
-            'background:#18181b;border:1px solid #27272a;border-radius:8px;' +
+            'background:var(--color-surface-raised);border:1px solid var(--color-border);border-radius:8px;' +
             'box-shadow:0 4px 16px rgba(0,0,0,0.6);width:160px;overflow:hidden;pointer-events:none;'
         if (mod.thumbnail) {
             const img = document.createElement('img')
@@ -50,13 +50,14 @@ export function useDragDrop({
             el.appendChild(img)
         } else {
             const placeholder = document.createElement('div')
-            placeholder.style.cssText = 'width:160px;height:90px;background:#27272a;'
+            placeholder.style.cssText =
+                'width:160px;height:90px;background:var(--color-surface-hover);'
             el.appendChild(placeholder)
         }
         const name = document.createElement('span')
         name.textContent = mod.name
         name.style.cssText =
-            'font-size:12px;color:#f4f4f3;padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+            'font-size:12px;color:var(--color-text);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
         el.appendChild(name)
         document.body.appendChild(el)
         e.dataTransfer.setDragImage(el, 80, 45)
