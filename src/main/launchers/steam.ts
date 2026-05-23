@@ -30,7 +30,8 @@ function readSteamInstallPath(): string | null {
             )
             const match = output.match(/InstallPath\s+REG_SZ\s+(.+)/)
             return match ? normalize(match[1].trim()) : null
-        } catch {
+        } catch (e) {
+            console.warn('Steam registry read failed:', e)
             return null
         }
     }
@@ -62,7 +63,8 @@ function readSteamLibraries(steamPath: string): string[] {
         const matches = content.matchAll(/"path"\s+"([^"]+)"/g)
         for (const match of matches) paths.push(normalize(match[1]))
         return paths
-    } catch {
+    } catch (e) {
+        console.warn('Failed to read Steam library folders:', e)
         return [steamPath]
     }
 }
