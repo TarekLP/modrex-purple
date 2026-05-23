@@ -591,7 +591,7 @@ function registerHandlers(): void {
             return
         }
         const ext = updateStrategy === 'deb' ? 'deb' : 'rpm'
-        const url = `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${LINUX_ARTIFACT}-${version}.${ext}`
+        const url = `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${LINUX_ARTIFACT}.${ext}`
         const dest = await downloadFile(url, ext, (downloaded, total) => {
             const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0
             event.sender.send('updater:download-progress', percent)

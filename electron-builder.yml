@@ -40,7 +40,7 @@ linux:
     icon: assets/icon.png
     category: Game
     maintainer: Oleh Shulha <broo20544@gmail.com>
-    artifactName: pd3-mod-manager-${version}.${ext}
+    artifactName: pd3-mod-manager.${ext}
 
 deb:
     depends:

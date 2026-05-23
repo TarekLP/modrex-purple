@@ -3,7 +3,7 @@ import { app } from 'electron'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
-const INDEX_URL = 'https://github.com/modrexio/mod-index/releases/download/latest-index/index.db'
+const INDEX_URL = 'https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db'
 const INDEX_PATH = join(app.getPath('userData'), 'mod-index.db')
 const MAX_AGE_MS = 60 * 60 * 1000
 
