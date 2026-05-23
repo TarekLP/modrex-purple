@@ -21,7 +21,7 @@ pnpm test:watch   # Run tests in watch mode
 Run a single test file:
 
 ```bash
-pnpm vitest run src/main/launchers/steam.test.ts
+pnpm vitest run src/main/launchers/index.test.ts
 ```
 
 ## Architecture
