@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { join } from 'path'
 
 vi.mock('electron', () => ({ shell: { openExternal: vi.fn() } }))
 vi.mock('child_process')
@@ -140,7 +141,7 @@ describe('launchGame', () => {
 
         launchGame(GAME, 'manual', 'D:\\Games\\PAYDAY 3')
 
-        expect(cp.spawn).toHaveBeenCalledWith('D:\\Games\\PAYDAY 3\\PAYDAY3.exe', [], {
+        expect(cp.spawn).toHaveBeenCalledWith(join('D:\\Games\\PAYDAY 3', 'PAYDAY3.exe'), [], {
             detached: true,
             stdio: 'ignore',
         })

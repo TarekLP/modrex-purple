@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { join } from 'path'
 
 vi.mock('electron', () => ({ shell: { openExternal: vi.fn() } }))
 vi.mock('fs')
@@ -63,7 +64,7 @@ describe('XboxLauncher.launch', () => {
 
         XboxLauncher.launch(GAME, 'C:\\XboxGames\\PAYDAY 3')
 
-        expect(cp.spawn).toHaveBeenCalledWith('C:\\XboxGames\\PAYDAY 3\\PAYDAY3.exe', [], {
+        expect(cp.spawn).toHaveBeenCalledWith(join('C:\\XboxGames\\PAYDAY 3', 'PAYDAY3.exe'), [], {
             detached: true,
             stdio: 'ignore',
         })
