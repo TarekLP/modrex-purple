@@ -1,12 +1,12 @@
 @import 'tailwindcss';
 
 @theme {
-    --color-surface: #1a1a1a;
-    --color-surface-raised: #242424;
-    --color-surface-hover: #2e2e2e;
-    --color-surface-active: #3a3a3a;
-    --color-surface-light: #4e4e4e;
-    --color-border: #2e2e2e;
+    --color-surface: #131313;
+    --color-surface-raised: #1c1c1c;
+    --color-surface-hover: #262626;
+    --color-surface-active: #333333;
+    --color-surface-light: #464646;
+    --color-border: #262626;
     --color-text: #f4f4f3;
     --color-text-muted: #8e8e96;
     --color-text-subtle: #71717a;
