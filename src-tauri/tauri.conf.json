@@ -1,0 +1,31 @@
+{
+    "productName": "Modrex",
+    "version": "0.7.0",
+    "identifier": "io.github.shulhaoleh.pd3modmanager",
+    "build": {
+        "frontendDist": "../out/renderer",
+        "devUrl": "http://localhost:5173"
+    },
+    "app": {
+        "windows": [
+            {
+                "label": "main",
+                "title": "Modrex",
+                "width": 1200,
+                "height": 800,
+                "minWidth": 900,
+                "minHeight": 600,
+                "backgroundColor": "#0a0a0a",
+                "visible": false
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": ["../assets/icon.ico", "../assets/icon.png"]
+    }
+}
