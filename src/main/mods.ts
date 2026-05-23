@@ -290,7 +290,10 @@ export function installMod(
         : join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
     if (!existsSync(modsDir)) mkdirSync(modsDir, { recursive: true })
 
-    const existing = state.mods.find((m) => m.uid === mod.uid)
+    // When a mod update ships a new file, the new uid (new file.id) won't match the installed entry.
+    const existing =
+        state.mods.find((m) => m.uid === mod.uid) ??
+        (mod.id > 0 ? state.mods.find((m) => m.id === mod.id) : undefined)
     const maxSiblingMod = state.mods
         .filter((m) => (m.folderId ?? null) === folderId)
         .reduce((max, m) => Math.max(max, m.priority ?? 0), 0)
@@ -310,17 +313,24 @@ export function installMod(
         if (existsSync(oldPath)) rmSync(oldPath, { force: true })
     }
 
-    saveState(
-        statePath,
-        addToState(state, {
-            ...mod,
-            filename,
-            priority,
-            folderId,
-            enabled: true,
-            installedAt: new Date().toISOString(),
-        })
+    // existing may carry a different uid (old file ID) than mod.uid (new file ID).
+    const filteredMods = state.mods.filter(
+        (m) => m.uid !== mod.uid && (!existing || m.uid !== existing.uid)
     )
+    saveState(statePath, {
+        ...state,
+        mods: [
+            ...filteredMods,
+            {
+                ...mod,
+                filename,
+                priority,
+                folderId,
+                enabled: true,
+                installedAt: new Date().toISOString(),
+            },
+        ],
+    })
 }
 
 export function reorderModsInFolder(

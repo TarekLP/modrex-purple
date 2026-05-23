@@ -291,6 +291,61 @@ describe('installMod priority preservation', () => {
 
         expect(after).toBe(before)
     })
+
+    it('replaces old entry and preserves priority when the same mod is updated with a new file id', () => {
+        installMod(gamePath, statePath, { ...fakeMod, uid: '100', fileId: 100 }, sourceFile)
+        const { mods: before } = readState(statePath)
+        expect(before).toHaveLength(1)
+        const oldPriority = before[0].priority
+
+        const newSource = join(tmp, 'NewVersion.pak')
+        writeFileSync(newSource, 'new pak content')
+        installMod(
+            gamePath,
+            statePath,
+            { ...fakeMod, uid: '200', fileId: 200, version: '2.0' },
+            newSource
+        )
+
+        const { mods: after } = readState(statePath)
+        expect(after).toHaveLength(1)
+        expect(after[0].uid).toBe('200')
+        expect(after[0].version).toBe('2.0')
+        expect(after[0].priority).toBe(oldPriority)
+        expect(existsSync(activeModPath(gamePath, after[0].filename))).toBe(true)
+    })
+
+    it('removes old pak when a mod update changes the file name on disk', () => {
+        installMod(
+            gamePath,
+            statePath,
+            { ...fakeMod, uid: '100', fileId: 100, name: 'OldName', filename: 'OldName.pak' },
+            sourceFile
+        )
+        const { mods: before } = readState(statePath)
+        const oldFilename = before[0].filename
+
+        const newSource = join(tmp, 'NewName.pak')
+        writeFileSync(newSource, 'new pak content')
+        installMod(
+            gamePath,
+            statePath,
+            {
+                ...fakeMod,
+                uid: '200',
+                fileId: 200,
+                name: 'NewName',
+                filename: 'NewName.pak',
+                version: '2.0',
+            },
+            newSource
+        )
+
+        const { mods: after } = readState(statePath)
+        expect(after).toHaveLength(1)
+        expect(existsSync(activeModPath(gamePath, oldFilename))).toBe(false)
+        expect(existsSync(activeModPath(gamePath, after[0].filename))).toBe(true)
+    })
 })
 
 // --- uninstallMod edge cases ---
