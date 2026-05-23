@@ -47,6 +47,7 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
     }, [launchOptions])
 
     const isManual = !!settings?.gamePath
+    const availableLaunchers = LAUNCHER_OPTIONS.filter((o) => installedLaunchers.includes(o.value))
 
     async function handleBrowse() {
         setPicking(true)
@@ -147,9 +148,8 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                         <Select
                             value={launcher}
                             onChange={handleLauncherChange}
-                            options={LAUNCHER_OPTIONS.filter(
-                                (o) => o.value === 'manual' || installedLaunchers.includes(o.value)
-                            )}
+                            options={availableLaunchers}
+                            disabled={availableLaunchers.length <= 1}
                         />
                     </div>
                 </section>

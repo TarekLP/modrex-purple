@@ -11,9 +11,10 @@ interface Props {
     onChange: (value: string) => void
     options: Option[]
     placeholder?: string
+    disabled?: boolean
 }
 
-export function Select({ value, onChange, options, placeholder }: Props) {
+export function Select({ value, onChange, options, placeholder, disabled }: Props) {
     const [open, setOpen] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
 
@@ -31,7 +32,8 @@ export function Select({ value, onChange, options, placeholder }: Props) {
         <div ref={ref} className="relative">
             <button
                 onClick={() => setOpen((o) => !o)}
-                className="text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text flex items-center gap-2 hover:bg-surface-active transition-colors whitespace-nowrap"
+                disabled={disabled}
+                className="text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text flex items-center gap-2 hover:bg-surface-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
                 <span className={selected ? 'text-text' : 'text-text-subtle'}>
                     {selected ? selected.label : placeholder}
