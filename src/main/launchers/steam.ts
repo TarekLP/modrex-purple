@@ -1,8 +1,7 @@
-import { execSync } from 'child_process'
+import { execSync, spawn } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import { homedir } from 'os'
 import { join, normalize } from 'path'
-import { spawn } from 'child_process'
 import { shell } from 'electron'
 import type { GameDef, LauncherDef } from './types'
 
@@ -14,7 +13,7 @@ export function buildGamePath(libraryPath: string, folderName: string): string {
     return join(parseSteamLibraryPath(libraryPath), 'steamapps', 'common', folderName)
 }
 
-export function steamBin(steamPath: string): string {
+function steamBin(steamPath: string): string {
     if (process.platform !== 'win32') {
         const sh = join(steamPath, 'steam.sh')
         return existsSync(sh) ? sh : 'steam'
@@ -108,19 +107,4 @@ export const SteamLauncher: LauncherDef = {
             shell.openExternal(`steam://rungameid/${steamDef.appId}`)
         }
     },
-}
-
-// Legacy exports — used by index.ts during migration; removed in Commit 7
-export function findSteamPath(): string | null {
-    return readSteamInstallPath()
-}
-
-export function findGamePath(): string | null {
-    const steamPath = readSteamInstallPath()
-    if (!steamPath) return null
-    for (const library of readSteamLibraries(steamPath)) {
-        const gamePath = join(library, 'steamapps', 'common', 'PAYDAY3')
-        if (existsSync(gamePath)) return gamePath
-    }
-    return null
 }

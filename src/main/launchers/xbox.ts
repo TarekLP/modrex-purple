@@ -45,7 +45,6 @@ export const XboxLauncher: LauncherDef = {
             const child = spawn(exe, [], { detached: true, stdio: 'ignore' })
             child.unref()
         } else {
-            // Fallback: open via Xbox app if exe not found at expected path
             const xboxDef = game.launchers.xbox
             if (xboxDef) shell.openExternal(`msxbox://game/?productId=${xboxDef.productId}`)
         }

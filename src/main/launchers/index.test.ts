@@ -12,11 +12,6 @@ vi.mock('./steam', () => ({
         identifyPath: vi.fn(),
         launch: vi.fn(),
     },
-    findSteamPath: vi.fn(),
-    findGamePath: vi.fn(),
-    steamBin: vi.fn(),
-    parseSteamLibraryPath: vi.fn(),
-    buildGamePath: vi.fn(),
 }))
 vi.mock('./epic', () => ({
     EpicLauncher: {

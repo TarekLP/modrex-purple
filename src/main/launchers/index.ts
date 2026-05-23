@@ -34,7 +34,6 @@ export function launchGame(
         found.launch(game, gamePath, opts)
         return
     }
-    // 'manual' — spawn the executable directly
     const args = opts?.trim().split(/\s+/).filter(Boolean) ?? []
     const child = spawn(join(gamePath, game.executable), args, {
         detached: true,
