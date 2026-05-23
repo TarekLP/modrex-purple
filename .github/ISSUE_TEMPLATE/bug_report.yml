@@ -1,0 +1,47 @@
+name: Bug Report
+description: Something isn't working
+labels: [bug]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              **Please attach your log file.** Open the app → Settings → Open Log File, then paste the relevant lines below.
+    - type: textarea
+      id: description
+      attributes:
+          label: What happened?
+          placeholder: Describe what you did and what went wrong.
+      validations:
+          required: true
+    - type: textarea
+      id: expected
+      attributes:
+          label: What did you expect?
+      validations:
+          required: true
+    - type: dropdown
+      id: launcher
+      attributes:
+          label: Game launcher
+          options:
+              - Steam
+              - Epic Games
+              - Xbox / Game Pass
+      validations:
+          required: true
+    - type: dropdown
+      id: os
+      attributes:
+          label: Operating system
+          options:
+              - Windows
+              - Linux
+      validations:
+          required: true
+    - type: textarea
+      id: log
+      attributes:
+          label: Log file
+          description: 'Open the app → Settings → Open Log File. Paste the lines around the error.'
+          placeholder: Paste log lines here...
+          render: text
