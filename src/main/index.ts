@@ -16,7 +16,12 @@ import {
     registerDownload,
     type ListModsParams,
 } from './api'
-import { autoDetect, identifyLauncher, launchGame as registryLaunchGame } from './launchers/index'
+import {
+    autoDetect,
+    identifyLauncher,
+    launchGame as registryLaunchGame,
+    LAUNCHERS,
+} from './launchers/index'
 import { PD3 } from './launchers/games/pd3'
 import type { LauncherId } from './launchers/types'
 import {
@@ -86,6 +91,9 @@ function registerHandlers(): void {
     })
 
     ipcMain.handle('settings:get', () => readSettings(settingsPath))
+    ipcMain.handle('settings:installed-launchers', () =>
+        LAUNCHERS.filter((l) => l.findGame(PD3) !== null).map((l) => l.id)
+    )
     ipcMain.handle('settings:set-game-path', (_, gamePath: string | null) => {
         if (gamePath && !existsSync(join(gamePath, 'PAYDAY3', 'Content', 'Paks'))) {
             throw new Error('Not a valid PAYDAY 3 installation')

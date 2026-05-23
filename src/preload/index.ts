@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('api', {
     openPath: (path: string) => ipcRenderer.invoke('shell:open-path', path),
     openLog: () => ipcRenderer.invoke('app:open-log'),
 
+    getInstalledLaunchers: () => ipcRenderer.invoke('settings:installed-launchers'),
     getSettings: () => ipcRenderer.invoke('settings:get'),
     setGamePath: (gamePath: string | null) =>
         ipcRenderer.invoke('settings:set-game-path', gamePath),

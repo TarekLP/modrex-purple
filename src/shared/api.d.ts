@@ -69,6 +69,7 @@ declare global {
             openExternal(url: string): Promise<void>
             openPath(path: string): Promise<void>
             openLog(): Promise<void>
+            getInstalledLaunchers(): Promise<string[]>
             getSettings(): Promise<{
                 gamePath?: string
                 launcher?: string

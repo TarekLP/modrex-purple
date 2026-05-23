@@ -156,15 +156,23 @@
         "title": "Settings",
         "gamePath": {
             "title": "Game Path",
-            "description": "Path to your PAYDAY 3 installation. Detected automatically from Steam if not set manually.",
+            "description": "Path to your PAYDAY 3 installation. Detected automatically from your installed launchers if not set manually.",
             "notFound": "Not found",
             "reset": "Reset",
             "browse": "Browse",
             "picking": "Picking…",
             "manuallySet": "Manually set",
-            "autoDetected": "Auto-detected from Steam",
+            "autoDetected": "Auto-detected",
             "notDetected": "Could not detect PD3 installation — set the path manually.",
             "invalid": "Selected folder is not a valid PAYDAY 3 installation."
+        },
+        "launcher": {
+            "title": "Launcher",
+            "description": "How to launch PAYDAY 3. Detected automatically when the game path is set.",
+            "steam": "Steam",
+            "epic": "Epic Games",
+            "xbox": "Xbox",
+            "manual": "Manual (launch executable directly)"
         },
         "launchOptions": {
             "title": "Launch Options",
