@@ -31,13 +31,21 @@ export function launchGame(
 ): void {
     const found = LAUNCHERS.find((l) => l.id === launcher)
     if (found) {
-        found.launch(game, gamePath, opts)
+        try {
+            found.launch(game, gamePath, opts)
+        } catch (e) {
+            console.error(`Failed to launch game via ${launcher}:`, e)
+        }
         return
     }
     const args = opts?.trim().split(/\s+/).filter(Boolean) ?? []
-    const child = spawn(join(gamePath, game.executable), args, {
-        detached: true,
-        stdio: 'ignore',
-    })
-    child.unref()
+    try {
+        const child = spawn(join(gamePath, game.executable), args, {
+            detached: true,
+            stdio: 'ignore',
+        })
+        child.unref()
+    } catch (e) {
+        console.error('Failed to spawn game executable:', e)
+    }
 }
