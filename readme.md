@@ -27,13 +27,16 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 - Mods with multiple installed files grouped as a single card
 - Update detection with selective per-mod updates
 - Launch modded or vanilla directly from the app
-- Automatically detects your PD3 installation via Steam registry
+- Automatically detects your PD3 installation (Steam, Epic Games, Xbox Game Pass)
 - Identifies manually placed .pak files via SHA256 lookup against a live mod index
 
 ## Requirements
 
-- Windows 10/11 or Linux
-- Steam version of PAYDAY 3
+| Launcher       | Windows                                              | Linux                                                |
+| -------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| Steam          | ![yes](https://img.shields.io/badge/Yes-brightgreen) | ![yes](https://img.shields.io/badge/Yes-brightgreen) |
+| Epic Games     | ![yes](https://img.shields.io/badge/Yes-brightgreen) | ![no](https://img.shields.io/badge/No-red)           |
+| Xbox Game Pass | ![yes](https://img.shields.io/badge/Yes-brightgreen) | ![no](https://img.shields.io/badge/No-red)           |
 
 ## Troubleshooting
 
@@ -51,7 +54,7 @@ Log file locations:
 ```bash
 pnpm install
 pnpm dev        # start with hot reload
-pnpm build      # production build → out/
+pnpm build      # production build to out/
 pnpm typecheck  # type-check
 pnpm test       # run tests
 ```
