@@ -20,7 +20,8 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 ## Features
 
 - Browse and search mods from modworkshop
-- Full mod detail page: description, images, downloads, dependencies, and install instructions
+- Full mod detail page: description, images, downloads, changelog, dependencies, and install instructions
+- Rich description rendering: formatted text, tables, collapsible sections, colored text, and inline video embeds (YouTube, Streamable)
 - One-click install, uninstall, enable, and disable
 - Organize mods into folders with arbitrary nesting depth and drag-and-drop reordering
 - Mods with multiple installed files grouped as a single card
