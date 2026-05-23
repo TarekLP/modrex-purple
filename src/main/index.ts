@@ -51,6 +51,9 @@ import { downloadFile } from './download'
 import { readSettings, writeSettings } from './settings'
 import { ensureIndex, lookupSha256, lookupByName } from './mod-index'
 
+const GITHUB_REPO = 'ShulhaOleh/pd3-mod-manager'
+const LINUX_ARTIFACT = 'pd3-mod-manager'
+
 function pakFilename(modName: string): string {
     return (
         modName
@@ -588,7 +591,7 @@ function registerHandlers(): void {
             return
         }
         const ext = updateStrategy === 'deb' ? 'deb' : 'rpm'
-        const url = `https://github.com/ShulhaOleh/pd3-mod-manager/releases/download/v${version}/pd3-mod-manager.${ext}`
+        const url = `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${LINUX_ARTIFACT}.${ext}`
         const dest = await downloadFile(url, ext, (downloaded, total) => {
             const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0
             event.sender.send('updater:download-progress', percent)
@@ -627,10 +630,10 @@ async function checkForUpdates(win: BrowserWindow): Promise<void> {
         autoUpdater.checkForUpdates()
         autoUpdater.on('update-available', async (info) => {
             let body = ''
-            let releaseUrl = `https://github.com/ShulhaOleh/pd3-mod-manager/releases/tag/v${info.version}`
+            let releaseUrl = `https://github.com/${GITHUB_REPO}/releases/tag/v${info.version}`
             try {
                 const r = await fetch(
-                    `https://api.github.com/repos/ShulhaOleh/pd3-mod-manager/releases/tags/v${info.version}`,
+                    `https://api.github.com/repos/${GITHUB_REPO}/releases/tags/v${info.version}`,
                     { headers: { 'User-Agent': `pd3-mod-manager/${app.getVersion()}` } }
                 )
                 if (r.ok) {
@@ -656,13 +659,10 @@ async function checkForUpdates(win: BrowserWindow): Promise<void> {
     }
 
     try {
-        const res = await fetch(
-            'https://api.github.com/repos/ShulhaOleh/pd3-mod-manager/releases/latest',
-            {
-                headers: { 'User-Agent': `pd3-mod-manager/${app.getVersion()}` },
-                signal: AbortSignal.timeout(10_000),
-            }
-        )
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+            headers: { 'User-Agent': `pd3-mod-manager/${app.getVersion()}` },
+            signal: AbortSignal.timeout(10_000),
+        })
         if (!res.ok) return
         const { tag_name, body, html_url } = (await res.json()) as {
             tag_name: string
