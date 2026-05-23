@@ -34,9 +34,9 @@ function readManifest(game: GameDef): EpicManifest | null {
 
     for (const file of files) {
         try {
-            const manifest = JSON.parse(
-                readFileSync(join(MANIFEST_DIR, file), 'utf8')
-            ) as EpicManifest
+            const content = readFileSync(join(MANIFEST_DIR, file), 'utf8')
+            if (!content.trim()) continue
+            const manifest = JSON.parse(content) as EpicManifest
             if (manifest.DisplayName === epicDef.displayName) return manifest
         } catch (e) {
             console.warn(`Failed to parse Epic manifest ${file}:`, e)
