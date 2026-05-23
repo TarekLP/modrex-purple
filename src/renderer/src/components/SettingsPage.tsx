@@ -7,7 +7,6 @@ const LAUNCHER_OPTIONS = [
     { value: 'steam', label: 'Steam' },
     { value: 'epic', label: 'Epic Games' },
     { value: 'xbox', label: 'Xbox' },
-    { value: 'manual', label: 'Manual (launch executable directly)' },
 ]
 
 interface Props {
