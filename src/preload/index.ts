@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('api', {
     getSettings: () => ipcRenderer.invoke('settings:get'),
     setGamePath: (gamePath: string | null) =>
         ipcRenderer.invoke('settings:set-game-path', gamePath),
+    setLauncher: (launcher: string) => ipcRenderer.invoke('settings:set-launcher', launcher),
     setLaunchOptions: (launchOptions: string) =>
         ipcRenderer.invoke('settings:set-launch-options', launchOptions),
     setSkipFileOpenLogWarning: (skip: boolean) =>

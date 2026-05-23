@@ -16,7 +16,9 @@ import {
     registerDownload,
     type ListModsParams,
 } from './api'
-import { findGamePath, findSteamPath, steamBin } from './launchers/steam'
+import { autoDetect, identifyLauncher, launchGame as registryLaunchGame } from './launchers/index'
+import { PD3 } from './launchers/games/pd3'
+import type { LauncherId } from './launchers/types'
 import {
     installMod,
     reorderModsInFolder,
@@ -69,6 +71,7 @@ function getStatePath(gamePath: string | null): string {
     return join(gamePath, 'PAYDAY3', 'Content', 'Paks', '~mods', '.pd3mm.json')
 }
 let resolvedGamePath: string | null = null
+let resolvedLauncher: LauncherId | 'manual' = 'steam'
 
 function registerHandlers(): void {
     ipcMain.handle('api:list-mods', (_, params: ListModsParams) => listMods(params))
@@ -90,11 +93,18 @@ function registerHandlers(): void {
         const settings = readSettings(settingsPath)
         if (gamePath) {
             settings.gamePath = gamePath
+            settings.launcher = identifyLauncher(gamePath)
+            resolvedGamePath = gamePath
+            resolvedLauncher = settings.launcher
         } else {
             delete settings.gamePath
+            delete settings.launcher
+            const detected = autoDetect(PD3)
+            resolvedGamePath = detected?.gamePath ?? null
+            resolvedLauncher = detected?.launcher ?? 'steam'
+            if (detected) settings.launcher = detected.launcher
         }
         writeSettings(settingsPath, settings)
-        resolvedGamePath = gamePath ?? findGamePath()
     })
     ipcMain.handle('settings:pick-folder', async () => {
         const result = await dialog.showOpenDialog({
@@ -490,22 +500,16 @@ function registerHandlers(): void {
     })
 
     function launchGame(launchOptions: string | undefined): void {
-        const opts = launchOptions?.trim()
-        const steamPath = findSteamPath()
-        if (opts && steamPath) {
-            const child = spawn(
-                steamBin(steamPath),
-                ['-applaunch', '1272080', ...opts.split(/\s+/)],
-                {
-                    detached: true,
-                    stdio: 'ignore',
-                }
-            )
-            child.unref()
-        } else {
-            shell.openExternal('steam://rungameid/1272080')
-        }
+        if (!resolvedGamePath) return
+        registryLaunchGame(PD3, resolvedLauncher, resolvedGamePath, launchOptions)
     }
+
+    ipcMain.handle('settings:set-launcher', (_, launcher: LauncherId | 'manual') => {
+        const settings = readSettings(settingsPath)
+        settings.launcher = launcher
+        writeSettings(settingsPath, settings)
+        resolvedLauncher = launcher
+    })
 
     ipcMain.handle('app:launch-modded', () => {
         const { launchOptions } = readSettings(settingsPath)
@@ -703,8 +707,19 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
     console.info(`PD3 Mod Manager ${app.getVersion()} starting on ${process.platform}`)
-    resolvedGamePath = readSettings(settingsPath).gamePath ?? findGamePath()
-    console.info(`Game path: ${resolvedGamePath ?? 'not found'}`)
+    const startupSettings = readSettings(settingsPath)
+    if (startupSettings.gamePath) {
+        resolvedGamePath = startupSettings.gamePath
+        resolvedLauncher = startupSettings.launcher ?? identifyLauncher(startupSettings.gamePath)
+    } else {
+        const detected = autoDetect(PD3)
+        resolvedGamePath = detected?.gamePath ?? null
+        resolvedLauncher = detected?.launcher ?? 'steam'
+        if (detected) {
+            writeSettings(settingsPath, { ...startupSettings, launcher: detected.launcher })
+        }
+    }
+    console.info(`Game path: ${resolvedGamePath ?? 'not found'} (${resolvedLauncher})`)
     if (resolvedGamePath) {
         const modsDir = join(resolvedGamePath, 'PAYDAY3', 'Content', 'Paks', '~mods')
         const modsBak = join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak')

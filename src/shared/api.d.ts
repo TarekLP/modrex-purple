@@ -71,11 +71,13 @@ declare global {
             openLog(): Promise<void>
             getSettings(): Promise<{
                 gamePath?: string
+                launcher?: string
                 launchOptions?: string
                 skipFileOpenLogWarning?: boolean
                 dismissedDepsWarnings?: number[]
             }>
             setGamePath(gamePath: string | null): Promise<void>
+            setLauncher(launcher: string): Promise<void>
             setLaunchOptions(launchOptions: string): Promise<void>
             setSkipFileOpenLogWarning(skip: boolean): Promise<void>
             dismissDepsWarning(modId: number): Promise<void>
