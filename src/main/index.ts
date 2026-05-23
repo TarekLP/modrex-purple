@@ -51,7 +51,7 @@ import { downloadFile } from './download'
 import { readSettings, writeSettings } from './settings'
 import { ensureIndex, lookupSha256, lookupByName } from './mod-index'
 
-const GITHUB_REPO = 'ShulhaOleh/pd3-mod-manager'
+const GITHUB_REPO = 'modrexio/modrex'
 const LINUX_ARTIFACT = 'pd3-mod-manager'
 
 function pakFilename(modName: string): string {
@@ -591,7 +591,7 @@ function registerHandlers(): void {
             return
         }
         const ext = updateStrategy === 'deb' ? 'deb' : 'rpm'
-        const url = `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${LINUX_ARTIFACT}.${ext}`
+        const url = `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${LINUX_ARTIFACT}-${version}.${ext}`
         const dest = await downloadFile(url, ext, (downloaded, total) => {
             const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0
             event.sender.send('updater:download-progress', percent)
@@ -634,7 +634,7 @@ async function checkForUpdates(win: BrowserWindow): Promise<void> {
             try {
                 const r = await fetch(
                     `https://api.github.com/repos/${GITHUB_REPO}/releases/tags/v${info.version}`,
-                    { headers: { 'User-Agent': `pd3-mod-manager/${app.getVersion()}` } }
+                    { headers: { 'User-Agent': `modrex/${app.getVersion()}` } }
                 )
                 if (r.ok) {
                     const data = (await r.json()) as { body: string; html_url: string }
@@ -660,7 +660,7 @@ async function checkForUpdates(win: BrowserWindow): Promise<void> {
 
     try {
         const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-            headers: { 'User-Agent': `pd3-mod-manager/${app.getVersion()}` },
+            headers: { 'User-Agent': `modrex/${app.getVersion()}` },
             signal: AbortSignal.timeout(10_000),
         })
         if (!res.ok) return

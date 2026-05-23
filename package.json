@@ -19,7 +19,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/ShulhaOleh/pd3-mod-manager.git"
+        "url": "git+https://github.com/modrexio/modrex.git"
     },
     "keywords": [
         "pd3",
@@ -29,9 +29,9 @@
     "author": "Oleh Shulha",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/ShulhaOleh/pd3-mod-manager/issues"
+        "url": "https://github.com/modrexio/modrex/issues"
     },
-    "homepage": "https://github.com/ShulhaOleh/pd3-mod-manager#readme",
+    "homepage": "https://github.com/modrexio/modrex#readme",
     "description": "A desktop mod manager for PAYDAY 3 powered by modworkshop",
     "devDependencies": {
         "@commitlint/cli": "^21.0.1",

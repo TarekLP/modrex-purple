@@ -4,8 +4,8 @@ copyright: Copyright © 2026 Oleh Shulha
 
 publish:
     provider: github
-    owner: ShulhaOleh
-    repo: pd3-mod-manager
+    owner: modrexio
+    repo: modrex
 
 directories:
     buildResources: assets
@@ -21,7 +21,7 @@ win:
     target:
         - target: nsis
     icon: assets/icon.ico
-    artifactName: PD3.Mod.Manager.Setup.exe
+    artifactName: PD3.Mod.Manager.Setup.${version}.exe
 
 nsis:
     oneClick: false
@@ -40,7 +40,7 @@ linux:
     icon: assets/icon.png
     category: Game
     maintainer: Oleh Shulha <broo20544@gmail.com>
-    artifactName: pd3-mod-manager.${ext}
+    artifactName: pd3-mod-manager-${version}.${ext}
 
 deb:
     depends:
