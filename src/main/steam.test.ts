@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { join } from 'path'
-import { parseSteamLibraryPath, buildGamePath } from './steam'
+import { parseSteamLibraryPath, buildGamePath } from './launchers/steam'
 
 describe('parseSteamLibraryPath', () => {
     it('normalizes double backslashes from registry', () => {
@@ -13,8 +13,8 @@ describe('parseSteamLibraryPath', () => {
 })
 
 describe('buildGamePath', () => {
-    it('appends PD3 relative path to any library root', () => {
+    it('appends the given folder name inside steamapps/common', () => {
         const base = 'library'
-        expect(buildGamePath(base)).toBe(join(base, 'steamapps', 'common', 'PAYDAY3'))
+        expect(buildGamePath(base, 'PAYDAY3')).toBe(join(base, 'steamapps', 'common', 'PAYDAY3'))
     })
 })

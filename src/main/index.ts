@@ -16,7 +16,7 @@ import {
     registerDownload,
     type ListModsParams,
 } from './api'
-import { findGamePath, findSteamPath } from './steam'
+import { findGamePath, findSteamPath, steamBin } from './launchers/steam'
 import {
     installMod,
     reorderModsInFolder,
@@ -488,14 +488,6 @@ function registerHandlers(): void {
             }
         } catch {}
     })
-
-    function steamBin(steamPath: string): string {
-        if (process.platform !== 'win32') {
-            const sh = join(steamPath, 'steam.sh')
-            return existsSync(sh) ? sh : 'steam'
-        }
-        return join(steamPath, 'steam.exe')
-    }
 
     function launchGame(launchOptions: string | undefined): void {
         const opts = launchOptions?.trim()
