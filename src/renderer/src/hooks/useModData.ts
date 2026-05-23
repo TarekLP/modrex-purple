@@ -16,6 +16,7 @@ export function useModData(installed: InstalledMod[]): {
     useEffect(() => {
         const now = Date.now()
         const stale = installed.filter((m) => {
+            if (m.id < 0) return false
             const t = fetchedAt.current.get(m.id)
             return t === undefined || now - t >= TTL_MS
         })
