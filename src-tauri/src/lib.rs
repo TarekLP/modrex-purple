@@ -13,6 +13,12 @@ pub fn run() {
                 .target(tauri_plugin_log::Target::new(
                     tauri_plugin_log::TargetKind::LogDir { file_name: None },
                 ))
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Webview,
+                ))
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Stdout,
+                ))
                 .build(),
         )
         .setup(|app| {
