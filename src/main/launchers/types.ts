@@ -9,7 +9,7 @@ export interface GameDef {
     launchers: {
         steam?: { appId: number; folderName: string }
         epic?: { displayName: string; slug: string }
-        xbox?: { productId: string }
+        xbox?: { productId: string; executable?: string }
     }
 }
 

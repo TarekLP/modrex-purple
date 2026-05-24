@@ -20,7 +20,7 @@ const GAME: GameDef = {
     modsPath: 'PAYDAY3/Content/Paks/~mods',
     modExtensions: ['.pak'],
     launchers: {
-        xbox: { productId: '9NPZVDCH73SX' },
+        xbox: { productId: '9NPZVDCH73SX', executable: 'PAYDAY3-WinGDK-Shipping.exe' },
     },
 }
 
@@ -40,9 +40,11 @@ describe('XboxLauncher.identifyPath', () => {
 
 describe('XboxLauncher.findGame', () => {
     it('returns path when game executable is found in XboxGames', () => {
-        vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('PAYDAY3.exe'))
+        vi.mocked(fs.existsSync).mockImplementation((p) =>
+            String(p).endsWith('PAYDAY3-WinGDK-Shipping.exe')
+        )
         const result = XboxLauncher.findGame(GAME)
-        expect(result).toMatch(/XboxGames[\\/]PAYDAY 3$/)
+        expect(result).toMatch(/XboxGames[\\/]PAYDAY 3[\\/]Content$/)
     })
 
     it('returns null when game is not found on any drive', () => {
@@ -62,19 +64,20 @@ describe('XboxLauncher.launch', () => {
         const mockChild = { unref: vi.fn() }
         vi.mocked(cp.spawn).mockReturnValue(mockChild as any)
 
-        XboxLauncher.launch(GAME, 'C:\\XboxGames\\PAYDAY 3')
+        XboxLauncher.launch(GAME, 'C:\\XboxGames\\PAYDAY 3\\Content')
 
-        expect(cp.spawn).toHaveBeenCalledWith(join('C:\\XboxGames\\PAYDAY 3', 'PAYDAY3.exe'), [], {
-            detached: true,
-            stdio: 'ignore',
-        })
+        expect(cp.spawn).toHaveBeenCalledWith(
+            join('C:\\XboxGames\\PAYDAY 3\\Content', 'PAYDAY3-WinGDK-Shipping.exe'),
+            [],
+            { detached: true, stdio: 'ignore' }
+        )
         expect(mockChild.unref).toHaveBeenCalled()
     })
 
     it('falls back to msxbox URI when executable is not found', () => {
         vi.mocked(fs.existsSync).mockReturnValue(false)
 
-        XboxLauncher.launch(GAME, 'C:\\XboxGames\\PAYDAY 3')
+        XboxLauncher.launch(GAME, 'C:\\XboxGames\\PAYDAY 3\\Content')
 
         expect(shell.openExternal).toHaveBeenCalledWith('msxbox://game/?productId=9NPZVDCH73SX')
     })

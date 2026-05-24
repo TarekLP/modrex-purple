@@ -9,9 +9,10 @@ const GAMING_APP_PACKAGE = 'Microsoft.GamingApp_8wekyb3d8bbwe'
 const XBOX_DRIVES = ['C', 'D', 'E', 'F', 'G']
 
 function findInXboxGames(game: GameDef): string | null {
+    const xboxExe = game.launchers.xbox?.executable ?? game.executable
     for (const drive of XBOX_DRIVES) {
-        const candidate = join(`${drive}:`, 'XboxGames', game.name)
-        if (existsSync(join(candidate, game.executable))) return candidate
+        const candidate = join(`${drive}:`, 'XboxGames', game.name, 'Content')
+        if (existsSync(join(candidate, xboxExe))) return candidate
     }
     return null
 }
@@ -40,7 +41,8 @@ export const XboxLauncher: LauncherDef = {
     },
 
     launch(game: GameDef, gamePath: string, _opts?: string): void {
-        const exe = join(gamePath, game.executable)
+        const xboxExe = game.launchers.xbox?.executable ?? game.executable
+        const exe = join(gamePath, xboxExe)
         if (existsSync(exe)) {
             const child = spawn(exe, [], { detached: true, stdio: 'ignore' })
             child.unref()
