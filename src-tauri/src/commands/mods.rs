@@ -71,7 +71,7 @@ pub struct InstalledResponse {
 
 // ── Path helpers ──────────────────────────────────────────────────────────────
 
-fn mods_base(game_path: &str) -> PathBuf {
+pub fn mods_base(game_path: &str) -> PathBuf {
     PathBuf::from(game_path)
         .join("PAYDAY3")
         .join("Content")
