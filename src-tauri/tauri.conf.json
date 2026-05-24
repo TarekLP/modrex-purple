@@ -30,5 +30,16 @@
         "active": true,
         "targets": "all",
         "icon": ["../assets/icon.ico"]
+    },
+    "plugins": {
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxOUI1N0VDRTVCMERFRkIKUldUNzNyRGw3RmViZ1MvR0d4ODZNc2tKdXdBQ2VnOHBxRHNrRVo5d2I1NS93OFRUcUp5cWVwNVEK",
+            "endpoints": [
+                "https://github.com/modrexio/modrex/releases/latest/download/latest.json"
+            ],
+            "windows": {
+                "installMode": "passive"
+            }
+        }
     }
 }

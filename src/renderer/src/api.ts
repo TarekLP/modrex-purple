@@ -206,14 +206,14 @@ export const api = {
         return onEvent<void>('updater:update-ready', () => callback())
     },
 
-    // ── Updater (stubs — not yet ported to Tauri backend) ─────────────────────
+    // ── Updater ────────────────────────────────────────────────────────────────
     download(_version: string): Promise<void> {
-        return Promise.resolve()
+        return invoke('download_update')
     },
     installUpdate(): Promise<void> {
-        return Promise.resolve()
+        return invoke('install_update')
     },
     checkForUpdates(): Promise<void> {
-        return Promise.resolve()
+        return invoke('check_for_update')
     },
 }
