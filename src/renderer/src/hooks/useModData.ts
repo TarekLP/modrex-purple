@@ -4,6 +4,7 @@ import { getCachedMod } from '../modCache'
 
 const TTL_MS = 5 * 60 * 1000
 const FETCH_CONCURRENCY = 5
+const BATCH_DELAY_MS = 200
 
 async function fetchInBatches<T, R>(
     items: T[],
@@ -11,6 +12,7 @@ async function fetchInBatches<T, R>(
 ): Promise<PromiseSettledResult<R>[]> {
     const results: PromiseSettledResult<R>[] = []
     for (let i = 0; i < items.length; i += FETCH_CONCURRENCY) {
+        if (i > 0) await new Promise<void>((r) => setTimeout(r, BATCH_DELAY_MS))
         const batch = items.slice(i, i + FETCH_CONCURRENCY)
         results.push(...(await Promise.allSettled(batch.map(fn))))
     }
