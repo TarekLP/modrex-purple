@@ -191,7 +191,7 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                     </div>
                 </section>
 
-                {launcher === 'steam' && (
+                {settings !== null && (
                     <section className="max-w-xl flex flex-col gap-2 mt-6">
                         <h2 className="text-sm font-semibold">
                             {t('settings.launchOptions.title')}
