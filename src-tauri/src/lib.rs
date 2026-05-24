@@ -4,6 +4,8 @@ use tauri::Manager;
 
 pub fn run() {
     let app = tauri::Builder::default()
+        .manage(commands::updater::UpdaterState::new())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Warn)
@@ -72,6 +74,10 @@ pub fn run() {
             commands::launchers::shell_open_external,
             commands::launchers::shell_open_path,
             commands::launchers::open_log_file,
+            // updater
+            commands::updater::check_for_update,
+            commands::updater::download_update,
+            commands::updater::install_update,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -80,6 +86,11 @@ pub fn run() {
 
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(commands::mod_index::ensure_index(handle));
+
+    let handle = app.handle().clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = commands::updater::check_for_update(handle).await;
+    });
 
     app.run(|_, _| {});
 }
