@@ -77,7 +77,7 @@ export const api = {
         return invoke('pick_folder', { defaultPath: defaultPath ?? null })
     },
     openLog(): Promise<void> {
-        return Promise.resolve()
+        return invoke('open_log_file')
     },
 
     // ── Installed mods ─────────────────────────────────────────────────────────

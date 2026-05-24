@@ -414,6 +414,21 @@ pub fn shell_open_path(path: String) {
     open_path_on_system(&path);
 }
 
+#[tauri::command]
+pub fn open_log_file(app: AppHandle) {
+    use tauri::Manager;
+    let Ok(log_dir) = app.path().app_log_dir() else { return };
+    let log_file = log_dir.join(format!("{}.log", app.package_info().name));
+    if let Ok(content) = std::fs::read_to_string(&log_file) {
+        let snapshot = std::env::temp_dir().join("modrex_log.txt");
+        if std::fs::write(&snapshot, content).is_ok() {
+            open_url(&snapshot.to_string_lossy());
+            return;
+        }
+    }
+    open_path_on_system(&log_dir.to_string_lossy());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

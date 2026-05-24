@@ -4,7 +4,15 @@ use tauri::Manager;
 
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::LogDir { file_name: None },
+                ))
+                .build(),
+        )
         .setup(|app| {
+            log::info!("Modrex started");
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
             }
@@ -53,6 +61,7 @@ pub fn run() {
             commands::launchers::stop_game,
             commands::launchers::shell_open_external,
             commands::launchers::shell_open_path,
+            commands::launchers::open_log_file,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
