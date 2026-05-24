@@ -1,7 +1,15 @@
 mod commands;
 
+use tauri::Manager;
+
 pub fn run() {
     let app = tauri::Builder::default()
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // api
             commands::api::list_mods,

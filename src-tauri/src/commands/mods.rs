@@ -688,7 +688,7 @@ fn reorder_children_op(
         .collect();
 
     // Collect mod renames using original state (folder path stable for direct children of parent)
-    struct ModRename { uid: String, old: String, new: String, rel: Option<String>, enabled: bool }
+    struct ModRename { _uid: String, old: String, new: String, rel: Option<String>, enabled: bool }
     let mod_renames: Vec<ModRename> = items
         .iter()
         .enumerate()
@@ -701,7 +701,7 @@ fn reorder_children_op(
                 return None;
             }
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            Some(ModRename { uid: id.clone(), old: m.filename.clone(), new, rel, enabled: m.enabled })
+            Some(ModRename { _uid: id.clone(), old: m.filename.clone(), new, rel, enabled: m.enabled })
         })
         .collect();
 
