@@ -158,9 +158,17 @@ export default function App() {
         <div className="flex flex-col h-screen bg-surface text-text">
             {!installedReady && (
                 <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-4 z-50">
-                    <img src={appIcon} alt="PD3 Mod Manager" className="w-16 h-16 opacity-90" />
-                    <span className="text-sm font-semibold tracking-wide text-text-muted">
-                        PAYDAY 3 Mod Manager
+                    <img src={appIcon} alt="Modrex" className="w-16 h-16 opacity-90" />
+                    <span
+                        style={{
+                            fontFamily: "'Bebas Neue', sans-serif",
+                            fontSize: '2.5rem',
+                            letterSpacing: '0.05em',
+                            lineHeight: 1,
+                        }}
+                    >
+                        <span style={{ color: 'var(--color-text)' }}>MOD</span>
+                        <span style={{ color: 'var(--color-accent)' }}>REX</span>
                     </span>
                     <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
                 </div>

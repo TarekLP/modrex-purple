@@ -121,11 +121,22 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
             )}
             <div className="shrink-0 bg-surface border-b border-border">
                 <div className="h-10 flex items-center justify-between px-4">
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-bold tracking-widest uppercase text-accent-bright">
-                            {t('topBar.title')}
+                    <div className="flex items-end gap-2">
+                        <span
+                            style={{
+                                fontFamily: "'Bebas Neue', sans-serif",
+                                fontSize: '1.375rem',
+                                letterSpacing: '0.05em',
+                                lineHeight: 1,
+                            }}
+                        >
+                            <span style={{ color: 'var(--color-text)' }}>MOD</span>
+                            <span style={{ color: 'var(--color-accent)' }}>REX</span>
                         </span>
-                        <span className="text-xs text-text-subtle">
+                        <span
+                            className="text-xs text-text-subtle"
+                            style={{ marginBottom: '0.3rem' }}
+                        >
                             {import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP_VERSION}`}
                         </span>
                     </div>
