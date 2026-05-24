@@ -98,7 +98,11 @@ function registerHandlers(): void {
         LAUNCHERS.filter((l) => l.findGame(PD3) !== null).map((l) => l.id)
     )
     ipcMain.handle('settings:set-game-path', (_, gamePath: string | null) => {
-        if (gamePath && !existsSync(join(gamePath, 'PAYDAY3', 'Content', 'Paks'))) {
+        if (
+            gamePath &&
+            !LAUNCHERS.some((l) => l.identifyPath(gamePath)) &&
+            !existsSync(join(gamePath, 'PAYDAY3', 'Content', 'Paks'))
+        ) {
             throw new Error('Not a valid PAYDAY 3 installation')
         }
         const settings = readSettings(settingsPath)
