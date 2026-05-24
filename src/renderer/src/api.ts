@@ -53,7 +53,10 @@ export const api = {
     },
     async findGamePath(): Promise<string | null> {
         const s = await invoke<Settings>('get_settings')
-        return s.gamePath ?? null
+        if (s.gamePath) return s.gamePath
+        await invoke('configure_game_path', { gamePath: null })
+        const s2 = await invoke<Settings>('get_settings')
+        return s2.gamePath ?? null
     },
     setGamePath(gamePath: string | null): Promise<void> {
         return invoke('configure_game_path', { gamePath })

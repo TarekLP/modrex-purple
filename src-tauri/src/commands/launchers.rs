@@ -270,10 +270,11 @@ pub fn configure_game_path(app: AppHandle, game_path: Option<String>) {
         s.game_path = Some(path.clone());
         s.launcher = Some(identify_launcher_for_path(path));
     } else {
-        s.game_path = None;
         if let Some(detected) = auto_detect_game() {
+            s.game_path = Some(detected.game_path);
             s.launcher = Some(detected.launcher);
         } else {
+            s.game_path = None;
             s.launcher = None;
         }
     }
