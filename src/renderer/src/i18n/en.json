@@ -161,7 +161,6 @@
             "reset": "Reset",
             "browse": "Browse",
             "picking": "Picking…",
-            "manuallySet": "Manually set",
             "autoDetected": "Auto-detected",
             "notDetected": "Could not detect PD3 installation — set the path manually.",
             "invalid": "Selected folder is not a valid PAYDAY 3 installation."

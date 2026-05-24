@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FolderOpen, RotateCcw, RefreshCw, ScrollText } from 'lucide-react'
+import { FolderOpen, RefreshCw, ScrollText } from 'lucide-react'
 import { t } from '../i18n'
 import { Select } from './Select'
 import { api } from '../api'
@@ -45,7 +45,6 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
         return () => clearTimeout(timer)
     }, [launchOptions])
 
-    const isManual = !!settings?.gamePath
     const availableLaunchers = LAUNCHER_OPTIONS.filter((o) => installedLaunchers.includes(o.value))
 
     async function handleBrowse() {
@@ -78,13 +77,6 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
         await api.setLauncher(value)
     }
 
-    async function handleReset() {
-        setPathError(null)
-        await api.setGamePath(null)
-        setSettings((s) => ({ ...s, gamePath: undefined }))
-        await onGamePathChange()
-    }
-
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0">
@@ -101,15 +93,6 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                             {gamePath ?? t('settings.gamePath.notFound')}
                         </span>
                         <div className="flex gap-2 shrink-0">
-                            {isManual && (
-                                <button
-                                    onClick={handleReset}
-                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center gap-1.5"
-                                >
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                    {t('settings.gamePath.reset')}
-                                </button>
-                            )}
                             <button
                                 disabled={picking}
                                 onClick={handleBrowse}
@@ -125,10 +108,6 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
 
                     {pathError ? (
                         <p className="text-xs text-danger-text">{pathError}</p>
-                    ) : isManual ? (
-                        <p className="text-xs text-text-subtle">
-                            {t('settings.gamePath.manuallySet')}
-                        </p>
                     ) : gamePath ? (
                         <p className="text-xs text-success-text">
                             {t('settings.gamePath.autoDetected')}
