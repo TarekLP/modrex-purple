@@ -51,5 +51,8 @@ pub fn run() {
 
     commands::settings::migrate_from_electron(app.handle());
 
+    let handle = app.handle().clone();
+    tauri::async_runtime::spawn(commands::mod_index::ensure_index(handle));
+
     app.run(|_, _| {});
 }

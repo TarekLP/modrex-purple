@@ -1,5 +1,6 @@
 use crate::commands::api::api_get;
 use crate::commands::download::download_file;
+use crate::commands::mod_index;
 use crate::commands::settings::read_settings;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -1049,32 +1050,121 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         }
     }
 
-    // Assign synthetic IDs to untracked paks
-    // TODO: integrate mod_index for SHA256 identification and API enrichment
-    let now = Utc::now().to_rfc3339();
-    let mut new_mods: Vec<InstalledMod> = Vec::new();
+    // Build folder path → id map for lookups (computed once; used in both phases below)
+    let folder_path_to_id: HashMap<String, String> = state
+        .folders
+        .iter()
+        .filter_map(|f| get_folder_path(&state.folders, Some(&f.id)).map(|p| (p, f.id.clone())))
+        .collect();
 
-    for (rel_path, enabled) in &untracked {
+    // Compute SHA256 for all untracked paks in parallel
+    let sha_futures: Vec<_> = untracked
+        .iter()
+        .map(|(rel_path, enabled)| {
+            let game_path = game_path.clone();
+            let rel_path = rel_path.clone();
+            let enabled = *enabled;
+            async move {
+                let path = if enabled {
+                    mods_base(&game_path).join(&rel_path)
+                } else {
+                    disabled_base(&game_path).join(format!("{}.disabled", rel_path))
+                };
+                compute_sha256(&path).await.ok()
+            }
+        })
+        .collect();
+    let sha256s: Vec<Option<String>> = futures::future::join_all(sha_futures).await;
+
+    // Phase 1 — reconcile untracked files against already-tracked mods by SHA256.
+    // If a newly-found file's hash matches a tracked mod, update its filename/enabled
+    // rather than creating a duplicate entry.
+    let sha256_to_uid: HashMap<String, String> = state
+        .mods
+        .iter()
+        .filter_map(|m| m.sha256.as_ref().map(|h| (h.clone(), m.uid.clone())))
+        .collect();
+
+    let mut reconciled_uids: HashSet<String> = HashSet::new();
+    let mut reconcile_ops: Vec<(String, String, bool, Option<String>)> = Vec::new();
+
+    for ((rel_path, enabled), sha256) in untracked.iter().zip(sha256s.iter()) {
+        let Some(sha) = sha256 else { continue };
+        let Some(uid) = sha256_to_uid.get(sha.as_str()) else { continue };
         let parts: Vec<&str> = rel_path.split('/').collect();
         let filename = parts.last().unwrap().to_string();
         let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
-        let folder_id = folder_path.as_deref().and_then(|fp| {
-            state.folders.iter().find(|f| get_folder_path(&state.folders, Some(&f.id)).as_deref() == Some(fp)).map(|f| f.id.clone())
-        });
+        let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
+        reconcile_ops.push((uid.clone(), filename, *enabled, folder_id));
+        reconciled_uids.insert(uid.clone());
+    }
 
-        let stem = filename.strip_suffix(".pak").unwrap_or(&filename);
-        let name = strip_priority_prefix(stem).replace('_', " ").trim().to_string();
-        let uid = strip_priority_prefix(&filename).to_string();
-        let id = hash_filename(&filename);
+    for (uid, filename, enabled, folder_id) in reconcile_ops {
+        if let Some(m) = state.mods.iter_mut().find(|m| m.uid == uid) {
+            m.filename = filename;
+            m.enabled = enabled;
+            m.folder_id = folder_id;
+            m.missing = None;
+        }
+    }
+
+    // Phase 2 — identify remaining untracked files via mod-index, then fallback.
+    let now = Utc::now().to_rfc3339();
+    let mut new_mods: Vec<InstalledMod> = Vec::new();
+
+    for ((rel_path, enabled), sha256) in untracked.iter().zip(sha256s.iter()) {
+        // Already reconciled to an existing tracked entry above
+        if sha256.as_deref().is_some_and(|s| sha256_to_uid.contains_key(s)) {
+            continue;
+        }
+
+        let parts: Vec<&str> = rel_path.split('/').collect();
+        let filename = parts.last().unwrap().to_string();
+        let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
+        let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
+
+        let stem = filename
+            .strip_suffix(".pak")
+            .or_else(|| filename.strip_suffix(".pak.disabled"))
+            .unwrap_or(&filename);
+        let stripped = strip_priority_prefix(stem);
+
+        // Try identification in priority order: SHA256 → name → bare-number filename → synthetic
+        let (id, name, file_id, version) = if let Some(sha) = sha256 {
+            if let Some(hit) = mod_index::lookup_sha256(&app, sha) {
+                (hit.mod_remote_id, hit.mod_name, Some(hit.file_remote_id), hit.version)
+            } else if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped.replace('_', " ")) {
+                (remote_id, stripped.replace('_', " ").trim().to_string(), None, "unknown".to_string())
+            } else if let Ok(num_id) = stripped.parse::<i64>() {
+                (num_id, stripped.to_string(), None, "unknown".to_string())
+            } else {
+                (hash_filename(&filename), stripped.replace('_', " ").trim().to_string(), None, "unknown".to_string())
+            }
+        } else {
+            if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped.replace('_', " ")) {
+                (remote_id, stripped.replace('_', " ").trim().to_string(), None, "unknown".to_string())
+            } else if let Ok(num_id) = stripped.parse::<i64>() {
+                (num_id, stripped.to_string(), None, "unknown".to_string())
+            } else {
+                (hash_filename(&filename), stripped.replace('_', " ").trim().to_string(), None, "unknown".to_string())
+            }
+        };
+
+        let uid = match file_id {
+            Some(fid) => fid.to_string(),
+            None => strip_priority_prefix(&filename).to_string(),
+        };
 
         new_mods.push(InstalledMod {
             uid,
             id,
             name,
-            version: "unknown".to_string(),
+            version,
             filename: filename.clone(),
             enabled: *enabled,
             installed_at: now.clone(),
+            file_id,
+            sha256: sha256.clone(),
             folder_id,
             ..InstalledMod::default()
         });
