@@ -11,7 +11,7 @@ fn user_agent(app: &AppHandle) -> String {
     format!("modrex/{}", app.package_info().version)
 }
 
-async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, String)>) -> Result<Value, String> {
+pub(crate) async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, String)>) -> Result<Value, String> {
     let mut url = reqwest::Url::parse(&format!("{}{}", BASE, path)).map_err(|e| e.to_string())?;
     {
         let mut pairs = url.query_pairs_mut();
