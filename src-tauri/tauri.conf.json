@@ -3,6 +3,7 @@
     "version": "0.7.0",
     "identifier": "io.github.shulhaoleh.pd3modmanager",
     "build": {
+        "beforeDevCommand": "pnpm run dev-renderer",
         "beforeBuildCommand": "pnpm run build-renderer",
         "frontendDist": "../out/renderer",
         "devUrl": "http://localhost:5173"
