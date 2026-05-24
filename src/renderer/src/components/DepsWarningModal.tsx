@@ -3,6 +3,7 @@ import { X, TriangleAlert } from 'lucide-react'
 import type { ModDependency } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { t } from '../i18n'
+import { api } from '../api'
 
 interface Props {
     modId: number
@@ -56,7 +57,7 @@ export function DepsWarningModal({
                             if (!gamePath) return
                             setInstallingDeps((prev) => ({ ...prev, [dep.mod.id]: true }))
                             try {
-                                await window.api.installMod(dep.mod.id, gamePath)
+                                await api.installMod(dep.mod.id, gamePath)
                                 await onRefreshInstalled()
                             } finally {
                                 setInstallingDeps((prev) => ({ ...prev, [dep.mod.id]: false }))

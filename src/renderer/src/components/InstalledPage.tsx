@@ -26,6 +26,7 @@ import {
     getAllModsInFolder,
     syntheticMod,
 } from '../hooks/installedUtils'
+import { api } from '../api'
 
 type ViewMode = 'grid' | 'list'
 
@@ -107,7 +108,7 @@ export function InstalledPage({
             setRenamingFolderId(null)
             return
         }
-        await window.api.renameFolder(folderId, renameValue.trim(), gamePath)
+        await api.renameFolder(folderId, renameValue.trim(), gamePath)
         setRenamingFolderId(null)
         await onRefreshInstalled()
     }
@@ -121,7 +122,7 @@ export function InstalledPage({
         if (!deletingFolderId || !gamePath) return
         const folderId = deletingFolderId
         setDeletingFolderId(null)
-        await window.api.deleteFolder(folderId, gamePath)
+        await api.deleteFolder(folderId, gamePath)
         await onRefreshInstalled()
     }
 
@@ -136,7 +137,7 @@ export function InstalledPage({
             setNewFolderName('')
             return
         }
-        await window.api.createFolder(newFolderName.trim(), creatingFolderParentId, gamePath)
+        await api.createFolder(newFolderName.trim(), creatingFolderParentId, gamePath)
         setCreatingFolderParentId(undefined)
         setNewFolderName('')
         await onRefreshInstalled()
@@ -154,7 +155,7 @@ export function InstalledPage({
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
         try {
-            for (const m of mods) await window.api.uninstallMod(m.uid, gamePath)
+            for (const m of mods) await api.uninstallMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -168,9 +169,9 @@ export function InstalledPage({
             const mods = getAllModsInFolder(installed, folders, folderId)
             for (const mod of mods) {
                 if (anyEnabled) {
-                    await window.api.disableMod(mod.uid, gamePath)
+                    await api.disableMod(mod.uid, gamePath)
                 } else {
-                    await window.api.enableMod(mod.uid, gamePath)
+                    await api.enableMod(mod.uid, gamePath)
                 }
             }
             await onRefreshInstalled()
@@ -183,7 +184,7 @@ export function InstalledPage({
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
         try {
-            for (const m of mods) await window.api.enableMod(m.uid, gamePath)
+            for (const m of mods) await api.enableMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -194,7 +195,7 @@ export function InstalledPage({
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
         try {
-            for (const m of mods) await window.api.disableMod(m.uid, gamePath)
+            for (const m of mods) await api.disableMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -205,7 +206,7 @@ export function InstalledPage({
         if (!gamePath) return
         setLoadingMod(uid)
         try {
-            await window.api.installMod(modId, gamePath)
+            await api.installMod(modId, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -217,7 +218,7 @@ export function InstalledPage({
         setUpdatingAll(true)
         try {
             for (const ins of updatable.filter((m) => selectedIds.has(m.id))) {
-                await window.api.installMod(ins.id, gamePath)
+                await api.installMod(ins.id, gamePath)
             }
             await onRefreshInstalled()
             setShowUpdates(false)
@@ -669,7 +670,7 @@ export function InstalledPage({
                     <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
                     {gamePath && (
                         <button
-                            onClick={() => window.api.openModsFolder()}
+                            onClick={() => api.openModsFolder()}
                             title={t('installed.openFolder')}
                             className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
                         >

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
 import { t } from '../i18n'
+import { api } from '../api'
 
 interface UpdateState {
     phase: 'downloading' | 'ready'
@@ -34,10 +35,10 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
 
     useEffect(() => {
         const check = async () => {
-            const running = await window.api.isGameRunning()
+            const running = await api.isGameRunning()
             if (!running && (wasRunning.current || pendingRestore.current)) {
                 try {
-                    await window.api.restoreMods()
+                    await api.restoreMods()
                 } catch (e) {
                     setLaunchError(String(e))
                 }
@@ -68,28 +69,28 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
     }, [onRefreshInstalled])
 
     async function handleLaunchModded() {
-        const settings = await window.api.getSettings()
+        const settings = await api.getSettings()
         if (!settings.skipFileOpenLogWarning && !settings.launchOptions?.includes('-fileopenlog')) {
             setDontShowAgain(false)
             setShowWarning(true)
             return
         }
         startLaunching('modded')
-        window.api.launchModded()
+        api.launchModded()
     }
 
     async function confirmLaunch() {
-        if (dontShowAgain) await window.api.setSkipFileOpenLogWarning(true)
+        if (dontShowAgain) await api.setSkipFileOpenLogWarning(true)
         setShowWarning(false)
         startLaunching('modded')
-        window.api.launchModded()
+        api.launchModded()
     }
 
     async function launchWithoutMods() {
         if (!gamePath) return
         try {
             startLaunching('vanilla')
-            await window.api.launchWithoutMods(gamePath)
+            await api.launchWithoutMods(gamePath)
             pendingRestore.current = true
         } catch (e) {
             setLaunching(null)
@@ -102,7 +103,7 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
     }
 
     function stopGame() {
-        window.api.stopGame()
+        api.stopGame()
     }
 
     return (
@@ -132,7 +133,7 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
                         {update?.phase === 'ready' && (
                             <>
                                 <button
-                                    onClick={() => window.api.installUpdate()}
+                                    onClick={() => api.installUpdate()}
                                     className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
                                 >
                                     <RefreshCw className="w-3.5 h-3.5" />

@@ -3,6 +3,7 @@ import type { DragEvent } from 'react'
 import type { Mod, InstalledMod, ModFolder, TopLevelItem } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { computeChildren, syntheticMod } from './installedUtils'
+import { api } from '../api'
 
 export type DragItem = { kind: 'mod'; uid: string } | { kind: 'folder'; id: string }
 
@@ -236,7 +237,7 @@ export function useDragDrop({
             const insertAt = isBefore ? pivotIdx : pivotIdx + 1
             const reordered = [...withoutSrc]
             reordered.splice(insertAt, 0, ...srcGroupMods)
-            await window.api.reorderModsInFolder(
+            await api.reorderModsInFolder(
                 srcFolderId,
                 reordered.map((m) => m.uid),
                 gamePath
@@ -248,7 +249,7 @@ export function useDragDrop({
             const toIdx = targetScopeMods.findIndex((m) => m.uid === targetRepUid)
             const targetPosition = isBefore ? toIdx : toIdx + 1
             for (const m of srcGroupMods) {
-                await window.api.moveModToFolder(m.uid, targetFolderId, targetPosition, gamePath)
+                await api.moveModToFolder(m.uid, targetFolderId, targetPosition, gamePath)
             }
         }
         await onRefreshInstalled()
@@ -284,7 +285,7 @@ export function useDragDrop({
             const insertAt = isBefore ? pivotIdx : pivotIdx + 1
             const reordered = [...withoutSrc]
             reordered.splice(insertAt, 0, ...srcGroupMods)
-            await window.api.reorderModsInFolder(
+            await api.reorderModsInFolder(
                 srcFolderId,
                 reordered.map((m) => m.uid),
                 gamePath
@@ -296,7 +297,7 @@ export function useDragDrop({
             const toIdx = targetScopeMods.findIndex((m) => m.uid === targetRepUid)
             const targetPosition = isBefore ? toIdx : toIdx + 1
             for (const m of srcGroupMods) {
-                await window.api.moveModToFolder(m.uid, targetFolderId, targetPosition, gamePath)
+                await api.moveModToFolder(m.uid, targetFolderId, targetPosition, gamePath)
             }
         }
         await onRefreshInstalled()
@@ -315,7 +316,7 @@ export function useDragDrop({
         )
         const folderMods = installed.filter((m) => m.folderId === folderId)
         for (const m of srcGroupMods) {
-            await window.api.moveModToFolder(m.uid, folderId, folderMods.length, gamePath)
+            await api.moveModToFolder(m.uid, folderId, folderMods.length, gamePath)
         }
         await onRefreshInstalled()
     }
@@ -363,9 +364,9 @@ export function useDragDrop({
 
         const draggedFolder = folders.find((f) => f.id === srcFolderId)
         if (draggedFolder && draggedFolder.parentId !== parentId) {
-            await window.api.moveFolder(srcFolderId, parentId, gamePath)
+            await api.moveFolder(srcFolderId, parentId, gamePath)
         }
-        await window.api.reorderChildren(parentId, items, gamePath)
+        await api.reorderChildren(parentId, items, gamePath)
         await onRefreshInstalled()
     }
 
@@ -374,7 +375,7 @@ export function useDragDrop({
         dragItemRef.current = null
         setDragItem(null)
         setDropTarget(null)
-        await window.api.moveFolder(srcFolderId, targetFolderId, gamePath)
+        await api.moveFolder(srcFolderId, targetFolderId, gamePath)
         await onRefreshInstalled()
     }
 

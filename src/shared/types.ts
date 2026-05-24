@@ -114,6 +114,24 @@ export interface ModsState {
     mods: InstalledMod[]
 }
 
+export type SortOption =
+    | 'downloads'
+    | 'likes'
+    | 'views'
+    | 'score'
+    | 'published_at'
+    | 'bumped_at'
+    | 'name'
+    | 'best_match'
+
+export interface ListModsParams {
+    query?: string
+    limit?: number
+    sort?: SortOption
+    category_id?: number
+    page?: number
+}
+
 export interface Paginated<T> {
     data: T[]
     meta: {
