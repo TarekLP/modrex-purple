@@ -1,6 +1,6 @@
 <div align="center">
 
-# PD3 Mod Manager
+# Modrex
 
 ![Demo](assets/logo.png)
 
@@ -10,12 +10,12 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 ## Installation
 
-| Platform        | Download                                                                                                                      |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Windows         | [PD3.Mod.Manager.Setup.exe](https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest/download/PD3.Mod.Manager.Setup.exe) |
-| Linux .deb      | [pd3-mod-manager.deb](https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest/download/pd3-mod-manager.deb)             |
-| Linux .rpm      | [pd3-mod-manager.rpm](https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest/download/pd3-mod-manager.rpm)             |
-| Linux .AppImage | [pd3-mod-manager.AppImage](https://github.com/ShulhaOleh/pd3-mod-manager/releases/latest/download/pd3-mod-manager.AppImage)   |
+| Platform        | Download                                                                                                   |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| Windows         | [Modrex.Setup.exe](https://github.com/modrexio/modrex/releases/latest/download/Modrex_0.8.0_x64-setup.exe) |
+| Linux .deb      | [modrex.deb](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager_0.8.0_amd64.deb)  |
+| Linux .rpm      | [modrex.rpm](https://github.com/modrexio/modrex/releases/latest/download/modrex-0.8.0-1.x86_64.rpm)        |
+| Linux .AppImage | [modrex.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_0.8.0_amd64.AppImage) |
 
 ## Features
 
@@ -40,25 +40,23 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 ## Troubleshooting
 
-If something goes wrong, open **Settings → Open log file** and attach it to your [bug report](https://github.com/ShulhaOleh/pd3-mod-manager/issues).
+If something goes wrong, attach your log file to a [bug report](https://github.com/modrexio/modrex/issues).
 
-Log file locations:
-
-| Platform | Path                                      |
-| -------- | ----------------------------------------- |
-| Windows  | `%APPDATA%\pd3-mod-manager\logs\main.log` |
-| Linux    | `~/.config/pd3-mod-manager/logs/main.log` |
+| Platform | Path                |
+| -------- | ------------------- |
+| Windows  | `%APPDATA%\Modrex\` |
+| Linux    | `~/.config/modrex/` |
 
 ## Development
 
 ```bash
 pnpm install
 pnpm dev        # start with hot reload
-pnpm build      # production build to out/
-pnpm typecheck  # type-check
-pnpm test       # run tests
+pnpm build      # production build
+pnpm typecheck  # type-check renderer
+pnpm test       # run Rust unit tests
 ```
 
 ## Tech stack
 
-Electron · React · Tailwind CSS · Lucide · electron-vite · TypeScript · Vitest
+Tauri v2 · React · Tailwind CSS · Lucide · TypeScript
