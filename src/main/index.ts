@@ -130,7 +130,6 @@ function registerHandlers(): void {
         let state = resolvedGamePath
             ? await reconcileState(resolvedGamePath, statePath)
             : readState(statePath)
-
         const modsHidden =
             !!resolvedGamePath &&
             existsSync(join(resolvedGamePath, 'PAYDAY3', 'Content', '~mods.bak'))
@@ -327,7 +326,7 @@ function registerHandlers(): void {
                             id: mod.id,
                             name: mod.name,
                             fileId: latestFile.id,
-                            version: latestFile.version || mod.version,
+                            version: 'unknown',
                             ...(sha256 ? { sha256 } : {}),
                             filename,
                             folderId,
@@ -350,8 +349,12 @@ function registerHandlers(): void {
             })
         )
         const newMods = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
+        const trackedIds = new Set(reconciledMods.filter((m) => m.id > 0).map((m) => m.id))
         const modsByUid = new Map(reconciledMods.map((m) => [m.uid, m]))
-        for (const m of newMods) modsByUid.set(m.uid, m)
+        for (const m of newMods) {
+            if (m.id > 0 && trackedIds.has(m.id)) continue
+            modsByUid.set(m.uid, m)
+        }
         const finalMods = [...modsByUid.values()]
         const finalState = { folders: state.folders, mods: finalMods }
         writeFileSync(statePath, JSON.stringify(finalState, null, 4))
@@ -360,15 +363,20 @@ function registerHandlers(): void {
 
     ipcMain.handle('mods:install', async (event, modId: number, gamePath: string) => {
         const statePath = getStatePath(gamePath)
-        const mod = await getMod(modId)
-        const file = mod.download ?? (mod.has_download ? await getLatestFile(modId) : null)
-        if (!file) throw new Error('Mod has no download')
-        const tmp = await downloadFile(file.download_url, file.type, (downloaded, total) =>
-            event.sender.send('download:progress', { downloaded, total })
-        )
+        let tmp: string | null = null
         try {
+            const mod = await getMod(modId)
+            const file = mod.download ?? (mod.has_download ? await getLatestFile(modId) : null)
+            if (!file) throw new Error(`Mod ${modId} has no downloadable file`)
+            tmp = await downloadFile(file.download_url, file.type, (downloaded, total) =>
+                event.sender.send('download:progress', { downloaded, total })
+            )
             const sha256 = await computeSha256(tmp)
             const uid = String(file.id)
+            const existingState = readState(statePath)
+            const existingMod = existingState.mods.find(
+                (m) => m.uid === uid || (mod.id > 0 && m.id === mod.id)
+            )
             installMod(
                 gamePath,
                 statePath,
@@ -378,7 +386,7 @@ function registerHandlers(): void {
                     name: mod.name,
                     version: mod.version,
                     filename:
-                        readState(statePath).mods.find((m) => m.uid === uid)?.filename ??
+                        existingState.mods.find((m) => m.uid === uid)?.filename ??
                         pakFilename(mod.name),
                     enabled: true,
                     installedAt: new Date().toISOString(),
@@ -386,15 +394,16 @@ function registerHandlers(): void {
                     fileType: file.type,
                     sha256,
                 },
-                tmp
+                tmp,
+                existingMod?.folderId ?? null
             )
-            await registerDownload(file.id)
-            console.info(`Installed mod ${mod.id} (${mod.name})`)
+            console.info(`Installed mod ${mod.id} (${mod.name}) version ${mod.version}`)
+            registerDownload(file.id).catch((e) => console.warn(`registerDownload failed: ${e}`))
         } catch (e) {
-            console.error(`Failed to install mod ${modId}:`, e)
+            console.error(`mods:install failed for mod ${modId}:`, e)
             throw e
         } finally {
-            rmSync(tmp, { force: true })
+            if (tmp) rmSync(tmp, { force: true })
         }
     })
 
@@ -411,10 +420,11 @@ function registerHandlers(): void {
             gamePath: string
         ) => {
             const statePath = getStatePath(gamePath)
-            const tmp = await downloadFile(downloadUrl, fileType, (downloaded, total) =>
-                event.sender.send('download:progress', { downloaded, total })
-            )
+            let tmp: string | null = null
             try {
+                tmp = await downloadFile(downloadUrl, fileType, (downloaded, total) =>
+                    event.sender.send('download:progress', { downloaded, total })
+                )
                 const sha256 = await computeSha256(tmp)
                 const uid = String(fileId)
                 installMod(
@@ -436,9 +446,12 @@ function registerHandlers(): void {
                     },
                     tmp
                 )
-                await registerDownload(fileId)
+                registerDownload(fileId).catch((e) => console.warn(`registerDownload failed: ${e}`))
+            } catch (e) {
+                console.error(`mods:install-file failed for mod ${modId} file ${fileId}:`, e)
+                throw e
             } finally {
-                rmSync(tmp, { force: true })
+                if (tmp) rmSync(tmp, { force: true })
             }
         }
     )

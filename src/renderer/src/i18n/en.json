@@ -90,7 +90,8 @@
             "title": "Available updates ({count})",
             "update": "Update",
             "updating": "Updating…",
-            "updateSelected": "Update Selected ({count})"
+            "updateSelected": "Update Selected ({count})",
+            "error": "Update failed. Check your connection and try again."
         }
     },
     "detail": {
