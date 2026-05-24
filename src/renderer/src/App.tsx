@@ -78,19 +78,17 @@ export default function App() {
     }, [refreshGamePath, refreshInstalled])
 
     useEffect(() => {
-        const offAvailable = api.onUpdateAvailable(
-            ({ version, strategy, body, releaseUrl }) => {
-                setUpdate({
-                    version,
-                    strategy,
-                    phase: 'available',
-                    percent: null,
-                    body,
-                    releaseUrl,
-                })
-                setShowUpdateModal(true)
-            }
-        )
+        const offAvailable = api.onUpdateAvailable(({ version, strategy, body, releaseUrl }) => {
+            setUpdate({
+                version,
+                strategy,
+                phase: 'available',
+                percent: null,
+                body,
+                releaseUrl,
+            })
+            setShowUpdateModal(true)
+        })
         const offProgress = api.onUpdateProgress((percent) =>
             setUpdate((prev) => (prev ? { ...prev, percent } : prev))
         )

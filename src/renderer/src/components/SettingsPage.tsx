@@ -30,15 +30,13 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
     const launchOptionsLoaded = useRef(false)
 
     useEffect(() => {
-        Promise.all([api.getSettings(), api.getInstalledLaunchers()]).then(
-            ([s, installed]) => {
-                setInstalledLaunchers(installed)
-                setSettings(s)
-                setLauncher(s.launcher ?? 'steam')
-                setLaunchOptions(s.launchOptions ?? '')
-                launchOptionsLoaded.current = true
-            }
-        )
+        Promise.all([api.getSettings(), api.getInstalledLaunchers()]).then(([s, installed]) => {
+            setInstalledLaunchers(installed)
+            setSettings(s)
+            setLauncher(s.launcher ?? 'steam')
+            setLaunchOptions(s.launchOptions ?? '')
+            launchOptionsLoaded.current = true
+        })
     }, [])
 
     useEffect(() => {

@@ -1,6 +1,15 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import type { Mod, ModFile, Category, Paginated, InstalledMod, ModFolder, TopLevelItem, ListModsParams } from '../../shared/types'
+import type {
+    Mod,
+    ModFile,
+    Category,
+    Paginated,
+    InstalledMod,
+    ModFolder,
+    TopLevelItem,
+    ListModsParams,
+} from '../../shared/types'
 
 type Settings = {
     gamePath?: string
@@ -87,7 +96,15 @@ export const api = {
         modVersion: string,
         gamePath: string
     ): Promise<void> {
-        return invoke('install_file', { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath })
+        return invoke('install_file', {
+            modId,
+            modName,
+            fileId,
+            downloadUrl,
+            fileType,
+            modVersion,
+            gamePath,
+        })
     },
     uninstallMod(uid: string, gamePath: string): Promise<void> {
         return invoke('uninstall_mod', { uid, gamePath })
@@ -120,11 +137,7 @@ export const api = {
     ): Promise<void> {
         return invoke('reorder_children', { parentId, items, gamePath })
     },
-    moveFolder(
-        folderId: string,
-        targetParentId: string | null,
-        gamePath: string
-    ): Promise<void> {
+    moveFolder(folderId: string, targetParentId: string | null, gamePath: string): Promise<void> {
         return invoke('move_folder', { folderId, targetParentId, gamePath })
     },
     createFolder(
@@ -168,7 +181,9 @@ export const api = {
     },
 
     // ── Events ─────────────────────────────────────────────────────────────────
-    onDownloadProgress(callback: (info: { downloaded: number; total: number }) => void): () => void {
+    onDownloadProgress(
+        callback: (info: { downloaded: number; total: number }) => void
+    ): () => void {
         return onEvent<{ downloaded: number; total: number }>('download:progress', callback)
     },
     onUpdateAvailable(

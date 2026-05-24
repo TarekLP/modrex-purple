@@ -336,9 +336,7 @@ export function ModDetailPage({
                                         <>
                                             {' · '}
                                             <button
-                                                onClick={() =>
-                                                    api.openExternal(mod.repo_url!)
-                                                }
+                                                onClick={() => api.openExternal(mod.repo_url!)}
                                                 className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
                                             >
                                                 {t('detail.source')}
