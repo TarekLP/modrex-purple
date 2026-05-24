@@ -6,6 +6,10 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Warn)
+                .level_for("modrex_lib", log::LevelFilter::Info)
+                .max_file_size(5_000_000)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
                 .target(tauri_plugin_log::Target::new(
                     tauri_plugin_log::TargetKind::LogDir { file_name: None },
                 ))
