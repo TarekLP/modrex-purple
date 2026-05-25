@@ -39,12 +39,34 @@ describe('XboxLauncher.identifyPath', () => {
 })
 
 describe('XboxLauncher.findGame', () => {
-    it('returns path when game executable is found in XboxGames', () => {
+    it('returns path when game executable is found in a drive subdirectory', () => {
+        vi.mocked(fs.readdirSync).mockReturnValue(['XboxGames'] as any)
+        vi.mocked(fs.existsSync).mockImplementation((p) => {
+            const s = String(p)
+            return s === 'C:\\' || s.endsWith('PAYDAY3-WinGDK-Shipping.exe')
+        })
+        const result = XboxLauncher.findGame(GAME)
+        expect(result).toMatch(/XboxGames[\\/]PAYDAY 3[\\/]Content$/)
+    })
+
+    it('finds game in non-standard install location', () => {
+        vi.mocked(fs.readdirSync).mockReturnValue(['Games'] as any)
+        vi.mocked(fs.existsSync).mockImplementation((p) => {
+            const s = String(p)
+            return s === 'D:\\' || s.endsWith('PAYDAY3-WinGDK-Shipping.exe')
+        })
+        const result = XboxLauncher.findGame(GAME)
+        expect(result).toMatch(/Games[\\/]PAYDAY 3[\\/]Content$/)
+    })
+
+    it('falls back to package manager for deeply nested install locations', () => {
+        vi.mocked(fs.readdirSync).mockReturnValue([])
         vi.mocked(fs.existsSync).mockImplementation((p) =>
             String(p).endsWith('PAYDAY3-WinGDK-Shipping.exe')
         )
+        vi.mocked(cp.execSync).mockReturnValue('D:\\Deep\\Games\\PAYDAY 3\\Content\n' as any)
         const result = XboxLauncher.findGame(GAME)
-        expect(result).toMatch(/XboxGames[\\/]PAYDAY 3[\\/]Content$/)
+        expect(result).toBe('D:\\Deep\\Games\\PAYDAY 3\\Content')
     })
 
     it('returns null when game is not found on any drive', () => {

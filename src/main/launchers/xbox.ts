@@ -1,6 +1,6 @@
-import { existsSync } from 'fs'
+import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import { shell } from 'electron'
 import type { GameDef, LauncherDef } from './types'
 
@@ -11,10 +11,38 @@ const XBOX_DRIVES = ['C', 'D', 'E', 'F', 'G']
 function findInXboxGames(game: GameDef): string | null {
     const xboxExe = game.launchers.xbox?.executable ?? game.executable
     for (const drive of XBOX_DRIVES) {
-        const candidate = join(`${drive}:`, 'XboxGames', game.name, 'Content')
-        if (existsSync(join(candidate, xboxExe))) return candidate
+        const driveRoot = `${drive}:\\`
+        if (!existsSync(driveRoot)) continue
+        let dirs: string[]
+        try {
+            dirs = readdirSync(driveRoot) as string[]
+        } catch {
+            continue
+        }
+        for (const dir of dirs) {
+            const candidate = join(driveRoot, dir, game.name, 'Content')
+            if (existsSync(join(candidate, xboxExe))) return candidate
+        }
     }
     return null
+}
+
+function findViaPackageManager(game: GameDef): string | null {
+    if (process.platform !== 'win32') return null
+    const productId = game.launchers.xbox?.productId
+    if (!productId) return null
+    try {
+        const script = `$p=Get-AppxPackage|?{$c=Join-Path $_.InstallLocation 'Content\\MicrosoftGame.config';(Test-Path $c)-and((gc $c -Raw)-match '${productId}')}|Select -First 1;if($p){Join-Path $p.InstallLocation 'Content'}`
+        const output = execSync(`powershell -NoProfile -NonInteractive -Command "${script}"`, {
+            timeout: 5000,
+            encoding: 'utf8',
+        }).trim()
+        if (!output) return null
+        const xboxExe = game.launchers.xbox?.executable ?? game.executable
+        return existsSync(join(output, xboxExe)) ? output : null
+    } catch {
+        return null
+    }
 }
 
 export const XboxLauncher: LauncherDef = {
@@ -33,7 +61,7 @@ export const XboxLauncher: LauncherDef = {
 
     findGame(game: GameDef): string | null {
         if (!game.launchers.xbox) return null
-        return findInXboxGames(game)
+        return findInXboxGames(game) ?? findViaPackageManager(game)
     },
 
     identifyPath(gamePath: string): boolean {
