@@ -12,6 +12,7 @@
         "dist:linux": "tauri build --target x86_64-unknown-linux-gnu",
         "typecheck": "tsc --noEmit",
         "prepare": "husky",
+        "version": "node scripts/version.mjs",
         "test": "cargo test --manifest-path src-tauri/Cargo.toml",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
