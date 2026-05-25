@@ -20,7 +20,10 @@ const GAME: GameDef = {
     modsPath: 'PAYDAY3/Content/Paks/~mods',
     modExtensions: ['.pak'],
     launchers: {
-        xbox: { productId: '9NPZVDCH73SX', executable: 'PAYDAY3-WinGDK-Shipping.exe' },
+        xbox: {
+            productId: '9NPZVDCH73SX',
+            executable: 'PAYDAY3/Binaries/WinGDK/PAYDAY3-WinGDK-Shipping.exe',
+        },
     },
 }
 
@@ -81,7 +84,7 @@ describe('XboxLauncher.findGame', () => {
 })
 
 describe('XboxLauncher.launch', () => {
-    it('spawns the executable directly when it exists', () => {
+    it('spawns gamelaunchhelper.exe when it exists', () => {
         vi.mocked(fs.existsSync).mockReturnValue(true)
         const mockChild = { unref: vi.fn() }
         vi.mocked(cp.spawn).mockReturnValue(mockChild as any)
@@ -89,14 +92,14 @@ describe('XboxLauncher.launch', () => {
         XboxLauncher.launch(GAME, 'C:\\XboxGames\\PAYDAY 3\\Content')
 
         expect(cp.spawn).toHaveBeenCalledWith(
-            join('C:\\XboxGames\\PAYDAY 3\\Content', 'PAYDAY3-WinGDK-Shipping.exe'),
+            join('C:\\XboxGames\\PAYDAY 3\\Content', 'gamelaunchhelper.exe'),
             [],
             { detached: true, stdio: 'ignore' }
         )
         expect(mockChild.unref).toHaveBeenCalled()
     })
 
-    it('falls back to msxbox URI when executable is not found', () => {
+    it('falls back to msxbox URI when gamelaunchhelper.exe is not found', () => {
         vi.mocked(fs.existsSync).mockReturnValue(false)
 
         XboxLauncher.launch(GAME, 'C:\\XboxGames\\PAYDAY 3\\Content')

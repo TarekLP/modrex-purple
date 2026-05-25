@@ -67,15 +67,12 @@ export const XboxLauncher: LauncherDef = {
         return existsSync(join(gamePath, 'MicrosoftGame.config'))
     },
 
-    launch(game: GameDef, gamePath: string, opts?: string): void {
-        const xboxExe = game.launchers.xbox?.executable ?? game.executable
-        const exe = join(gamePath, xboxExe)
-        if (existsSync(exe)) {
-            const args = opts?.trim().split(/\s+/).filter(Boolean) ?? []
-            const child = spawn(exe, args, { detached: true, stdio: 'ignore' })
+    launch(game: GameDef, gamePath: string): void {
+        const helper = join(gamePath, 'gamelaunchhelper.exe')
+        if (existsSync(helper)) {
+            const child = spawn(helper, [], { detached: true, stdio: 'ignore' })
             child.unref()
         } else {
-            console.warn(`Xbox executable not found at ${exe}, falling back to URI launch`)
             const xboxDef = game.launchers.xbox
             if (xboxDef) shell.openExternal(`msxbox://game/?productId=${xboxDef.productId}`)
         }

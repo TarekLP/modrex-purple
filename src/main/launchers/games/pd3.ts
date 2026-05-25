@@ -17,7 +17,7 @@ export const PD3: GameDef = {
         },
         xbox: {
             productId: '9NPZVDCH73SX',
-            executable: 'PAYDAY3-WinGDK-Shipping.exe',
+            executable: 'PAYDAY3/Binaries/WinGDK/PAYDAY3-WinGDK-Shipping.exe',
         },
     },
 }
