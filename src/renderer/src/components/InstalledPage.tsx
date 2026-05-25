@@ -57,6 +57,7 @@ export function InstalledPage({
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
+    const [updateError, setUpdateError] = useState<string | null>(null)
     const [showUpdates, setShowUpdates] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
     const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
@@ -205,9 +206,12 @@ export function InstalledPage({
     async function handleUpdate(uid: string, modId: number) {
         if (!gamePath) return
         setLoadingMod(uid)
+        setUpdateError(null)
         try {
             await api.installMod(modId, gamePath)
             await onRefreshInstalled()
+        } catch {
+            setUpdateError(t('installed.updatesModal.error'))
         } finally {
             setLoadingMod(null)
         }
@@ -216,12 +220,15 @@ export function InstalledPage({
     async function handleUpdateSelected() {
         if (!gamePath) return
         setUpdatingAll(true)
+        setUpdateError(null)
         try {
             for (const ins of updatable.filter((m) => selectedIds.has(m.id))) {
                 await api.installMod(ins.id, gamePath)
             }
             await onRefreshInstalled()
             setShowUpdates(false)
+        } catch {
+            setUpdateError(t('installed.updatesModal.error'))
         } finally {
             setUpdatingAll(false)
         }
@@ -871,6 +878,11 @@ export function InstalledPage({
                         </div>
 
                         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+                            {updateError && (
+                                <span className="text-xs text-danger-text mr-auto">
+                                    {updateError}
+                                </span>
+                            )}
                             <button
                                 onClick={() => setShowUpdates(false)}
                                 className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
