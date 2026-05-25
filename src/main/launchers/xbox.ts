@@ -28,7 +28,6 @@ function findInXboxGames(game: GameDef): string | null {
 }
 
 function findViaPackageManager(game: GameDef): string | null {
-    if (process.platform !== 'win32') return null
     const productId = game.launchers.xbox?.productId
     if (!productId) return null
     try {
