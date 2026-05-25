@@ -13,6 +13,7 @@ const EPIC_DISPLAY_NAME: &str = "PAYDAY 3";
 const XBOX_PRODUCT_ID: &str = "9NPZVDCH73SX";
 const GAME_NAME: &str = "PAYDAY 3";
 const GAME_EXECUTABLE: &str = "PAYDAY3.exe";
+const XBOX_GAME_EXECUTABLE: &str = "PAYDAY3/Binaries/WinGDK/PAYDAY3-WinGDK-Shipping.exe";
 const XBOX_GAMING_APP: &str = "Microsoft.GamingApp_8wekyb3d8bbwe";
 const XBOX_DRIVES: &[&str] = &["C", "D", "E", "F", "G"];
 
@@ -166,21 +167,65 @@ fn xbox_is_installed() -> bool {
     }
 }
 
-fn xbox_game_path() -> Option<String> {
+fn xbox_find_in_drives() -> Option<String> {
     for drive in XBOX_DRIVES {
-        let candidate =
-            PathBuf::from(format!("{}:", drive)).join("XboxGames").join(GAME_NAME);
-        if candidate.join(GAME_EXECUTABLE).exists() {
-            return Some(candidate.to_string_lossy().into_owned());
+        let drive_root = PathBuf::from(format!("{}:\\", drive));
+        if !drive_root.exists() {
+            continue;
+        }
+        let dirs = match fs::read_dir(&drive_root) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        for entry in dirs.flatten() {
+            let candidate = entry.path().join(GAME_NAME).join("Content");
+            if candidate.join(XBOX_GAME_EXECUTABLE).exists() {
+                return Some(candidate.to_string_lossy().into_owned());
+            }
         }
     }
     None
 }
 
+#[cfg(target_os = "windows")]
+fn xbox_find_via_package_manager() -> Option<String> {
+    let script = format!(
+        "$p=Get-AppxPackage|?{{$c=Join-Path $_.InstallLocation 'Content\\MicrosoftGame.config';(Test-Path $c)-and((gc $c -Raw)-match '{}')}}|Select -First 1;if($p){{Join-Path $p.InstallLocation 'Content'}}",
+        XBOX_PRODUCT_ID
+    );
+    let out = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .output()
+        .ok()?;
+    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if path.is_empty() {
+        return None;
+    }
+    if Path::new(&path).join(XBOX_GAME_EXECUTABLE).exists() {
+        Some(path)
+    } else {
+        None
+    }
+}
+
+fn xbox_game_path() -> Option<String> {
+    if let Some(p) = xbox_find_in_drives() {
+        return Some(p);
+    }
+    #[cfg(target_os = "windows")]
+    {
+        xbox_find_via_package_manager()
+    }
+    #[cfg(not(target_os = "windows"))]
+    None
+}
+
 fn xbox_launch(game_path: &str) {
-    let exe = Path::new(game_path).join(GAME_EXECUTABLE);
-    if exe.exists() {
-        let _ = std::process::Command::new(&exe).spawn();
+    let helper = Path::new(game_path).join("gamelaunchhelper.exe");
+    if helper.exists() {
+        let child = std::process::Command::new(&helper)
+            .spawn();
+        drop(child);
     } else {
         open_url(&format!("msxbox://game/?productId={}", XBOX_PRODUCT_ID));
     }
