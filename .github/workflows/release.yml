@@ -65,6 +65,8 @@ jobs:
                   workspaces: src-tauri
 
             - run: pnpm install --frozen-lockfile
+            - run: pnpm typecheck
+            - run: pnpm test
             - run: pnpm build
               env:
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
