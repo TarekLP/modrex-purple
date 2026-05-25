@@ -1,6 +1,6 @@
 {
     "name": "pd3-mod-manager",
-    "version": "0.7.0",
+    "version": "0.7.1",
     "packageManager": "pnpm@10.32.1",
     "main": "out/main/index.js",
     "scripts": {
