@@ -12,8 +12,7 @@
         "dist:linux": "tauri build --target x86_64-unknown-linux-gnu",
         "typecheck": "tsc --noEmit",
         "prepare": "husky",
-        "test": "vitest run",
-        "test:watch": "vitest",
+        "test": "cargo test --manifest-path src-tauri/Cargo.toml",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
     },
@@ -46,8 +45,7 @@
         "prettier": "^3.8.3",
         "tailwindcss": "^4.3.0",
         "typescript": "^6.0.3",
-        "vite": "^6.4.2",
-        "vitest": "^4.1.6"
+        "vite": "^6.4.2"
     },
     "pnpm": {
         "onlyBuiltDependencies": [
