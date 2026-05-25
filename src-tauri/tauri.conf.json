@@ -29,7 +29,14 @@
     "bundle": {
         "active": true,
         "targets": "all",
-        "icon": ["../assets/icon.ico"]
+        "icon": ["../assets/icon.ico", "../assets/icon.png"],
+        "license": "../LICENSE",
+        "windows": {
+            "nsis": {
+                "installMode": "currentUser",
+                "startMenuFolder": "Games"
+            }
+        }
     },
     "plugins": {
         "updater": {
