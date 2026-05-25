@@ -1,11 +1,20 @@
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::Value;
+use std::sync::OnceLock;
 use std::time::Duration;
 use tauri::AppHandle;
+use tokio::sync::Semaphore;
 
 const BASE: &str = "https://api.modworkshop.net";
 const GAME_ID: u32 = 853;
+const MAX_CONCURRENT: usize = 3;
+
+static API_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
+
+fn semaphore() -> &'static Semaphore {
+    API_SEMAPHORE.get_or_init(|| Semaphore::new(MAX_CONCURRENT))
+}
 
 fn user_agent(app: &AppHandle) -> String {
     format!("modrex/{}", app.package_info().version)
@@ -19,14 +28,33 @@ pub(crate) async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, Stri
             pairs.append_pair(k, v);
         }
     }
-    let res = Client::new()
-        .get(url)
+    let client = Client::new();
+    let ua = user_agent(app);
+    let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
+    let mut res = client
+        .get(url.clone())
         .header("Accept", "application/json")
-        .header("User-Agent", user_agent(app))
+        .header("User-Agent", &ua)
         .timeout(Duration::from_secs(15))
         .send()
         .await
         .map_err(|e| e.to_string())?;
+    if res.status() == 429 {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos();
+        let jitter_ms = 1500 + (nanos % 1500) as u64;
+        tokio::time::sleep(Duration::from_millis(jitter_ms)).await;
+        res = client
+            .get(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", &ua)
+            .timeout(Duration::from_secs(15))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+    }
     if !res.status().is_success() {
         return Err(format!("modworkshop API {}: {}", res.status(), path));
     }
