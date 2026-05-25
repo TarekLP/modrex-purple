@@ -180,7 +180,7 @@
             "descriptionPre": "Extra arguments passed to PAYDAY 3 on launch.",
             "descriptionPost": "is recommended for most mods to load correctly.",
             "placeholder": "-fileopenlog",
-            "xboxNotePre": "Launch options are not supported on Xbox Game Pass. To enable mod logging, add",
+            "xboxNotePre": "Launch options are not supported on Microsoft Store. To enable mod logging, add",
             "xboxNotePost": "in the Xbox app under PAYDAY 3 > Manage > Launch options."
         },
         "updates": {
