@@ -19,15 +19,6 @@ pub fn run() {
                 .level_for("modrex_lib", log::LevelFilter::Info)
                 .max_file_size(5_000_000)
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
-                .target(tauri_plugin_log::Target::new(
-                    tauri_plugin_log::TargetKind::LogDir { file_name: None },
-                ))
-                .target(tauri_plugin_log::Target::new(
-                    tauri_plugin_log::TargetKind::Webview,
-                ))
-                .target(tauri_plugin_log::Target::new(
-                    tauri_plugin_log::TargetKind::Stdout,
-                ))
                 .build(),
         )
         .setup(|app| {
@@ -94,10 +85,13 @@ pub fn run() {
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(commands::mod_index::ensure_index(handle));
 
-    let handle = app.handle().clone();
-    tauri::async_runtime::spawn(async move {
-        let _ = commands::updater::check_for_update(handle).await;
-    });
+    #[cfg(not(debug_assertions))]
+    {
+        let handle = app.handle().clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = commands::updater::check_for_update(handle).await;
+        });
+    }
 
     app.run(|_, _| {});
 }
