@@ -26,6 +26,7 @@ function formatRelativeTime(dateStr: string): string {
 interface Props {
     mod: Mod
     installed: InstalledMod | undefined
+    installedCount?: number
     onOpen: () => void
     onInstall: () => void
     onUninstall: () => void
@@ -40,6 +41,7 @@ interface Props {
 export function ModCard({
     mod,
     installed,
+    installedCount,
     onOpen,
     onInstall,
     onUninstall,
@@ -59,7 +61,7 @@ export function ModCard({
 
     return (
         <div className="h-full bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col">
-            <div className="cursor-pointer group" onClick={onOpen}>
+            <div className="cursor-pointer group relative" onClick={onOpen}>
                 {mod.thumbnail ? (
                     <img
                         src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
@@ -70,6 +72,11 @@ export function ModCard({
                 ) : (
                     <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
                         <span className="text-text-subtle text-xs">{t('common.noImage')}</span>
+                    </div>
+                )}
+                {installedCount !== undefined && installedCount > 1 && (
+                    <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none">
+                        {t('installed.fileCount', { count: installedCount })}
                     </div>
                 )}
                 <div className="px-3 pt-3 pb-1 flex flex-col gap-1">

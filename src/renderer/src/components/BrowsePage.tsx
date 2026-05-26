@@ -332,6 +332,9 @@ export function BrowsePage({
                                 key={mod.id}
                                 mod={mod}
                                 installed={installed.find((m) => m.id === mod.id)}
+                                installedCount={
+                                    installed.filter((m) => m.id === mod.id).length || undefined
+                                }
                                 gamePath={gamePath}
                                 loading={loadingMod === mod.id}
                                 progress={loadingMod === mod.id ? downloadProgress : null}
