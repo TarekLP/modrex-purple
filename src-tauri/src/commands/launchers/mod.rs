@@ -1,11 +1,11 @@
 mod epic;
-mod pd3;
+mod games;
 mod steam;
 mod types;
 mod xbox;
 
 use epic::Epic;
-use pd3::PD3;
+use games::PD3;
 use steam::Steam;
 use types::{GameDef, Launcher};
 use xbox::Xbox;
