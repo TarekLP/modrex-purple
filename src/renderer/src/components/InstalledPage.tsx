@@ -249,7 +249,7 @@ export function InstalledPage({
         const id = ins.id
         const repUid = ins.uid
         const apiMod = modData.get(id)
-        if (!apiMod && !failedIds.has(id)) return <SkeletonListRow key={repUid} />
+        if (!apiMod && !failedIds.has(id) && id >= 0) return <SkeletonListRow key={repUid} />
         const mod = apiMod ?? syntheticMod(ins)
         const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
         const isBusy = mods.some((m) => loadingMod === m.uid)
@@ -316,7 +316,7 @@ export function InstalledPage({
         const id = ins.id
         const repUid = ins.uid
         const apiMod = modData.get(id)
-        if (!apiMod && !failedIds.has(id)) return <SkeletonCard key={repUid} />
+        if (!apiMod && !failedIds.has(id) && id >= 0) return <SkeletonCard key={repUid} />
         const mod = apiMod ?? syntheticMod(ins)
         const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
         const isBusy = mods.some((m) => loadingMod === m.uid)
