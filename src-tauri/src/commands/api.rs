@@ -11,9 +11,14 @@ const GAME_ID: u32 = 853;
 const MAX_CONCURRENT: usize = 3;
 
 static API_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
+static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 
 fn semaphore() -> &'static Semaphore {
     API_SEMAPHORE.get_or_init(|| Semaphore::new(MAX_CONCURRENT))
+}
+
+fn http_client() -> &'static Client {
+    HTTP_CLIENT.get_or_init(|| Client::builder().pool_max_idle_per_host(4).build().unwrap())
 }
 
 fn user_agent(app: &AppHandle) -> String {
@@ -28,37 +33,46 @@ pub(crate) async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, Stri
             pairs.append_pair(k, v);
         }
     }
-    let client = Client::new();
+    let client = http_client();
     let ua = user_agent(app);
-    let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
-    let mut res = client
-        .get(url.clone())
-        .header("Accept", "application/json")
-        .header("User-Agent", &ua)
-        .timeout(Duration::from_secs(15))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    if res.status() == 429 {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .subsec_nanos();
-        let jitter_ms = 1500 + (nanos % 1500) as u64;
-        tokio::time::sleep(Duration::from_millis(jitter_ms)).await;
-        res = client
-            .get(url)
+
+    for attempt in 0..3 {
+        let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
+        let res = client
+            .get(url.clone())
             .header("Accept", "application/json")
             .header("User-Agent", &ua)
             .timeout(Duration::from_secs(15))
             .send()
             .await
             .map_err(|e| e.to_string())?;
+
+        if res.status() == 429 {
+            drop(_permit);
+            let retry_ms = res
+                .headers()
+                .get("retry-after")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<u64>().ok())
+                .map(|s| s * 1000)
+                .unwrap_or_else(|| {
+                    let nanos = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .subsec_nanos();
+                    1500 + (nanos % 1500) as u64 * (attempt + 1)
+                });
+            tokio::time::sleep(Duration::from_millis(retry_ms)).await;
+            continue;
+        }
+
+        if !res.status().is_success() {
+            return Err(format!("modworkshop API {}: {}", res.status(), path));
+        }
+        return res.json().await.map_err(|e| e.to_string());
     }
-    if !res.status().is_success() {
-        return Err(format!("modworkshop API {}: {}", res.status(), path));
-    }
-    res.json().await.map_err(|e| e.to_string())
+
+    Err(format!("modworkshop API 429: {}", path))
 }
 
 #[derive(Debug, Deserialize)]
