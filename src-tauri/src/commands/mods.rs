@@ -428,19 +428,7 @@ pub fn install_mod_from_path(
     };
     fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
 
-    let existing = state
-        .mods
-        .iter()
-        .find(|m| m.uid == mod_data.uid)
-        .or_else(|| {
-            if mod_data.id > 0 {
-                let same: Vec<_> = state.mods.iter().filter(|m| m.id == mod_data.id).collect();
-                if same.len() == 1 { same.into_iter().next() } else { None }
-            } else {
-                None
-            }
-        })
-        .cloned();
+    let existing = state.mods.iter().find(|m| m.uid == mod_data.uid).cloned();
 
     let max_mod = state
         .mods
@@ -1278,6 +1266,16 @@ pub async fn install_mod(
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
             .unwrap_or_else(|| pak_filename(&mod_name));
+
+        // If the mod had a single previously-installed pak under a different uid
+        // (i.e. an older version with a different file_id), remove it first so
+        // install_mod_from_path doesn't produce two entries for the same mod.
+        if saved.mods.iter().all(|m| m.uid != uid) && remote_id > 0 {
+            let same: Vec<_> = saved.mods.iter().filter(|m| m.id == remote_id).collect();
+            if same.len() == 1 {
+                uninstall_mod_op(&game_path, &sp, &same[0].uid.clone());
+            }
+        }
 
         install_mod_from_path(
             &game_path,
