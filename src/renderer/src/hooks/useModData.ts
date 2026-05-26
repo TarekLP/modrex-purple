@@ -61,12 +61,12 @@ export function useModData(installed: InstalledMod[]): {
     const seenIds = new Set<number>()
     const updatable = installed.filter((ins) => {
         if (seenIds.has(ins.id)) return false
+        seenIds.add(ins.id)
         const mod = modData.get(ins.id)
-        if (mod && mod.version !== ins.version) {
-            seenIds.add(ins.id)
-            return true
-        }
-        return false
+        if (!mod) return false
+        if (mod.version === ins.version) return false
+        if (installed.some((m) => m.id === ins.id && m.version === mod.version)) return false
+        return true
     })
 
     return { modData, failedIds, updatable }
