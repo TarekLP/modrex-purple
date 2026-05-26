@@ -60,7 +60,7 @@ Missing any of these three breaks the channel silently at the type level.
 
 - **`launchers/`** — split into focused files so touching one launcher never requires touching another:
     - `types.rs` — `GameDef` struct (`name`, `executable`, `process_name`, `steam?`, `epic?`, `xbox?`) and `Launcher` trait (`id`, `is_installed`, `find_game`, `identify_path`, `launch`)
-    - `pd3.rs` — the only file with PAYDAY 3 specifics; change game here when adding a second game
+    - `games/pd3.rs` — the only file with PAYDAY 3 specifics; add new game definitions here as `games/<name>.rs`
     - `steam.rs` — Windows: `reg query` for install path, then walks `libraryfolders.vdf`; Linux: checks `STEAM_DIR`, `XDG_DATA_HOME`, snap, flatpak paths
     - `epic.rs` — reads `%PROGRAMDATA%\Epic\...\Manifests\*.item` JSON
     - `xbox.rs` — `find_in_drives` scans every subdirectory of each drive root C–G for `{dir}/{game.name}/Content/` containing the xbox executable; falls back to `find_via_package_manager` (PowerShell `Get-AppxPackage`) for deeply nested installs; launches via `gamelaunchhelper.exe`. Xbox game path always ends in `/Content`.
