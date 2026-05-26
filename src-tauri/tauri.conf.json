@@ -28,7 +28,7 @@
     },
     "bundle": {
         "active": true,
-        "targets": "all",
+        "targets": ["nsis", "deb", "rpm", "appimage"],
         "icon": ["../assets/icon.ico", "../assets/icon.png"],
         "license": "../LICENSE",
         "windows": {
