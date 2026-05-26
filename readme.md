@@ -29,6 +29,7 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 - Launch modded or vanilla directly from the app
 - Automatically detects your PD3 installation (Steam, Epic Games, Xbox Game Pass)
 - Identifies manually placed .pak files via SHA256 lookup against a live mod index
+- Automatic update checks with one-click in-app updates
 
 ## Requirements
 
@@ -54,6 +55,7 @@ pnpm install
 pnpm dev        # start with hot reload
 pnpm build      # production build
 pnpm typecheck  # type-check renderer
+pnpm format     # format all files with prettier
 pnpm test       # run Rust unit tests
 ```
 
