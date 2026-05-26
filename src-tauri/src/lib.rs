@@ -3,6 +3,12 @@ mod commands;
 use tauri::Manager;
 
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    // WebKit's DMA-BUF renderer breaks under XWayland and some Wayland compositors
+    unsafe {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     let app = tauri::Builder::default()
         .manage(commands::updater::UpdaterState::new())
         .plugin(tauri_plugin_dialog::init())
