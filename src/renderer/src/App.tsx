@@ -111,11 +111,6 @@ export default function App() {
         } catch {
             setUpdate((prev) => (prev ? { ...prev, phase: 'available', percent: null } : prev))
             setShowUpdateModal(true)
-            return
-        }
-        if (update.strategy !== 'auto') {
-            setUpdate((prev) => (prev ? { ...prev, phase: 'available', percent: null } : prev))
-            setShowUpdateModal(true)
         }
     }
 
