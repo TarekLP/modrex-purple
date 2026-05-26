@@ -115,39 +115,20 @@ pub fn configure_game_path(app: AppHandle, game_path: Option<String>) {
 }
 
 #[tauri::command]
-pub async fn pick_folder(default_path: Option<String>) -> Option<String> {
-    #[cfg(target_os = "windows")]
-    {
-        let initial = default_path.as_deref().unwrap_or("").replace('\'', "''");
-        let init_line = if initial.is_empty() {
-            String::new()
-        } else {
-            format!("$d.SelectedPath = '{}'; ", initial)
-        };
-        let script = format!(
-            "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Select {} installation folder'; {}if ($d.ShowDialog() -eq 'OK') {{ Write-Output $d.SelectedPath }}",
-            GAME.name, init_line
-        );
-        let out = tokio::process::Command::new("powershell")
-            .args(["-NonInteractive", "-NoProfile", "-Command", &script])
-            .output()
-            .await
-            .ok()?;
-        let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        if path.is_empty() { None } else { Some(path) }
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let mut cmd = tokio::process::Command::new("zenity");
-        cmd.args(["--file-selection", "--directory",
-            &format!("--title=Select {} installation folder", GAME.name)]);
-        if let Some(ref p) = default_path {
-            cmd.args(["--filename", p]);
+pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut builder = app
+            .dialog()
+            .file()
+            .set_title(&format!("Select {} installation folder", GAME.name));
+        if let Some(ref path) = default_path {
+            builder = builder.set_directory(path);
         }
-        let out = cmd.output().await.ok()?;
-        let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        if path.is_empty() { None } else { Some(path) }
-    }
+        builder.blocking_pick_folder().map(|p| p.to_string())
+    })
+    .await
+    .ok()?
 }
 
 #[tauri::command]

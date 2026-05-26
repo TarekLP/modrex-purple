@@ -5,6 +5,7 @@ use tauri::Manager;
 pub fn run() {
     let app = tauri::Builder::default()
         .manage(commands::updater::UpdaterState::new())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_log::Builder::new()
