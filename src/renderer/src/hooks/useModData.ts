@@ -62,6 +62,7 @@ export function useModData(installed: InstalledMod[]): {
     const updatable = installed.filter((ins) => {
         if (seenIds.has(ins.id)) return false
         seenIds.add(ins.id)
+        if (ins.missing) return false
         const mod = modData.get(ins.id)
         if (!mod) return false
         if (mod.version === ins.version) return false
