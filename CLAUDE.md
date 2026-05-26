@@ -58,7 +58,13 @@ Missing any of these three breaks the channel silently at the type level.
     - `install_mod` stores the **mod-level** version from `/mods/{id}` (not the file-level version from `/files/latest`) so the stored version matches what `getCachedMod` returns and `useModData` compares against. It also inherits `folder_id` from the existing state entry when the caller omits it (the normal update path from the UI passes no `folderId`), and the state write in `install_mod_from_path` propagates errors instead of silently swallowing them.
     - `InstalledMod.uid` has `#[serde(default)]` so state files predating the uid field still deserialize
 
-- **`launchers.rs`** — Steam (Windows: `reg query` for install path, then walks `libraryfolders.vdf`; Linux: checks `STEAM_DIR`, `XDG_DATA_HOME`, snap, flatpak paths), Epic (reads `%PROGRAMDATA%\Epic\...\Manifests\*.item` JSON), Xbox (`xbox_find_in_drives` scans every subdirectory of each drive root C–G looking for `{dir}/PAYDAY 3/Content/` containing `PAYDAY3/Binaries/WinGDK/PAYDAY3-WinGDK-Shipping.exe`; falls back to `xbox_find_via_package_manager` which runs PowerShell `Get-AppxPackage` for deeply nested installs; launches via `gamelaunchhelper.exe`). Xbox game path always ends in `/Content`. Marker files for `identify_launcher_for_path`: `steam_appid.txt`, `.egstore/`, `MicrosoftGame.config`. `configure_game_path(None)` auto-detects and **saves** the detected path — not just the launcher. On first call from the renderer when settings has no game path, `findGamePath()` in `api.ts` triggers this automatically.
+- **`launchers/`** — split into focused files so touching one launcher never requires touching another:
+    - `types.rs` — `GameDef` struct (`name`, `executable`, `process_name`, `steam?`, `epic?`, `xbox?`) and `Launcher` trait (`id`, `is_installed`, `find_game`, `identify_path`, `launch`)
+    - `pd3.rs` — the only file with PAYDAY 3 specifics; change game here when adding a second game
+    - `steam.rs` — Windows: `reg query` for install path, then walks `libraryfolders.vdf`; Linux: checks `STEAM_DIR`, `XDG_DATA_HOME`, snap, flatpak paths
+    - `epic.rs` — reads `%PROGRAMDATA%\Epic\...\Manifests\*.item` JSON
+    - `xbox.rs` — `find_in_drives` scans every subdirectory of each drive root C–G for `{dir}/{game.name}/Content/` containing the xbox executable; falls back to `find_via_package_manager` (PowerShell `Get-AppxPackage`) for deeply nested installs; launches via `gamelaunchhelper.exe`. Xbox game path always ends in `/Content`.
+    - `mod.rs` — orchestration (`identify_launcher_for_path`, `launch_with`, `all_launchers`) + all Tauri commands. `GAME` constant is the single binding point between launcher logic and game data. Marker files for `identify_launcher_for_path`: `steam_appid.txt`, `.egstore/`, `MicrosoftGame.config`. `configure_game_path(None)` auto-detects and **saves** the detected path. On first renderer call when settings has no game path, `findGamePath()` in `api.ts` triggers this automatically.
 
 - **`mod_index.rs`** — SHA256-based mod identification. Downloads `index.db` from the `modrexio/modrex-index` GitHub release to `app_data_dir()`, cached with a 1-hour TTL (fire-and-forget at startup). `query_sha256(conn, sha256)` and `query_by_name(conn, name)` are private helpers that take a `&rusqlite::Connection` — testable with in-memory SQLite. `lookup_by_name` returns `Some` only when exactly one mod matches (ambiguous = `None`). Uses `rusqlite` with `features = ["bundled"]` — no native module issues.
 
@@ -115,9 +121,9 @@ Icons: `lucide-react`. Custom dropdowns: `components/Select.tsx`. Toggles: `comp
 
 ## Testing
 
-Rust unit tests live in `#[cfg(test)]` modules at the bottom of each `.rs` file. 53 tests across 4 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` crate is in `[dev-dependencies]` for filesystem tests.
+Rust unit tests live in separate `*_tests.rs` files, referenced from the module via `#[cfg(test)] #[path = "foo_tests.rs"] mod tests;`. 53 tests across 4 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` crate is in `[dev-dependencies]` for filesystem tests.
 
-Modules with tests: `mods.rs` (pure functions + state I/O), `launchers.rs` (VDF parser + launcher identification), `settings.rs` (JSON roundtrip), `mod_index.rs` (in-memory SQLite queries).
+Modules with tests: `mods.rs` (pure functions + state I/O), `launchers/mod.rs` (VDF parser + launcher identification), `settings.rs` (JSON roundtrip), `mod_index.rs` (in-memory SQLite queries).
 
 ## Agent skills
 
