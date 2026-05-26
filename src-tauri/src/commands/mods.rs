@@ -472,7 +472,11 @@ pub fn install_mod_from_path(
     let mut new_mods: Vec<InstalledMod> = state
         .mods
         .into_iter()
-        .filter(|m| m.uid != mod_data.uid && existing.as_ref().map(|e| m.uid != e.uid).unwrap_or(true))
+        .filter(|m| {
+            m.uid != mod_data.uid
+                && existing.as_ref().map(|e| m.uid != e.uid).unwrap_or(true)
+                && !(mod_data.id > 0 && m.id == mod_data.id)
+        })
         .collect();
 
     new_mods.push(InstalledMod {
@@ -484,7 +488,9 @@ pub fn install_mod_from_path(
         ..mod_data
     });
 
-    save_state(state_path, &ModsState { folders: state.folders, mods: new_mods });
+    let json = serde_json::to_string_pretty(&ModsState { folders: state.folders, mods: new_mods })
+        .map_err(|e| e.to_string())?;
+    std::fs::write(state_path, &json).map_err(|e| format!("failed to write state: {}", e))?;
     Ok(())
 }
 
@@ -1171,9 +1177,13 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         });
     }
 
+    let tracked_ids: HashSet<i64> = state.mods.iter().filter(|m| m.id > 0).map(|m| m.id).collect();
     let mut by_uid: HashMap<String, InstalledMod> =
         state.mods.iter().map(|m| (m.uid.clone(), m.clone())).collect();
     for m in new_mods {
+        if m.id > 0 && tracked_ids.contains(&m.id) {
+            continue;
+        }
         by_uid.insert(m.uid.clone(), m);
     }
     let final_mods: Vec<InstalledMod> = by_uid.into_values().collect();
@@ -1195,11 +1205,10 @@ pub async fn install_mod(
     let mod_version = mod_val["version"].as_str().unwrap_or("").to_string();
     let remote_id = mod_val["id"].as_i64().unwrap_or(0);
 
-    let (file_id, file_version, download_url, file_type) = if !mod_val["download"].is_null() {
+    let (file_id, download_url, file_type) = if !mod_val["download"].is_null() {
         let dl = &mod_val["download"];
         (
             dl["id"].as_i64().unwrap_or(0),
-            dl["version"].as_str().unwrap_or(&mod_version).to_string(),
             dl["download_url"].as_str().ok_or("no download_url")?.to_string(),
             dl["type"].as_str().unwrap_or("pak").to_string(),
         )
@@ -1207,7 +1216,6 @@ pub async fn install_mod(
         let f = api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?;
         (
             f["id"].as_i64().unwrap_or(0),
-            f["version"].as_str().unwrap_or(&mod_version).to_string(),
             f["download_url"].as_str().ok_or("no download_url")?.to_string(),
             f["type"].as_str().unwrap_or("pak").to_string(),
         )
@@ -1221,8 +1229,14 @@ pub async fn install_mod(
         let sha256 = compute_sha256(&tmp).await?;
         let uid = file_id.to_string();
         let sp = get_state_path(&game_path);
-        let existing_filename = read_state(&sp).mods.iter().find(|m| m.uid == uid).map(|m| m.filename.clone());
-        let filename = existing_filename.unwrap_or_else(|| pak_filename(&mod_name));
+        let saved = read_state(&sp);
+        let existing_entry = saved.mods.iter()
+            .find(|m| m.uid == uid)
+            .or_else(|| if remote_id > 0 { saved.mods.iter().find(|m| m.id == remote_id) } else { None });
+        let effective_folder_id = folder_id.or_else(|| existing_entry.and_then(|e| e.folder_id.clone()));
+        let filename = saved.mods.iter().find(|m| m.uid == uid)
+            .map(|m| m.filename.clone())
+            .unwrap_or_else(|| pak_filename(&mod_name));
 
         install_mod_from_path(
             &game_path,
@@ -1231,7 +1245,7 @@ pub async fn install_mod(
                 uid,
                 id: remote_id,
                 name: mod_name,
-                version: file_version,
+                version: mod_version,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
@@ -1241,7 +1255,7 @@ pub async fn install_mod(
                 ..InstalledMod::default()
             },
             &tmp,
-            folder_id,
+            effective_folder_id,
         )?;
 
         let _ = reqwest::Client::new()
