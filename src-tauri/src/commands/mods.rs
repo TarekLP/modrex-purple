@@ -432,7 +432,14 @@ pub fn install_mod_from_path(
         .mods
         .iter()
         .find(|m| m.uid == mod_data.uid)
-        .or_else(|| if mod_data.id > 0 { state.mods.iter().find(|m| m.id == mod_data.id) } else { None })
+        .or_else(|| {
+            if mod_data.id > 0 {
+                let same: Vec<_> = state.mods.iter().filter(|m| m.id == mod_data.id).collect();
+                if same.len() == 1 { same.into_iter().next() } else { None }
+            } else {
+                None
+            }
+        })
         .cloned();
 
     let max_mod = state
@@ -475,7 +482,6 @@ pub fn install_mod_from_path(
         .filter(|m| {
             m.uid != mod_data.uid
                 && existing.as_ref().map(|e| m.uid != e.uid).unwrap_or(true)
-                && !(mod_data.id > 0 && m.id == mod_data.id)
         })
         .collect();
 
@@ -997,7 +1003,32 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
     let bak = PathBuf::from(&game_path).join("PAYDAY3").join("Content").join("~mods.bak");
     let mods_hidden = bak.exists();
 
-    let state = reconcile_state(&game_path, &state_path);
+    let mut state = reconcile_state(&game_path, &state_path);
+
+    // Re-identify synthetic negative-id entries whose name ends in " <number>" (a file id
+    // suffix appended during fallback identification). If the base name matches a
+    // positively-identified tracked mod, assign that mod's id so all pak files from the
+    // same mod are grouped together in the UI.
+    {
+        let name_to_id: std::collections::HashMap<String, i64> = state
+            .mods
+            .iter()
+            .filter(|m| m.id > 0)
+            .map(|m| (m.name.to_lowercase(), m.id))
+            .collect();
+        for m in &mut state.mods {
+            if m.id >= 0 { continue; }
+            if let Some(pos) = m.name.rfind(' ') {
+                let suffix = &m.name[pos + 1..];
+                if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
+                    let base = m.name[..pos].to_lowercase();
+                    if let Some(&matched_id) = name_to_id.get(&base) {
+                        m.id = matched_id;
+                    }
+                }
+            }
+        }
+    }
 
     if mods_hidden {
         return Ok(InstalledResponse { mods: state.mods, folders: state.folders, mods_hidden: true });
@@ -1137,23 +1168,33 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         let stripped = strip_priority_prefix(stem);
 
         // Try identification in priority order: SHA256 → name → bare-number filename → synthetic
+        let stripped_name = stripped.replace('_', " ");
+        let stripped_base = stripped
+            .rfind('_')
+            .filter(|&p| stripped[p + 1..].chars().all(|c| c.is_ascii_digit()))
+            .map(|p| stripped[..p].replace('_', " "));
+
         let (id, name, file_id, version) = if let Some(sha) = sha256 {
             if let Some(hit) = mod_index::lookup_sha256(&app, sha) {
                 (hit.mod_remote_id, hit.mod_name, Some(hit.file_remote_id), hit.version)
-            } else if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped.replace('_', " ")) {
-                (remote_id, stripped.replace('_', " ").trim().to_string(), None, "unknown".to_string())
+            } else if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped_name) {
+                (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
+            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(&app, b)) {
+                (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
             } else if let Ok(num_id) = stripped.parse::<i64>() {
                 (num_id, stripped.to_string(), None, "unknown".to_string())
             } else {
-                (hash_filename(&filename), stripped.replace('_', " ").trim().to_string(), None, "unknown".to_string())
+                (hash_filename(&filename), stripped_name.trim().to_string(), None, "unknown".to_string())
             }
         } else {
-            if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped.replace('_', " ")) {
-                (remote_id, stripped.replace('_', " ").trim().to_string(), None, "unknown".to_string())
+            if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped_name) {
+                (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
+            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(&app, b)) {
+                (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
             } else if let Ok(num_id) = stripped.parse::<i64>() {
                 (num_id, stripped.to_string(), None, "unknown".to_string())
             } else {
-                (hash_filename(&filename), stripped.replace('_', " ").trim().to_string(), None, "unknown".to_string())
+                (hash_filename(&filename), stripped_name.trim().to_string(), None, "unknown".to_string())
             }
         };
 
