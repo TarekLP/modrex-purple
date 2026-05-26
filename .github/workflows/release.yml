@@ -99,43 +99,12 @@ jobs:
               id: ver
               run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-            - name: Generate latest.yml (electron-updater compat for Windows)
-              run: |
-                  EXE=$(ls windows-nsis/*.exe | head -1)
-                  FILENAME=$(basename "$EXE")
-                  SHA512=$(openssl dgst -sha512 -binary "$EXE" | base64 -w 0)
-                  SIZE=$(stat -c%s "$EXE")
-                  DATE=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
-                  cat > latest.yml <<EOF
-                  version: ${{ steps.ver.outputs.version }}
-                  files:
-                    - url: $FILENAME
-                      sha512: $SHA512
-                      size: $SIZE
-                  path: $FILENAME
-                  sha512: $SHA512
-                  releaseDate: '$DATE'
-                  EOF
-
-            - name: Rename Linux deb and generate latest-linux.yml (electron-updater compat)
+            - name: Rename Linux deb
               run: |
                   VERSION=${{ steps.ver.outputs.version }}
                   ORIG=$(ls linux-deb/*.deb | head -1)
                   DEBNAME="pd3-mod-manager_${VERSION}_amd64.deb"
                   mv "$ORIG" "linux-deb/$DEBNAME"
-                  SHA512=$(openssl dgst -sha512 -binary "linux-deb/$DEBNAME" | base64 -w 0)
-                  SIZE=$(stat -c%s "linux-deb/$DEBNAME")
-                  DATE=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
-                  cat > latest-linux.yml <<EOF
-                  version: $VERSION
-                  files:
-                    - url: $DEBNAME
-                      sha512: $SHA512
-                      size: $SIZE
-                  path: $DEBNAME
-                  sha512: $SHA512
-                  releaseDate: '$DATE'
-                  EOF
 
             - name: Generate latest.json (tauri-plugin-updater)
               run: |
@@ -168,8 +137,6 @@ jobs:
                       linux-deb/*.deb
                       linux-rpm/*.rpm
                       linux-appimage/*.AppImage
-                      latest.yml
-                      latest-linux.yml
                       latest.json
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
