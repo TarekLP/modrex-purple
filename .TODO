@@ -6,6 +6,21 @@ deferred tasks that require human judgement on timing. Treat this file as read-o
 
 ---
 
+## TODO: search-state-persistence
+
+When a user opens a mod from the Browse page and navigates back (back arrow or ESC),
+they are returned to the initial Browse page state instead of their previous search results.
+Sort selection (e.g. "updated date") also resets on each visit.
+
+Root cause: `BrowsePage` unmounts on tab switch (intentional, for fresh data), which discards
+all local search/sort/scroll state. Fix would require lifting search state up to `App.tsx`
+or preserving it with CSS-hidden approach (same as `InstalledPage` / `SettingsPage`).
+
+Note: the fresh-fetch-on-visit behavior is desirable — only the search/sort *inputs* need
+to survive navigation, not the results themselves.
+
+---
+
 ## TODO: drop-electron-compat
 
 After all users have migrated from Electron to Tauri (confirm by checking analytics or
