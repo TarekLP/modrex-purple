@@ -55,6 +55,21 @@ pub fn migrate_from_electron(app: &AppHandle) {
             let _ = std::fs::copy(old_index, new_index);
         }
     }
+    #[cfg(target_os = "linux")]
+    {
+        let Ok(home) = std::env::var("HOME") else { return };
+        let old_dir = PathBuf::from(home).join(".config").join("pd3-mod-manager");
+        let new_dir = new_settings.parent().unwrap();
+        let _ = std::fs::create_dir_all(new_dir);
+        if old_dir.join("settings.json").exists() {
+            let _ = std::fs::copy(old_dir.join("settings.json"), &new_settings);
+        }
+        let old_index = old_dir.join("mod-index.db");
+        let new_index = new_dir.join("mod-index.db");
+        if old_index.exists() && !new_index.exists() {
+            let _ = std::fs::copy(old_index, new_index);
+        }
+    }
 }
 
 #[tauri::command]
