@@ -1,4 +1,5 @@
 use super::*;
+use super::steam::steam_libraries;
 use tempfile::TempDir;
 
 // ── steam_libraries ───────────────────────────────────────────────────────
