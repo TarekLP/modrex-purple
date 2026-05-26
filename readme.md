@@ -13,8 +13,8 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 | Platform        | Download                                                                                                   |
 | --------------- | ---------------------------------------------------------------------------------------------------------- |
 | Windows         | [Modrex.Setup.exe](https://github.com/modrexio/modrex/releases/latest/download/Modrex_0.8.0_x64-setup.exe) |
-| Linux .deb      | [modrex.deb](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager_0.8.0_amd64.deb)  |
-| Linux .rpm      | [modrex.rpm](https://github.com/modrexio/modrex/releases/latest/download/modrex-0.8.0-1.x86_64.rpm)        |
+| Linux .deb      | [modrex.deb](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.deb)              |
+| Linux .rpm      | [modrex.rpm](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.rpm)              |
 | Linux .AppImage | [modrex.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_0.8.0_amd64.AppImage) |
 
 ## Features
@@ -43,10 +43,10 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 If something goes wrong, attach your log file to a [bug report](https://github.com/modrexio/modrex/issues).
 
-| Platform | Path                |
-| -------- | ------------------- |
-| Windows  | `%APPDATA%\Modrex\` |
-| Linux    | `~/.config/modrex/` |
+| Platform | Path                               |
+| -------- | ---------------------------------- |
+| Windows  | `%APPDATA%\Modrex\logs\modrex.log` |
+| Linux    | `~/.config/modrex/logs/modrex.log` |
 
 ## Development
 
