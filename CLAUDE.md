@@ -44,7 +44,7 @@ Missing any of these three breaks the channel silently at the type level.
 
 - **`settings.rs`** — reads/writes `settings.json` in Tauri's `app_data_dir()` (`%APPDATA%\Modrex\` on Windows). Fields: `gamePath?`, `launcher?`, `launchOptions?`, `skipFileOpenLogWarning?`, `dismissedDepsWarnings?`. On first launch after the Electron-to-Tauri migration, `migrate_from_electron` copies settings from `%APPDATA%\PD3 Mod Manager\`. Called from `lib.rs` setup hook before the window shows.
 
-- **`api.rs`** — modworkshop REST API via `reqwest`. Params sent as query string (GET requests). `get_mod` returns extra fields (`images`, `banner`, `dependencies`, `instructs_template`, `tags`) absent from `list_mods` results. `API_SEMAPHORE` caps concurrent requests at 3; 429 responses are retried once after 1.5–3 s jitter.
+- **`api.rs`** — modworkshop REST API via `reqwest`. Params sent as query string (GET requests). `get_mod` returns extra fields (`images`, `banner`, `dependencies`, `instructs_template`, `tags`) absent from `list_mods` results. `API_SEMAPHORE` caps concurrent requests at 3; 429 responses are retried up to 3 times — semaphore permit released before sleep, delay from `Retry-After` header or 1.5–3 s jitter. Shared `HTTP_CLIENT` static (connection pooling via `pool_max_idle_per_host(4)`).
 
 - **`download.rs`** — streams file to `temp_dir()/pd3-mod-{uuid}.{ext}`, emitting `download:progress` Tauri events with `{ downloaded, total }`. `total` is `0` when the server omits `content-length` — callers must handle the indeterminate case.
 
@@ -56,6 +56,8 @@ Missing any of these three breaks the channel silently at the type level.
     - `reconcile_state` — marks missing files `missing: true` without dropping them; migrates legacy `disabled/foo.pak` to `disabled/foo.pak.disabled`; when `~mods.bak` exists reads state from there
     - `get_installed` command runs the full identification pipeline: upgrade synthetic mods (SHA256 → index lookup), find untracked paks, auto-create folder entries for nested paths, reconcile by SHA256, identify remaining untracked files. After identification, untracked paks whose `id` matches an already-tracked remote mod id are skipped (`tracked_ids` guard) — prevents stale on-disk files from overwriting a freshly-installed state entry.
     - `install_mod` stores the **mod-level** version from `/mods/{id}` (not the file-level version from `/files/latest`) so the stored version matches what `getCachedMod` returns and `useModData` compares against. It also inherits `folder_id` from the existing state entry when the caller omits it (the normal update path from the UI passes no `folderId`), and the state write in `install_mod_from_path` propagates errors instead of silently swallowing them.
+    - **Multi-file installs**: `install_mod_from_path` finds `existing` by `uid` only (not by `id`) so each file in a multi-file mod accumulates independently. `install_mod` (single-file update path) explicitly pre-removes the old pak when exactly one same-id entry exists and the new uid isn't already tracked — never do this removal inside `install_mod_from_path`.
+    - **Negative-id re-identification**: `get_installed` scans state after `reconcile_state` and re-assigns the positive remote id to any negative-id entry whose base name (stripping trailing ` <number>` suffix) matches a known positive-id mod. This handles multi-file mods where pak files arrive with file-id suffixes in their names.
     - `InstalledMod.uid` has `#[serde(default)]` so state files predating the uid field still deserialize
 
 - **`launchers/`** — split into focused files so touching one launcher never requires touching another:
@@ -98,7 +100,9 @@ All colors are semantic tokens in `src/renderer/src/index.css` via Tailwind v4's
 
 `createDragImage` in `useDragDrop.ts` builds DOM nodes outside React's render tree — use CSS custom properties in inline styles (`var(--color-surface-raised)` etc.), not Tailwind classes.
 
-Icons: `lucide-react`. Custom dropdowns: `components/Select.tsx`. Toggles: `components/Toggle.tsx`. Markdown: `components/MarkdownContent.tsx` — never inline `ReactMarkdown` directly. Skeleton loading: `components/SkeletonCard.tsx` (grid) and `components/SkeletonListRow.tsx` (list).
+Icons: `lucide-react`. Custom dropdowns: `components/Select.tsx`. Toggles: `components/Toggle.tsx`. Markdown: `components/MarkdownContent.tsx` — never inline `ReactMarkdown` directly. Skeleton loading: `components/SkeletonCard.tsx` (grid) and `components/SkeletonListRow.tsx` (list). `ModCard` accepts `installedCount?: number` — when > 1, shows a "N files" badge over the thumbnail (same style as `InstalledPage`); `BrowsePage` passes `installed.filter(...).length || undefined`.
+
+**Skeleton guard**: render a skeleton only when `!apiMod && !failedIds.has(id) && id >= 0`. The `id >= 0` is load-bearing — negative-id (unrecognized) mods are never fetched and never added to `failedIds`, so without it they render as permanent skeletons.
 
 **Confirm dialogs**: never use `window.confirm`. Pattern: `fooId: string | null` state → inline modal with `absolute inset-0 bg-black/60` backdrop. See `deletingFolderId` in `InstalledPage.tsx`.
 
