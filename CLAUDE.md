@@ -42,7 +42,7 @@ Missing any of these three breaks the channel silently at the type level.
 
 ### Rust backend modules (`src-tauri/src/commands/`)
 
-- **`settings.rs`** — reads/writes `settings.json` in Tauri's `app_data_dir()` (`%APPDATA%\Modrex\` on Windows). Fields: `gamePath?`, `launcher?`, `launchOptions?`, `skipFileOpenLogWarning?`, `dismissedDepsWarnings?`. On first launch after the Electron-to-Tauri migration, `migrate_from_electron` copies settings from `%APPDATA%\PD3 Mod Manager\`. Called from `lib.rs` setup hook before the window shows.
+- **`settings.rs`** — reads/writes `settings.json` in Tauri's `app_data_dir()` (`%APPDATA%\Modrex\` on Windows, `~/.config/modrex/` on Linux). Fields: `gamePath?`, `launcher?`, `launchOptions?`, `skipFileOpenLogWarning?`, `dismissedDepsWarnings?`. On first launch after the Electron-to-Tauri migration, `migrate_from_electron` copies `settings.json` and `mod-index.db` from the old Electron path (`%APPDATA%\PD3 Mod Manager\` on Windows, `~/.config/pd3-mod-manager/` on Linux). Called from `lib.rs` setup hook before the window shows.
 
 - **`api.rs`** — modworkshop REST API via `reqwest`. Params sent as query string (GET requests). `get_mod` returns extra fields (`images`, `banner`, `dependencies`, `instructs_template`, `tags`) absent from `list_mods` results. `API_SEMAPHORE` caps concurrent requests at 3; 429 responses are retried up to 3 times — semaphore permit released before sleep, delay from `Retry-After` header or 1.5–3 s jitter. Shared `HTTP_CLIENT` static (connection pooling via `pool_max_idle_per_host(4)`).
 
