@@ -100,12 +100,10 @@ jobs:
               id: ver
               run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-            - name: Rename Linux deb
+            - name: Rename Linux artifacts for electron-updater compat
               run: |
-                  VERSION=${{ steps.ver.outputs.version }}
-                  ORIG=$(ls linux-deb/*.deb | head -1)
-                  DEBNAME="pd3-mod-manager_${VERSION}_amd64.deb"
-                  mv "$ORIG" "linux-deb/$DEBNAME"
+                  mv "$(ls linux-deb/*.deb | head -1)" "linux-deb/pd3-mod-manager.deb"
+                  mv "$(ls linux-rpm/*.rpm | head -1)" "linux-rpm/pd3-mod-manager.rpm"
 
             - name: Generate latest.json (tauri-plugin-updater)
               run: |
@@ -168,8 +166,8 @@ jobs:
                   generate_release_notes: true
                   files: |
                       windows-nsis/*.exe
-                      linux-deb/*.deb
-                      linux-rpm/*.rpm
+                      linux-deb/pd3-mod-manager.deb
+                      linux-rpm/pd3-mod-manager.rpm
                       linux-appimage/*.AppImage
                       latest.json
                       latest.yml
