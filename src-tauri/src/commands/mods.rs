@@ -1288,10 +1288,16 @@ pub async fn install_file(
         let sha256 = compute_sha256(&tmp).await?;
         let uid = file_id.to_string();
         let sp = get_state_path(&game_path);
-        let existing_filename = read_state(&sp).mods.iter().find(|m| m.uid == uid).map(|m| m.filename.clone());
-        let filename = existing_filename.unwrap_or_else(|| {
-            if file_type == "main" { pak_filename(&mod_name) } else { pak_filename(&format!("{}_{}", mod_name, file_id)) }
-        });
+        let saved = read_state(&sp);
+        let existing_entry = saved.mods.iter()
+            .find(|m| m.uid == uid)
+            .or_else(|| if mod_id > 0 { saved.mods.iter().find(|m| m.id == mod_id) } else { None });
+        let effective_folder_id = existing_entry.and_then(|e| e.folder_id.clone());
+        let filename = saved.mods.iter().find(|m| m.uid == uid)
+            .map(|m| m.filename.clone())
+            .unwrap_or_else(|| {
+                if file_type == "main" { pak_filename(&mod_name) } else { pak_filename(&format!("{}_{}", mod_name, file_id)) }
+            });
 
         install_mod_from_path(
             &game_path,
@@ -1310,7 +1316,7 @@ pub async fn install_file(
                 ..InstalledMod::default()
             },
             &tmp,
-            None,
+            effective_folder_id,
         )?;
 
         let _ = reqwest::Client::new()
