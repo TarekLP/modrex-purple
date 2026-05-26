@@ -1,0 +1,37 @@
+# Deferred Work
+
+IMPORTANT FOR AI AGENTS: Do NOT execute, implement, or act on anything in this file
+without the user explicitly saying "do the TODO: <item name>". These are intentionally
+deferred tasks that require human judgement on timing. Treat this file as read-only notes.
+
+---
+
+## TODO: drop-electron-compat
+
+After all users have migrated from Electron to Tauri (confirm by checking analytics or
+waiting until the Tauri build has been stable for several releases), remove the following:
+
+### release.yml
+- Remove the "Rename Linux artifacts for electron-updater compat" step
+- Remove `linux-deb/pd3-mod-manager.deb` and `linux-rpm/pd3-mod-manager.rpm` from the publish files list
+- Remove the "Generate latest.yml and latest-linux.yml (electron-updater compat)" step
+- Remove `latest.yml` and `latest-linux.yml` from the publish files list
+- Linux artifacts will then upload under Tauri's native names
+
+### settings.rs + lib.rs
+- Delete `migrate_from_electron` from `settings.rs`
+- Remove its call site in `lib.rs`
+
+---
+
+## TODO: rename-identifier
+
+After `drop-electron-compat` is done, rename the Tauri app identifier:
+
+### tauri.conf.json
+- Change `identifier` from `io.github.shulhaoleh.pd3modmanager` to `io.github.modrexio.modrex`
+
+### NSIS hook (required for seamless upgrade)
+- Add `bundle.windows.nsis.installerHooks` pointing to a custom NSIS script
+- The script must read `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\io.github.shulhaoleh.pd3modmanager`
+  and run the old uninstaller silently if found, so users on the old identifier get a clean upgrade

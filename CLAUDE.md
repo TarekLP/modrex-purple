@@ -136,4 +136,6 @@ Reusable skills live in `.agents/skills/` and are listed in `AGENTS.md`. Availab
 - `/commit` — read the current diff and propose a conventional commit message; waits for confirmation before committing.
 - `/deslop` — audit the branch diff for AI-generated slop (unnecessary comments, defensive checks, wrong abstractions, project convention violations) and fix each issue found.
 
+**Deferred work**: tracked in `.TODO`. Do NOT act on anything in that file unless the user explicitly says "do the TODO: <name>".
+
 **Releasing**: run `pnpm version patch|minor|major` — bumps `package.json`, commits as `chore(release): X.Y.Z`, creates a `vX.Y.Z` tag. Pushing the tag triggers the CI release workflow.

@@ -35,6 +35,7 @@ pub fn write_settings(app: &AppHandle, settings: &Settings) {
 
 /// On first launch after the Electron-to-Tauri migration, copy settings.json
 /// and mod-index.db from the old Electron userData path to the new Tauri path.
+/// Safe to remove once no Electron installs remain in the wild.
 pub fn migrate_from_electron(app: &AppHandle) {
     let new_settings = settings_path(app);
     if new_settings.exists() {
