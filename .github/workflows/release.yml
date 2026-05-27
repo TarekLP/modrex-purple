@@ -92,7 +92,7 @@ jobs:
 
     publish:
         needs: [build-windows, build-linux]
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-22.04
         steps:
             - uses: actions/download-artifact@v4
 
@@ -110,7 +110,7 @@ jobs:
                   printf "Conflicts: pd3-mod-manager\nReplaces: pd3-mod-manager\n" >> deb-tmp/DEBIAN/control
                   dpkg-deb -b deb-tmp linux-deb/pd3-mod-manager.deb
                   rm -rf deb-tmp "$DEB_SRC"
-                  sudo apt-get update && sudo apt-get install -y rpmrebuild
+                  sudo apt-get install -y rpmrebuild
                   RPM_SRC=$(ls linux-rpm/*.rpm | head -1)
                   rpmrebuild -p --notest-install \
                     --change-spec-preamble="sed '/^Name:/i Obsoletes: pd3-mod-manager'" \
