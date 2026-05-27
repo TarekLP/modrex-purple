@@ -34,7 +34,8 @@
         "windows": {
             "nsis": {
                 "installMode": "currentUser",
-                "startMenuFolder": "Games"
+                "startMenuFolder": "Games",
+                "installerHooks": "nsis/installer-hooks.nsi"
             }
         }
     },
