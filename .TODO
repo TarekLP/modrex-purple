@@ -21,6 +21,23 @@ to survive navigation, not the results themselves.
 
 ---
 
+## TODO: zip-archive-detection
+
+Some mods on modworkshop upload a .zip archive as their download file. The mod manager
+downloads it, renames it to .pak, and places it in the mods folder — but the game ignores it
+because it is not a real pak. The SHA256 in mod-index.db is computed on the zip, not the
+extracted pak inside it, so identification fails silently.
+
+Fix: in `install_mod_from_path` (mods.rs), read the first 4 bytes of the temp file before
+installing. If they match the zip magic (`50 4B 03 04`), return an error immediately.
+Surface it in the UI with a message explaining that the mod uses an archive format and must
+be installed manually (extract the .pak and drop it into the mods folder).
+
+Confirmed reproduction: "Real Weapon Names" mod — zip contains two .pak choices; user must
+extract and place one manually.
+
+---
+
 ## TODO: drop-electron-compat
 
 After all users have migrated from Electron to Tauri (confirm by checking analytics or
