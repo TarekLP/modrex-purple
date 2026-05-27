@@ -18,6 +18,7 @@ import { getCachedMod, getCachedModFiles } from '../modCache'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
+import { api } from '../api'
 
 type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'deps'
 
@@ -94,7 +95,7 @@ export function ModDetailPage({
 
     useEffect(() => {
         if (!isActive) return
-        return window.api.onDownloadProgress(({ downloaded, total }) => {
+        return api.onDownloadProgress(({ downloaded, total }) => {
             setDownloadProgress({ downloaded, total })
             if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
             progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
@@ -128,7 +129,7 @@ export function ModDetailPage({
         }
         if (missingRequired.length > 0) {
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
-                const s = await window.api.getSettings()
+                const s = await api.getSettings()
                 if (!s.dismissedDepsWarnings?.includes(modId)) {
                     setShowDepsWarning(true)
                     return
@@ -137,7 +138,7 @@ export function ModDetailPage({
         }
         setActionLoading(true)
         try {
-            await window.api.installMod(mod.id, gamePath)
+            await api.installMod(mod.id, gamePath)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -148,7 +149,7 @@ export function ModDetailPage({
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            for (const m of installedFiles) await window.api.uninstallMod(m.uid, gamePath)
+            for (const m of installedFiles) await api.uninstallMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -159,7 +160,7 @@ export function ModDetailPage({
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            for (const m of installedFiles) await window.api.enableMod(m.uid, gamePath)
+            for (const m of installedFiles) await api.enableMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -170,7 +171,7 @@ export function ModDetailPage({
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            for (const m of installedFiles) await window.api.disableMod(m.uid, gamePath)
+            for (const m of installedFiles) await api.disableMod(m.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -233,7 +234,7 @@ export function ModDetailPage({
                     onClose={() => setShowDepsWarning(false)}
                     onGotIt={async (permanent) => {
                         sessionStorage.setItem(`depsWarningDismissed-${modId}`, '1')
-                        if (permanent) await window.api.dismissDepsWarning(modId)
+                        if (permanent) await api.dismissDepsWarning(modId)
                         setShowDepsWarning(false)
                     }}
                 />
@@ -335,9 +336,7 @@ export function ModDetailPage({
                                         <>
                                             {' · '}
                                             <button
-                                                onClick={() =>
-                                                    window.api.openExternal(mod.repo_url!)
-                                                }
+                                                onClick={() => api.openExternal(mod.repo_url!)}
                                                 className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
                                             >
                                                 {t('detail.source')}
@@ -582,7 +581,7 @@ function DownloadsTab({
         if (!installedMod) return
         setUninstallingId(file.id)
         try {
-            await window.api.uninstallMod(installedMod.uid, gamePath)
+            await api.uninstallMod(installedMod.uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setUninstallingId(null)
@@ -594,7 +593,7 @@ function DownloadsTab({
         setInstallingId(file.id)
         setInstallError(null)
         try {
-            await window.api.installModFile(
+            await api.installModFile(
                 mod.id,
                 mod.name,
                 file.id,
@@ -717,7 +716,7 @@ function DownloadsTab({
                                 </button>
                             )}
                             <button
-                                onClick={() => window.api.openExternal(file.download_url)}
+                                onClick={() => api.openExternal(file.download_url)}
                                 title={t('detail.downloads.external')}
                                 className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
                             >
@@ -834,7 +833,7 @@ function DepRow({
         if (!gamePath) return
         setInstalling(true)
         try {
-            await window.api.installMod(mod.id, gamePath)
+            await api.installMod(mod.id, gamePath)
             await onRefreshInstalled()
         } finally {
             setInstalling(false)
@@ -896,7 +895,7 @@ function DepRow({
             <button
                 onClick={(e) => {
                     e.stopPropagation()
-                    window.api.openExternal(`https://modworkshop.net/mod/${mod.id}`)
+                    api.openExternal(`https://modworkshop.net/mod/${mod.id}`)
                 }}
                 title={t('detail.deps.openOnSite')}
                 className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"

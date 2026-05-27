@@ -9,13 +9,14 @@ import type {
     ModDependency,
 } from '../../../shared/types'
 import { getCachedMod, getCachedModFiles } from '../modCache'
-import type { SortOption } from '../../../main/api'
+import type { SortOption } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { t } from '../i18n'
+import { api } from '../api'
 
 interface Props {
     gamePath: string | null
@@ -79,7 +80,7 @@ export function BrowsePage({
     const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
-        return window.api.onDownloadProgress(({ downloaded, total }) => {
+        return api.onDownloadProgress(({ downloaded, total }) => {
             setDownloadProgress({ downloaded, total })
             if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
             progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
@@ -91,7 +92,7 @@ export function BrowsePage({
             setLoadingMods(true)
             setError(null)
             try {
-                const data = await window.api.listMods({
+                const data = await api.listMods({
                     page: p,
                     limit: 24,
                     sort: s,
@@ -111,7 +112,7 @@ export function BrowsePage({
     )
 
     useEffect(() => {
-        window.api.listCategories().then((r) => setCategories(r.data))
+        api.listCategories().then((r) => setCategories(r.data))
     }, [])
 
     useEffect(() => {
@@ -164,7 +165,7 @@ export function BrowsePage({
                     (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
                 )
                 if (missingRequired.length > 0) {
-                    const s = await window.api.getSettings()
+                    const s = await api.getSettings()
                     if (!s.dismissedDepsWarnings?.includes(modId)) {
                         setLoadingMod(null)
                         setDepsWarning({ modId, allDeps })
@@ -172,7 +173,7 @@ export function BrowsePage({
                     }
                 }
             }
-            await window.api.installMod(modId, gamePath)
+            await api.installMod(modId, gamePath)
             await onRefreshInstalled()
         } catch (e) {
             setError(String(e))
@@ -187,7 +188,7 @@ export function BrowsePage({
         if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            for (const uid of uids) await window.api.uninstallMod(uid, gamePath)
+            for (const uid of uids) await api.uninstallMod(uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -200,7 +201,7 @@ export function BrowsePage({
         if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            for (const uid of uids) await window.api.enableMod(uid, gamePath)
+            for (const uid of uids) await api.enableMod(uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -213,7 +214,7 @@ export function BrowsePage({
         if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            for (const uid of uids) await window.api.disableMod(uid, gamePath)
+            for (const uid of uids) await api.disableMod(uid, gamePath)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -247,7 +248,7 @@ export function BrowsePage({
                     onClose={() => setDepsWarning(null)}
                     onGotIt={async (permanent) => {
                         sessionStorage.setItem(`depsWarningDismissed-${depsWarning.modId}`, '1')
-                        if (permanent) await window.api.dismissDepsWarning(depsWarning.modId)
+                        if (permanent) await api.dismissDepsWarning(depsWarning.modId)
                         setDepsWarning(null)
                     }}
                 />
@@ -331,6 +332,9 @@ export function BrowsePage({
                                 key={mod.id}
                                 mod={mod}
                                 installed={installed.find((m) => m.id === mod.id)}
+                                installedCount={
+                                    installed.filter((m) => m.id === mod.id).length || undefined
+                                }
                                 gamePath={gamePath}
                                 loading={loadingMod === mod.id}
                                 progress={loadingMod === mod.id ? downloadProgress : null}

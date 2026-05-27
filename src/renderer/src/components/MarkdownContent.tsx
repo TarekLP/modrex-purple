@@ -8,6 +8,7 @@ import type { Components } from 'react-markdown'
 import { t } from '../i18n'
 import { detectEmbed, EMBEDS, type EmbedDef, type Embed } from '../embeds'
 import 'highlight.js/styles/github-dark.css'
+import { api } from '../api'
 
 const InsidePreContext = createContext(false)
 
@@ -154,7 +155,7 @@ function makeMdComponents(defs: EmbedDef[]): Components {
                 <a
                     onClick={(e) => {
                         e.preventDefault()
-                        window.api.openExternal(href)
+                        api.openExternal(href)
                     }}
                     className="text-accent-bright underline cursor-pointer"
                 >

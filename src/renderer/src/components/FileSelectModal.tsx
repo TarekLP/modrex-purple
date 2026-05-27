@@ -3,6 +3,7 @@ import { X, Tag, Download, Clock } from 'lucide-react'
 import type { Mod, ModFile, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
 import { MarkdownContent } from './MarkdownContent'
+import { api } from '../api'
 
 function formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
@@ -40,7 +41,7 @@ export function FileSelectModal({
     const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
-        return window.api.onDownloadProgress(({ downloaded, total }) => {
+        return api.onDownloadProgress(({ downloaded, total }) => {
             setDownloadProgress({ downloaded, total })
             if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
             progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
@@ -72,7 +73,7 @@ export function FileSelectModal({
         for (const file of toInstall) {
             setInstallingId(file.id)
             try {
-                await window.api.installModFile(
+                await api.installModFile(
                     mod.id,
                     mod.name,
                     file.id,

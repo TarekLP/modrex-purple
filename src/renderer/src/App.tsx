@@ -10,6 +10,7 @@ import { InstalledPage } from './components/InstalledPage'
 import { ModDetailPage } from './components/ModDetailPage'
 import { SettingsPage } from './components/SettingsPage'
 import { TopBar } from './components/TopBar'
+import { api } from './api'
 
 const InstalledPageMemo = memo(InstalledPage)
 
@@ -36,12 +37,12 @@ export default function App() {
     const [showUpdateModal, setShowUpdateModal] = useState(false)
 
     const refreshGamePath = useCallback(async () => {
-        const path = await window.api.findGamePath()
+        const path = await api.findGamePath()
         setGamePath(path)
     }, [])
 
     const refreshInstalled = useCallback(async () => {
-        const { mods, folders, modsHidden } = await window.api.getInstalled()
+        const { mods, folders, modsHidden } = await api.getInstalled()
         setInstalled(mods)
         setFolders(folders)
         setModsHidden(modsHidden)
@@ -51,7 +52,7 @@ export default function App() {
     async function handleRestoreMods() {
         setRestoreError(null)
         try {
-            await window.api.restoreMods()
+            await api.restoreMods()
             await refreshInstalled()
         } catch (e) {
             setRestoreError(String(e))
@@ -77,23 +78,21 @@ export default function App() {
     }, [refreshGamePath, refreshInstalled])
 
     useEffect(() => {
-        const offAvailable = window.api.onUpdateAvailable(
-            ({ version, strategy, body, releaseUrl }) => {
-                setUpdate({
-                    version,
-                    strategy,
-                    phase: 'available',
-                    percent: null,
-                    body,
-                    releaseUrl,
-                })
-                setShowUpdateModal(true)
-            }
-        )
-        const offProgress = window.api.onUpdateProgress((percent) =>
+        const offAvailable = api.onUpdateAvailable(({ version, strategy, body, releaseUrl }) => {
+            setUpdate({
+                version,
+                strategy,
+                phase: 'available',
+                percent: null,
+                body,
+                releaseUrl,
+            })
+            setShowUpdateModal(true)
+        })
+        const offProgress = api.onUpdateProgress((percent) =>
             setUpdate((prev) => (prev ? { ...prev, percent } : prev))
         )
-        const offReady = window.api.onUpdateReady(() =>
+        const offReady = api.onUpdateReady(() =>
             setUpdate((prev) => (prev ? { ...prev, phase: 'ready' } : prev))
         )
         return () => {
@@ -108,13 +107,8 @@ export default function App() {
         setShowUpdateModal(false)
         setUpdate((prev) => (prev ? { ...prev, phase: 'downloading', percent: 0 } : prev))
         try {
-            await window.api.download(update.version)
+            await api.download(update.version)
         } catch {
-            setUpdate((prev) => (prev ? { ...prev, phase: 'available', percent: null } : prev))
-            setShowUpdateModal(true)
-            return
-        }
-        if (update.strategy !== 'auto') {
             setUpdate((prev) => (prev ? { ...prev, phase: 'available', percent: null } : prev))
             setShowUpdateModal(true)
         }
@@ -159,9 +153,17 @@ export default function App() {
         <div className="flex flex-col h-screen bg-surface text-text">
             {!installedReady && (
                 <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-4 z-50">
-                    <img src={appIcon} alt="PD3 Mod Manager" className="w-16 h-16 opacity-90" />
-                    <span className="text-sm font-semibold tracking-wide text-text-muted">
-                        PAYDAY 3 Mod Manager
+                    <img src={appIcon} alt="Modrex" className="w-16 h-16 opacity-90" />
+                    <span
+                        style={{
+                            fontFamily: "'Bebas Neue', sans-serif",
+                            fontSize: '2.5rem',
+                            letterSpacing: '0.05em',
+                            lineHeight: 1,
+                        }}
+                    >
+                        <span style={{ color: 'var(--color-text)' }}>MOD</span>
+                        <span style={{ color: 'var(--color-accent)' }}>REX</span>
                     </span>
                     <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
                 </div>
@@ -263,7 +265,7 @@ export default function App() {
                         )}
                         <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
                             <button
-                                onClick={() => window.api.openExternal(update.releaseUrl)}
+                                onClick={() => api.openExternal(update.releaseUrl)}
                                 className="flex items-center gap-1.5 text-xs text-text-subtle hover:text-text transition-colors"
                             >
                                 <ExternalLink className="w-3.5 h-3.5" />
@@ -286,7 +288,7 @@ export default function App() {
                                     </button>
                                 ) : (
                                     <button
-                                        onClick={() => window.api.openExternal(update.releaseUrl)}
+                                        onClick={() => api.openExternal(update.releaseUrl)}
                                         className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
                                     >
                                         <ExternalLink className="w-3.5 h-3.5" />

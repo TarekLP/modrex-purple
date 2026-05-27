@@ -1,19 +1,19 @@
 {
     "name": "pd3-mod-manager",
-    "version": "0.7.2",
+    "version": "0.8.0",
     "packageManager": "pnpm@10.32.1",
-    "main": "out/main/index.js",
     "scripts": {
-        "dev": "electron-vite dev",
-        "build": "electron-vite build",
-        "dist": "electron-vite build && electron-builder --publish never",
-        "dist:win": "electron-vite build && electron-builder --win --publish never",
-        "dist:linux": "electron-vite build && electron-builder --linux --publish never",
-        "preview": "electron-vite preview",
+        "dev": "tauri dev",
+        "dev-renderer": "vite",
+        "build": "tauri build",
+        "build-renderer": "vite build",
+        "dist": "tauri build",
+        "dist:win": "tauri build --target x86_64-pc-windows-msvc",
+        "dist:linux": "tauri build --target x86_64-unknown-linux-gnu",
         "typecheck": "tsc --noEmit",
         "prepare": "husky",
-        "test": "vitest run",
-        "test:watch": "vitest",
+        "version": "node scripts/version.mjs",
+        "test": "cargo test --manifest-path src-tauri/Cargo.toml",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
     },
@@ -36,34 +36,26 @@
     "devDependencies": {
         "@commitlint/cli": "^21.0.1",
         "@commitlint/config-conventional": "^21.0.1",
-        "@electron-toolkit/preload": "^3.0.2",
-        "@electron-toolkit/utils": "^4.0.0",
         "@tailwindcss/vite": "^4.3.0",
+        "@tauri-apps/cli": "^2",
         "@types/node": "^25.7.0",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
-        "@types/sql.js": "^1.4.11",
         "@vitejs/plugin-react": "^5.2.0",
-        "electron": "^39.2.7",
-        "electron-builder": "^26.8.1",
-        "electron-vite": "^5.0.0",
         "husky": "^9.1.7",
         "prettier": "^3.8.3",
         "tailwindcss": "^4.3.0",
         "typescript": "^6.0.3",
-        "vite": "^6.4.2",
-        "vitest": "^4.1.6"
+        "vite": "^6.4.2"
     },
     "pnpm": {
         "onlyBuiltDependencies": [
-            "electron",
-            "esbuild",
-            "electron-winstaller"
+            "esbuild"
         ]
     },
     "dependencies": {
-        "electron-log": "^5.4.4",
-        "electron-updater": "^6.8.3",
+        "@tauri-apps/api": "^2",
+        "@tauri-apps/plugin-log": "^2.8.0",
         "highlight.js": "^11.11.1",
         "lucide-react": "^1.16.0",
         "react": "^19.2.6",
@@ -72,7 +64,6 @@
         "rehype-highlight": "^7.0.2",
         "rehype-raw": "^7.0.0",
         "remark-breaks": "^4.0.0",
-        "remark-gfm": "^4.0.1",
-        "sql.js": "^1.14.1"
+        "remark-gfm": "^4.0.1"
     }
 }

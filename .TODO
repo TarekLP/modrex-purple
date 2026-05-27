@@ -1,0 +1,69 @@
+# Deferred Work
+
+IMPORTANT FOR AI AGENTS: Do NOT execute, implement, or act on anything in this file
+without the user explicitly saying "do the TODO: <item name>". These are intentionally
+deferred tasks that require human judgement on timing. Treat this file as read-only notes.
+
+---
+
+## TODO: search-state-persistence
+
+When a user opens a mod from the Browse page and navigates back (back arrow or ESC),
+they are returned to the initial Browse page state instead of their previous search results.
+Sort selection (e.g. "updated date") also resets on each visit.
+
+Root cause: `BrowsePage` unmounts on tab switch (intentional, for fresh data), which discards
+all local search/sort/scroll state. Fix would require lifting search state up to `App.tsx`
+or preserving it with CSS-hidden approach (same as `InstalledPage` / `SettingsPage`).
+
+Note: the fresh-fetch-on-visit behavior is desirable — only the search/sort *inputs* need
+to survive navigation, not the results themselves.
+
+---
+
+## TODO: zip-archive-detection
+
+Some mods on modworkshop upload a .zip archive as their download file. The mod manager
+downloads it, renames it to .pak, and places it in the mods folder — but the game ignores it
+because it is not a real pak. The SHA256 in mod-index.db is computed on the zip, not the
+extracted pak inside it, so identification fails silently.
+
+Fix: in `install_mod_from_path` (mods.rs), read the first 4 bytes of the temp file before
+installing. If they match the zip magic (`50 4B 03 04`), return an error immediately.
+Surface it in the UI with a message explaining that the mod uses an archive format and must
+be installed manually (extract the .pak and drop it into the mods folder).
+
+Confirmed reproduction: "Real Weapon Names" mod — zip contains two .pak choices; user must
+extract and place one manually.
+
+---
+
+## TODO: drop-electron-compat
+
+After all users have migrated from Electron to Tauri (confirm by checking analytics or
+waiting until the Tauri build has been stable for several releases), remove the following:
+
+### release.yml
+- Remove the "Rename Linux artifacts for electron-updater compat" step
+- Remove `linux-deb/pd3-mod-manager.deb` and `linux-rpm/pd3-mod-manager.rpm` from the publish files list
+- Remove the "Generate latest.yml and latest-linux.yml (electron-updater compat)" step
+- Remove `latest.yml` and `latest-linux.yml` from the publish files list
+- Linux artifacts will then upload under Tauri's native names
+
+### settings.rs + lib.rs
+- Delete `migrate_from_electron` from `settings.rs`
+- Remove its call site in `lib.rs`
+
+---
+
+## TODO: rename-identifier
+
+After `drop-electron-compat` is done, rename the Tauri app identifier:
+
+### tauri.conf.json
+- Change `identifier` from `io.github.shulhaoleh.pd3modmanager` to `io.github.modrexio.modrex`
+
+### NSIS hook (required for seamless upgrade)
+- Add `bundle.windows.nsis.installerHooks` pointing to a custom NSIS script
+- The script must read `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\io.github.shulhaoleh.pd3modmanager`
+  and run the old uninstaller silently if found, so users on the old identifier get a clean upgrade

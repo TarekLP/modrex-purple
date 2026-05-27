@@ -9,44 +9,182 @@ permissions:
     contents: write
 
 jobs:
-    build-linux:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: pnpm/action-setup@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: 22
-                  cache: pnpm
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm typecheck
-            - run: pnpm test
-            - run: pnpm dist:linux
-            - uses: softprops/action-gh-release@v2
-              with:
-                  draft: true
-                  files: |
-                      dist/*.AppImage
-                      dist/*.deb
-                      dist/*.rpm
-                      dist/*.blockmap
-                      dist/latest-linux.yml
-
     build-windows:
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
+
             - uses: pnpm/action-setup@v4
             - uses: actions/setup-node@v4
               with:
                   node-version: 22
                   cache: pnpm
-            - run: pnpm install --frozen-lockfile
-            - run: pnpm dist:win
-            - uses: softprops/action-gh-release@v2
+
+            - uses: dtolnay/rust-toolchain@stable
+            - uses: swatinem/rust-cache@v2
               with:
-                  draft: true
+                  workspaces: src-tauri
+
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm typecheck
+            - run: pnpm build
+              env:
+                  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: windows-nsis
+                  path: |
+                      src-tauri/target/release/bundle/nsis/*.exe
+                      src-tauri/target/release/bundle/nsis/*.sig
+
+    build-linux:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libwebkit2gtk-4.1-dev \
+                    libappindicator3-dev \
+                    librsvg2-dev \
+                    patchelf \
+                    rpm
+
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - uses: dtolnay/rust-toolchain@stable
+            - uses: swatinem/rust-cache@v2
+              with:
+                  workspaces: src-tauri
+
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm typecheck
+            - run: pnpm test
+            - run: pnpm build
+              env:
+                  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: linux-deb
+                  path: src-tauri/target/release/bundle/deb/*.deb
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: linux-rpm
+                  path: src-tauri/target/release/bundle/rpm/*.rpm
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: linux-appimage
+                  path: |
+                      src-tauri/target/release/bundle/appimage/*.AppImage
+                      src-tauri/target/release/bundle/appimage/*.sig
+
+    publish:
+        needs: [build-windows, build-linux]
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/download-artifact@v4
+
+            - name: Extract version
+              id: ver
+              run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+            # compat: Electron app hardcodes LINUX_ARTIFACT='pd3-mod-manager' for deb/rpm downloads
+            # deb is repacked to add Conflicts/Replaces so apt removes the old pd3-mod-manager package
+            # rpm is rebuilt to add Obsoletes so dnf/rpm removes the old pd3-mod-manager package
+            - name: Patch and rename Linux artifacts for electron-updater compat
+              run: |
+                  DEB_SRC=$(ls linux-deb/*.deb | head -1)
+                  dpkg-deb -R "$DEB_SRC" deb-tmp
+                  printf "Conflicts: pd3-mod-manager\nReplaces: pd3-mod-manager\n" >> deb-tmp/DEBIAN/control
+                  dpkg-deb -b deb-tmp linux-deb/pd3-mod-manager.deb
+                  rm -rf deb-tmp "$DEB_SRC"
+                  sudo apt-get install -y rpmrebuild
+                  RPM_SRC=$(ls linux-rpm/*.rpm | head -1)
+                  rpmrebuild -p --notest-install \
+                    --change-spec-preamble="sed '/^Name:/i Obsoletes: pd3-mod-manager'" \
+                    "$RPM_SRC"
+                  mv "$(find ~/rpmbuild/RPMS -name '*.rpm' | head -1)" linux-rpm/pd3-mod-manager.rpm
+                  rm -f "$RPM_SRC"
+
+            - name: Generate latest.json (tauri-plugin-updater)
+              run: |
+                  TAG=$GITHUB_REF_NAME
+                  DATE=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+                  WIN_EXE=$(ls windows-nsis/*.exe | head -1)
+                  WIN_FILENAME=$(basename "$WIN_EXE")
+                  WIN_SIG=$(cat "windows-nsis/${WIN_FILENAME}.sig")
+                  LINUX_APPIMAGE=$(ls linux-appimage/*.AppImage | head -1)
+                  LINUX_FILENAME=$(basename "$LINUX_APPIMAGE")
+                  LINUX_SIG=$(cat "linux-appimage/${LINUX_FILENAME}.sig")
+                  jq -n \
+                    --arg version "${{ steps.ver.outputs.version }}" \
+                    --arg pub_date "$DATE" \
+                    --arg win_sig "$WIN_SIG" \
+                    --arg win_url "https://github.com/modrexio/modrex/releases/download/$TAG/$WIN_FILENAME" \
+                    --arg linux_sig "$LINUX_SIG" \
+                    --arg linux_url "https://github.com/modrexio/modrex/releases/download/$TAG/$LINUX_FILENAME" \
+                    '{version: $version, notes: "", pub_date: $pub_date, platforms: {"windows-x86_64": {signature: $win_sig, url: $win_url}, "linux-x86_64": {signature: $linux_sig, url: $linux_url}}}' \
+                    > latest.json
+
+            # compat: serves Electron clients still on electron-updater
+            - name: Generate latest.yml and latest-linux.yml (electron-updater compat)
+              run: |
+                  VERSION=${{ steps.ver.outputs.version }}
+                  DATE=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+                  WIN_EXE=$(ls windows-nsis/*.exe | head -1)
+                  WIN_FILENAME=$(basename "$WIN_EXE")
+                  WIN_SIZE=$(stat -c %s "$WIN_EXE")
+                  WIN_SHA512=$(openssl dgst -sha512 -binary "$WIN_EXE" | base64 -w 0)
+                  {
+                    echo "version: $VERSION"
+                    echo "files:"
+                    echo "  - url: $WIN_FILENAME"
+                    echo "    sha512: $WIN_SHA512"
+                    echo "    size: $WIN_SIZE"
+                    echo "path: $WIN_FILENAME"
+                    echo "sha512: $WIN_SHA512"
+                    echo "releaseDate: '$DATE'"
+                  } > latest.yml
+                  LINUX_APPIMAGE=$(ls linux-appimage/*.AppImage | head -1)
+                  LINUX_FILENAME=$(basename "$LINUX_APPIMAGE")
+                  LINUX_SIZE=$(stat -c %s "$LINUX_APPIMAGE")
+                  LINUX_SHA512=$(openssl dgst -sha512 -binary "$LINUX_APPIMAGE" | base64 -w 0)
+                  {
+                    echo "version: $VERSION"
+                    echo "files:"
+                    echo "  - url: $LINUX_FILENAME"
+                    echo "    sha512: $LINUX_SHA512"
+                    echo "    size: $LINUX_SIZE"
+                    echo "path: $LINUX_FILENAME"
+                    echo "sha512: $LINUX_SHA512"
+                    echo "releaseDate: '$DATE'"
+                  } > latest-linux.yml
+
+            - name: Publish release
+              uses: softprops/action-gh-release@v2
+              with:
+                  name: Modrex ${{ github.ref_name }}
+                  draft: false
+                  generate_release_notes: true
                   files: |
-                      dist/*.exe
-                      dist/*.blockmap
-                      dist/latest.yml
+                      windows-nsis/*.exe
+                      linux-deb/pd3-mod-manager.deb
+                      linux-rpm/pd3-mod-manager.rpm
+                      linux-appimage/*.AppImage
+                      latest.json
+                      latest.yml
+                      latest-linux.yml
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

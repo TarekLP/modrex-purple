@@ -1,0 +1,53 @@
+{
+    "productName": "Modrex",
+    "version": "0.8.0",
+    "identifier": "io.github.shulhaoleh.pd3modmanager",
+    "build": {
+        "beforeDevCommand": "pnpm run dev-renderer",
+        "beforeBuildCommand": "pnpm run build-renderer",
+        "frontendDist": "../out/renderer",
+        "devUrl": "http://localhost:5173"
+    },
+    "app": {
+        "windows": [
+            {
+                "label": "main",
+                "title": "Modrex",
+                "width": 1200,
+                "height": 800,
+                "minWidth": 900,
+                "minHeight": 600,
+                "backgroundColor": "#0a0a0a",
+                "visible": false,
+                "dragDropEnabled": false
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": ["nsis", "deb", "rpm", "appimage"],
+        "icon": ["../assets/icon.ico", "../assets/icon.png"],
+        "license": "../LICENSE",
+        "windows": {
+            "nsis": {
+                "installMode": "currentUser",
+                "startMenuFolder": "Games",
+                "installerHooks": "nsis/installer-hooks.nsi"
+            }
+        }
+    },
+    "plugins": {
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxOUI1N0VDRTVCMERFRkIKUldUNzNyRGw3RmViZ1MvR0d4ODZNc2tKdXdBQ2VnOHBxRHNrRVo5d2I1NS93OFRUcUp5cWVwNVEK",
+            "endpoints": [
+                "https://github.com/modrexio/modrex/releases/latest/download/latest.json"
+            ],
+            "windows": {
+                "installMode": "passive"
+            }
+        }
+    }
+}

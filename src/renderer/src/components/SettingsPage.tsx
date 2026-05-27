@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { FolderOpen, RotateCcw, RefreshCw, ScrollText } from 'lucide-react'
+import { FolderOpen, RefreshCw, ScrollText } from 'lucide-react'
 import { t } from '../i18n'
 import { Select } from './Select'
+import { api } from '../api'
 
 const LAUNCHER_OPTIONS = [
     { value: 'steam', label: 'Steam' },
@@ -29,34 +30,31 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
     const launchOptionsLoaded = useRef(false)
 
     useEffect(() => {
-        Promise.all([window.api.getSettings(), window.api.getInstalledLaunchers()]).then(
-            ([s, installed]) => {
-                setInstalledLaunchers(installed)
-                setSettings(s)
-                setLauncher(s.launcher ?? 'steam')
-                setLaunchOptions(s.launchOptions ?? '')
-                launchOptionsLoaded.current = true
-            }
-        )
+        Promise.all([api.getSettings(), api.getInstalledLaunchers()]).then(([s, installed]) => {
+            setInstalledLaunchers(installed)
+            setSettings(s)
+            setLauncher(s.launcher ?? 'steam')
+            setLaunchOptions(s.launchOptions ?? '')
+            launchOptionsLoaded.current = true
+        })
     }, [])
 
     useEffect(() => {
         if (!launchOptionsLoaded.current) return
-        const timer = setTimeout(() => window.api.setLaunchOptions(launchOptions), 500)
+        const timer = setTimeout(() => api.setLaunchOptions(launchOptions), 500)
         return () => clearTimeout(timer)
     }, [launchOptions])
 
-    const isManual = !!settings?.gamePath
     const availableLaunchers = LAUNCHER_OPTIONS.filter((o) => installedLaunchers.includes(o.value))
 
     async function handleBrowse() {
         setPicking(true)
         setPathError(null)
         try {
-            const picked = await window.api.pickFolder()
+            const picked = await api.pickFolder()
             if (!picked) return
             try {
-                await window.api.setGamePath(picked)
+                await api.setGamePath(picked)
                 setSettings((s) => ({ ...s, gamePath: picked }))
                 await onGamePathChange()
             } catch {
@@ -69,21 +67,14 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
 
     async function handleCheckForUpdates() {
         setCheckState('checking')
-        await window.api.checkForUpdates()
+        await api.checkForUpdates()
         setCheckState('upToDate')
         setTimeout(() => setCheckState('idle'), 3000)
     }
 
     async function handleLauncherChange(value: string) {
         setLauncher(value)
-        await window.api.setLauncher(value)
-    }
-
-    async function handleReset() {
-        setPathError(null)
-        await window.api.setGamePath(null)
-        setSettings((s) => ({ ...s, gamePath: undefined }))
-        await onGamePathChange()
+        await api.setLauncher(value)
     }
 
     return (
@@ -102,15 +93,6 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                             {gamePath ?? t('settings.gamePath.notFound')}
                         </span>
                         <div className="flex gap-2 shrink-0">
-                            {isManual && (
-                                <button
-                                    onClick={handleReset}
-                                    className="text-xs px-3 py-1.5 rounded bg-surface-active hover:bg-surface-light transition-colors flex items-center gap-1.5"
-                                >
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                    {t('settings.gamePath.reset')}
-                                </button>
-                            )}
                             <button
                                 disabled={picking}
                                 onClick={handleBrowse}
@@ -126,10 +108,6 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
 
                     {pathError ? (
                         <p className="text-xs text-danger-text">{pathError}</p>
-                    ) : isManual ? (
-                        <p className="text-xs text-text-subtle">
-                            {t('settings.gamePath.manuallySet')}
-                        </p>
                     ) : gamePath ? (
                         <p className="text-xs text-success-text">
                             {t('settings.gamePath.autoDetected')}
@@ -182,7 +160,7 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
                     <p className="text-xs text-text-subtle">{t('settings.logs.description')}</p>
                     <div className="mt-1">
                         <button
-                            onClick={() => window.api.openLog()}
+                            onClick={() => api.openLog()}
                             className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active transition-colors flex items-center gap-1.5"
                         >
                             <ScrollText className="w-3.5 h-3.5" />
