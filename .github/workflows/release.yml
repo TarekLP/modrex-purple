@@ -115,8 +115,8 @@ jobs:
                   NAME=$(rpm -qp --queryformat '%{NAME}' "$RPM_SRC")
                   VERSION=$(rpm -qp --queryformat '%{VERSION}' "$RPM_SRC")
                   RELEASE=$(rpm -qp --queryformat '%{RELEASE}' "$RPM_SRC")
-                  SUMMARY=$(rpm -qp --queryformat '%{SUMMARY}' "$RPM_SRC")
-                  LICENSE=$(rpm -qp --queryformat '%{LICENSE}' "$RPM_SRC")
+                  SUMMARY=$(rpm -qp --queryformat '%{SUMMARY}' "$RPM_SRC"); SUMMARY=${SUMMARY:-$NAME}
+                  LICENSE=$(rpm -qp --queryformat '%{LICENSE}' "$RPM_SRC"); LICENSE=${LICENSE:-MIT}
                   ARCH=$(rpm -qp --queryformat '%{ARCH}' "$RPM_SRC")
                   mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
                   BR="$HOME/rpmbuild/BUILDROOT/${NAME}-${VERSION}-${RELEASE}.${ARCH}"
