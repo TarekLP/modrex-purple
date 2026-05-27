@@ -119,9 +119,9 @@ jobs:
                   LICENSE=$(rpm -qp --queryformat '%{LICENSE}' "$RPM_SRC"); LICENSE=${LICENSE:-MIT}
                   ARCH=$(rpm -qp --queryformat '%{ARCH}' "$RPM_SRC")
                   mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
-                  BR="$HOME/rpmbuild/BUILDROOT/${NAME}-${VERSION}-${RELEASE}.${ARCH}"
-                  mkdir -p "$BR"
-                  rpm2cpio "$RPM_SRC" | (cd "$BR" && cpio -idmv 2>/dev/null)
+                  STAGING="$HOME/rpmbuild/BUILD/stage"
+                  mkdir -p "$STAGING"
+                  rpm2cpio "$RPM_SRC" | (cd "$STAGING" && cpio -idmv 2>/dev/null)
                   SPEC="$HOME/rpmbuild/SPECS/${NAME}.spec"
                   {
                     printf "Name:      %s\n" "$NAME"
@@ -132,9 +132,9 @@ jobs:
                     printf "BuildArch: %s\n" "$ARCH"
                     printf "Obsoletes: pd3-mod-manager\n"
                     printf "\n%%description\n%s\n" "$SUMMARY"
-                    printf "\n%%install\n"
+                    printf "\n%%install\ncp -a %s/. %%{buildroot}/\n" "$STAGING"
                     printf "\n%%files\n"
-                    find "$BR" ! -type d | sed "s|$BR||" | sort
+                    find "$STAGING" ! -type d | sed "s|$STAGING||" | sort
                   } > "$SPEC"
                   rpmbuild -bb \
                     --define "_topdir $HOME/rpmbuild" \
