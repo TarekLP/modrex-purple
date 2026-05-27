@@ -68,12 +68,14 @@ fn find_in_drives(game_name: &str, xbox_executable: &str) -> Option<String> {
 
 #[cfg(target_os = "windows")]
 fn find_via_package_manager(product_id: &str, xbox_executable: &str) -> Option<String> {
+    use std::os::windows::process::CommandExt;
     let script = format!(
         "$p=Get-AppxPackage|?{{$c=Join-Path $_.InstallLocation 'Content\\MicrosoftGame.config';(Test-Path $c)-and((gc $c -Raw)-match '{}')}}|Select -First 1;if($p){{Join-Path $p.InstallLocation 'Content'}}",
         product_id
     );
     let out = std::process::Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output()
         .ok()?;
     let path = String::from_utf8_lossy(&out.stdout).trim().to_string();

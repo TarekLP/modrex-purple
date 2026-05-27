@@ -31,7 +31,13 @@ fn all_launchers() -> [&'static dyn Launcher; 3] {
 
 pub(super) fn open_url(url: &str) {
     #[cfg(target_os = "windows")]
-    let _ = std::process::Command::new("cmd").args(["/c", "start", "", url]).spawn();
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = std::process::Command::new("cmd")
+            .args(["/c", "start", "", url])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .spawn();
+    }
     #[cfg(not(target_os = "windows"))]
     let _ = std::process::Command::new("xdg-open").arg(url).spawn();
 }
@@ -191,9 +197,11 @@ pub fn restore_mods(app: AppHandle) -> Result<(), String> {
 pub fn is_game_running() -> bool {
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
         let filter = format!("IMAGENAME eq {}.exe", GAME.process_name);
         std::process::Command::new("tasklist")
             .args(["/FI", &filter, "/NH"])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).contains(GAME.process_name))
             .unwrap_or(false)
@@ -211,9 +219,13 @@ pub fn is_game_running() -> bool {
 #[tauri::command]
 pub fn stop_game() {
     #[cfg(target_os = "windows")]
-    let _ = std::process::Command::new("taskkill")
-        .args(["/F", "/IM", &format!("{}.exe", GAME.process_name)])
-        .output();
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/IM", &format!("{}.exe", GAME.process_name)])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .output();
+    }
     #[cfg(not(target_os = "windows"))]
     let _ = std::process::Command::new("pkill")
         .args(["-f", GAME.process_name])

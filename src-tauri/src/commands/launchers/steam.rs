@@ -51,8 +51,10 @@ impl Launcher for Steam {
 
 #[cfg(target_os = "windows")]
 fn steam_install_path() -> Option<String> {
+    use std::os::windows::process::CommandExt;
     let out = std::process::Command::new("reg")
         .args(["query", "HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam", "/v", "InstallPath"])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output()
         .ok()?;
     let text = String::from_utf8_lossy(&out.stdout);
