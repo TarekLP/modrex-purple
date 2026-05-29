@@ -6,7 +6,7 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/modrexio/modrex?style=flat-square&label=release)](https://github.com/modrexio/modrex/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/modrexio/modrex/total?style=flat-square)](https://github.com/modrexio/modrex/releases)
-[![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=windows11&logoColor=white)](https://github.com/modrexio/modrex/releases/latest)
+[![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSJ3aGl0ZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgNDQ4IDUxMiI+PCEtLSEgRm9udCBBd2Vzb21lIEZyZWUgNi43LjIgYnkgQGZvbnRhd2Vzb21lIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20gTGljZW5zZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tL2xpY2Vuc2UvZnJlZSAoSWNvbnM6IENDIEJZIDQuMCwgRm9udHM6IFNJTCBPRkwgMS4xLCBDb2RlOiBNSVQgTGljZW5zZSkgQ29weXJpZ2h0IDIwMjQgRm9udGljb25zLCBJbmMuIC0tPjxwYXRoIGQ9Ik0wIDkzLjdsMTgzLjYtMjUuM3YxNzcuNEgwVjkzLjd6bTAgMzI0LjZsMTgzLjYgMjUuM1YyNjguNEgwdjE0OS45em0yMDMuOCAyOEw0NDggNDgwVjI2OC40SDIwMy44djE3Ny45em0wLTM4MC42djE4MC4xSDQ0OFYzMkwyMDMuOCA2NS43eiIvPjwvc3ZnPg==)](https://github.com/modrexio/modrex/releases/latest)
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/modrexio/modrex/releases/latest)
 
 A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/) powered by [modworkshop](https://modworkshop.net/g/payday-3).
@@ -15,12 +15,12 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 ## Installation
 
-| Platform        | Download                                                                                                   |
-| --------------- | ---------------------------------------------------------------------------------------------------------- |
-| Windows         | [Modrex.Setup.exe](https://github.com/modrexio/modrex/releases/latest/download/Modrex_0.8.0_x64-setup.exe) |
-| Linux .deb      | [modrex.deb](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.deb)              |
-| Linux .rpm      | [modrex.rpm](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.rpm)              |
-| Linux .AppImage | [modrex.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_0.8.0_amd64.AppImage) |
+| Platform                                                                                                                                                            | Download                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/windows-white.svg"><img src="assets/icons/windows.svg" width="16"></picture> Windows     | [Modrex.Setup.exe](https://github.com/modrexio/modrex/releases/latest/download/Modrex_0.8.0_x64-setup.exe) |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/linux-white.svg"><img src="assets/icons/linux.svg" width="16"></picture> Linux .deb      | [modrex.deb](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.deb)              |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/linux-white.svg"><img src="assets/icons/linux.svg" width="16"></picture> Linux .rpm      | [modrex.rpm](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.rpm)              |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/linux-white.svg"><img src="assets/icons/linux.svg" width="16"></picture> Linux .AppImage | [modrex.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_0.8.0_amd64.AppImage) |
 
 ## Features
 
@@ -32,17 +32,17 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 - Mods with multiple installed files grouped as a single card
 - Update detection with selective per-mod updates
 - Launch modded or vanilla directly from the app
-- Automatically detects your PD3 installation (Steam, Epic Games, Xbox Game Pass)
+- Automatically detects your PD3 installation (Steam, Epic Games Store, Xbox App)
 - Identifies manually placed .pak files via SHA256 lookup against a live mod index
 - Automatic update checks with one-click in-app updates
 
 ## Requirements
 
-| Launcher       | Windows                                              | Linux                                                |
-| -------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| Steam          | ![yes](https://img.shields.io/badge/Yes-brightgreen) | ![yes](https://img.shields.io/badge/Yes-brightgreen) |
-| Epic Games     | ![yes](https://img.shields.io/badge/Yes-brightgreen) | ![no](https://img.shields.io/badge/No-red)           |
-| Xbox Game Pass | ![yes](https://img.shields.io/badge/Yes-brightgreen) | ![no](https://img.shields.io/badge/No-red)           |
+| Launcher                                                                                                                                                               | <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/windows-white.svg"><img src="assets/icons/windows.svg" width="16"></picture> Windows | <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/linux-white.svg"><img src="assets/icons/linux.svg" width="16"></picture> Linux |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/steam-white.svg"><img src="assets/icons/steam.svg" width="16"></picture> Steam              |                                                      ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                       |                                                   ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                    |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/epicgames-white.svg"><img src="assets/icons/epicgames.svg" width="16"></picture> Epic Games |                                                      ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                       |                                                        ![no](https://img.shields.io/badge/No-red)                                                         |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="assets/icons/xbox-white.svg"><img src="assets/icons/xbox.svg" width="16"></picture> Xbox App             |                                                      ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                       |                                                        ![no](https://img.shields.io/badge/No-red)                                                         |
 
 ## Troubleshooting
 
