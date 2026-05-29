@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 pnpm dev          # Start Tauri app (launches Vite dev server then Tauri)
-pnpm build        # Production build
-pnpm dist:win     # Package Windows NSIS installer
+pnpm build        # Production build — installer written to src-tauri/target/release/bundle/nsis/ even if it exits 1 (signing requires TAURI_SIGNING_PRIVATE_KEY, CI-only)
+pnpm dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
 pnpm dist:linux   # Package Linux AppImage + .deb
 pnpm typecheck    # Type-check renderer without emitting
 pnpm format       # Format all files with prettier
@@ -67,6 +67,7 @@ Missing any of these three breaks the channel silently at the type level.
     - `epic.rs` — reads `%PROGRAMDATA%\Epic\...\Manifests\*.item` JSON
     - `xbox.rs` — `find_in_drives` scans every subdirectory of each drive root C–G for `{dir}/{game.name}/Content/` containing the xbox executable; falls back to `find_via_package_manager` (PowerShell `Get-AppxPackage`) for deeply nested installs; launches via `gamelaunchhelper.exe`. Xbox game path always ends in `/Content`.
     - `mod.rs` — orchestration (`identify_launcher_for_path`, `launch_with`, `all_launchers`) + all Tauri commands. `GAME` constant is the single binding point between launcher logic and game data. Marker files for `identify_launcher_for_path`: `steam_appid.txt`, `.egstore/`, `MicrosoftGame.config`. `configure_game_path(None)` auto-detects and **saves** the detected path. On first renderer call when settings has no game path, `findGamePath()` in `api.ts` triggers this automatically.
+    - **Windows `CREATE_NO_WINDOW` invariant**: The release binary sets `windows_subsystem = "windows"` (`main.rs:1`), so it has no console. Any `std::process::Command` on Windows without `creation_flags(0x08000000)` spawns a visible console window. In debug builds (`pnpm dev`) this is invisible because the process inherits the parent console. Every Windows process spawn must use `use std::os::windows::process::CommandExt` and `.creation_flags(0x08000000)`.
 
 - **`mod_index.rs`** — SHA256-based mod identification. Downloads `index.db` from the `modrexio/modrex-index` GitHub release to `app_data_dir()`, cached with a 1-hour TTL (fire-and-forget at startup). `query_sha256(conn, sha256)` and `query_by_name(conn, name)` are private helpers that take a `&rusqlite::Connection` — testable with in-memory SQLite. `lookup_by_name` returns `Some` only when exactly one mod matches (ambiguous = `None`). Uses `rusqlite` with `features = ["bundled"]` — no native module issues.
 
@@ -74,7 +75,7 @@ Missing any of these three breaks the channel silently at the type level.
 
 **`api.ts`** — the only place `invoke` / `listen` are called. All other renderer code imports from here. `onEvent<T>` wraps `listen` with a cancellation-safe pattern (resolves the `UnlistenFn` async, cancels immediately if component unmounts first).
 
-**`App.tsx`** — owns `installed`, `gamePath`, `modsHidden` as sources of truth. On every window focus (500ms debounce) both `refreshGamePath` and `refreshInstalled` run. `BrowsePage` unmounts on tab switch (fresh fetch each visit); `InstalledPage` and `SettingsPage` are CSS-`hidden` when inactive to preserve scroll/drag state.
+**`App.tsx`** — owns `installed`, `gamePath`, `modsHidden` as sources of truth. App version shown in `TopBar.tsx` comes from `import.meta.env.VITE_APP_VERSION`, injected by Vite's `define` in `vite.config.ts` from `package.json` at build time; shows `v-dev` in dev mode. On every window focus (500ms debounce) both `refreshGamePath` and `refreshInstalled` run. `BrowsePage` unmounts on tab switch (fresh fetch each visit); `InstalledPage` and `SettingsPage` are CSS-`hidden` when inactive to preserve scroll/drag state.
 
 **`modCache.ts`** — 5-minute TTL cache. Always use `getCachedMod` / `getCachedModFiles` — never call `api.getMod` or `api.listModFiles` directly.
 

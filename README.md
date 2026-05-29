@@ -1,12 +1,17 @@
 <div align="center">
 
+<img src="assets/icon.png" style="width: 10%" alt="Modrex icon" />
+
 # Modrex
 
-![Demo](assets/logo.png)
-
-</div>
+[![Latest Release](https://img.shields.io/github/v/release/modrexio/modrex?style=flat-square&label=release)](https://github.com/modrexio/modrex/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/modrexio/modrex/total?style=flat-square)](https://github.com/modrexio/modrex/releases)
+[![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=windows11&logoColor=white)](https://github.com/modrexio/modrex/releases/latest)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/modrexio/modrex/releases/latest)
 
 A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/) powered by [modworkshop](https://modworkshop.net/g/payday-3).
+
+</div>
 
 ## Installation
 
