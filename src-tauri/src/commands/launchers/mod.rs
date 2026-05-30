@@ -66,7 +66,9 @@ fn launch_with(launcher_id: &str, game_path: &str, opts: Option<&str>) {
     } else {
         let exe = Path::new(game_path).join(GAME.executable);
         let args: Vec<&str> = opts.map(|o| o.split_whitespace().collect()).unwrap_or_default();
-        let _ = std::process::Command::new(&exe).args(&args).spawn();
+        if let Err(e) = std::process::Command::new(&exe).args(&args).spawn() {
+            log::warn!("launch_game: spawn {exe:?}: {e}");
+        }
     }
 }
 

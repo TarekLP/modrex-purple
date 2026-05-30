@@ -192,12 +192,13 @@ pub fn read_state(state_path: &Path) -> ModsState {
 
 fn save_state(state_path: &Path, state: &ModsState) {
     if let Some(parent) = state_path.parent() {
-        let _ = fs::create_dir_all(parent);
+        if let Err(e) = fs::create_dir_all(parent) {
+            log::warn!("save_state: create_dir_all {parent:?}: {e}");
+        }
     }
-    let _ = fs::write(
-        state_path,
-        serde_json::to_string_pretty(state).unwrap_or_default(),
-    );
+    if let Err(e) = fs::write(state_path, serde_json::to_string_pretty(state).unwrap_or_default()) {
+        log::warn!("save_state: write {state_path:?}: {e}");
+    }
 }
 
 // ── Folder path ───────────────────────────────────────────────────────────────
@@ -308,9 +309,13 @@ pub fn reconcile_state(game_path: &str, state_path: &Path) -> ModsState {
         let legacy = dis_dir.join(&m.filename);
         if !new_path.exists() && legacy.exists() {
             if let Some(rel) = &folder_rel {
-                let _ = fs::create_dir_all(dis_dir.join(rel));
+                if let Err(e) = fs::create_dir_all(dis_dir.join(rel)) {
+                    log::warn!("migrate legacy path: create_dir_all: {e}");
+                }
             }
-            let _ = fs::rename(&legacy, &new_path);
+            if let Err(e) = fs::rename(&legacy, &new_path) {
+                log::warn!("migrate legacy path {legacy:?} -> {new_path:?}: {e}");
+            }
         }
     }
 
@@ -459,7 +464,9 @@ pub fn install_mod_from_path(
                 disabled_mod_path(game_path, &ex.filename, ex_rel.as_deref())
             };
             if old.exists() {
-                let _ = fs::remove_file(&old);
+                if let Err(e) = fs::remove_file(&old) {
+                    log::warn!("install: remove old pak {old:?}: {e}");
+                }
             }
         }
     }
@@ -498,7 +505,9 @@ fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str) {
         disabled_mod_path(game_path, &m.filename, rel.as_deref())
     };
     if path.exists() {
-        let _ = fs::remove_file(&path);
+        if let Err(e) = fs::remove_file(&path) {
+            log::warn!("uninstall: remove {path:?}: {e}");
+        }
     }
     state.mods.retain(|m| m.uid != uid);
     save_state(state_path, &state);
@@ -509,12 +518,16 @@ fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str) {
     let Some(m) = state.mods.iter().find(|m| m.uid == uid && !m.enabled).cloned() else { return };
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     if let Some(r) = &rel {
-        let _ = fs::create_dir_all(mods_base(game_path).join(r));
+        if let Err(e) = fs::create_dir_all(mods_base(game_path).join(r)) {
+            log::warn!("enable_mod: create_dir_all: {e}");
+        }
     }
     let from = disabled_mod_path(game_path, &m.filename, rel.as_deref());
     let to = active_mod_path(game_path, &m.filename, rel.as_deref());
     if from.exists() {
-        let _ = fs::rename(&from, &to);
+        if let Err(e) = fs::rename(&from, &to) {
+            log::warn!("enable_mod: rename {from:?} -> {to:?}: {e}");
+        }
     }
     for m in state.mods.iter_mut() {
         if m.uid == uid {
@@ -532,11 +545,15 @@ fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str) {
         Some(r) => disabled_base(game_path).join(r),
         None => disabled_base(game_path),
     };
-    let _ = fs::create_dir_all(&dis_dir);
+    if let Err(e) = fs::create_dir_all(&dis_dir) {
+        log::warn!("disable_mod: create_dir_all {dis_dir:?}: {e}");
+    }
     let from = active_mod_path(game_path, &m.filename, rel.as_deref());
     let to = disabled_mod_path(game_path, &m.filename, rel.as_deref());
     if from.exists() {
-        let _ = fs::rename(&from, &to);
+        if let Err(e) = fs::rename(&from, &to) {
+            log::warn!("disable_mod: rename {from:?} -> {to:?}: {e}");
+        }
     }
     for m in state.mods.iter_mut() {
         if m.uid == uid {
@@ -575,7 +592,9 @@ fn reorder_mods_in_folder_op(
                 disabled_mod_path(game_path, &new_filename, folder_rel.as_deref())
             };
             if old.exists() {
-                let _ = fs::rename(&old, &new);
+                if let Err(e) = fs::rename(&old, &new) {
+                    log::warn!("reorder: rename {old:?} -> {new:?}: {e}");
+                }
             }
             m.filename = new_filename;
         }
@@ -612,14 +631,18 @@ fn move_mod_to_folder_op(
 
     // Ensure target directories exist
     if let Some(r) = &tgt_rel {
-        let _ = fs::create_dir_all(mods_base(game_path).join(r));
+        if let Err(e) = fs::create_dir_all(mods_base(game_path).join(r)) {
+            log::warn!("move_to_folder: create_dir_all active: {e}");
+        }
     }
     if !moving.enabled {
         let dis = match &tgt_rel {
             Some(r) => disabled_base(game_path).join(r),
             None => disabled_base(game_path),
         };
-        let _ = fs::create_dir_all(&dis);
+        if let Err(e) = fs::create_dir_all(&dis) {
+            log::warn!("move_to_folder: create_dir_all disabled: {e}");
+        }
     }
 
     for m in state.mods.iter_mut() {
@@ -640,7 +663,9 @@ fn move_mod_to_folder_op(
                 disabled_mod_path(game_path, &new_filename, tgt_rel.as_deref())
             };
             if old.exists() {
-                let _ = fs::rename(&old, &new);
+                if let Err(e) = fs::rename(&old, &new) {
+                    log::warn!("move_to_folder: rename {old:?} -> {new:?}: {e}");
+                }
             }
         }
 
@@ -710,16 +735,32 @@ fn reorder_children_op(
     for r in &folder_renames {
         let tmp = format!("__modrex_tmp_{}", r.id);
         let a = mods_dir.join(&r.old);
-        if a.exists() { let _ = fs::rename(&a, mods_dir.join(&tmp)); }
+        if a.exists() {
+            if let Err(e) = fs::rename(&a, mods_dir.join(&tmp)) {
+                log::warn!("reorder_children: tmp rename active {a:?}: {e}");
+            }
+        }
         let d = dis_dir.join(&r.old);
-        if d.exists() { let _ = fs::rename(&d, dis_dir.join(&tmp)); }
+        if d.exists() {
+            if let Err(e) = fs::rename(&d, dis_dir.join(&tmp)) {
+                log::warn!("reorder_children: tmp rename disabled {d:?}: {e}");
+            }
+        }
     }
     for r in &folder_renames {
         let tmp = format!("__modrex_tmp_{}", r.id);
         let a = mods_dir.join(&tmp);
-        if a.exists() { let _ = fs::rename(&a, mods_dir.join(&r.new)); }
+        if a.exists() {
+            if let Err(e) = fs::rename(&a, mods_dir.join(&r.new)) {
+                log::warn!("reorder_children: final rename active {a:?}: {e}");
+            }
+        }
         let d = dis_dir.join(&tmp);
-        if d.exists() { let _ = fs::rename(&d, dis_dir.join(&r.new)); }
+        if d.exists() {
+            if let Err(e) = fs::rename(&d, dis_dir.join(&r.new)) {
+                log::warn!("reorder_children: final rename disabled {d:?}: {e}");
+            }
+        }
     }
 
     // Mod disk renames
@@ -734,7 +775,11 @@ fn reorder_children_op(
         } else {
             disabled_mod_path(game_path, &r.new, r.rel.as_deref())
         };
-        if old_path.exists() { let _ = fs::rename(&old_path, &new_path); }
+        if old_path.exists() {
+            if let Err(e) = fs::rename(&old_path, &new_path) {
+                log::warn!("reorder_children: mod rename {old_path:?} -> {new_path:?}: {e}");
+            }
+        }
     }
 
     // Update state
@@ -840,13 +885,21 @@ fn move_folder_op(
 
     let old_a = mods_b.join(&old_rel);
     if old_a.exists() {
-        let _ = fs::create_dir_all(&active_tgt_parent);
-        let _ = fs::rename(&old_a, mods_b.join(&new_rel));
+        if let Err(e) = fs::create_dir_all(&active_tgt_parent) {
+            log::warn!("move_folder: create_dir_all active: {e}");
+        }
+        if let Err(e) = fs::rename(&old_a, mods_b.join(&new_rel)) {
+            log::warn!("move_folder: rename active {old_a:?}: {e}");
+        }
     }
     let old_d = dis_b.join(&old_rel);
     if old_d.exists() {
-        let _ = fs::create_dir_all(&dis_tgt_parent);
-        let _ = fs::rename(&old_d, dis_b.join(&new_rel));
+        if let Err(e) = fs::create_dir_all(&dis_tgt_parent) {
+            log::warn!("move_folder: create_dir_all disabled: {e}");
+        }
+        if let Err(e) = fs::rename(&old_d, dis_b.join(&new_rel)) {
+            log::warn!("move_folder: rename disabled {old_d:?}: {e}");
+        }
     }
 
     save_state(state_path, &state);
@@ -874,13 +927,21 @@ fn rename_folder_op(
             Some(r) => (mods_b.join(r).join(&folder.disk_name), mods_b.join(r).join(&new_disk_name)),
             None => (mods_b.join(&folder.disk_name), mods_b.join(&new_disk_name)),
         };
-        if old_a.exists() { let _ = fs::rename(&old_a, &new_a); }
+        if old_a.exists() {
+            if let Err(e) = fs::rename(&old_a, &new_a) {
+                log::warn!("rename_folder: rename active {old_a:?} -> {new_a:?}: {e}");
+            }
+        }
 
         let (old_d, new_d) = match &parent_rel {
             Some(r) => (dis_b.join(r).join(&folder.disk_name), dis_b.join(r).join(&new_disk_name)),
             None => (dis_b.join(&folder.disk_name), dis_b.join(&new_disk_name)),
         };
-        if old_d.exists() { let _ = fs::rename(&old_d, &new_d); }
+        if old_d.exists() {
+            if let Err(e) = fs::rename(&old_d, &new_d) {
+                log::warn!("rename_folder: rename disabled {old_d:?} -> {new_d:?}: {e}");
+            }
+        }
     }
 
     for f in state.folders.iter_mut() {
@@ -904,7 +965,9 @@ fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
     let dis_b = disabled_base(game_path);
 
     if let Some(r) = &target_parent_rel {
-        let _ = fs::create_dir_all(mods_b.join(r));
+        if let Err(e) = fs::create_dir_all(mods_b.join(r)) {
+            log::warn!("delete_folder: create_dir_all target: {e}");
+        }
     }
 
     let mut max_p = {
@@ -928,7 +991,11 @@ fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
         } else {
             disabled_mod_path(game_path, &new_filename, target_parent_rel.as_deref())
         };
-        if old.exists() { let _ = fs::rename(&old, &new); }
+        if old.exists() {
+            if let Err(e) = fs::rename(&old, &new) {
+                log::warn!("delete_folder: move mod {old:?}: {e}");
+            }
+        }
         m.filename = new_filename;
         m.priority = Some(max_p);
         m.folder_id = target_parent_id.clone();
@@ -953,14 +1020,22 @@ fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
             Some(r) => mods_b.join(r).join(&new_disk),
             None => mods_b.join(&new_disk),
         };
-        if old_a.exists() { let _ = fs::rename(&old_a, &new_a); }
+        if old_a.exists() {
+            if let Err(e) = fs::rename(&old_a, &new_a) {
+                log::warn!("delete_folder: move subfolder active {old_a:?}: {e}");
+            }
+        }
 
         let old_d = dis_b.join(&old_rel);
         let new_d = match &target_parent_rel {
             Some(r) => dis_b.join(r).join(&new_disk),
             None => dis_b.join(&new_disk),
         };
-        if old_d.exists() { let _ = fs::rename(&old_d, &new_d); }
+        if old_d.exists() {
+            if let Err(e) = fs::rename(&old_d, &new_d) {
+                log::warn!("delete_folder: move subfolder disabled {old_d:?}: {e}");
+            }
+        }
 
         for f in state.folders.iter_mut() {
             if &f.id == cf_id {
@@ -971,8 +1046,18 @@ fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
         }
     }
 
-    let _ = fs::remove_dir_all(mods_b.join(&folder_rel));
-    let _ = fs::remove_dir_all(dis_b.join(&folder_rel));
+    let active_dir = mods_b.join(&folder_rel);
+    if active_dir.exists() {
+        if let Err(e) = fs::remove_dir_all(&active_dir) {
+            log::warn!("delete_folder: remove_dir_all active {folder_rel:?}: {e}");
+        }
+    }
+    let dis_dir = dis_b.join(&folder_rel);
+    if dis_dir.exists() {
+        if let Err(e) = fs::remove_dir_all(&dis_dir) {
+            log::warn!("delete_folder: remove_dir_all disabled {folder_rel:?}: {e}");
+        }
+    }
 
     state.folders.retain(|f| f.id != folder_id);
     save_state(state_path, &state);

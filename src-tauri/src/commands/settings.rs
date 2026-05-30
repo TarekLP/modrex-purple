@@ -28,9 +28,13 @@ pub fn read_settings(app: &AppHandle) -> Settings {
 pub fn write_settings(app: &AppHandle, settings: &Settings) {
     let path = settings_path(app);
     if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            log::warn!("write_settings: create_dir_all {parent:?}: {e}");
+        }
     }
-    let _ = std::fs::write(path, serde_json::to_string_pretty(settings).unwrap_or_default());
+    if let Err(e) = std::fs::write(&path, serde_json::to_string_pretty(settings).unwrap_or_default()) {
+        log::warn!("write_settings: write {path:?}: {e}");
+    }
 }
 
 /// On first launch after the Electron-to-Tauri migration, copy settings.json

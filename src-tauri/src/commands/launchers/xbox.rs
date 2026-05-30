@@ -41,7 +41,9 @@ impl Launcher for Xbox {
     fn launch(&self, game: &GameDef, game_path: &str, _opts: Option<&str>) {
         let helper = Path::new(game_path).join("gamelaunchhelper.exe");
         if helper.exists() {
-            let _ = std::process::Command::new(&helper).spawn();
+            if let Err(e) = std::process::Command::new(&helper).spawn() {
+                log::warn!("xbox launch: spawn {helper:?}: {e}");
+            }
         } else if let Some(def) = game.xbox.as_ref() {
             super::open_url(&format!("msxbox://game/?productId={}", def.product_id));
         }
