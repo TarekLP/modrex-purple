@@ -38,10 +38,30 @@ export function getAllModsInFolder(
     return [...direct, ...childFolders.flatMap((f) => getAllModsInFolder(mods, folders, f.id))]
 }
 
+export function filterInstalled(
+    mods: InstalledMod[],
+    folders: ModFolder[],
+    query: string
+): { mods: InstalledMod[]; visibleFolderIds: Set<string> } {
+    const lower = query.toLowerCase()
+    const matching = mods.filter((m) => m.name.toLowerCase().includes(lower))
+    const visibleFolderIds = new Set<string>()
+    for (const m of matching) {
+        let id = m.folderId ?? null
+        while (id) {
+            if (visibleFolderIds.has(id)) break
+            visibleFolderIds.add(id)
+            id = folders.find((f) => f.id === id)?.parentId ?? null
+        }
+    }
+    return { mods: matching, visibleFolderIds }
+}
+
 export function computeChildren(
     mods: InstalledMod[],
     folders: ModFolder[],
-    parentId: string | null
+    parentId: string | null,
+    visibleFolderIds?: Set<string>
 ): ChildEntry[] {
     const scopedMods = mods.filter((m) => (m.folderId ?? null) === parentId)
     const groupMap = new Map<number, InstalledMod[]>()
@@ -54,7 +74,9 @@ export function computeChildren(
         groupMods.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
         items.push({ type: 'mod', mods: groupMods })
     }
-    for (const folder of folders.filter((f) => f.parentId === parentId)) {
+    for (const folder of folders.filter(
+        (f) => f.parentId === parentId && (!visibleFolderIds || visibleFolderIds.has(f.id))
+    )) {
         items.push({ type: 'folder', folder })
     }
     items.sort((a, b) => {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
     X,
+    Search,
     LayoutGrid,
     List,
     FolderOpen,
@@ -24,6 +25,7 @@ import {
     computeChildren,
     groupChildren,
     getAllModsInFolder,
+    filterInstalled,
     syntheticMod,
 } from '../hooks/installedUtils'
 import { api } from '../api'
@@ -69,6 +71,12 @@ export function InstalledPage({
         undefined
     )
     const [newFolderName, setNewFolderName] = useState('')
+    const [filterQuery, setFilterQuery] = useState('')
+
+    const isFiltering = filterQuery.trim().length > 0
+    const { mods: displayMods, visibleFolderIds } = isFiltering
+        ? filterInstalled(installed, folders, filterQuery.trim())
+        : { mods: installed, visibleFolderIds: undefined }
 
     const {
         dragItem,
@@ -95,7 +103,7 @@ export function InstalledPage({
         localStorage.setItem('pd3mm:installed-view', mode)
     }
 
-    const rootChildren = computeChildren(installed, folders, null)
+    const rootChildren = computeChildren(displayMods, folders, null, visibleFolderIds)
 
     // --- Folder management ---
 
@@ -392,13 +400,13 @@ export function InstalledPage({
     }
 
     function renderFolderSection(folder: ModFolder) {
-        const isCollapsed = collapsedFolders.has(folder.id)
+        const isCollapsed = !isFiltering && collapsedFolders.has(folder.id)
         const isRenaming = renamingFolderId === folder.id
         const isDraggingThisFolder = dragItem?.kind === 'folder' && dragItem.id === folder.id
         const isDropBeforeThis = dropTarget?.kind === 'before-child' && dropTarget.id === folder.id
         const isDropInto = dropTarget?.kind === 'into-folder' && dropTarget.folderId === folder.id
 
-        const children = computeChildren(installed, folders, folder.id)
+        const children = computeChildren(displayMods, folders, folder.id, visibleFolderIds)
         const directModGroups = children.filter(
             (c): c is { type: 'mod'; mods: InstalledMod[] } => c.type === 'mod'
         )
@@ -672,60 +680,86 @@ export function InstalledPage({
 
     return (
         <div className="h-full flex flex-col">
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                    <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
-                    {gamePath && (
-                        <button
-                            onClick={() => api.openModsFolder()}
-                            title={t('installed.openFolder')}
-                            className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
-                        >
-                            <FolderOpen className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                </div>
-                <div className="flex items-center gap-3">
-                    {installed.length > 0 && (
-                        <span className="text-xs text-text-subtle">
-                            {t(
-                                installed.length === 1
-                                    ? 'installed.modCountSingle'
-                                    : 'installed.modCount',
-                                { count: installed.length }
-                            )}
-                        </span>
-                    )}
-                    {gamePath && (
-                        <button
-                            onClick={() => {
-                                setCreatingFolderParentId(null)
-                                setNewFolderName('')
-                            }}
-                            title={t('installed.newFolder')}
-                            className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
-                        >
-                            <FolderPlus className="w-3.5 h-3.5" />
-                            {t('installed.newFolder')}
-                        </button>
-                    )}
-                    <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
-                        <button
-                            onClick={() => setView('grid')}
-                            title={t('installed.gridView')}
-                            className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
-                        >
-                            <LayoutGrid className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                            onClick={() => setView('list')}
-                            title={t('installed.listView')}
-                            className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
-                        >
-                            <List className="w-3.5 h-3.5" />
-                        </button>
+            <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
+                        {gamePath && (
+                            <button
+                                onClick={() => api.openModsFolder()}
+                                title={t('installed.openFolder')}
+                                className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                            >
+                                <FolderOpen className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {installed.length > 0 && (
+                            <span className="text-xs text-text-subtle">
+                                {isFiltering
+                                    ? t('installed.modCountFiltered', {
+                                          count: displayMods.length,
+                                          total: installed.length,
+                                      })
+                                    : t(
+                                          installed.length === 1
+                                              ? 'installed.modCountSingle'
+                                              : 'installed.modCount',
+                                          { count: installed.length }
+                                      )}
+                            </span>
+                        )}
+                        {gamePath && (
+                            <button
+                                onClick={() => {
+                                    setCreatingFolderParentId(null)
+                                    setNewFolderName('')
+                                }}
+                                title={t('installed.newFolder')}
+                                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                            >
+                                <FolderPlus className="w-3.5 h-3.5" />
+                                {t('installed.newFolder')}
+                            </button>
+                        )}
+                        <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
+                            <button
+                                onClick={() => setView('grid')}
+                                title={t('installed.gridView')}
+                                className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                            >
+                                <LayoutGrid className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                                onClick={() => setView('list')}
+                                title={t('installed.listView')}
+                                className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                            >
+                                <List className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
+                {installed.length > 0 && (
+                    <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-subtle pointer-events-none" />
+                        <input
+                            value={filterQuery}
+                            onChange={(e) => setFilterQuery(e.target.value)}
+                            placeholder={t('installed.filterPlaceholder')}
+                            className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${filterQuery ? 'pr-7' : 'pr-3'}`}
+                        />
+                        {filterQuery && (
+                            <button
+                                onClick={() => setFilterQuery('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text transition-colors"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div
@@ -740,6 +774,10 @@ export function InstalledPage({
                 ) : installed.length === 0 && folders.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-text-subtle text-sm">
                         {t('installed.empty')}
+                    </div>
+                ) : isFiltering && displayMods.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-text-subtle text-sm">
+                        {t('installed.filterEmpty', { query: filterQuery.trim() })}
                     </div>
                 ) : (
                     <>
