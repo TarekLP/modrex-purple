@@ -127,7 +127,7 @@ pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option
         let mut builder = app
             .dialog()
             .file()
-            .set_title(&format!("Select {} installation folder", GAME.name));
+            .set_title(format!("Select {} installation folder", GAME.name));
         if let Some(ref path) = default_path {
             builder = builder.set_directory(path);
         }

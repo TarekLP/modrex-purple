@@ -107,7 +107,7 @@ export default function App() {
         setShowUpdateModal(false)
         setUpdate((prev) => (prev ? { ...prev, phase: 'downloading', percent: 0 } : prev))
         try {
-            await api.download(update.version)
+            await api.download()
         } catch {
             setUpdate((prev) => (prev ? { ...prev, phase: 'available', percent: null } : prev))
             setShowUpdateModal(true)

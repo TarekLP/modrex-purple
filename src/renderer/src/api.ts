@@ -167,7 +167,7 @@ export const api = {
     launchModded(): Promise<void> {
         return invoke('launch_game')
     },
-    launchWithoutMods(_gamePath: string): Promise<void> {
+    launchWithoutMods(): Promise<void> {
         return invoke('launch_without_mods')
     },
     restoreMods(): Promise<void> {
@@ -207,7 +207,7 @@ export const api = {
     },
 
     // ── Updater ────────────────────────────────────────────────────────────────
-    download(_version: string): Promise<void> {
+    download(): Promise<void> {
         return invoke('download_update')
     },
     installUpdate(): Promise<void> {

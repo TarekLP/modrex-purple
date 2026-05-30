@@ -1039,8 +1039,6 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         return Ok(InstalledResponse { mods: state.mods, folders: state.folders, mods_hidden: false });
     }
 
-    let mut state = state;
-
     // Auto-create folder entries for nested untracked paks
     {
         let mut folder_by_path: HashMap<String, String> = state

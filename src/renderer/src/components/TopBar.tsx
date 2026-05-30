@@ -90,7 +90,7 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
         if (!gamePath) return
         try {
             startLaunching('vanilla')
-            await api.launchWithoutMods(gamePath)
+            await api.launchWithoutMods()
             pendingRestore.current = true
         } catch (e) {
             setLaunching(null)
