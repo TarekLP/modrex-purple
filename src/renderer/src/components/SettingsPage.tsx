@@ -3,11 +3,16 @@ import { FolderOpen, RefreshCw, ScrollText } from 'lucide-react'
 import { t } from '../i18n'
 import { Select } from './Select'
 import { api } from '../api'
+import SteamIcon from '../../../../assets/icons/steam.svg?react'
+import EpicIcon from '../../../../assets/icons/epicgames.svg?react'
+import XboxIcon from '../../../../assets/icons/xbox.svg?react'
+
+const iconClass = 'w-3.5 h-3.5 shrink-0 fill-current'
 
 const LAUNCHER_OPTIONS = [
-    { value: 'steam', label: 'Steam' },
-    { value: 'epic', label: 'Epic Games' },
-    { value: 'xbox', label: 'Xbox' },
+    { value: 'steam', label: 'Steam', icon: <SteamIcon className={iconClass} /> },
+    { value: 'epic', label: 'Epic Games', icon: <EpicIcon className={iconClass} /> },
+    { value: 'xbox', label: 'Xbox', icon: <XboxIcon className={iconClass} /> },
 ]
 
 interface Props {

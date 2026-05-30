@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 
 interface Option {
     value: string
     label: string
+    icon?: ReactNode
 }
 
 interface Props {
@@ -35,7 +36,10 @@ export function Select({ value, onChange, options, placeholder, disabled }: Prop
                 disabled={disabled}
                 className="text-sm px-3 py-1.5 rounded bg-surface-hover border border-border text-text flex items-center gap-2 hover:bg-surface-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
-                <span className={selected ? 'text-text' : 'text-text-subtle'}>
+                <span
+                    className={`flex items-center gap-1.5 ${selected ? 'text-text' : 'text-text-subtle'}`}
+                >
+                    {selected?.icon}
                     {selected ? selected.label : placeholder}
                 </span>
                 <ChevronDown
@@ -44,7 +48,7 @@ export function Select({ value, onChange, options, placeholder, disabled }: Prop
             </button>
 
             {open && (
-                <div className="absolute left-0 top-full mt-1 z-50 min-w-full bg-surface-raised border border-border rounded shadow-lg overflow-y-auto max-h-60">
+                <div className="absolute left-0 top-full mt-1 z-50 min-w-max bg-surface-raised border border-border rounded shadow-lg overflow-y-auto max-h-60">
                     {options.map((o) => (
                         <button
                             key={o.value}
@@ -52,12 +56,13 @@ export function Select({ value, onChange, options, placeholder, disabled }: Prop
                                 onChange(o.value)
                                 setOpen(false)
                             }}
-                            className={`w-full text-left text-sm px-3 py-2 transition-colors ${
+                            className={`w-full text-left text-sm px-3 py-2 transition-colors flex items-center gap-1.5 ${
                                 o.value === value
                                     ? 'bg-accent text-white'
                                     : 'text-text hover:bg-surface-hover'
                             }`}
                         >
+                            {o.icon}
                             {o.label}
                         </button>
                     ))}

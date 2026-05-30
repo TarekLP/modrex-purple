@@ -7,7 +7,7 @@
         "jsx": "react-jsx",
         "strict": true,
         "skipLibCheck": true,
-        "types": ["node"]
+        "types": ["node", "vite-plugin-svgr/client"]
     },
     "include": ["src/**/*", "vite.config.*"],
     "exclude": ["node_modules", "out", "commitlint.config.ts", "src/main", "src/preload"]

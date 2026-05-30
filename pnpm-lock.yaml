@@ -80,6 +80,9 @@ importers:
             vite:
                 specifier: ^6.4.2
                 version: 6.4.2(@types/node@25.7.0)(jiti@2.7.0)(lightningcss@1.32.0)
+            vite-plugin-svgr:
+                specifier: ^5.2.0
+                version: 5.2.0(rollup@4.60.3)(typescript@6.0.3)(vite@6.4.2(@types/node@25.7.0)(jiti@2.7.0)(lightningcss@1.32.0))
 
 packages:
     '@babel/code-frame@7.29.0':
@@ -628,6 +631,18 @@ packages:
                 integrity: sha512-eybk3TjzzzV97Dlj5c+XrBFW57eTNhzod66y9HrBlzJ6NsCrWCp/2kaPS3K9wJmurBC0Tdw4yPjXKZqlznim3Q==,
             }
 
+    '@rollup/pluginutils@5.4.0':
+        resolution:
+            {
+                integrity: sha512-MfPp06CjRLfXQ3wY0R8vJDYBy/MvVcc9OulEfR0B8Iv9ko+GCNaRZ+EpJYFl27LhKsZK0o420sYCRHCjfCgeUg==,
+            }
+        engines: { node: '>=14.0.0' }
+        peerDependencies:
+            rollup: ^1.20.0||^2.0.0||^3.0.0||^4.0.0
+        peerDependenciesMeta:
+            rollup:
+                optional: true
+
     '@rollup/rollup-android-arm-eabi@4.60.3':
         resolution:
             {
@@ -854,6 +869,110 @@ packages:
                 integrity: sha512-KxXvfapcixpz6rVEB6HPjOUZT22yN6v0vI0urQSk1L8MlEWPDFCZkhw2xmkyoTGYeFw7tWTZd7e3lVzRZRN/EA==,
             }
         engines: { node: '>=18' }
+
+    '@svgr/babel-plugin-add-jsx-attribute@8.0.0':
+        resolution:
+            {
+                integrity: sha512-b9MIk7yhdS1pMCZM8VeNfUlSKVRhsHZNMl5O9SfaX0l0t5wjdgu4IDzGB8bpnGBBOjGST3rRFVsaaEtI4W6f7g==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/babel-plugin-remove-jsx-attribute@8.0.0':
+        resolution:
+            {
+                integrity: sha512-BcCkm/STipKvbCl6b7QFrMh/vx00vIP63k2eM66MfHJzPr6O2U0jYEViXkHJWqXqQYjdeA9cuCl5KWmlwjDvbA==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/babel-plugin-remove-jsx-empty-expression@8.0.0':
+        resolution:
+            {
+                integrity: sha512-5BcGCBfBxB5+XSDSWnhTThfI9jcO5f0Ai2V24gZpG+wXF14BzwxxdDb4g6trdOux0rhibGs385BeFMSmxtS3uA==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/babel-plugin-replace-jsx-attribute-value@8.0.0':
+        resolution:
+            {
+                integrity: sha512-KVQ+PtIjb1BuYT3ht8M5KbzWBhdAjjUPdlMtpuw/VjT8coTrItWX6Qafl9+ji831JaJcu6PJNKCV0bp01lBNzQ==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/babel-plugin-svg-dynamic-title@8.0.0':
+        resolution:
+            {
+                integrity: sha512-omNiKqwjNmOQJ2v6ge4SErBbkooV2aAWwaPFs2vUY7p7GhVkzRkJ00kILXQvRhA6miHnNpXv7MRnnSjdRjK8og==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/babel-plugin-svg-em-dimensions@8.0.0':
+        resolution:
+            {
+                integrity: sha512-mURHYnu6Iw3UBTbhGwE/vsngtCIbHE43xCRK7kCw4t01xyGqb2Pd+WXekRRoFOBIY29ZoOhUCTEweDMdrjfi9g==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/babel-plugin-transform-react-native-svg@8.1.0':
+        resolution:
+            {
+                integrity: sha512-Tx8T58CHo+7nwJ+EhUwx3LfdNSG9R2OKfaIXXs5soiy5HtgoAEkDay9LIimLOcG8dJQH1wPZp/cnAv6S9CrR1Q==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/babel-plugin-transform-svg-component@8.0.0':
+        resolution:
+            {
+                integrity: sha512-DFx8xa3cZXTdb/k3kfPeaixecQLgKh5NVBMwD0AQxOzcZawK4oo1Jh9LbrcACUivsCA7TLG8eeWgrDXjTMhRmw==,
+            }
+        engines: { node: '>=12' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/babel-preset@8.1.0':
+        resolution:
+            {
+                integrity: sha512-7EYDbHE7MxHpv4sxvnVPngw5fuR6pw79SkcrILHJ/iMpuKySNCl5W1qcwPEpU+LgyRXOaAFgH0KhwD18wwg6ug==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@babel/core': ^7.0.0-0
+
+    '@svgr/core@8.1.0':
+        resolution:
+            {
+                integrity: sha512-8QqtOQT5ACVlmsvKOJNEaWmRPmcojMOzCz4Hs2BGG/toAp/K38LcsMRyLp349glq5AzJbCEeimEoxaX6v/fLrA==,
+            }
+        engines: { node: '>=14' }
+
+    '@svgr/hast-util-to-babel-ast@8.0.0':
+        resolution:
+            {
+                integrity: sha512-EbDKwO9GpfWP4jN9sGdYwPBU0kdomaPIL2Eu4YwmgP+sJeXT+L7bMwJUBnhzfH8Q2qMBqZ4fJwpCyYsAN3mt2Q==,
+            }
+        engines: { node: '>=14' }
+
+    '@svgr/plugin-jsx@8.1.0':
+        resolution:
+            {
+                integrity: sha512-0xiIyBsLlr8quN+WyuxooNW9RJ0Dpr8uOnH/xrCVO8GLUcwHISwj1AG0k+LFzteTkAA0GbX0kj9q6Dk70PTiPA==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            '@svgr/core': '*'
 
     '@tailwindcss/node@4.3.0':
         resolution:
@@ -1286,6 +1405,13 @@ packages:
             }
         engines: { node: '>=6' }
 
+    camelcase@6.3.0:
+        resolution:
+            {
+                integrity: sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA==,
+            }
+        engines: { node: '>=10' }
+
     caniuse-lite@1.0.30001792:
         resolution:
             {
@@ -1380,6 +1506,18 @@ packages:
             cosmiconfig: '>=9'
             typescript: '>=5'
 
+    cosmiconfig@8.3.6:
+        resolution:
+            {
+                integrity: sha512-kcZ6+W5QzcJ3P1Mt+83OUv/oHFqZHIx8DuxG6eZ5RGMERoLqp4BuGjhHLYGK+Kf5XVkQvqBSmAy/nGWN3qDgEA==,
+            }
+        engines: { node: '>=14' }
+        peerDependencies:
+            typescript: '>=4.9.5'
+        peerDependenciesMeta:
+            typescript:
+                optional: true
+
     cosmiconfig@9.0.1:
         resolution:
             {
@@ -1436,6 +1574,12 @@ packages:
                 integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==,
             }
 
+    dot-case@3.0.4:
+        resolution:
+            {
+                integrity: sha512-Kv5nKlh6yRrdrGvxeJ2e5y2eRUpkUosIW4A2AS38zwSz27zu7ufDwQPi5Jhs3XAlGNetl3bmnGhQsMtkKJnj3w==,
+            }
+
     dot-prop@5.3.0:
         resolution:
             {
@@ -1461,6 +1605,13 @@ packages:
                 integrity: sha512-QyL119InA+XXEkNLNTPCXPugSvOfhwv0JOlGNzvxs0hZaiHLNvXSpudUWsOlsXGWJh8G6ckCScEkVHfX3kw/2Q==,
             }
         engines: { node: '>=10.13.0' }
+
+    entities@4.5.0:
+        resolution:
+            {
+                integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==,
+            }
+        engines: { node: '>=0.12' }
 
     entities@6.0.1:
         resolution:
@@ -1514,6 +1665,12 @@ packages:
         resolution:
             {
                 integrity: sha512-hFtqIDZTIUZ9BXLb8y4pYGyk6+wekIivNVTcmvk8NoOh+VeRn5y6cEHzbURrWbfp1fIqdVipilzj+lfaadNZmg==,
+            }
+
+    estree-walker@2.0.2:
+        resolution:
+            {
+                integrity: sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==,
             }
 
     extend@3.0.2:
@@ -1918,6 +2075,12 @@ packages:
                 integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==,
             }
 
+    lower-case@2.0.2:
+        resolution:
+            {
+                integrity: sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg==,
+            }
+
     lowlight@3.3.0:
         resolution:
             {
@@ -2235,6 +2398,12 @@ packages:
         engines: { node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1 }
         hasBin: true
 
+    no-case@3.0.4:
+        resolution:
+            {
+                integrity: sha512-fgAN3jGAh+RoxUGZHTSOLJIqUc2wmoBwGR4tbpNAKmmovFoWq0OdRkb0VkldReO2a2iBT/OEulG9XSUc10r3zg==,
+            }
+
     node-releases@2.0.44:
         resolution:
             {
@@ -2266,6 +2435,13 @@ packages:
             {
                 integrity: sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw==,
             }
+
+    path-type@4.0.0:
+        resolution:
+            {
+                integrity: sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==,
+            }
+        engines: { node: '>=8' }
 
     picocolors@1.1.1:
         resolution:
@@ -2424,6 +2600,12 @@ packages:
         engines: { node: '>=10' }
         hasBin: true
 
+    snake-case@3.0.4:
+        resolution:
+            {
+                integrity: sha512-LAOh4z89bGQvl9pFfNF8V146i7o7/CqFPbqzYgP+yYzDIDeS9HaNFtXABamRW+AQzEVODcvE79ljJ+8a9YSdMg==,
+            }
+
     source-map-js@1.2.1:
         resolution:
             {
@@ -2469,6 +2651,12 @@ packages:
                 integrity: sha512-LIN7rULI0jBscWQYaSswptyderlarFkjQ+t79nzty8tcIAceVomEVlLzH5VP4Cmsv6MtKhs7qaAiwlcp+Mgaxw==,
             }
 
+    svg-parser@2.0.4:
+        resolution:
+            {
+                integrity: sha512-e4hG1hRwoOdRb37cIMSgzNsxyzKfayW6VOflrwvR+/bzrkyxY/31WkbgnQpgtrNp1SdpJvpUAGTa/ZoiPNDuRQ==,
+            }
+
     tailwindcss@4.3.0:
         resolution:
             {
@@ -2506,6 +2694,12 @@ packages:
         resolution:
             {
                 integrity: sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw==,
+            }
+
+    tslib@2.8.1:
+        resolution:
+            {
+                integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==,
             }
 
     typescript@6.0.3:
@@ -2590,6 +2784,14 @@ packages:
             {
                 integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==,
             }
+
+    vite-plugin-svgr@5.2.0:
+        resolution:
+            {
+                integrity: sha512-qj2eAKF8C6PZWemVTvQA0xgQIcP1hHU6Buh7fl6BhvayWwnuxE+z417miKxeDvRWbDrupQ1oK99hfxElopJ3sQ==,
+            }
+        peerDependencies:
+            vite: '>=3.0.0'
 
     vite@6.4.2:
         resolution:
@@ -3008,6 +3210,14 @@ snapshots:
 
     '@rolldown/pluginutils@1.0.0-rc.3': {}
 
+    '@rollup/pluginutils@5.4.0(rollup@4.60.3)':
+        dependencies:
+            '@types/estree': 1.0.8
+            estree-walker: 2.0.2
+            picomatch: 4.0.4
+        optionalDependencies:
+            rollup: 4.60.3
+
     '@rollup/rollup-android-arm-eabi@4.60.3':
         optional: true
 
@@ -3088,6 +3298,76 @@ snapshots:
             '@simple-libs/stream-utils': 1.2.0
 
     '@simple-libs/stream-utils@1.2.0': {}
+
+    '@svgr/babel-plugin-add-jsx-attribute@8.0.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+
+    '@svgr/babel-plugin-remove-jsx-attribute@8.0.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+
+    '@svgr/babel-plugin-remove-jsx-empty-expression@8.0.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+
+    '@svgr/babel-plugin-replace-jsx-attribute-value@8.0.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+
+    '@svgr/babel-plugin-svg-dynamic-title@8.0.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+
+    '@svgr/babel-plugin-svg-em-dimensions@8.0.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+
+    '@svgr/babel-plugin-transform-react-native-svg@8.1.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+
+    '@svgr/babel-plugin-transform-svg-component@8.0.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+
+    '@svgr/babel-preset@8.1.0(@babel/core@7.29.0)':
+        dependencies:
+            '@babel/core': 7.29.0
+            '@svgr/babel-plugin-add-jsx-attribute': 8.0.0(@babel/core@7.29.0)
+            '@svgr/babel-plugin-remove-jsx-attribute': 8.0.0(@babel/core@7.29.0)
+            '@svgr/babel-plugin-remove-jsx-empty-expression': 8.0.0(@babel/core@7.29.0)
+            '@svgr/babel-plugin-replace-jsx-attribute-value': 8.0.0(@babel/core@7.29.0)
+            '@svgr/babel-plugin-svg-dynamic-title': 8.0.0(@babel/core@7.29.0)
+            '@svgr/babel-plugin-svg-em-dimensions': 8.0.0(@babel/core@7.29.0)
+            '@svgr/babel-plugin-transform-react-native-svg': 8.1.0(@babel/core@7.29.0)
+            '@svgr/babel-plugin-transform-svg-component': 8.0.0(@babel/core@7.29.0)
+
+    '@svgr/core@8.1.0(typescript@6.0.3)':
+        dependencies:
+            '@babel/core': 7.29.0
+            '@svgr/babel-preset': 8.1.0(@babel/core@7.29.0)
+            camelcase: 6.3.0
+            cosmiconfig: 8.3.6(typescript@6.0.3)
+            snake-case: 3.0.4
+        transitivePeerDependencies:
+            - supports-color
+            - typescript
+
+    '@svgr/hast-util-to-babel-ast@8.0.0':
+        dependencies:
+            '@babel/types': 7.29.0
+            entities: 4.5.0
+
+    '@svgr/plugin-jsx@8.1.0(@svgr/core@8.1.0(typescript@6.0.3))':
+        dependencies:
+            '@babel/core': 7.29.0
+            '@svgr/babel-preset': 8.1.0(@babel/core@7.29.0)
+            '@svgr/core': 8.1.0(typescript@6.0.3)
+            '@svgr/hast-util-to-babel-ast': 8.0.0
+            svg-parser: 2.0.4
+        transitivePeerDependencies:
+            - supports-color
 
     '@tailwindcss/node@4.3.0':
         dependencies:
@@ -3310,6 +3590,8 @@ snapshots:
 
     callsites@3.1.0: {}
 
+    camelcase@6.3.0: {}
+
     caniuse-lite@1.0.30001792: {}
 
     ccount@2.0.1: {}
@@ -3357,6 +3639,15 @@ snapshots:
             jiti: 2.6.1
             typescript: 6.0.3
 
+    cosmiconfig@8.3.6(typescript@6.0.3):
+        dependencies:
+            import-fresh: 3.3.1
+            js-yaml: 4.1.1
+            parse-json: 5.2.0
+            path-type: 4.0.0
+        optionalDependencies:
+            typescript: 6.0.3
+
     cosmiconfig@9.0.1(typescript@6.0.3):
         dependencies:
             env-paths: 2.2.1
@@ -3384,6 +3675,11 @@ snapshots:
         dependencies:
             dequal: 2.0.3
 
+    dot-case@3.0.4:
+        dependencies:
+            no-case: 3.0.4
+            tslib: 2.8.1
+
     dot-prop@5.3.0:
         dependencies:
             is-obj: 2.0.0
@@ -3396,6 +3692,8 @@ snapshots:
         dependencies:
             graceful-fs: 4.2.11
             tapable: 2.3.3
+
+    entities@4.5.0: {}
 
     entities@6.0.1: {}
 
@@ -3441,6 +3739,8 @@ snapshots:
     escape-string-regexp@5.0.0: {}
 
     estree-util-is-identifier-name@3.0.0: {}
+
+    estree-walker@2.0.2: {}
 
     extend@3.0.2: {}
 
@@ -3663,6 +3963,10 @@ snapshots:
     lines-and-columns@1.2.4: {}
 
     longest-streak@3.1.0: {}
+
+    lower-case@2.0.2:
+        dependencies:
+            tslib: 2.8.1
 
     lowlight@3.3.0:
         dependencies:
@@ -4039,6 +4343,11 @@ snapshots:
 
     nanoid@3.3.12: {}
 
+    no-case@3.0.4:
+        dependencies:
+            lower-case: 2.0.2
+            tslib: 2.8.1
+
     node-releases@2.0.44: {}
 
     parent-module@1.0.1:
@@ -4065,6 +4374,8 @@ snapshots:
     parse5@7.3.0:
         dependencies:
             entities: 6.0.1
+
+    path-type@4.0.0: {}
 
     picocolors@1.1.1: {}
 
@@ -4204,6 +4515,11 @@ snapshots:
 
     semver@7.8.0: {}
 
+    snake-case@3.0.4:
+        dependencies:
+            dot-case: 3.0.4
+            tslib: 2.8.1
+
     source-map-js@1.2.1: {}
 
     space-separated-tokens@2.0.2: {}
@@ -4231,6 +4547,8 @@ snapshots:
         dependencies:
             inline-style-parser: 0.2.7
 
+    svg-parser@2.0.4: {}
+
     tailwindcss@4.3.0: {}
 
     tapable@2.3.3: {}
@@ -4245,6 +4563,8 @@ snapshots:
     trim-lines@3.0.1: {}
 
     trough@2.2.0: {}
+
+    tslib@2.8.1: {}
 
     typescript@6.0.3: {}
 
@@ -4308,6 +4628,17 @@ snapshots:
         dependencies:
             '@types/unist': 3.0.3
             vfile-message: 4.0.3
+
+    vite-plugin-svgr@5.2.0(rollup@4.60.3)(typescript@6.0.3)(vite@6.4.2(@types/node@25.7.0)(jiti@2.7.0)(lightningcss@1.32.0)):
+        dependencies:
+            '@rollup/pluginutils': 5.4.0(rollup@4.60.3)
+            '@svgr/core': 8.1.0(typescript@6.0.3)
+            '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@6.0.3))
+            vite: 6.4.2(@types/node@25.7.0)(jiti@2.7.0)(lightningcss@1.32.0)
+        transitivePeerDependencies:
+            - rollup
+            - supports-color
+            - typescript
 
     vite@6.4.2(@types/node@25.7.0)(jiti@2.7.0)(lightningcss@1.32.0):
         dependencies:
