@@ -84,7 +84,7 @@ Missing any of these three breaks the channel silently at the type level.
 
 **`hooks/useModData.ts`** — fetches remote mod metadata for all installed mods. Batches requests: 5 concurrent per batch with 200 ms between batches. Per-mod TTL (5 min) is tracked in a `useRef` so re-renders don't re-trigger fetches. Negative-id mods are never fetched and never added to `failedIds` (the `id >= 0` skeleton guard depends on this). Returns `modData: Map<number, Mod>`, `failedIds: Set<number>`, and `updatable: InstalledMod[]`. `updatable` deduplicates by `id` and skips any mod where the latest remote version is already installed (handles multi-file mods that share an `id`).
 
-**`hooks/installedUtils.ts`** — pure data helpers: `computeChildren(mods, folders, parentId)` builds and sorts children (mods before folders, both descending by priority); `groupChildren` collapses consecutive mod runs into `root-group` grid slots.
+**`hooks/installedUtils.ts`** — pure data helpers: `computeChildren(mods, folders, parentId, visibleFolderIds?)` builds and sorts children (mods before folders, both descending by priority) — the optional `visibleFolderIds` set, when provided, filters out folders not in it (used by the installed-page search filter); `groupChildren` collapses consecutive mod runs into `root-group` grid slots; `filterInstalled(mods, folders, query)` returns matching mods and the set of all ancestor folder IDs that must remain visible.
 
 **`hooks/useDragDrop.ts`** — all DnD state and handlers. `dragDropEnabled: false` in `tauri.conf.json` is required — without it Tauri's native file-drop intercepts HTML5 drag events on Windows.
 
