@@ -13,6 +13,7 @@ pnpm typecheck    # Type-check renderer without emitting
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
 pnpm test         # Run Rust unit tests (cargo test inside src-tauri/)
+cargo clippy      # Rust lints (run from src-tauri/); one expected warning: too_many_arguments on install_file
 ```
 
 Run a single Rust test by name filter:
@@ -69,6 +70,8 @@ Missing any of these three breaks the channel silently at the type level.
     - `mod.rs` — orchestration (`identify_launcher_for_path`, `launch_with`, `all_launchers`) + all Tauri commands. `GAME` constant is the single binding point between launcher logic and game data. Marker files for `identify_launcher_for_path`: `steam_appid.txt`, `.egstore/`, `MicrosoftGame.config`. `configure_game_path(None)` auto-detects and **saves** the detected path. On first renderer call when settings has no game path, `findGamePath()` in `api.ts` triggers this automatically.
     - **Windows `CREATE_NO_WINDOW` invariant**: The release binary sets `windows_subsystem = "windows"` (`main.rs:1`), so it has no console. Any `std::process::Command` on Windows without `creation_flags(0x08000000)` spawns a visible console window. In debug builds (`pnpm dev`) this is invisible because the process inherits the parent console. Every Windows process spawn must use `use std::os::windows::process::CommandExt` and `.creation_flags(0x08000000)`.
 
+- **`updater.rs`** — auto-update flow via `tauri-plugin-updater`. `UpdaterState` (managed Tauri state) holds the pending `Update` object and its downloaded bytes across two separate commands. Three-phase sequence: `check_for_update` fetches metadata and stores the `Update` object, emitting `updater:update-available`; `download_update` streams bytes and emits `updater:update-progress` (percent) then `updater:update-ready`; `install_update` takes both and applies. Strategy is always `"manual"` — there is no auto-install path.
+
 - **`mod_index.rs`** — SHA256-based mod identification. Downloads `index.db` from the `modrexio/modrex-index` GitHub release to `app_data_dir()`, cached with a 1-hour TTL (fire-and-forget at startup). `query_sha256(conn, sha256)` and `query_by_name(conn, name)` are private helpers that take a `&rusqlite::Connection` — testable with in-memory SQLite. `lookup_by_name` returns `Some` only when exactly one mod matches (ambiguous = `None`). Uses `rusqlite` with `features = ["bundled"]` — no native module issues.
 
 ### Renderer (`src/renderer/src/`)
@@ -78,6 +81,8 @@ Missing any of these three breaks the channel silently at the type level.
 **`App.tsx`** — owns `installed`, `gamePath`, `modsHidden` as sources of truth. App version shown in `TopBar.tsx` comes from `import.meta.env.VITE_APP_VERSION`, injected by Vite's `define` in `vite.config.ts` from `package.json` at build time; shows `v-dev` in dev mode. On every window focus (500ms debounce) both `refreshGamePath` and `refreshInstalled` run. `BrowsePage` unmounts on tab switch (fresh fetch each visit); `InstalledPage` and `SettingsPage` are CSS-`hidden` when inactive to preserve scroll/drag state.
 
 **`modCache.ts`** — 5-minute TTL cache. Always use `getCachedMod` / `getCachedModFiles` — never call `api.getMod` or `api.listModFiles` directly.
+
+**`hooks/useModData.ts`** — fetches remote mod metadata for all installed mods. Batches requests: 5 concurrent per batch with 200 ms between batches. Per-mod TTL (5 min) is tracked in a `useRef` so re-renders don't re-trigger fetches. Negative-id mods are never fetched and never added to `failedIds` (the `id >= 0` skeleton guard depends on this). Returns `modData: Map<number, Mod>`, `failedIds: Set<number>`, and `updatable: InstalledMod[]`. `updatable` deduplicates by `id` and skips any mod where the latest remote version is already installed (handles multi-file mods that share an `id`).
 
 **`hooks/installedUtils.ts`** — pure data helpers: `computeChildren(mods, folders, parentId)` builds and sorts children (mods before folders, both descending by priority); `groupChildren` collapses consecutive mod runs into `root-group` grid slots.
 
