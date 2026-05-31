@@ -15,6 +15,8 @@ import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
+import { NonPakConfirmModal } from './NonPakConfirmModal'
+import { isUnsupportedFormat } from '../formatCheck'
 import { t } from '../i18n'
 import { api } from '../api'
 
@@ -72,6 +74,7 @@ export function BrowsePage({
         allDeps: ModDependency[]
     } | null>(null)
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
+    const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: Mod } | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
@@ -148,6 +151,8 @@ export function BrowsePage({
         setLoadingMod(modId)
         try {
             const fullMod = await getCachedMod(modId)
+            let checkType: string | undefined
+            let checkUrl: string | undefined
             if (fullMod.download === null) {
                 const files = await getCachedModFiles(modId)
                 if (files.length > 1) {
@@ -155,31 +160,46 @@ export function BrowsePage({
                     setFileSelect({ mod: fullMod, files })
                     return
                 }
+                checkType = files[0]?.type
+                checkUrl = files[0]?.download_url
+            } else {
+                checkType = fullMod.download.type
+                checkUrl = fullMod.download.download_url ?? undefined
             }
-            if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
-                const allDeps = [
-                    ...(fullMod.dependencies ?? []),
-                    ...(fullMod.instructs_template?.dependencies ?? []),
-                ]
-                const missingRequired = allDeps.filter(
-                    (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
-                )
-                if (missingRequired.length > 0) {
-                    const s = await api.getSettings()
-                    if (!s.dismissedDepsWarnings?.includes(modId)) {
-                        setLoadingMod(null)
-                        setDepsWarning({ modId, allDeps })
-                        return
-                    }
-                }
+            if (isUnsupportedFormat(checkType, checkUrl)) {
+                setLoadingMod(null)
+                setFormatWarning({ modId, mod: fullMod })
+                return
             }
-            await api.installMod(modId, gamePath)
-            await onRefreshInstalled()
+            await doInstall(modId, fullMod)
         } catch (e) {
             setError(String(e))
         } finally {
             setLoadingMod(null)
         }
+    }
+
+    async function doInstall(modId: number, fullMod: Mod) {
+        if (!gamePath) return
+        if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
+            const allDeps = [
+                ...(fullMod.dependencies ?? []),
+                ...(fullMod.instructs_template?.dependencies ?? []),
+            ]
+            const missingRequired = allDeps.filter(
+                (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
+            )
+            if (missingRequired.length > 0) {
+                const s = await api.getSettings()
+                if (!s.dismissedDepsWarnings?.includes(modId)) {
+                    setLoadingMod(null)
+                    setDepsWarning({ modId, allDeps })
+                    return
+                }
+            }
+        }
+        await api.installMod(modId, gamePath)
+        await onRefreshInstalled()
     }
 
     async function handleUninstall(modId: number) {
@@ -229,6 +249,23 @@ export function BrowsePage({
 
     return (
         <div className="h-full flex flex-col">
+            {formatWarning && (
+                <NonPakConfirmModal
+                    onConfirm={async () => {
+                        const { modId, mod: fullMod } = formatWarning
+                        setFormatWarning(null)
+                        setLoadingMod(modId)
+                        try {
+                            await doInstall(modId, fullMod)
+                        } catch (e) {
+                            setError(String(e))
+                        } finally {
+                            setLoadingMod(null)
+                        }
+                    }}
+                    onCancel={() => setFormatWarning(null)}
+                />
+            )}
             {fileSelect && (
                 <FileSelectModal
                     mod={fileSelect.mod}

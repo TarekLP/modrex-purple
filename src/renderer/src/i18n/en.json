@@ -14,7 +14,9 @@
         "dontShowAgain": "Don't show again",
         "by": "by {name}",
         "noImage": "No image",
-        "dismiss": "Dismiss"
+        "dismiss": "Dismiss",
+        "downloadAnyway": "Download anyway",
+        "nonPakConfirmBody": "This file uses an unsupported format. Modrex may not be able to install it correctly."
     },
     "app": {
         "modsHidden": "Mods are hidden — the game was launched in vanilla mode and may still be running.",

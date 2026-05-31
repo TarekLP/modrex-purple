@@ -19,6 +19,8 @@ import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
+import { NonPakConfirmModal } from './NonPakConfirmModal'
+import { isUnsupportedFormat } from '../formatCheck'
 import { api } from '../api'
 
 type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'deps'
@@ -65,6 +67,7 @@ export function ModDetailPage({
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
     const [showDepsWarning, setShowDepsWarning] = useState(false)
     const [showFileSelect, setShowFileSelect] = useState(false)
+    const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -125,12 +128,24 @@ export function ModDetailPage({
         return () => window.removeEventListener('keydown', onKey)
     }, [isActive, lightboxIndex, images.length, onBack])
 
-    async function handleInstall() {
+    function handleInstall() {
         if (!gamePath || !mod) return
         if (mod.download === null && files.length > 1) {
             setShowFileSelect(true)
             return
         }
+        const checkType = mod.download?.type ?? (files.length === 1 ? files[0].type : undefined)
+        const checkUrl =
+            mod.download?.download_url ?? (files.length === 1 ? files[0].download_url : undefined)
+        if (isUnsupportedFormat(checkType, checkUrl)) {
+            setShowHeaderFormatWarning(true)
+            return
+        }
+        doInstall()
+    }
+
+    async function doInstall() {
+        if (!gamePath || !mod) return
         if (missingRequired.length > 0) {
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const s = await api.getSettings()
@@ -230,6 +245,15 @@ export function ModDetailPage({
                     onClose={() => setShowFileSelect(false)}
                 />
             )}
+            {showHeaderFormatWarning && (
+                <NonPakConfirmModal
+                    onConfirm={() => {
+                        setShowHeaderFormatWarning(false)
+                        doInstall()
+                    }}
+                    onCancel={() => setShowHeaderFormatWarning(false)}
+                />
+            )}
             {showDepsWarning && (
                 <DepsWarningModal
                     modId={modId}
@@ -301,7 +325,10 @@ export function ModDetailPage({
                                         : t('common.install')}
                                 </button>
                             )}
-                            {mod.download?.type && mod.download.type.toLowerCase() !== 'pak' && (
+                            {isUnsupportedFormat(
+                                mod.download?.type,
+                                mod.download?.download_url
+                            ) && (
                                 <span className="flex items-center gap-1 text-xs text-warning">
                                     <AlertTriangle className="w-3 h-3 shrink-0" />
                                     {t('common.nonPakWarning')}
@@ -600,6 +627,7 @@ function DownloadsTab({
     const [installingId, setInstallingId] = useState<number | null>(null)
     const [uninstallingId, setUninstallingId] = useState<number | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
+    const [formatWarningFile, setFormatWarningFile] = useState<ModFile | null>(null)
 
     async function handleUninstallFile(file: ModFile) {
         if (!gamePath) return
@@ -614,7 +642,15 @@ function DownloadsTab({
         }
     }
 
-    async function handleInstallFile(file: ModFile) {
+    function handleInstallFile(file: ModFile) {
+        if (isUnsupportedFormat(file.type, file.download_url)) {
+            setFormatWarningFile(file)
+            return
+        }
+        doInstallFile(file)
+    }
+
+    async function doInstallFile(file: ModFile) {
         if (!gamePath) return
         setInstallingId(file.id)
         setInstallError(null)
@@ -645,6 +681,16 @@ function DownloadsTab({
 
     return (
         <div className="flex flex-col gap-3">
+            {formatWarningFile && (
+                <NonPakConfirmModal
+                    onConfirm={() => {
+                        const file = formatWarningFile!
+                        setFormatWarningFile(null)
+                        doInstallFile(file)
+                    }}
+                    onCancel={() => setFormatWarningFile(null)}
+                />
+            )}
             {installError && (
                 <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
                     {installError}
@@ -687,7 +733,7 @@ function DownloadsTab({
                                 </div>
                             )}
                             <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
-                                {file.type && file.type.toLowerCase() !== 'pak' && (
+                                {isUnsupportedFormat(file.type, file.download_url) && (
                                     <span className="flex items-center gap-1 text-warning">
                                         <AlertTriangle className="w-3 h-3 shrink-0" />
                                         {t('common.nonPakWarning')}
