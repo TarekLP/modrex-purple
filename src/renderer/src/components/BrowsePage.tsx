@@ -11,6 +11,12 @@ import type {
 } from '../../../shared/types'
 import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
+import {
+    getBrowseCache,
+    setBrowseCache,
+    getCategoriesCache,
+    setCategoriesCache,
+} from '../browseCache'
 import { ModCard } from './ModCard'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
@@ -69,10 +75,12 @@ export function BrowsePage({
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
-    const [sort, setSort] = useState<SortOption>(getSavedSort)
-    const [result, setResult] = useState<Paginated<Mod> | null>(null)
-    const [categories, setCategories] = useState<Category[]>([])
-    const [loadingMods, setLoadingMods] = useState(false)
+    const initialSort = getSavedSort()
+    const [sort, setSort] = useState<SortOption>(initialSort)
+    const initialCache = getBrowseCache(1, '', initialSort, undefined)
+    const [result, setResult] = useState<Paginated<Mod> | null>(initialCache?.result ?? null)
+    const [categories, setCategories] = useState<Category[]>(() => getCategoriesCache() ?? [])
+    const [loadingMods, setLoadingMods] = useState(!initialCache)
     const [loadingMod, setLoadingMod] = useState<number | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [depsWarning, setDepsWarning] = useState<{
@@ -99,7 +107,13 @@ export function BrowsePage({
 
     const fetchMods = useCallback(
         async (p: number, q: string, cat: number | undefined, s: SortOption) => {
-            setLoadingMods(true)
+            const cached = getBrowseCache(p, q, s, cat)
+            if (cached) {
+                setResult(cached.result)
+                if (!cached.stale) return
+            } else {
+                setLoadingMods(true)
+            }
             setError(null)
             try {
                 const data = await api.listMods({
@@ -109,6 +123,7 @@ export function BrowsePage({
                     query: q || undefined,
                     category_id: cat,
                 })
+                setBrowseCache(p, q, s, cat, data)
                 startTransition(() => {
                     setResult(data)
                     setLoadingMods(false)
@@ -122,7 +137,15 @@ export function BrowsePage({
     )
 
     useEffect(() => {
-        api.listCategories().then((r) => setCategories(r.data))
+        const cached = getCategoriesCache()
+        if (cached) {
+            setCategories(cached)
+            return
+        }
+        api.listCategories().then((r) => {
+            setCategoriesCache(r.data)
+            setCategories(r.data)
+        })
     }, [])
 
     useEffect(() => {
