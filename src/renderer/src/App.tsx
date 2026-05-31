@@ -16,8 +16,13 @@ const InstalledPageMemo = memo(InstalledPage)
 
 export type View = 'browse' | 'installed' | 'detail' | 'settings'
 
+function getSavedView(): View {
+    const v = localStorage.getItem('modrex:active-view')
+    return v === 'browse' || v === 'installed' || v === 'settings' ? v : 'browse'
+}
+
 export default function App() {
-    const [view, setView] = useState<View>('browse')
+    const [view, setView] = useState<View>(getSavedView)
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [detailStack, setDetailStack] = useState<number[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
@@ -143,6 +148,7 @@ export default function App() {
     }
 
     function handleSidebarChange(v: 'browse' | 'installed' | 'settings') {
+        localStorage.setItem('modrex:active-view', v)
         setDetailStack([])
         setView(v)
     }

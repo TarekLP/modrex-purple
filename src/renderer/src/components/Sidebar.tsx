@@ -18,7 +18,9 @@ const navItems: { id: NavView; labelKey: StringKey; icon: LucideIcon }[] = [
 ]
 
 export function Sidebar({ view, onViewChange }: Props) {
-    const [collapsed, setCollapsed] = useState(false)
+    const [collapsed, setCollapsed] = useState(
+        () => localStorage.getItem('modrex:sidebar-collapsed') === 'true'
+    )
 
     return (
         <aside
@@ -51,7 +53,12 @@ export function Sidebar({ view, onViewChange }: Props) {
 
             <div className="p-2 border-t border-border">
                 <button
-                    onClick={() => setCollapsed((c) => !c)}
+                    onClick={() =>
+                        setCollapsed((c) => {
+                            localStorage.setItem('modrex:sidebar-collapsed', String(!c))
+                            return !c
+                        })
+                    }
                     title={collapsed ? t('sidebar.expandTitle') : t('sidebar.collapseTitle')}
                     className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
                 >
