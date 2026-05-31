@@ -122,6 +122,7 @@ export interface InstalledMod {
     priority?: number // higher = loads later in UE5 = overrides lower-priority mods
     missing?: boolean
     folderId?: string | null // null or absent = root level
+    zipArchive?: boolean
 }
 
 export interface ModsState {
