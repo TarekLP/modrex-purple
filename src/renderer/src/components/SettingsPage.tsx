@@ -72,9 +72,13 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
 
     async function handleCheckForUpdates() {
         setCheckState('checking')
-        await api.checkForUpdates()
-        setCheckState('upToDate')
-        setTimeout(() => setCheckState('idle'), 3000)
+        try {
+            await api.checkForUpdates()
+            setCheckState('upToDate')
+            setTimeout(() => setCheckState('idle'), 3000)
+        } catch {
+            setCheckState('idle')
+        }
     }
 
     async function handleLauncherChange(value: string) {
