@@ -1100,6 +1100,24 @@ fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
     save_state(state_path, &state);
 }
 
+fn mark_zip_archives(game_path: &str, folders: &[ModFolder], mut mods: Vec<InstalledMod>) -> Vec<InstalledMod> {
+    for m in &mut mods {
+        if m.missing == Some(true) {
+            continue;
+        }
+        let rel = get_folder_path(folders, m.folder_id.as_deref());
+        let path = if m.enabled {
+            active_mod_path(game_path, &m.filename, rel.as_deref())
+        } else {
+            disabled_mod_path(game_path, &m.filename, rel.as_deref())
+        };
+        if is_zip(&path) {
+            m.zip_archive = Some(true);
+        }
+    }
+    mods
+}
+
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -1158,7 +1176,8 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
 
     let untracked = find_untracked_paks(&game_path, &known).await;
     if untracked.is_empty() {
-        return Ok(InstalledResponse { mods: state.mods, folders: state.folders, mods_hidden: false });
+        let mods = mark_zip_archives(&game_path, &state.folders, state.mods);
+        return Ok(InstalledResponse { mods, folders: state.folders, mods_hidden: false });
     }
 
     // Auto-create folder entries for nested untracked paks
@@ -1338,6 +1357,7 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
     let final_mods: Vec<InstalledMod> = by_uid.into_values().collect();
 
     save_state(&state_path, &ModsState { folders: state.folders.clone(), mods: final_mods.clone() });
+    let final_mods = mark_zip_archives(&game_path, &state.folders, final_mods);
     Ok(InstalledResponse { mods: final_mods, folders: state.folders, mods_hidden: false })
 }
 
