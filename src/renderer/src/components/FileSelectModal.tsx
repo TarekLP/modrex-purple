@@ -78,7 +78,7 @@ export function FileSelectModal({
                     mod.name,
                     file.id,
                     file.download_url,
-                    file.type,
+                    file.type ?? '',
                     mod.version,
                     gamePath
                 )
@@ -204,7 +204,7 @@ export function FileSelectModal({
                                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
                                         <span className="uppercase">{file.type}</span>
                                         <span>{formatBytes(file.size)}</span>
-                                        {file.type.toLowerCase() !== 'pak' && (
+                                        {file.type && file.type.toLowerCase() !== 'pak' && (
                                             <span className="flex items-center gap-1 text-warning">
                                                 <AlertTriangle className="w-3 h-3 shrink-0" />
                                                 {t('common.nonPakWarning')}

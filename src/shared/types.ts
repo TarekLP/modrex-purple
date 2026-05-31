@@ -46,7 +46,7 @@ export interface Mod {
         id: number
         version: string
         size: number
-        type: string
+        type: string | undefined
         download_url: string
     } | null
     user: { name: string }
@@ -67,7 +67,7 @@ export interface ModFile {
     name: string
     version: string
     size: number
-    type: string
+    type: string | undefined
     download_url: string
     image_id?: number | null
     desc?: string

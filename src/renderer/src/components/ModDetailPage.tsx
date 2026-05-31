@@ -287,7 +287,7 @@ export function ModDetailPage({
                                         : t('common.installing')
                                     : t('common.install')}
                             </button>
-                            {mod.download && mod.download.type.toLowerCase() !== 'pak' && (
+                            {mod.download?.type && mod.download.type.toLowerCase() !== 'pak' && (
                                 <span className="flex items-center gap-1 text-xs text-warning">
                                     <AlertTriangle className="w-3 h-3 shrink-0" />
                                     {t('common.nonPakWarning')}
@@ -607,7 +607,7 @@ function DownloadsTab({
                 mod.name,
                 file.id,
                 file.download_url,
-                file.type,
+                file.type ?? '',
                 mod.version,
                 gamePath
             )
@@ -670,7 +670,7 @@ function DownloadsTab({
                                 </div>
                             )}
                             <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
-                                {file.type.toLowerCase() !== 'pak' && (
+                                {file.type && file.type.toLowerCase() !== 'pak' && (
                                     <span className="flex items-center gap-1 text-warning">
                                         <AlertTriangle className="w-3 h-3 shrink-0" />
                                         {t('common.nonPakWarning')}
@@ -718,7 +718,7 @@ function DownloadsTab({
                                         : t('common.installing')
                                     : isInstalled
                                       ? t('common.installed')
-                                      : `${t('common.install')} ${file.type.toUpperCase()} (${formatBytes(file.size)})`}
+                                      : `${t('common.install')}${file.type ? ` ${file.type.toUpperCase()}` : ''} (${formatBytes(file.size)})`}
                             </button>
                             {isInstalled && (
                                 <button

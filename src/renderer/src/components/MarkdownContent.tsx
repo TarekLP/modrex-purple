@@ -248,7 +248,7 @@ export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embed
                             <div className="px-3">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkBreaks]}
-                                    rehypePlugins={[rehypeRaw, [rehypeHighlight, { detect: true }]]}
+                                    rehypePlugins={[rehypeRaw, rehypeHighlight]}
                                     components={components}
                                 >
                                     {part.body}
@@ -261,7 +261,7 @@ export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embed
                     <ReactMarkdown
                         key={i}
                         remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[rehypeRaw, [rehypeHighlight, { detect: true }]]}
+                        rehypePlugins={[rehypeRaw, rehypeHighlight]}
                         components={components}
                     >
                         {part.text}
