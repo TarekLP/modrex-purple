@@ -32,6 +32,7 @@ interface Props {
     onUninstall: () => void
     onEnable: () => void
     onDisable: () => void
+    onReinstall?: () => void
     onPrefetch?: () => void
     loading: boolean
     gamePath: string | null
@@ -48,6 +49,7 @@ export function ModCard({
     onUninstall,
     onEnable,
     onDisable,
+    onReinstall,
     onPrefetch,
     loading,
     gamePath,
@@ -140,6 +142,20 @@ export function ModCard({
                             <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
                                 {t('common.fileMissing')}
                             </span>
+                        )}
+                        {installed.zipArchive && (
+                            <>
+                                <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
+                                    {t('common.zipArchiveBroken')}
+                                </span>
+                                <button
+                                    disabled={!canAct}
+                                    onClick={onReinstall}
+                                    className="text-xs px-2 py-0.5 rounded bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {t('common.fix')}
+                                </button>
+                            </>
                         )}
                         <Toggle
                             checked={installed.enabled}

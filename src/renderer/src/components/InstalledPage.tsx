@@ -13,6 +13,8 @@ import {
     Check,
 } from 'lucide-react'
 import { t } from '../i18n'
+import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import type { ZipMultiPakPayload } from './ZipPickerModal'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL, GAME_STORAGE_KEY } from '../../../shared/types'
 import { ModCard } from './ModCard'
@@ -59,6 +61,7 @@ export function InstalledPage({
     const { modData, failedIds, updatable } = useModData(installed)
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
+    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
     const [updateError, setUpdateError] = useState<string | null>(null)
     const [showUpdates, setShowUpdates] = useState(false)
@@ -233,6 +236,22 @@ export function InstalledPage({
         }
     }
 
+    async function handleReinstall(mods: InstalledMod[]) {
+        if (!gamePath || mods[0].id < 0) return
+        setLoadingMod(mods[0].uid)
+        try {
+            await api.installMod(mods[0].id, gamePath)
+            await onRefreshInstalled()
+        } catch (e) {
+            const zipData = parseZipMultiPak(String(e))
+            if (zipData) {
+                setZipPickerData(zipData)
+            }
+        } finally {
+            setLoadingMod(null)
+        }
+    }
+
     async function handleUpdateSelected() {
         if (!gamePath) return
         setUpdatingAll(true)
@@ -275,6 +294,7 @@ export function InstalledPage({
             ...ins,
             enabled: mods.every((m) => m.enabled),
             missing: mods.some((m) => m.missing) ? true : undefined,
+            zipArchive: mods.some((m) => m.zipArchive) ? true : undefined,
         }
 
         return (
@@ -320,6 +340,7 @@ export function InstalledPage({
                     onUninstall={() => handleUninstall(mods)}
                     onEnable={() => handleEnable(mods)}
                     onDisable={() => handleDisable(mods)}
+                    onReinstall={() => handleReinstall(mods)}
                     onDragStart={(e) => onModDragStart(e, repUid)}
                     onDragEnd={handleDragEnd}
                 />
@@ -340,6 +361,7 @@ export function InstalledPage({
             ...ins,
             enabled: mods.every((m) => m.enabled),
             missing: mods.some((m) => m.missing) ? true : undefined,
+            zipArchive: mods.some((m) => m.zipArchive) ? true : undefined,
         }
 
         return (
@@ -373,6 +395,7 @@ export function InstalledPage({
                     onUninstall={() => handleUninstall(mods)}
                     onEnable={() => handleEnable(mods)}
                     onDisable={() => handleDisable(mods)}
+                    onReinstall={() => handleReinstall(mods)}
                 />
             </div>
         )
@@ -688,6 +711,14 @@ export function InstalledPage({
 
     return (
         <div className="h-full flex flex-col">
+            {zipPickerData && gamePath && (
+                <ZipPickerModal
+                    payload={zipPickerData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setZipPickerData(null)}
+                />
+            )}
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

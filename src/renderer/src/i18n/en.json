@@ -8,6 +8,8 @@
         "installed": "Installed",
         "remove": "Remove",
         "fileMissing": "File missing",
+        "zipArchiveBroken": "Broken archive",
+        "fix": "Fix",
         "loading": "Loading…",
         "cancel": "Cancel",
         "close": "Close",
