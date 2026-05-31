@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { t } from '../i18n'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
+import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
@@ -893,14 +894,31 @@ export function InstalledPage({
                                             onChange={() => toggleSelected(ins.id)}
                                             className="accent-[oklch(0.65_0.18_47)] w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
                                         />
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <span className="text-sm font-medium truncate">
-                                                {mod.name}
-                                            </span>
-                                            <span className="text-xs text-text-subtle shrink-0">
-                                                v{ins.version} → v{mod.version}
-                                            </span>
-                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setShowUpdates(false)
+                                                onOpenDetail(ins.id)
+                                            }}
+                                            className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
+                                        >
+                                            {mod.thumbnail ? (
+                                                <img
+                                                    src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
+                                                    alt=""
+                                                    className="w-9 h-9 rounded object-cover shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded bg-surface-active shrink-0" />
+                                            )}
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-medium truncate">
+                                                    {mod.name}
+                                                </div>
+                                                <div className="text-xs text-text-subtle">
+                                                    v{ins.version} to v{mod.version}
+                                                </div>
+                                            </div>
+                                        </button>
                                         <button
                                             disabled={!gamePath || isLoading}
                                             onClick={() => handleUpdate(ins.uid, ins.id)}
