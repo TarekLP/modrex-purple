@@ -32,6 +32,7 @@ interface Props {
     onUninstall: () => void
     onEnable: () => void
     onDisable: () => void
+    onPrefetch?: () => void
     loading: boolean
     gamePath: string | null
     progress?: { downloaded: number; total: number } | null
@@ -47,6 +48,7 @@ export function ModCard({
     onUninstall,
     onEnable,
     onDisable,
+    onPrefetch,
     loading,
     gamePath,
     progress = null,
@@ -60,7 +62,10 @@ export function ModCard({
             : null
 
     return (
-        <div className="h-full bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col">
+        <div
+            className="h-full bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col"
+            onMouseEnter={onPrefetch}
+        >
             <div className="cursor-pointer group relative" onClick={onOpen}>
                 {mod.thumbnail ? (
                     <img

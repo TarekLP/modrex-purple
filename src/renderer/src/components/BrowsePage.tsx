@@ -8,7 +8,7 @@ import type {
     Category,
     ModDependency,
 } from '../../../shared/types'
-import { getCachedMod, getCachedModFiles } from '../modCache'
+import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
 import type { SortOption } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { SkeletonCard } from './SkeletonCard'
@@ -76,6 +76,7 @@ export function BrowsePage({
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
     const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: Mod } | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -144,6 +145,15 @@ export function BrowsePage({
     function handleSortChange(val: string) {
         setSort(val as SortOption)
         setPage(1)
+    }
+
+    function handlePrefetch(modId: number) {
+        if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
+        prefetchTimerRef.current = setTimeout(() => {
+            getCachedMod(modId).catch(() => {})
+            getCachedModFiles(modId).catch(() => {})
+            getCachedModLinks(modId).catch(() => {})
+        }, 150)
     }
 
     async function handleInstall(modId: number) {
@@ -377,6 +387,7 @@ export function BrowsePage({
                                 progress={loadingMod === mod.id ? downloadProgress : null}
                                 showMeta
                                 onOpen={() => onOpenDetail(mod.id)}
+                                onPrefetch={() => handlePrefetch(mod.id)}
                                 onInstall={() => handleInstall(mod.id)}
                                 onUninstall={() => handleUninstall(mod.id)}
                                 onEnable={() => handleEnable(mod.id)}
