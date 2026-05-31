@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Tag, Download, Clock } from 'lucide-react'
+import { X, Tag, Download, Clock, AlertTriangle } from 'lucide-react'
 import type { Mod, ModFile, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
 import { MarkdownContent } from './MarkdownContent'
@@ -204,6 +204,12 @@ export function FileSelectModal({
                                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
                                         <span className="uppercase">{file.type}</span>
                                         <span>{formatBytes(file.size)}</span>
+                                        {file.type.toLowerCase() !== 'pak' && (
+                                            <span className="flex items-center gap-1 text-warning">
+                                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                                {t('common.nonPakWarning')}
+                                            </span>
+                                        )}
                                         {file.version && (
                                             <span className="flex items-center gap-1">
                                                 <Tag className="w-3 h-3 shrink-0" />

@@ -9,6 +9,7 @@ import {
     X,
     Tag,
     Clock,
+    AlertTriangle,
 } from 'lucide-react'
 import { t } from '../i18n'
 import { Toggle } from './Toggle'
@@ -271,20 +272,28 @@ export function ModDetailPage({
                         </>
                     )}
                     {mod && mod.has_download && installedFiles.length === 0 && (
-                        <button
-                            disabled={!canAct}
-                            onClick={handleInstall}
-                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-                        >
-                            {!actionLoading && <Download className="w-3.5 h-3.5" />}
-                            {actionLoading
-                                ? downloadProgress
-                                    ? downloadProgress.total > 0
-                                        ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                        : t('common.downloading')
-                                    : t('common.installing')
-                                : t('common.install')}
-                        </button>
+                        <div className="flex flex-col items-end gap-1">
+                            <button
+                                disabled={!canAct}
+                                onClick={handleInstall}
+                                className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                            >
+                                {!actionLoading && <Download className="w-3.5 h-3.5" />}
+                                {actionLoading
+                                    ? downloadProgress
+                                        ? downloadProgress.total > 0
+                                            ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                            : t('common.downloading')
+                                        : t('common.installing')
+                                    : t('common.install')}
+                            </button>
+                            {mod.download && mod.download.type.toLowerCase() !== 'pak' && (
+                                <span className="flex items-center gap-1 text-xs text-warning">
+                                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                                    {t('common.nonPakWarning')}
+                                </span>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -661,6 +670,12 @@ function DownloadsTab({
                                 </div>
                             )}
                             <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
+                                {file.type.toLowerCase() !== 'pak' && (
+                                    <span className="flex items-center gap-1 text-warning">
+                                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                                        {t('common.nonPakWarning')}
+                                    </span>
+                                )}
                                 {file.version && (
                                     <span className="flex items-center gap-1">
                                         <Tag className="w-3 h-3 shrink-0" />

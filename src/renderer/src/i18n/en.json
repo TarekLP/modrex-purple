@@ -1,6 +1,7 @@
 {
     "common": {
         "install": "Install",
+        "nonPakWarning": "Unsupported format",
         "installing": "Installing…",
         "downloading": "Downloading…",
         "installed": "Installed",
