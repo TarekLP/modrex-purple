@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event'
 import type {
     Mod,
     ModFile,
+    ModLink,
     Category,
     Paginated,
     InstalledMod,
@@ -45,6 +46,9 @@ export const api = {
     },
     listModFiles(modId: number): Promise<Paginated<ModFile>> {
         return invoke('list_mod_files', { modId })
+    },
+    listModLinks(modId: number): Promise<Paginated<ModLink>> {
+        return invoke('list_mod_links', { modId })
     },
 
     // ── Settings ───────────────────────────────────────────────────────────────

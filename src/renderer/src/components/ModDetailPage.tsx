@@ -13,9 +13,9 @@ import {
 } from 'lucide-react'
 import { t } from '../i18n'
 import { Toggle } from './Toggle'
-import type { Mod, ModFile, ModDependency, InstalledMod } from '../../../shared/types'
+import type { Mod, ModFile, ModLink, ModDependency, InstalledMod } from '../../../shared/types'
 import { MarkdownContent } from './MarkdownContent'
-import { getCachedMod, getCachedModFiles } from '../modCache'
+import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
@@ -57,6 +57,7 @@ export function ModDetailPage({
 }: Props) {
     const [mod, setMod] = useState<Mod | null>(null)
     const [files, setFiles] = useState<ModFile[]>([])
+    const [links, setLinks] = useState<ModLink[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<Tab>('description')
@@ -77,12 +78,14 @@ export function ModDetailPage({
         setLoading(true)
         setError(null)
         try {
-            const [modData, files] = await Promise.all([
+            const [modData, files, links] = await Promise.all([
                 getCachedMod(modId),
                 getCachedModFiles(modId),
+                getCachedModLinks(modId),
             ])
             setMod(modData)
             setFiles(files)
+            setLinks(links)
         } catch (e) {
             setError(String(e))
         } finally {
@@ -204,9 +207,10 @@ export function ModDetailPage({
         },
         {
             id: 'downloads',
-            label: files.length
-                ? t('detail.tabs.downloadsCount', { count: files.length })
-                : t('detail.tabs.downloads'),
+            label:
+                files.length + links.length
+                    ? t('detail.tabs.downloadsCount', { count: files.length + links.length })
+                    : t('detail.tabs.downloads'),
         },
         ...(showChangelogTab
             ? [{ id: 'changelog' as Tab, label: t('detail.tabs.changelog') }]
@@ -273,20 +277,30 @@ export function ModDetailPage({
                     )}
                     {mod && mod.has_download && installedFiles.length === 0 && (
                         <div className="flex flex-col items-end gap-1">
-                            <button
-                                disabled={!canAct}
-                                onClick={handleInstall}
-                                className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-                            >
-                                {!actionLoading && <Download className="w-3.5 h-3.5" />}
-                                {actionLoading
-                                    ? downloadProgress
-                                        ? downloadProgress.total > 0
-                                            ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                            : t('common.downloading')
-                                        : t('common.installing')
-                                    : t('common.install')}
-                            </button>
+                            {mod.download?.url && !mod.download.download_url ? (
+                                <button
+                                    onClick={() => api.openExternal(mod.download!.url!)}
+                                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    {t('common.openLink')}
+                                </button>
+                            ) : (
+                                <button
+                                    disabled={!canAct}
+                                    onClick={handleInstall}
+                                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                >
+                                    {!actionLoading && <Download className="w-3.5 h-3.5" />}
+                                    {actionLoading
+                                        ? downloadProgress
+                                            ? downloadProgress.total > 0
+                                                ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                                : t('common.downloading')
+                                            : t('common.installing')
+                                        : t('common.install')}
+                                </button>
+                            )}
                             {mod.download?.type && mod.download.type.toLowerCase() !== 'pak' && (
                                 <span className="flex items-center gap-1 text-xs text-warning">
                                     <AlertTriangle className="w-3 h-3 shrink-0" />
@@ -430,6 +444,7 @@ export function ModDetailPage({
                         {tab === 'downloads' && (
                             <DownloadsTab
                                 files={files}
+                                links={links}
                                 mod={mod}
                                 gamePath={gamePath}
                                 installedFiles={installedFiles}
@@ -567,6 +582,7 @@ function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (index: number
 
 function DownloadsTab({
     files,
+    links,
     mod,
     gamePath,
     installedFiles,
@@ -574,6 +590,7 @@ function DownloadsTab({
     onRefreshInstalled,
 }: {
     files: ModFile[]
+    links: ModLink[]
     mod: Mod
     gamePath: string | null
     installedFiles: InstalledMod[]
@@ -619,7 +636,7 @@ function DownloadsTab({
         }
     }
 
-    if (files.length === 0) {
+    if (files.length === 0 && links.length === 0) {
         return <p className="text-sm text-text-subtle">{t('detail.downloads.none')}</p>
     }
 
@@ -698,49 +715,130 @@ function DownloadsTab({
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                            <button
-                                disabled={!gamePath || isInstalling || isInstalled}
-                                onClick={() => handleInstallFile(file)}
-                                className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
-                                    isInstalled
-                                        ? 'bg-success/20 border border-success/40 text-success-text'
-                                        : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
-                                }`}
-                            >
-                                {!isInstalling && !isInstalled && (
-                                    <Download className="w-3.5 h-3.5" />
-                                )}
-                                {isInstalling
-                                    ? downloadProgress
-                                        ? downloadProgress.total > 0
-                                            ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                            : t('common.downloading')
-                                        : t('common.installing')
-                                    : isInstalled
-                                      ? t('common.installed')
-                                      : `${t('common.install')}${file.type ? ` ${file.type.toUpperCase()}` : ''} (${formatBytes(file.size)})`}
-                            </button>
-                            {isInstalled && (
+                            {file.url && !file.download_url ? (
                                 <button
-                                    disabled={!gamePath || isUninstalling}
-                                    onClick={() => handleUninstallFile(file)}
-                                    title={t('common.remove')}
-                                    className="p-2 rounded-lg bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    onClick={() => api.openExternal(file.url!)}
+                                    className="text-xs px-4 py-2 rounded-lg bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
                                 >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    {t('common.openLink')}
                                 </button>
+                            ) : (
+                                <>
+                                    <button
+                                        disabled={!gamePath || isInstalling || isInstalled}
+                                        onClick={() => handleInstallFile(file)}
+                                        className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
+                                            isInstalled
+                                                ? 'bg-success/20 border border-success/40 text-success-text'
+                                                : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
+                                        }`}
+                                    >
+                                        {!isInstalling && !isInstalled && (
+                                            <Download className="w-3.5 h-3.5" />
+                                        )}
+                                        {isInstalling
+                                            ? downloadProgress
+                                                ? downloadProgress.total > 0
+                                                    ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                                    : t('common.downloading')
+                                                : t('common.installing')
+                                            : isInstalled
+                                              ? t('common.installed')
+                                              : `${t('common.install')}${file.type ? ` ${file.type.toUpperCase()}` : ''} (${formatBytes(file.size)})`}
+                                    </button>
+                                    {isInstalled && (
+                                        <button
+                                            disabled={!gamePath || isUninstalling}
+                                            onClick={() => handleUninstallFile(file)}
+                                            title={t('common.remove')}
+                                            className="p-2 rounded-lg bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() =>
+                                            api.openExternal(file.url ?? file.download_url)
+                                        }
+                                        title={t('detail.downloads.external')}
+                                        className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                    </button>
+                                </>
                             )}
-                            <button
-                                onClick={() => api.openExternal(file.download_url)}
-                                title={t('detail.downloads.external')}
-                                className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
-                            >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                            </button>
                         </div>
                     </div>
                 )
             })}
+            {links.length > 0 && (
+                <>
+                    {files.length > 0 && <hr className="border-border" />}
+                    {links.map((link) => {
+                        const linkImage =
+                            link.image_id != null ? imageMap.get(link.image_id) : undefined
+                        const thumbUrl = linkImage
+                            ? `${THUMBNAIL_BASE_URL}/${linkImage.file}`
+                            : modThumbUrl
+                        return (
+                            <div
+                                key={link.id}
+                                className="flex items-center gap-3 p-3 rounded-xl bg-surface-hover border border-border"
+                            >
+                                <div className="relative shrink-0">
+                                    {thumbUrl ? (
+                                        <img
+                                            src={thumbUrl}
+                                            alt=""
+                                            className="w-14 h-14 rounded-lg object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-lg bg-surface-active" />
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <span className="text-sm font-semibold truncate block">
+                                        {link.name}
+                                    </span>
+                                    {link.desc && (
+                                        <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
+                                            <MarkdownContent text={link.desc} />
+                                        </div>
+                                    )}
+                                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
+                                        {link.version && (
+                                            <span className="flex items-center gap-1">
+                                                <Tag className="w-3 h-3 shrink-0" />
+                                                {link.version}
+                                            </span>
+                                        )}
+                                        {link.downloads != null && (
+                                            <span className="flex items-center gap-1">
+                                                <Download className="w-3 h-3 shrink-0" />
+                                                {link.downloads.toLocaleString()}
+                                            </span>
+                                        )}
+                                        {link.created_at && (
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3 shrink-0" />
+                                                {formatDate(link.created_at)}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => api.openExternal(link.url)}
+                                    className="text-xs px-4 py-2 rounded-lg bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5 shrink-0"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    {t('common.openLink')}
+                                </button>
+                            </div>
+                        )
+                    })}
+                </>
+            )}
         </div>
     )
 }

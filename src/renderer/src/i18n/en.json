@@ -2,6 +2,7 @@
     "common": {
         "install": "Install",
         "nonPakWarning": "Unsupported format",
+        "openLink": "Open link",
         "installing": "Installing…",
         "downloading": "Downloading…",
         "installed": "Installed",

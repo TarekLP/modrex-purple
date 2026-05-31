@@ -34,6 +34,7 @@ pub fn run() {
             commands::api::get_mod,
             commands::api::get_latest_file,
             commands::api::list_mod_files,
+            commands::api::list_mod_links,
             commands::api::list_categories,
             commands::api::register_download,
             // settings

@@ -113,6 +113,11 @@ pub async fn list_mod_files(app: AppHandle, mod_id: u32) -> Result<Value, String
 }
 
 #[tauri::command]
+pub async fn list_mod_links(app: AppHandle, mod_id: u32) -> Result<Value, String> {
+    api_get(&app, &format!("/mods/{}/links", mod_id), vec![]).await
+}
+
+#[tauri::command]
 pub async fn list_categories(app: AppHandle) -> Result<Value, String> {
     api_get(&app, &format!("/games/{}/categories", GAME_ID), vec![]).await
 }

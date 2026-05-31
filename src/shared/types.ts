@@ -45,9 +45,10 @@ export interface Mod {
     download: {
         id: number
         version: string
-        size: number
+        size: number | undefined
         type: string | undefined
-        download_url: string
+        download_url: string | undefined
+        url?: string
     } | null
     user: { name: string }
     // Extended fields returned by getMod full response
@@ -62,6 +63,18 @@ export interface Mod {
     tags?: ModTag[]
 }
 
+export interface ModLink {
+    id: number
+    name: string
+    url: string
+    desc?: string
+    label?: string
+    version?: string
+    image_id?: number | null
+    downloads?: number
+    created_at?: string
+}
+
 export interface ModFile {
     id: number
     name: string
@@ -69,6 +82,7 @@ export interface ModFile {
     size: number
     type: string | undefined
     download_url: string
+    url?: string
     image_id?: number | null
     desc?: string
     label?: string
