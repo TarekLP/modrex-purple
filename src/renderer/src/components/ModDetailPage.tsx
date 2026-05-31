@@ -317,41 +317,49 @@ export function ModDetailPage({
                             </button>
                         </>
                     )}
-                    {mod && mod.has_download && installedFiles.length === 0 && (
+                    {mod && installedFiles.length === 0 && (
                         <div className="flex flex-col items-end gap-1">
-                            {mod.download?.url && !mod.download.download_url ? (
-                                <button
-                                    onClick={() => api.openExternal(mod.download!.url!)}
-                                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
-                                >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                    {t('common.openLink')}
-                                </button>
-                            ) : (
-                                <button
-                                    disabled={!canAct}
-                                    onClick={handleInstall}
-                                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-                                >
-                                    {!actionLoading && <Download className="w-3.5 h-3.5" />}
-                                    {actionLoading
-                                        ? downloadProgress
-                                            ? downloadProgress.total > 0
-                                                ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                                : t('common.downloading')
-                                            : t('common.installing')
-                                        : t('common.install')}
-                                </button>
-                            )}
-                            {isUnsupportedFormat(
-                                mod.download?.type,
-                                mod.download?.download_url
-                            ) && (
-                                <span className="flex items-center gap-1 text-xs text-warning">
-                                    <AlertTriangle className="w-3 h-3 shrink-0" />
-                                    {t('common.nonPakWarning')}
+                            {mod.disable_mod_managers ? (
+                                <span className="text-xs text-text-muted">
+                                    {t('common.modManagerDisabled')}
                                 </span>
-                            )}
+                            ) : mod.has_download ? (
+                                <>
+                                    {mod.download?.url && !mod.download.download_url ? (
+                                        <button
+                                            onClick={() => api.openExternal(mod.download!.url!)}
+                                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                            {t('common.openLink')}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            disabled={!canAct}
+                                            onClick={handleInstall}
+                                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                        >
+                                            {!actionLoading && <Download className="w-3.5 h-3.5" />}
+                                            {actionLoading
+                                                ? downloadProgress
+                                                    ? downloadProgress.total > 0
+                                                        ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                                        : t('common.downloading')
+                                                    : t('common.installing')
+                                                : t('common.install')}
+                                        </button>
+                                    )}
+                                    {isUnsupportedFormat(
+                                        mod.download?.type,
+                                        mod.download?.download_url
+                                    ) && (
+                                        <span className="flex items-center gap-1 text-xs text-warning">
+                                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                                            {t('common.nonPakWarning')}
+                                        </span>
+                                    )}
+                                </>
+                            ) : null}
                         </div>
                     )}
                 </div>
@@ -805,7 +813,12 @@ function DownloadsTab({
                             ) : (
                                 <>
                                     <button
-                                        disabled={!gamePath || isInstalling || isInstalled}
+                                        disabled={
+                                            !gamePath ||
+                                            isInstalling ||
+                                            isInstalled ||
+                                            !!mod.disable_mod_managers
+                                        }
                                         onClick={() => handleInstallFile(file)}
                                         className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
                                             isInstalled
@@ -1074,7 +1087,7 @@ function DepRow({
             >
                 {dep.optional ? t('detail.deps.badgeOptional') : t('detail.deps.badgeRequired')}
             </span>
-            {!isInstalled && mod.has_download && gamePath && (
+            {!isInstalled && mod.has_download && !mod.disable_mod_managers && gamePath && (
                 <button
                     disabled={installing}
                     onClick={handleInstall}

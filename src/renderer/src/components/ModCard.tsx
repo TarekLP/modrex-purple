@@ -122,7 +122,10 @@ export function ModCard({
                 </div>
                 {!installed && (
                     <button
-                        disabled={!canAct || !mod.has_download}
+                        disabled={!canAct || !mod.has_download || !!mod.disable_mod_managers}
+                        title={
+                            mod.disable_mod_managers ? t('common.modManagerDisabled') : undefined
+                        }
                         onClick={onInstall}
                         className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                     >

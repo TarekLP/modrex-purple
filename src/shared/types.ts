@@ -41,6 +41,7 @@ export interface Mod {
     bumped_at: string
     category_id: number
     has_download: boolean
+    disable_mod_managers?: boolean
     thumbnail: { file: string; has_thumb?: boolean } | null
     download: {
         id: number

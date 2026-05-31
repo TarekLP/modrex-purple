@@ -194,6 +194,10 @@ export function BrowsePage({
         setLoadingMod(modId)
         try {
             const fullMod = await getCachedMod(modId)
+            if (fullMod.disable_mod_managers) {
+                setError(t('common.modManagerDisabled'))
+                return
+            }
             let checkType: string | undefined
             let checkUrl: string | undefined
             if (fullMod.download === null) {

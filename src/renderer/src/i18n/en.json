@@ -9,6 +9,7 @@
         "remove": "Remove",
         "fileMissing": "File missing",
         "zipArchiveBroken": "Broken archive",
+        "modManagerDisabled": "The author has disabled mod manager downloads.",
         "fix": "Fix",
         "loading": "Loading…",
         "cancel": "Cancel",

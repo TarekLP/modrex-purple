@@ -275,13 +275,19 @@ export function FileSelectModal({
                         >
                             {t('common.close')}
                         </button>
-                        <button
-                            disabled={!gamePath || isBusy || pendingCount === 0}
-                            onClick={handleInstallSelected}
-                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                            {t('fileSelect.installSelected', { count: pendingCount })}
-                        </button>
+                        {mod.disable_mod_managers ? (
+                            <span className="text-xs text-text-muted">
+                                {t('common.modManagerDisabled')}
+                            </span>
+                        ) : (
+                            <button
+                                disabled={!gamePath || isBusy || pendingCount === 0}
+                                onClick={handleInstallSelected}
+                                className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {t('fileSelect.installSelected', { count: pendingCount })}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
