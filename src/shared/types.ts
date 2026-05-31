@@ -96,6 +96,7 @@ export interface Category {
 }
 
 export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
+export const GAME_STORAGE_KEY = 'pd3'
 
 export interface ModFolder {
     id: string

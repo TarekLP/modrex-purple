@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { t } from '../i18n'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
-import { THUMBNAIL_BASE_URL } from '../../../shared/types'
+import { THUMBNAIL_BASE_URL, GAME_STORAGE_KEY } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
@@ -34,7 +34,7 @@ import { api } from '../api'
 type ViewMode = 'grid' | 'list'
 
 function getSavedViewMode(): ViewMode {
-    const saved = localStorage.getItem('pd3mm:installed-view')
+    const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:installed-view`)
     return saved === 'list' ? 'list' : 'grid'
 }
 
@@ -63,7 +63,10 @@ export function InstalledPage({
     const [updateError, setUpdateError] = useState<string | null>(null)
     const [showUpdates, setShowUpdates] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-    const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
+    const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => {
+        const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:collapsed-folders`)
+        return saved ? new Set(JSON.parse(saved) as string[]) : new Set()
+    })
     const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
     const [renameValue, setRenameValue] = useState('')
     const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null)
@@ -101,7 +104,7 @@ export function InstalledPage({
 
     function setView(mode: ViewMode) {
         setViewMode(mode)
-        localStorage.setItem('pd3mm:installed-view', mode)
+        localStorage.setItem(`modrex:${GAME_STORAGE_KEY}:installed-view`, mode)
     }
 
     const rootChildren = computeChildren(displayMods, folders, null, visibleFolderIds)
@@ -157,6 +160,10 @@ export function InstalledPage({
         setCollapsedFolders((prev) => {
             const next = new Set(prev)
             next.has(folderId) ? next.delete(folderId) : next.add(folderId)
+            localStorage.setItem(
+                `modrex:${GAME_STORAGE_KEY}:collapsed-folders`,
+                JSON.stringify([...next])
+            )
             return next
         })
     }

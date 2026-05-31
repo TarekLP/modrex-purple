@@ -7,9 +7,10 @@ import type {
     InstalledMod,
     Category,
     ModDependency,
+    SortOption,
 } from '../../../shared/types'
+import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
-import type { SortOption } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
@@ -53,6 +54,11 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'name', label: t('browse.sort.name') },
 ]
 
+function getSavedSort(): SortOption {
+    const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:browse-sort`)
+    return SORT_OPTIONS.some((o) => o.value === saved) ? (saved as SortOption) : 'bumped_at'
+}
+
 export function BrowsePage({
     gamePath,
     installed,
@@ -63,7 +69,7 @@ export function BrowsePage({
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
-    const [sort, setSort] = useState<SortOption>('bumped_at')
+    const [sort, setSort] = useState<SortOption>(getSavedSort)
     const [result, setResult] = useState<Paginated<Mod> | null>(null)
     const [categories, setCategories] = useState<Category[]>([])
     const [loadingMods, setLoadingMods] = useState(false)
@@ -143,6 +149,7 @@ export function BrowsePage({
     }
 
     function handleSortChange(val: string) {
+        localStorage.setItem(`modrex:${GAME_STORAGE_KEY}:browse-sort`, val)
         setSort(val as SortOption)
         setPage(1)
     }
