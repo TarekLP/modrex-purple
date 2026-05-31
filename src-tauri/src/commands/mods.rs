@@ -1100,6 +1100,28 @@ fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
     save_state(state_path, &state);
 }
 
+fn resolve_zip_download(downloaded: PathBuf) -> Result<(PathBuf, Option<PathBuf>), String> {
+    if !is_zip(&downloaded) {
+        return Ok((downloaded, None));
+    }
+    let entries = list_pak_entries_in_zip(&downloaded)?;
+    match entries.len() {
+        0 => {
+            let _ = fs::remove_file(&downloaded);
+            Err("This mod is packaged as a ZIP archive with no .pak files inside.".to_string())
+        }
+        1 => {
+            let ext = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
+            extract_zip_entry(&downloaded, &entries[0], &ext)?;
+            Ok((ext, Some(downloaded)))
+        }
+        _ => {
+            let _ = fs::remove_file(&downloaded);
+            Err("This mod is packaged as a ZIP archive with multiple .pak files. Extract the one you want and drag-drop it into Modrex.".to_string())
+        }
+    }
+}
+
 fn mark_zip_archives(game_path: &str, folders: &[ModFolder], mut mods: Vec<InstalledMod>) -> Vec<InstalledMod> {
     for m in &mut mods {
         if m.missing == Some(true) {
@@ -1392,7 +1414,8 @@ pub async fn install_mod(
         return Err("Mod has no download".to_string());
     };
 
-    let tmp = download_file(&app, &download_url, &file_type).await?;
+    let downloaded = download_file(&app, &download_url, &file_type).await?;
+    let (tmp, zip_orig) = resolve_zip_download(downloaded)?;
 
     let result = async {
         let sha256 = compute_sha256(&tmp).await?;
@@ -1447,6 +1470,9 @@ pub async fn install_mod(
     .await;
 
     let _ = tokio::fs::remove_file(&tmp).await;
+    if let Some(orig) = zip_orig {
+        let _ = tokio::fs::remove_file(&orig).await;
+    }
     result
 }
 
@@ -1461,7 +1487,8 @@ pub async fn install_file(
     mod_version: String,
     game_path: String,
 ) -> Result<(), String> {
-    let tmp = download_file(&app, &download_url, &file_type).await?;
+    let downloaded = download_file(&app, &download_url, &file_type).await?;
+    let (tmp, zip_orig) = resolve_zip_download(downloaded)?;
 
     let result = async {
         let sha256 = compute_sha256(&tmp).await?;
@@ -1508,6 +1535,9 @@ pub async fn install_file(
     .await;
 
     let _ = tokio::fs::remove_file(&tmp).await;
+    if let Some(orig) = zip_orig {
+        let _ = tokio::fs::remove_file(&orig).await;
+    }
     result
 }
 
