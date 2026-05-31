@@ -23,6 +23,8 @@ import { Select } from './Select'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
+import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import { t } from '../i18n'
 import { api } from '../api'
@@ -89,6 +91,7 @@ export function BrowsePage({
     } | null>(null)
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
     const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: Mod } | null>(null)
+    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
@@ -213,7 +216,13 @@ export function BrowsePage({
             }
             await doInstall(modId, fullMod)
         } catch (e) {
-            setError(String(e))
+            const errStr = String(e)
+            const zipData = parseZipMultiPak(errStr)
+            if (zipData) {
+                setZipPickerData(zipData)
+            } else {
+                setError(errStr)
+            }
         } finally {
             setLoadingMod(null)
         }
@@ -314,6 +323,14 @@ export function BrowsePage({
                     installedFiles={installed.filter((m) => m.id === fileSelect.mod.id)}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setFileSelect(null)}
+                />
+            )}
+            {zipPickerData && gamePath && (
+                <ZipPickerModal
+                    payload={zipPickerData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setZipPickerData(null)}
                 />
             )}
             {depsWarning && (

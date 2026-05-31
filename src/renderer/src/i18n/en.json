@@ -155,6 +155,11 @@
         "subtitle": "{modName} — select which files to install.",
         "installSelected": "Install Selected ({count})"
     },
+    "zipPicker": {
+        "title": "Install from archive",
+        "subtitle": "{modName} — choose which version to install.",
+        "install": "Install"
+    },
     "depsWarning": {
         "title": "Missing required dependencies",
         "body": "This mod requires the following mods to be installed:",

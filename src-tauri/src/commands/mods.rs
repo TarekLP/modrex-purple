@@ -1416,7 +1416,20 @@ pub async fn install_mod(
     };
 
     let downloaded = download_file(&app, &download_url, &file_type).await?;
-    let (tmp, zip_orig) = resolve_zip_download(downloaded)?;
+    let (tmp, zip_orig) = match resolve_zip_download(downloaded) {
+        Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
+            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
+                v["modId"] = serde_json::json!(remote_id);
+                v["modName"] = serde_json::json!(&mod_name);
+                v["fileId"] = serde_json::json!(file_id);
+                v["fileType"] = serde_json::json!(&file_type);
+                v["modVersion"] = serde_json::json!(&mod_version);
+                return Err(format!("ZIP_MULTI_PAK:{}", v));
+            }
+            return Err(e);
+        }
+        result => result?,
+    };
 
     let result = async {
         let sha256 = compute_sha256(&tmp).await?;
@@ -1489,7 +1502,20 @@ pub async fn install_file(
     game_path: String,
 ) -> Result<(), String> {
     let downloaded = download_file(&app, &download_url, &file_type).await?;
-    let (tmp, zip_orig) = resolve_zip_download(downloaded)?;
+    let (tmp, zip_orig) = match resolve_zip_download(downloaded) {
+        Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
+            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
+                v["modId"] = serde_json::json!(mod_id);
+                v["modName"] = serde_json::json!(&mod_name);
+                v["fileId"] = serde_json::json!(file_id);
+                v["fileType"] = serde_json::json!(&file_type);
+                v["modVersion"] = serde_json::json!(&mod_version);
+                return Err(format!("ZIP_MULTI_PAK:{}", v));
+            }
+            return Err(e);
+        }
+        result => result?,
+    };
 
     let result = async {
         let sha256 = compute_sha256(&tmp).await?;

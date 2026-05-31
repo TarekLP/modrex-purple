@@ -20,6 +20,8 @@ import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
+import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import { api } from '../api'
 
@@ -68,6 +70,7 @@ export function ModDetailPage({
     const [showDepsWarning, setShowDepsWarning] = useState(false)
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
+    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -159,6 +162,13 @@ export function ModDetailPage({
         try {
             await api.installMod(mod.id, gamePath)
             await onRefreshInstalled()
+        } catch (e) {
+            const zipData = parseZipMultiPak(String(e))
+            if (zipData) {
+                setZipPickerData(zipData)
+            } else {
+                throw e
+            }
         } finally {
             setActionLoading(false)
         }
@@ -235,6 +245,14 @@ export function ModDetailPage({
 
     return (
         <div className="h-full flex flex-col">
+            {zipPickerData && gamePath && (
+                <ZipPickerModal
+                    payload={zipPickerData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setZipPickerData(null)}
+                />
+            )}
             {showFileSelect && mod && (
                 <FileSelectModal
                     mod={mod}
@@ -628,6 +646,7 @@ function DownloadsTab({
     const [uninstallingId, setUninstallingId] = useState<number | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
     const [formatWarningFile, setFormatWarningFile] = useState<ModFile | null>(null)
+    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
 
     async function handleUninstallFile(file: ModFile) {
         if (!gamePath) return
@@ -666,7 +685,13 @@ function DownloadsTab({
             )
             await onRefreshInstalled()
         } catch (e) {
-            setInstallError(String(e))
+            const errStr = String(e)
+            const zipData = parseZipMultiPak(errStr)
+            if (zipData) {
+                setZipPickerData(zipData)
+            } else {
+                setInstallError(errStr)
+            }
         } finally {
             setInstallingId(null)
         }
@@ -681,6 +706,14 @@ function DownloadsTab({
 
     return (
         <div className="flex flex-col gap-3">
+            {zipPickerData && gamePath && (
+                <ZipPickerModal
+                    payload={zipPickerData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setZipPickerData(null)}
+                />
+            )}
             {formatWarningFile && (
                 <NonPakConfirmModal
                     onConfirm={() => {
