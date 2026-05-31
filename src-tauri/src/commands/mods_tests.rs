@@ -1,6 +1,98 @@
 use super::*;
+use std::fs::File;
 use std::io::Write;
 use tempfile::NamedTempFile;
+
+fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
+    let f = NamedTempFile::new().unwrap();
+    let mut zip = zip::ZipWriter::new(File::create(f.path()).unwrap());
+    let opts = zip::write::SimpleFileOptions::default();
+    for (name, data) in entries {
+        zip.start_file(*name, opts).unwrap();
+        zip.write_all(data).unwrap();
+    }
+    zip.finish().unwrap();
+    f
+}
+
+// ── is_zip ────────────────────────────────────────────────────────────────────
+
+#[test]
+fn is_zip_detects_zip_magic() {
+    let zip = make_zip(&[("mod.pak", b"fake pak content")]);
+    assert!(is_zip(zip.path()));
+}
+
+#[test]
+fn is_zip_rejects_non_zip() {
+    let mut f = NamedTempFile::new().unwrap();
+    f.write_all(b"\xC1\x83\x2A\x9E").unwrap();
+    assert!(!is_zip(f.path()));
+}
+
+#[test]
+fn is_zip_rejects_empty_file() {
+    let f = NamedTempFile::new().unwrap();
+    assert!(!is_zip(f.path()));
+}
+
+// ── list_pak_entries_in_zip ───────────────────────────────────────────────────
+
+#[test]
+fn list_pak_entries_finds_pak_files() {
+    let zip = make_zip(&[
+        ("readme.txt", b"hello"),
+        ("weapons_default.pak", b"pak content"),
+        ("weapons_alt.pak", b"pak content 2"),
+    ]);
+    let mut entries = list_pak_entries_in_zip(zip.path()).unwrap();
+    entries.sort();
+    assert_eq!(entries, vec!["weapons_alt.pak", "weapons_default.pak"]);
+}
+
+#[test]
+fn list_pak_entries_empty_when_no_paks() {
+    let zip = make_zip(&[("readme.txt", b"hello"), ("data.bin", b"data")]);
+    let entries = list_pak_entries_in_zip(zip.path()).unwrap();
+    assert!(entries.is_empty());
+}
+
+#[test]
+fn list_pak_entries_handles_nested_paths() {
+    let zip = make_zip(&[("Real Weapon Names/weapons_default.pak", b"content")]);
+    let entries = list_pak_entries_in_zip(zip.path()).unwrap();
+    assert_eq!(entries, vec!["Real Weapon Names/weapons_default.pak"]);
+}
+
+// ── extract_zip_entry ─────────────────────────────────────────────────────────
+
+#[test]
+fn extract_zip_entry_writes_correct_bytes() {
+    let content = b"this is a pak file";
+    let zip = make_zip(&[("my_mod.pak", content)]);
+    let dest = NamedTempFile::new().unwrap();
+    extract_zip_entry(zip.path(), "my_mod.pak", dest.path()).unwrap();
+    let written = std::fs::read(dest.path()).unwrap();
+    assert_eq!(written, content);
+}
+
+#[test]
+fn extract_zip_entry_errors_on_missing_entry() {
+    let zip = make_zip(&[("other.pak", b"content")]);
+    let dest = NamedTempFile::new().unwrap();
+    let result = extract_zip_entry(zip.path(), "nonexistent.pak", dest.path());
+    assert!(result.is_err());
+}
+
+#[test]
+fn extract_zip_entry_handles_nested_path() {
+    let content = b"nested pak content";
+    let zip = make_zip(&[("Real Weapon Names/weapons_default.pak", content)]);
+    let dest = NamedTempFile::new().unwrap();
+    extract_zip_entry(zip.path(), "Real Weapon Names/weapons_default.pak", dest.path()).unwrap();
+    let written = std::fs::read(dest.path()).unwrap();
+    assert_eq!(written, content);
+}
 
 // ── strip_priority_prefix ─────────────────────────────────────────────────
 

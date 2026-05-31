@@ -6,7 +6,8 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
-use std::fs;
+use std::fs::{self, File};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 use uuid::Uuid;
@@ -220,6 +221,40 @@ pub async fn compute_sha256(path: &Path) -> Result<String, String> {
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
     Ok(hex::encode(hasher.finalize()))
+}
+
+// ── ZIP detection ─────────────────────────────────────────────────────────────
+
+fn is_zip(path: &Path) -> bool {
+    let mut buf = [0u8; 4];
+    File::open(path)
+        .and_then(|mut f| f.read_exact(&mut buf))
+        .is_ok()
+        && buf == [0x50, 0x4B, 0x03, 0x04]
+}
+
+fn list_pak_entries_in_zip(path: &Path) -> Result<Vec<String>, String> {
+    let file = File::open(path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+    let mut entries = Vec::new();
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        if !entry.is_dir() && entry.name().ends_with(".pak") {
+            entries.push(entry.name().to_string());
+        }
+    }
+    Ok(entries)
+}
+
+fn extract_zip_entry(zip_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
+    let file = File::open(zip_path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+    let mut entry = archive
+        .by_name(entry_name)
+        .map_err(|_| format!("entry '{}' not found in archive", entry_name))?;
+    let mut dest_file = File::create(dest).map_err(|e| e.to_string())?;
+    std::io::copy(&mut entry, &mut dest_file).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 // ── Directory scanning ────────────────────────────────────────────────────────
