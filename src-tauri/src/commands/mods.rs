@@ -1116,8 +1116,9 @@ fn resolve_zip_download(downloaded: PathBuf) -> Result<(PathBuf, Option<PathBuf>
             Ok((ext, Some(downloaded)))
         }
         _ => {
-            let _ = fs::remove_file(&downloaded);
-            Err("This mod is packaged as a ZIP archive with multiple .pak files. Extract the one you want and drag-drop it into Modrex.".to_string())
+            let zip_path = downloaded.to_string_lossy().to_string();
+            let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries });
+            Err(format!("ZIP_MULTI_PAK:{}", payload))
         }
     }
 }
@@ -1538,6 +1539,70 @@ pub async fn install_file(
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
+    result
+}
+
+#[tauri::command]
+pub async fn install_from_zip_entry(
+    app: AppHandle,
+    zip_path: String,
+    entry_name: String,
+    mod_id: i64,
+    mod_name: String,
+    file_id: i64,
+    file_type: String,
+    mod_version: String,
+    game_path: String,
+    folder_id: Option<String>,
+) -> Result<(), String> {
+    let zip = PathBuf::from(&zip_path);
+    let ext = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
+
+    let result = async {
+        extract_zip_entry(&zip, &entry_name, &ext)?;
+        let sha256 = compute_sha256(&ext).await?;
+        let uid = file_id.to_string();
+        let sp = get_state_path(&game_path);
+        let saved = read_state(&sp);
+        let existing_entry = saved.mods.iter()
+            .find(|m| m.uid == uid)
+            .or_else(|| if mod_id > 0 { saved.mods.iter().find(|m| m.id == mod_id) } else { None });
+        let effective_folder_id = folder_id.or_else(|| existing_entry.and_then(|e| e.folder_id.clone()));
+        let filename = saved.mods.iter().find(|m| m.uid == uid)
+            .map(|m| m.filename.clone())
+            .unwrap_or_else(|| pak_filename(&mod_name));
+
+        install_mod_from_path(
+            &game_path,
+            &sp,
+            InstalledMod {
+                uid,
+                id: mod_id,
+                name: mod_name,
+                version: mod_version,
+                filename,
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                file_id: Some(file_id),
+                file_type: Some(file_type),
+                sha256: Some(sha256),
+                ..InstalledMod::default()
+            },
+            &ext,
+            effective_folder_id,
+        )?;
+
+        let _ = reqwest::Client::new()
+            .post(format!("https://api.modworkshop.net/files/{}/register-download", file_id))
+            .send()
+            .await;
+
+        Ok::<(), String>(())
+    }
+    .await;
+
+    let _ = tokio::fs::remove_file(&ext).await;
+    let _ = tokio::fs::remove_file(&zip).await;
     result
 }
 

@@ -48,6 +48,7 @@ pub fn run() {
             commands::mods::get_installed,
             commands::mods::install_mod,
             commands::mods::install_file,
+            commands::mods::install_from_zip_entry,
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,

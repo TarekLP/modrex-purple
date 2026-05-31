@@ -113,6 +113,29 @@ export const api = {
             gamePath,
         })
     },
+    installFromZipEntry(
+        zipPath: string,
+        entryName: string,
+        modId: number,
+        modName: string,
+        fileId: number,
+        fileType: string,
+        modVersion: string,
+        gamePath: string,
+        folderId?: string | null
+    ): Promise<void> {
+        return invoke('install_from_zip_entry', {
+            zipPath,
+            entryName,
+            modId,
+            modName,
+            fileId,
+            fileType,
+            modVersion,
+            gamePath,
+            folderId,
+        })
+    },
     uninstallMod(uid: string, gamePath: string): Promise<void> {
         return invoke('uninstall_mod', { uid, gamePath })
     },
