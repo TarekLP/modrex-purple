@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Mod, InstalledMod } from '../../../shared/types'
-import { getCachedMod } from '../modCache'
+import { getCachedMod, getModCacheEntry } from '../modCache'
 
 const TTL_MS = 5 * 60 * 1000
 const FETCH_CONCURRENCY = 5
@@ -29,7 +29,33 @@ export function useModData(installed: InstalledMod[]): {
     const fetchedAt = useRef<Map<number, number>>(new Map())
 
     useEffect(() => {
+        // Sync pre-populate from localStorage-backed cache for immediate render
         const now = Date.now()
+        const fromCache: [number, Mod][] = []
+        for (const m of installed) {
+            if (m.id < 0) continue
+            const entry = getModCacheEntry(m.id)
+            if (!entry) continue
+            fromCache.push([m.id, entry.mod])
+            // Mark as fetched so fresh entries skip the API call below
+            if (now - entry.fetchedAt < TTL_MS) {
+                fetchedAt.current.set(m.id, entry.fetchedAt)
+            }
+        }
+        if (fromCache.length > 0) {
+            setModData((prev) => {
+                const next = new Map(prev)
+                let changed = false
+                for (const [id, mod] of fromCache) {
+                    if (!next.has(id)) {
+                        next.set(id, mod)
+                        changed = true
+                    }
+                }
+                return changed ? next : prev
+            })
+        }
+
         const stale = installed.filter((m) => {
             if (m.id < 0) return false
             const t = fetchedAt.current.get(m.id)
