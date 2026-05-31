@@ -123,9 +123,12 @@ pub async fn list_categories(app: AppHandle) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub async fn register_download(file_id: u32) -> Result<(), String> {
-    Client::new()
+pub async fn register_download(app: AppHandle, file_id: u32) -> Result<(), String> {
+    let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
+    http_client()
         .post(format!("{}/files/{}/register-download", BASE, file_id))
+        .header("User-Agent", user_agent(&app))
+        .timeout(Duration::from_secs(15))
         .send()
         .await
         .map_err(|e| e.to_string())?;
