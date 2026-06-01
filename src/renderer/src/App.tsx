@@ -83,6 +83,10 @@ export default function App() {
     }, [refreshGamePath, refreshInstalled])
 
     useEffect(() => {
+        api.checkForUpdates().catch(() => {})
+    }, [])
+
+    useEffect(() => {
         const offAvailable = api.onUpdateAvailable(({ version, strategy, body, releaseUrl }) => {
             setUpdate({
                 version,
