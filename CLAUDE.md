@@ -55,10 +55,11 @@ Missing any of these three breaks the channel silently at the type level.
     - `get_folder_path(folders, folder_id)` — recursive, builds slash-separated path from `parentId` chain (e.g. `001_weapons/002_rifles`)
     - `disabled_mod_path` appends `.disabled` to the `.pak` filename — the extension change is what actually disables mods (UE5 scans all subdirectories of `Paks/`, so subdirectory alone is insufficient)
     - `reconcile_state` — marks missing files `missing: true` without dropping them; migrates legacy `disabled/foo.pak` to `disabled/foo.pak.disabled`; when `~mods.bak` exists reads state from there
-    - `get_installed` command runs the full identification pipeline: upgrade synthetic mods (SHA256 → index lookup), find untracked paks, auto-create folder entries for nested paths, reconcile by SHA256, identify remaining untracked files. After identification, untracked paks whose `id` matches an already-tracked remote mod id are skipped (`tracked_ids` guard) — prevents stale on-disk files from overwriting a freshly-installed state entry.
+    - `get_installed` runs a full identification pipeline: (1) SHA256 index lookup upgrades negative-id entries whose hash is now in the index; (2) name-suffix pass re-assigns positive ids to entries whose base name matches a known mod; (3) untracked paks on disk are found, auto-folder-created for nested paths, reconciled by SHA256 against existing state, then identified via index/name/fallback. New untracked entries are inserted into a `by_uid` map with `entry().or_insert(...)` — existing entries are never overwritten by a newly-scanned file for the same uid.
     - `install_mod` stores the **mod-level** version from `/mods/{id}` (not the file-level version from `/files/latest`) so the stored version matches what `getCachedMod` returns and `useModData` compares against. It also inherits `folder_id` from the existing state entry when the caller omits it (the normal update path from the UI passes no `folderId`), and the state write in `install_mod_from_path` propagates errors instead of silently swallowing them.
-    - **Multi-file installs**: `install_mod_from_path` finds `existing` by `uid` only (not by `id`) so each file in a multi-file mod accumulates independently. `install_mod` (single-file update path) explicitly pre-removes the old pak when exactly one same-id entry exists and the new uid isn't already tracked — never do this removal inside `install_mod_from_path`.
-    - **Negative-id re-identification**: `get_installed` scans state after `reconcile_state` and re-assigns the positive remote id to any negative-id entry whose base name (stripping trailing ` <number>` suffix) matches a known positive-id mod. This handles multi-file mods where pak files arrive with file-id suffixes in their names.
+    - **Multi-file installs**: `install_mod_from_path` finds `existing` by `uid` only (not by `id`) so each file in a multi-file mod accumulates independently. `install_mod` (single-file update path) explicitly pre-removes the old pak when exactly one same-id entry exists and the new uid isn't already tracked — never do this removal inside `install_mod_from_path`. Old-file deletion compares full paths (not just filenames) so a pak that moves between folders with the same priority prefix is still cleaned up.
+    - **ZIP installs**: `install_from_zip_entry` — uid per entry (`{file_id}_{entry_stem}`); SHA256 match reuses the existing entry's uid so a reinstall moves the entry in-place rather than duplicating; `folder_id` is always the caller-provided value (never inherited from existing state entries, so zip paks land at root alongside the mod's primary pak). The zip file is kept alive across all entry calls; the frontend calls `delete_temp_file` once after all entries are done.
+    - **Negative-id re-identification**: two passes in `get_installed` — SHA256 index lookup first (upgrades mods identified before their hash was indexed), then name-suffix matching (base name match against known positive-id mods for multi-file mods with file-id suffixes in their names).
     - `InstalledMod.uid` has `#[serde(default)]` so state files predating the uid field still deserialize
 
 - **`launchers/`** — split into focused files so touching one launcher never requires touching another:
@@ -91,11 +92,11 @@ Missing any of these three breaks the channel silently at the type level.
 
 `GAME_STORAGE_KEY = 'pd3'` is exported from `src/shared/types.ts` — the single place to change when multi-game support is added (it becomes a runtime value at that point). Always import it rather than hardcoding `'pd3'`.
 
-**`formatCheck.ts`** — `SUPPORTED_FORMATS = new Set(['pak'])` is the single source of truth for installable formats. `isUnsupportedFormat(type, downloadUrl?)` returns `true` when a file should show a warning before installing: checks `type` first; if undefined, infers from the URL path's file extension. Every install entry point (`BrowsePage.handleInstall`, `ModDetailPage.handleInstall`, `DownloadsTab.handleInstallFile`, `FileSelectModal.handleInstallSelected`) must call this before proceeding. When adding support for a new file format, add it to `SUPPORTED_FORMATS` here.
+**`formatCheck.ts`** — `SUPPORTED_FORMATS = new Set(['pak', 'zip'])` is the single source of truth for installable formats. `isUnsupportedFormat(type, downloadUrl?)` returns `true` when a file should show a warning before installing: checks `type` first; if undefined, infers from the URL path's file extension. Every install entry point (`BrowsePage.handleInstall`, `ModDetailPage.handleInstall`, `DownloadsTab.handleInstallFile`, `FileSelectModal.handleInstallSelected`) must call this before proceeding. When adding support for a new file format, add it to `SUPPORTED_FORMATS` here.
 
 **`hooks/useModData.ts`** — fetches remote mod metadata for all installed mods. On each `installed` change, it first synchronously pre-populates `modData` from `getModCacheEntry` (instant, no API call) and marks fresh entries in `fetchedAt` so they skip the network fetch. Then it fires the async batch fetch for stale entries: 5 concurrent per batch with 200 ms between batches. Per-mod TTL (5 min) is tracked in a `useRef` so re-renders don't re-trigger fetches. Negative-id mods are never fetched and never added to `failedIds` (the `id >= 0` skeleton guard depends on this). Returns `modData: Map<number, Mod>`, `failedIds: Set<number>`, and `updatable: InstalledMod[]`. `updatable` deduplicates by `id` and skips any mod where the latest remote version is already installed (handles multi-file mods that share an `id`).
 
-**`hooks/installedUtils.ts`** — pure data helpers: `computeChildren(mods, folders, parentId, visibleFolderIds?)` builds and sorts children (mods before folders, both descending by priority) — the optional `visibleFolderIds` set, when provided, filters out folders not in it (used by the installed-page search filter); `groupChildren` collapses consecutive mod runs into `root-group` grid slots; `filterInstalled(mods, folders, query)` returns matching mods and the set of all ancestor folder IDs that must remain visible.
+**`hooks/installedUtils.ts`** — pure data helpers: `normalizeModScopes(mods)` — for rendering only, returns a copy of mods where all entries for the same positive id are reassigned to a single `folderId` (root wins if any entry is there; otherwise majority scope). Called in `InstalledPage` as `renderMods = normalizeModScopes(displayMods)` before passing to `computeChildren`. `computeChildren(mods, folders, parentId, visibleFolderIds?)` builds and sorts children (mods before folders, both descending by priority) — filters out folders that have no mods in the normalized array (prevents empty auto-created folders from appearing); the optional `visibleFolderIds` set filters folders not matched by search. `groupChildren` collapses consecutive mod runs into `root-group` grid slots; `filterInstalled(mods, folders, query)` returns matching mods and the set of all ancestor folder IDs that must remain visible.
 
 **`hooks/useDragDrop.ts`** — all DnD state and handlers. `dragDropEnabled: false` in `tauri.conf.json` is required — without it Tauri's native file-drop intercepts HTML5 drag events on Windows.
 
@@ -109,7 +110,7 @@ t('common.install')
 t('browse.modCount', { total: 42 })
 ```
 
-`t(key, vars?)` is fully type-safe — TypeScript errors on unknown keys. Top-level namespaces: `common`, `app`, `topBar`, `sidebar`, `browse`, `installed`, `detail`, `embed`, `fileSelect`, `depsWarning`, `settings`.
+`t(key, vars?)` is fully type-safe — TypeScript errors on unknown keys. Top-level namespaces: `common`, `app`, `topBar`, `sidebar`, `browse`, `installed`, `detail`, `embed`, `fileSelect`, `zipPicker`, `depsWarning`, `settings`.
 
 ### Styling
 
@@ -122,6 +123,8 @@ Icons: `lucide-react`. Platform SVGs (Steam, Epic, Xbox, Windows, Linux) live in
 **Skeleton guard**: render a skeleton only when `!apiMod && !failedIds.has(id) && id >= 0`. The `id >= 0` is load-bearing — negative-id (unrecognized) mods are never fetched and never added to `failedIds`, so without it they render as permanent skeletons.
 
 **Confirm dialogs**: never use `window.confirm`. Two patterns: (1) scoped to a container — `fooId: string | null` state + `absolute inset-0 bg-black/60` backdrop (see `deletingFolderId` in `InstalledPage.tsx`); (2) global overlay needed from multiple places — `fixed inset-0 z-50` (see `NonPakConfirmModal.tsx`).
+
+**ZIP install flow**: `ZipPickerModal` handles multi-pak ZIPs — all entries pre-selected, installs sequentially, calls `api.deleteTempFile(zipPath)` after all entries finish. `parseZipMultiPak(errStr)` is a utility exported from `ZipPickerModal.tsx` used by every install entry point to detect and parse the `ZIP_MULTI_PAK:{...}` error string. `FileSelectModal` handles ZIP_MULTI_PAK inline: it pauses its install loop (via a Promise resolved by `zipResolveRef`), renders `ZipPickerModal` after its own main div (so it appears on top at the same `z-50`), then resumes with the next file when ZipPickerModal closes. When adding a new install entry point that calls a Rust install command, handle `parseZipMultiPak` in the catch block.
 
 ## Key domain facts
 
@@ -144,7 +147,7 @@ Icons: `lucide-react`. Platform SVGs (Steam, Epic, Xbox, Windows, Linux) live in
 
 ## Testing
 
-Rust unit tests live in separate `*_tests.rs` files, referenced from the module via `#[cfg(test)] #[path = "foo_tests.rs"] mod tests;`. 53 tests across 4 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` crate is in `[dev-dependencies]` for filesystem tests.
+Rust unit tests live in separate `*_tests.rs` files, referenced from the module via `#[cfg(test)] #[path = "foo_tests.rs"] mod tests;`. 62 tests across 4 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` crate is in `[dev-dependencies]` for filesystem tests.
 
 Modules with tests: `mods.rs` (pure functions + state I/O), `launchers/mod.rs` (VDF parser + launcher identification), `settings.rs` (JSON roundtrip), `mod_index.rs` (in-memory SQLite queries).
 
