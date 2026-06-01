@@ -1,7 +1,0 @@
-- ZIP mods now install directly — single-pak ZIPs extract automatically, multi-pak ZIPs let you pick which variants to install
-- Mods with files spread across folders now appear as a single card
-- Mods marked by their author as incompatible with mod managers can no longer be installed
-- Launcher icons now shown in Settings
-- Browse page is now instant when switching tabs — results are cached
-- Installed page loads instantly on restart
-- Sort order and sidebar state are remembered between sessions
