@@ -151,6 +151,11 @@ Rust unit tests live in separate `*_tests.rs` files, referenced from the module 
 
 Modules with tests: `mods.rs` (pure functions + state I/O), `launchers/mod.rs` (VDF parser + launcher identification), `settings.rs` (JSON roundtrip), `mod_index.rs` (in-memory SQLite queries).
 
+## Rules
+
+- **Never run any git command that touches the remote** (push, push tag, delete tag, force push) or is destructive locally (tag -d, reset --hard). Always write out the commands and let the user run them.
+- **Never break the in-app update pipeline.** The updater endpoint is `https://github.com/modrexio/modrex/releases/latest/download/latest.json`. Any change to draft/publish behavior, `latest.json` generation, or the startup update check can silently stop all users on the current release from ever receiving future updates. Verify the full pipeline end-to-end when touching anything updater-related.
+
 ## Agent skills
 
 Reusable skills live in `.agents/skills/` and are listed in `AGENTS.md`. Available as Claude Code slash commands:
