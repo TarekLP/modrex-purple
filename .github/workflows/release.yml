@@ -145,9 +145,9 @@ jobs:
                   mv "$(find ~/rpmbuild/RPMS -name '*.rpm' | head -1)" linux-rpm/pd3-mod-manager.rpm
                   rm -f "$RPM_SRC"
 
+            - uses: actions/checkout@v4
+
             - name: Generate latest.json (tauri-plugin-updater)
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   TAG=$GITHUB_REF_NAME
                   DATE=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
@@ -157,8 +157,7 @@ jobs:
                   LINUX_APPIMAGE=$(ls linux-appimage/*.AppImage | head -1)
                   LINUX_FILENAME=$(basename "$LINUX_APPIMAGE")
                   LINUX_SIG=$(cat "linux-appimage/${LINUX_FILENAME}.sig")
-                  NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
-                    -f tag_name="$TAG" --jq '.body' 2>/dev/null || echo "")
+                  NOTES=$(cat .release-notes 2>/dev/null || echo "")
                   jq -n \
                     --arg version "${{ steps.ver.outputs.version }}" \
                     --arg notes "$NOTES" \
@@ -209,7 +208,7 @@ jobs:
               with:
                   name: Modrex ${{ github.ref_name }}
                   draft: true
-                  generate_release_notes: true
+                  body_path: .release-notes
                   files: |
                       windows-nsis/*.exe
                       linux-deb/pd3-mod-manager.deb

@@ -25,6 +25,9 @@ writeFileSync(
         .replace(/modrex_[\d.]+_amd64\.AppImage/g, `modrex_${version}_amd64.AppImage`)
 )
 
-execSync('git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock README.md', {
-    stdio: 'inherit',
-})
+execSync(
+    'git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock README.md .release-notes',
+    {
+        stdio: 'inherit',
+    }
+)
