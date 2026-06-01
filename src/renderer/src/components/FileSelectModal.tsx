@@ -4,6 +4,8 @@ import type { Mod, ModFile, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
 import { MarkdownContent } from './MarkdownContent'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
+import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import { api } from '../api'
 
@@ -37,6 +39,8 @@ export function FileSelectModal({
     const [installingId, setInstallingId] = useState<number | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
     const [showFormatWarning, setShowFormatWarning] = useState(false)
+    const [zipPayload, setZipPayload] = useState<ZipMultiPakPayload | null>(null)
+    const zipResolveRef = useRef<(() => void) | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -104,7 +108,22 @@ export function FileSelectModal({
                     return next
                 })
             } catch (e) {
-                setInstallError(String(e))
+                const errStr = String(e)
+                const zipData = parseZipMultiPak(errStr)
+                if (zipData) {
+                    setZipPayload(zipData)
+                    await new Promise<void>((resolve) => {
+                        zipResolveRef.current = resolve
+                    })
+                    setZipPayload(null)
+                    setSelectedIds((prev) => {
+                        const next = new Set(prev)
+                        next.delete(file.id)
+                        return next
+                    })
+                    continue
+                }
+                setInstallError(errStr)
                 setInstallingId(null)
                 return
             }
@@ -120,15 +139,6 @@ export function FileSelectModal({
 
     return (
         <>
-            {showFormatWarning && (
-                <NonPakConfirmModal
-                    onConfirm={() => {
-                        setShowFormatWarning(false)
-                        doInstallSelected()
-                    }}
-                    onCancel={() => setShowFormatWarning(false)}
-                />
-            )}
             <div
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
                 onClick={onClose}
@@ -291,6 +301,26 @@ export function FileSelectModal({
                     </div>
                 </div>
             </div>
+            {showFormatWarning && (
+                <NonPakConfirmModal
+                    onConfirm={() => {
+                        setShowFormatWarning(false)
+                        doInstallSelected()
+                    }}
+                    onCancel={() => setShowFormatWarning(false)}
+                />
+            )}
+            {zipPayload && gamePath && (
+                <ZipPickerModal
+                    payload={zipPayload}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => {
+                        zipResolveRef.current?.()
+                        zipResolveRef.current = null
+                    }}
+                />
+            )}
         </>
     )
 }
