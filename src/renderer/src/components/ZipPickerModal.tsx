@@ -38,16 +38,17 @@ export function ZipPickerModal({
     onRefreshInstalled,
     onClose,
 }: Props) {
-    const [selected, setSelected] = useState<string | null>(
-        payload.entries.length === 1 ? payload.entries[0] : null
-    )
-    const [installing, setInstalling] = useState(false)
+    const [selected, setSelected] = useState<Set<string>>(() => new Set(payload.entries))
+    const [installingEntry, setInstallingEntry] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
     } | null>(null)
     const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const isBusy = installingEntry !== null
+    const pendingCount = selected.size
 
     useEffect(() => {
         return api.onDownloadProgress(({ downloaded, total }) => {
@@ -59,35 +60,54 @@ export function ZipPickerModal({
 
     useEffect(() => {
         function onKey(e: KeyboardEvent) {
-            if (e.key === 'Escape') onClose()
+            if (e.key === 'Escape' && !isBusy) onClose()
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
-    }, [onClose])
+    }, [onClose, isBusy])
+
+    function toggle(entry: string) {
+        setSelected((prev) => {
+            const next = new Set(prev)
+            next.has(entry) ? next.delete(entry) : next.add(entry)
+            return next
+        })
+    }
+
+    function toggleAll() {
+        setSelected((prev) =>
+            prev.size === payload.entries.length ? new Set() : new Set(payload.entries)
+        )
+    }
 
     async function handleInstall() {
-        if (!selected) return
-        setInstalling(true)
+        if (selected.size === 0) return
         setError(null)
-        try {
-            await api.installFromZipEntry(
-                payload.zipPath,
-                selected,
-                payload.modId,
-                payload.modName,
-                payload.fileId,
-                payload.fileType,
-                payload.modVersion,
-                gamePath,
-                folderId
-            )
-            await onRefreshInstalled()
-            onClose()
-        } catch (e) {
-            setError(String(e))
-        } finally {
-            setInstalling(false)
+        const toInstall = payload.entries.filter((e) => selected.has(e))
+        for (const entry of toInstall) {
+            setInstallingEntry(entry)
+            try {
+                await api.installFromZipEntry(
+                    payload.zipPath,
+                    entry,
+                    payload.modId,
+                    payload.modName,
+                    payload.fileId,
+                    payload.fileType,
+                    payload.modVersion,
+                    gamePath,
+                    folderId
+                )
+                await onRefreshInstalled()
+            } catch (e) {
+                setInstallingEntry(null)
+                setError(String(e))
+                return
+            }
         }
+        setInstallingEntry(null)
+        await api.deleteTempFile(payload.zipPath)
+        onClose()
     }
 
     function displayName(entry: string) {
@@ -97,10 +117,10 @@ export function ZipPickerModal({
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-            onClick={onClose}
+            onClick={!isBusy ? onClose : undefined}
         >
             <div
-                className="bg-surface-raised border border-border rounded-lg shadow-xl w-[480px] max-h-[70vh] flex flex-col"
+                className="bg-surface-raised border border-border rounded-lg shadow-xl w-[520px] max-h-[75vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
@@ -111,8 +131,9 @@ export function ZipPickerModal({
                         </p>
                     </div>
                     <button
-                        onClick={onClose}
-                        className="text-text-subtle hover:text-text transition-colors shrink-0 mt-0.5"
+                        onClick={!isBusy ? onClose : undefined}
+                        disabled={isBusy}
+                        className="text-text-subtle hover:text-text transition-colors shrink-0 mt-0.5 disabled:opacity-40"
                     >
                         <X className="w-4 h-4" />
                     </button>
@@ -139,50 +160,80 @@ export function ZipPickerModal({
                             {error}
                         </div>
                     )}
-                    {payload.entries.map((entry) => (
-                        <button
-                            key={entry}
-                            onClick={() => !installing && setSelected(entry)}
-                            disabled={installing}
-                            className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-colors w-full ${
-                                selected === entry
-                                    ? 'bg-accent/5 border-accent/40'
-                                    : 'bg-surface-hover border-border hover:bg-surface-active'
-                            } disabled:opacity-40 disabled:cursor-not-allowed`}
-                        >
-                            <input
-                                type="radio"
-                                checked={selected === entry}
-                                onChange={() => setSelected(entry)}
-                                disabled={installing}
-                                onClick={(e) => e.stopPropagation()}
-                                className="accent-accent w-4 h-4 shrink-0"
-                            />
-                            <span className="text-sm font-medium truncate">
-                                {displayName(entry)}
-                            </span>
-                        </button>
-                    ))}
+                    <div
+                        onClick={() => !isBusy && toggleAll()}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-hover cursor-pointer hover:bg-surface-active transition-colors"
+                    >
+                        <input
+                            type="checkbox"
+                            checked={selected.size === payload.entries.length}
+                            ref={(el) => {
+                                if (el)
+                                    el.indeterminate =
+                                        selected.size > 0 && selected.size < payload.entries.length
+                            }}
+                            onChange={toggleAll}
+                            disabled={isBusy}
+                            onClick={(e) => e.stopPropagation()}
+                            className="accent-accent w-4 h-4 shrink-0"
+                        />
+                        <span className="text-xs font-medium text-text-muted">
+                            {selected.size === payload.entries.length
+                                ? t('zipPicker.deselectAll')
+                                : t('zipPicker.selectAll', { count: payload.entries.length })}
+                        </span>
+                    </div>
+                    {payload.entries.map((entry) => {
+                        const isInstalling = installingEntry === entry
+                        return (
+                            <div
+                                key={entry}
+                                onClick={() => !isBusy && toggle(entry)}
+                                className={`flex items-center gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
+                                    selected.has(entry)
+                                        ? 'bg-accent/5 border-accent/40'
+                                        : 'bg-surface-hover border-border'
+                                } ${isBusy ? 'cursor-not-allowed opacity-60' : 'hover:bg-surface-active'}`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selected.has(entry)}
+                                    onChange={() => toggle(entry)}
+                                    disabled={isBusy}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="accent-accent w-4 h-4 shrink-0"
+                                />
+                                <span className="text-sm font-medium truncate flex-1">
+                                    {displayName(entry)}
+                                </span>
+                                {isInstalling && (
+                                    <span className="text-xs text-text-muted shrink-0">
+                                        {downloadProgress && downloadProgress.total > 0
+                                            ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                            : t('common.installing')}
+                                    </span>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
 
                 <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
                     <button
-                        onClick={onClose}
-                        disabled={installing}
+                        onClick={!isBusy ? onClose : undefined}
+                        disabled={isBusy}
                         className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
                     >
                         {t('common.cancel')}
                     </button>
                     <button
-                        disabled={!selected || installing}
+                        disabled={pendingCount === 0 || isBusy}
                         onClick={handleInstall}
                         className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                        {installing
-                            ? downloadProgress && downloadProgress.total > 0
-                                ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                : t('common.installing')
-                            : t('zipPicker.install')}
+                        {isBusy
+                            ? t('common.installing')
+                            : t('zipPicker.installSelected', { count: pendingCount })}
                     </button>
                 </div>
             </div>

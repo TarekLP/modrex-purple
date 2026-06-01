@@ -493,17 +493,16 @@ pub fn install_mod_from_path(
         .map_err(|e| e.to_string())?;
 
     if let Some(ref ex) = existing {
-        if ex.filename != filename {
-            let ex_rel = get_folder_path(&state.folders, ex.folder_id.as_deref());
-            let old = if ex.enabled {
-                active_mod_path(game_path, &ex.filename, ex_rel.as_deref())
-            } else {
-                disabled_mod_path(game_path, &ex.filename, ex_rel.as_deref())
-            };
-            if old.exists() {
-                if let Err(e) = fs::remove_file(&old) {
-                    log::warn!("install: remove old pak {old:?}: {e}");
-                }
+        let ex_rel = get_folder_path(&state.folders, ex.folder_id.as_deref());
+        let old = if ex.enabled {
+            active_mod_path(game_path, &ex.filename, ex_rel.as_deref())
+        } else {
+            disabled_mod_path(game_path, &ex.filename, ex_rel.as_deref())
+        };
+        let new_active = active_mod_path(game_path, &filename, folder_rel.as_deref());
+        if old != new_active && old.exists() {
+            if let Err(e) = fs::remove_file(&old) {
+                log::warn!("install: remove old pak {old:?}: {e}");
             }
         }
     }
@@ -1156,7 +1155,18 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
 
     let mut state = reconcile_state(&game_path, &state_path);
 
-    // Re-identify synthetic negative-id entries whose name ends in " <number>" (a file id
+    // Upgrade negative-id entries whose SHA256 is now in the index (added after initial install).
+    for m in &mut state.mods {
+        if m.id >= 0 { continue; }
+        let Some(ref sha) = m.sha256 else { continue };
+        let Some(hit) = mod_index::lookup_sha256(&app, sha) else { continue };
+        m.id = hit.mod_remote_id;
+        m.name = hit.mod_name;
+        m.version = hit.version;
+        m.file_id = Some(hit.file_remote_id);
+    }
+
+    // Re-identify remaining negative-id entries whose name ends in " <number>" (a file id
     // suffix appended during fallback identification). If the base name matches a
     // positively-identified tracked mod, assign that mod's id so all pak files from the
     // same mod are grouped together in the UI.
@@ -1298,7 +1308,10 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
 
     // Phase 2 — identify remaining untracked files via mod-index, then fallback.
     let now = Utc::now().to_rfc3339();
-    let mut new_mods: Vec<InstalledMod> = Vec::new();
+
+    // Build by_uid before the loop so uid collision detection can check against it.
+    let mut by_uid: HashMap<String, InstalledMod> =
+        state.mods.iter().map(|m| (m.uid.clone(), m.clone())).collect();
 
     for ((rel_path, enabled), sha256) in untracked.iter().zip(sha256s.iter()) {
         // Already reconciled to an existing tracked entry above
@@ -1348,12 +1361,20 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
             }
         };
 
+        // Fall back to filename uid when file_id already exists — multi-pak ZIPs share one file_id.
         let uid = match file_id {
-            Some(fid) => fid.to_string(),
+            Some(fid) => {
+                let candidate = fid.to_string();
+                if by_uid.contains_key(&candidate) {
+                    strip_priority_prefix(&filename).to_string()
+                } else {
+                    candidate
+                }
+            }
             None => strip_priority_prefix(&filename).to_string(),
         };
 
-        new_mods.push(InstalledMod {
+        by_uid.entry(uid.clone()).or_insert(InstalledMod {
             uid,
             id,
             name,
@@ -1368,15 +1389,6 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         });
     }
 
-    let tracked_ids: HashSet<i64> = state.mods.iter().filter(|m| m.id > 0).map(|m| m.id).collect();
-    let mut by_uid: HashMap<String, InstalledMod> =
-        state.mods.iter().map(|m| (m.uid.clone(), m.clone())).collect();
-    for m in new_mods {
-        if m.id > 0 && tracked_ids.contains(&m.id) {
-            continue;
-        }
-        by_uid.insert(m.uid.clone(), m);
-    }
     let final_mods: Vec<InstalledMod> = by_uid.into_values().collect();
 
     save_state(&state_path, &ModsState { folders: state.folders.clone(), mods: final_mods.clone() });
@@ -1570,7 +1582,6 @@ pub async fn install_file(
 
 #[tauri::command]
 pub async fn install_from_zip_entry(
-    app: AppHandle,
     zip_path: String,
     entry_name: String,
     mod_id: i64,
@@ -1584,19 +1595,32 @@ pub async fn install_from_zip_entry(
     let zip = PathBuf::from(&zip_path);
     let ext = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
 
+    // Derive a per-entry uid so each pak from the same ZIP file gets its own state slot.
+    let entry_stem = std::path::Path::new(&entry_name)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(&entry_name);
+    let entry_filename = std::path::Path::new(&entry_name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(&entry_name)
+        .to_string();
+    let uid = format!("{}_{}", file_id, entry_stem);
+
     let result = async {
         extract_zip_entry(&zip, &entry_name, &ext)?;
         let sha256 = compute_sha256(&ext).await?;
-        let uid = file_id.to_string();
         let sp = get_state_path(&game_path);
         let saved = read_state(&sp);
-        let existing_entry = saved.mods.iter()
-            .find(|m| m.uid == uid)
-            .or_else(|| if mod_id > 0 { saved.mods.iter().find(|m| m.id == mod_id) } else { None });
-        let effective_folder_id = folder_id.or_else(|| existing_entry.and_then(|e| e.folder_id.clone()));
-        let filename = saved.mods.iter().find(|m| m.uid == uid)
-            .map(|m| m.filename.clone())
-            .unwrap_or_else(|| pak_filename(&mod_name));
+
+        // Reuse existing uid by SHA256 so a reinstall moves the entry in-place rather than duplicating.
+        let sha256_match = saved.mods.iter().find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
+        let uid = sha256_match
+            .map(|m| m.uid.clone())
+            .unwrap_or(uid);
+
+        // Never inherit folderId from existing entries; zip paks must land where the caller specifies.
+        let effective_folder_id = folder_id;
 
         install_mod_from_path(
             &game_path,
@@ -1606,7 +1630,7 @@ pub async fn install_from_zip_entry(
                 id: mod_id,
                 name: mod_name,
                 version: mod_version,
-                filename,
+                filename: entry_filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
                 file_id: Some(file_id),
@@ -1627,9 +1651,14 @@ pub async fn install_from_zip_entry(
     }
     .await;
 
+    // Keep the zip alive for multi-entry installs; only remove the extracted temp here.
     let _ = tokio::fs::remove_file(&ext).await;
-    let _ = tokio::fs::remove_file(&zip).await;
     result
+}
+
+#[tauri::command]
+pub async fn delete_temp_file(path: String) {
+    let _ = tokio::fs::remove_file(&path).await;
 }
 
 #[tauri::command]

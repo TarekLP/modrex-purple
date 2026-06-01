@@ -160,8 +160,10 @@
     },
     "zipPicker": {
         "title": "Install from archive",
-        "subtitle": "{modName} — choose which version to install.",
-        "install": "Install"
+        "subtitle": "{modName} — select which files to install.",
+        "installSelected": "Install Selected ({count})",
+        "selectAll": "Select all ({count})",
+        "deselectAll": "Deselect all"
     },
     "depsWarning": {
         "title": "Missing required dependencies",

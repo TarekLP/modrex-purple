@@ -113,6 +113,9 @@ export const api = {
             gamePath,
         })
     },
+    deleteTempFile(path: string): Promise<void> {
+        return invoke('delete_temp_file', { path })
+    },
     installFromZipEntry(
         zipPath: string,
         entryName: string,

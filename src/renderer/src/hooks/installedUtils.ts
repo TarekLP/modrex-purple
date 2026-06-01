@@ -57,6 +57,39 @@ export function filterInstalled(
     return { mods: matching, visibleFolderIds }
 }
 
+export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
+    const groups = new Map<number, InstalledMod[]>()
+    for (const m of mods) {
+        if (m.id < 0) continue
+        const g = groups.get(m.id)
+        if (g) g.push(m)
+        else groups.set(m.id, [m])
+    }
+
+    const overrides = new Map<string, string | null>()
+    for (const [, group] of groups) {
+        const scopes = group.map((m) => m.folderId ?? null)
+        const distinct = new Set(scopes.map(String))
+        if (distinct.size <= 1) continue
+
+        // Root wins if any entry is there; prevents zip paks from being split across scopes.
+        const canonical: string | null = scopes.some((s) => s === null)
+            ? null
+            : (() => {
+                  const counts = new Map<string | null, number>()
+                  for (const s of scopes) counts.set(s, (counts.get(s) ?? 0) + 1)
+                  return [...counts.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))[0]
+              })()
+
+        for (const m of group) {
+            if ((m.folderId ?? null) !== canonical) overrides.set(m.uid, canonical)
+        }
+    }
+
+    if (overrides.size === 0) return mods
+    return mods.map((m) => (overrides.has(m.uid) ? { ...m, folderId: overrides.get(m.uid) } : m))
+}
+
 export function computeChildren(
     mods: InstalledMod[],
     folders: ModFolder[],
@@ -75,7 +108,10 @@ export function computeChildren(
         items.push({ type: 'mod', mods: groupMods })
     }
     for (const folder of folders.filter(
-        (f) => f.parentId === parentId && (!visibleFolderIds || visibleFolderIds.has(f.id))
+        (f) =>
+            f.parentId === parentId &&
+            (!visibleFolderIds || visibleFolderIds.has(f.id)) &&
+            getAllModsInFolder(mods, folders, f.id).length > 0
     )) {
         items.push({ type: 'folder', folder })
     }

@@ -28,6 +28,7 @@ import {
     computeChildren,
     groupChildren,
     getAllModsInFolder,
+    normalizeModScopes,
     filterInstalled,
     syntheticMod,
 } from '../hooks/installedUtils'
@@ -110,7 +111,9 @@ export function InstalledPage({
         localStorage.setItem(`modrex:${GAME_STORAGE_KEY}:installed-view`, mode)
     }
 
-    const rootChildren = computeChildren(displayMods, folders, null, visibleFolderIds)
+    const renderMods = normalizeModScopes(displayMods)
+
+    const rootChildren = computeChildren(renderMods, folders, null, visibleFolderIds)
 
     // --- Folder management ---
 
@@ -437,7 +440,7 @@ export function InstalledPage({
         const isDropBeforeThis = dropTarget?.kind === 'before-child' && dropTarget.id === folder.id
         const isDropInto = dropTarget?.kind === 'into-folder' && dropTarget.folderId === folder.id
 
-        const children = computeChildren(displayMods, folders, folder.id, visibleFolderIds)
+        const children = computeChildren(renderMods, folders, folder.id, visibleFolderIds)
         const directModGroups = children.filter(
             (c): c is { type: 'mod'; mods: InstalledMod[] } => c.type === 'mod'
         )
