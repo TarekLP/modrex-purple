@@ -22,6 +22,7 @@ jobs:
 
             - uses: dtolnay/rust-toolchain@stable
             - uses: swatinem/rust-cache@v2
+              continue-on-error: true
               with:
                   workspaces: src-tauri
 
