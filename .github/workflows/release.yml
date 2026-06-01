@@ -146,6 +146,8 @@ jobs:
                   rm -f "$RPM_SRC"
 
             - name: Generate latest.json (tauri-plugin-updater)
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   TAG=$GITHUB_REF_NAME
                   DATE=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
@@ -155,14 +157,17 @@ jobs:
                   LINUX_APPIMAGE=$(ls linux-appimage/*.AppImage | head -1)
                   LINUX_FILENAME=$(basename "$LINUX_APPIMAGE")
                   LINUX_SIG=$(cat "linux-appimage/${LINUX_FILENAME}.sig")
+                  NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+                    -f tag_name="$TAG" --jq '.body' 2>/dev/null || echo "")
                   jq -n \
                     --arg version "${{ steps.ver.outputs.version }}" \
+                    --arg notes "$NOTES" \
                     --arg pub_date "$DATE" \
                     --arg win_sig "$WIN_SIG" \
                     --arg win_url "https://github.com/modrexio/modrex/releases/download/$TAG/$WIN_FILENAME" \
                     --arg linux_sig "$LINUX_SIG" \
                     --arg linux_url "https://github.com/modrexio/modrex/releases/download/$TAG/$LINUX_FILENAME" \
-                    '{version: $version, notes: "", pub_date: $pub_date, platforms: {"windows-x86_64": {signature: $win_sig, url: $win_url}, "linux-x86_64": {signature: $linux_sig, url: $linux_url}}}' \
+                    '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {"windows-x86_64": {signature: $win_sig, url: $win_url}, "linux-x86_64": {signature: $linux_sig, url: $linux_url}}}' \
                     > latest.json
 
             # compat: serves Electron clients still on electron-updater
