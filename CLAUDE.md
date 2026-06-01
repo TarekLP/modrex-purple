@@ -49,18 +49,22 @@ Missing any of these three breaks the channel silently at the type level.
 
 - **`download.rs`** — streams file to `temp_dir()/pd3-mod-{uuid}.{ext}`, emitting `download:progress` Tauri events with `{ downloaded, total }`. `total` is `0` when the server omits `content-length` — callers must handle the indeterminate case.
 
-- **`mods.rs`** — the most complex module. Key helpers:
-    - `mods_base(game_path)` / `disabled_base` / `get_state_path` build canonical paths
-    - `apply_priority_prefix(filename, priority)` / `strip_priority_prefix(filename)` — filenames on disk are always `NNN_name.pak`
-    - `get_folder_path(folders, folder_id)` — recursive, builds slash-separated path from `parentId` chain (e.g. `001_weapons/002_rifles`)
-    - `disabled_mod_path` appends `.disabled` to the `.pak` filename — the extension change is what actually disables mods (UE5 scans all subdirectories of `Paks/`, so subdirectory alone is insufficient)
-    - `reconcile_state` — marks missing files `missing: true` without dropping them; migrates legacy `disabled/foo.pak` to `disabled/foo.pak.disabled`; when `~mods.bak` exists reads state from there
-    - `get_installed` runs a full identification pipeline: (1) SHA256 index lookup upgrades negative-id entries whose hash is now in the index; (2) name-suffix pass re-assigns positive ids to entries whose base name matches a known mod; (3) untracked paks on disk are found, auto-folder-created for nested paths, reconciled by SHA256 against existing state, then identified via index/name/fallback. New untracked entries are inserted into a `by_uid` map with `entry().or_insert(...)` — existing entries are never overwritten by a newly-scanned file for the same uid.
-    - `install_mod` stores the **mod-level** version from `/mods/{id}` (not the file-level version from `/files/latest`) so the stored version matches what `getCachedMod` returns and `useModData` compares against. It also inherits `folder_id` from the existing state entry when the caller omits it (the normal update path from the UI passes no `folderId`), and the state write in `install_mod_from_path` propagates errors instead of silently swallowing them.
-    - **Multi-file installs**: `install_mod_from_path` finds `existing` by `uid` only (not by `id`) so each file in a multi-file mod accumulates independently. `install_mod` (single-file update path) explicitly pre-removes the old pak when exactly one same-id entry exists and the new uid isn't already tracked — never do this removal inside `install_mod_from_path`. Old-file deletion compares full paths (not just filenames) so a pak that moves between folders with the same priority prefix is still cleaned up.
-    - **ZIP installs**: `install_from_zip_entry` — uid per entry (`{file_id}_{entry_stem}`); SHA256 match reuses the existing entry's uid so a reinstall moves the entry in-place rather than duplicating; `folder_id` is always the caller-provided value (never inherited from existing state entries, so zip paks land at root alongside the mod's primary pak). The zip file is kept alive across all entry calls; the frontend calls `delete_temp_file` once after all entries are done.
-    - **Negative-id re-identification**: two passes in `get_installed` — SHA256 index lookup first (upgrades mods identified before their hash was indexed), then name-suffix matching (base name match against known positive-id mods for multi-file mods with file-id suffixes in their names).
-    - `InstalledMod.uid` has `#[serde(default)]` so state files predating the uid field still deserialize
+- **`mods/`** — the most complex module, split into focused subfiles. `mod.rs` holds all `#[tauri::command]` functions and re-exports; the logic lives in:
+    - `types.rs` — `InstalledMod`, `ModFolder`, `ModsState`, `InstalledResponse`, `TopLevelItem`
+    - `naming.rs` — `strip_priority_prefix` / `apply_priority_prefix` (filenames on disk are always `NNN_name.pak`), `pak_filename`, `hash_filename`, `make_uid`
+    - `paths.rs` — `mods_base` / `disabled_base` / `get_state_path` / `active_mod_path` / `disabled_mod_path` / `find_untracked_paks`
+    - `state.rs` — `read_state`, `save_state`, `get_folder_path` (recursive, builds slash-separated path from `parentId` chain), `reconcile_state` (marks missing files `missing: true`; migrates legacy `.disabled` paths; when `~mods.bak` exists reads state from there)
+    - `zip.rs` — `is_zip`, zip extraction helpers, `compute_sha256`, `resolve_zip_download`, `mark_zip_archives`
+    - `install.rs` — `install_mod_from_path`, `uninstall_mod_op`, `enable_mod_op`, `disable_mod_op`
+    - `reorder.rs` — `reorder_mods_in_folder_op`, `move_mod_to_folder_op`, `reorder_children_op`
+    - `folders.rs` — `create_folder_op`, `move_folder_op`, `rename_folder_op`, `delete_folder_op`
+    - Key invariants:
+        - `disabled_mod_path` appends `.disabled` to the `.pak` filename — the extension change is what disables mods (UE5 scans all subdirectories of `Paks/`, so subdirectory alone is insufficient)
+        - `get_installed` identification pipeline: (1) SHA256 index lookup upgrades negative-id entries; (2) name-suffix pass re-assigns positive ids; (3) untracked paks are auto-folder-created, reconciled by SHA256, then identified via index/name/fallback. New untracked entries use `by_uid.entry().or_insert(...)` — existing entries are never overwritten.
+        - `install_mod` stores the **mod-level** version from `/mods/{id}` (not the file-level version from `/files/latest`). It inherits `folder_id` from existing state when the caller omits it.
+        - **Multi-file installs**: `install_mod_from_path` finds `existing` by `uid` only (not `id`). `install_mod` pre-removes the old pak when exactly one same-id entry exists — never do this inside `install_mod_from_path`.
+        - **ZIP installs**: `install_from_zip_entry` uid is `{file_id}_{entry_stem}`; SHA256 match reuses existing uid so reinstall moves in-place. `folder_id` is always caller-provided (never inherited from existing entries).
+        - `InstalledMod.uid` has `#[serde(default)]` so state files predating the uid field still deserialize
 
 - **`launchers/`** — split into focused files so touching one launcher never requires touching another:
     - `types.rs` — `GameDef` struct (`name`, `executable`, `process_name`, `steam?`, `epic?`, `xbox?`) and `Launcher` trait (`id`, `is_installed`, `find_game`, `identify_path`, `launch`)
@@ -147,9 +151,14 @@ Icons: `lucide-react`. Platform SVGs (Steam, Epic, Xbox, Windows, Linux) live in
 
 ## Testing
 
-Rust unit tests live in separate `*_tests.rs` files, referenced from the module via `#[cfg(test)] #[path = "foo_tests.rs"] mod tests;`. 62 tests across 4 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` crate is in `[dev-dependencies]` for filesystem tests.
+Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 62 tests across 4 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` crate is in `[dev-dependencies]` for filesystem tests.
 
-Modules with tests: `mods.rs` (pure functions + state I/O), `launchers/mod.rs` (VDF parser + launcher identification), `settings.rs` (JSON roundtrip), `mod_index.rs` (in-memory SQLite queries).
+- `mods/tests.rs` — pure functions + state I/O (naming, paths, zip, state)
+- `launchers/mod_tests.rs` — VDF parser + launcher identification
+- `settings_tests.rs` — JSON roundtrip
+- `mod_index_tests.rs` — in-memory SQLite queries
+
+`mods/` submodule uses `#[cfg(test)] pub(crate) use` to re-export private helpers so `tests.rs` can reach them via `use super::*`. The `::zip::` prefix is required in `tests.rs` to reference the external crate (not the local `mod zip` submodule).
 
 ## Rules
 
