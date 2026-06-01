@@ -1,0 +1,247 @@
+use std::fs;
+use std::path::Path;
+use super::naming::{apply_priority_prefix, strip_priority_prefix};
+use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
+use super::state::{get_folder_path, read_state, save_state};
+use super::types::{InstalledMod, TopLevelItem};
+
+pub fn reorder_mods_in_folder_op(
+    game_path: &str,
+    state_path: &Path,
+    folder_id: Option<&str>,
+    ordered_uids: &[String],
+) {
+    let mut state = read_state(state_path);
+    let folder_rel = get_folder_path(&state.folders, folder_id);
+    let total = ordered_uids.len() as i64;
+
+    for m in state.mods.iter_mut() {
+        if m.folder_id.as_deref() != folder_id {
+            continue;
+        }
+        let Some(pos) = ordered_uids.iter().position(|u| u == &m.uid) else { continue };
+        let priority = total - pos as i64;
+        let new_filename = apply_priority_prefix(&m.filename, priority);
+        if new_filename != m.filename {
+            let old = if m.enabled {
+                active_mod_path(game_path, &m.filename, folder_rel.as_deref())
+            } else {
+                disabled_mod_path(game_path, &m.filename, folder_rel.as_deref())
+            };
+            let new = if m.enabled {
+                active_mod_path(game_path, &new_filename, folder_rel.as_deref())
+            } else {
+                disabled_mod_path(game_path, &new_filename, folder_rel.as_deref())
+            };
+            if old.exists() {
+                if let Err(e) = fs::rename(&old, &new) {
+                    log::warn!("reorder: rename {old:?} -> {new:?}: {e}");
+                }
+            }
+            m.filename = new_filename;
+        }
+        m.priority = Some(priority);
+    }
+
+    save_state(state_path, &state);
+}
+
+pub fn move_mod_to_folder_op(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    target_folder_id: Option<String>,
+    target_position: usize,
+) {
+    let mut state = read_state(state_path);
+    let Some(moving) = state.mods.iter().find(|m| m.uid == uid).cloned() else { return };
+
+    let src_rel = get_folder_path(&state.folders, moving.folder_id.as_deref());
+    let tgt_rel = get_folder_path(&state.folders, target_folder_id.as_deref());
+
+    // Build ordered target list with the moved mod inserted at position
+    let mut target_mods: Vec<InstalledMod> = state
+        .mods
+        .iter()
+        .filter(|m| m.folder_id == target_folder_id && m.uid != uid)
+        .cloned()
+        .collect();
+    target_mods.sort_by(|a, b| b.priority.unwrap_or(0).cmp(&a.priority.unwrap_or(0)));
+    let pos = target_position.min(target_mods.len());
+    target_mods.insert(pos, moving.clone());
+    let total = target_mods.len() as i64;
+
+    // Ensure target directories exist
+    if let Some(r) = &tgt_rel {
+        if let Err(e) = fs::create_dir_all(mods_base(game_path).join(r)) {
+            log::warn!("move_to_folder: create_dir_all active: {e}");
+        }
+    }
+    if !moving.enabled {
+        let dis = match &tgt_rel {
+            Some(r) => disabled_base(game_path).join(r),
+            None => disabled_base(game_path),
+        };
+        if let Err(e) = fs::create_dir_all(&dis) {
+            log::warn!("move_to_folder: create_dir_all disabled: {e}");
+        }
+    }
+
+    for m in state.mods.iter_mut() {
+        let Some(p) = target_mods.iter().position(|tm| tm.uid == m.uid) else { continue };
+        let priority = total - p as i64;
+        let new_filename = apply_priority_prefix(&m.filename, priority);
+        let cur_rel = if m.uid == uid { src_rel.clone() } else { tgt_rel.clone() };
+
+        if new_filename != m.filename || (m.uid == uid && src_rel != tgt_rel) {
+            let old = if m.enabled {
+                active_mod_path(game_path, &m.filename, cur_rel.as_deref())
+            } else {
+                disabled_mod_path(game_path, &m.filename, cur_rel.as_deref())
+            };
+            let new = if m.enabled {
+                active_mod_path(game_path, &new_filename, tgt_rel.as_deref())
+            } else {
+                disabled_mod_path(game_path, &new_filename, tgt_rel.as_deref())
+            };
+            if old.exists() {
+                if let Err(e) = fs::rename(&old, &new) {
+                    log::warn!("move_to_folder: rename {old:?} -> {new:?}: {e}");
+                }
+            }
+        }
+
+        m.filename = new_filename;
+        m.priority = Some(priority);
+        m.folder_id = target_folder_id.clone();
+    }
+
+    save_state(state_path, &state);
+}
+
+pub fn reorder_children_op(
+    game_path: &str,
+    state_path: &Path,
+    parent_id: Option<&str>,
+    items: &[TopLevelItem],
+) {
+    let mut state = read_state(state_path);
+    let parent_rel = get_folder_path(&state.folders, parent_id);
+    let mods_dir = match &parent_rel {
+        Some(r) => mods_base(game_path).join(r),
+        None => mods_base(game_path),
+    };
+    let dis_dir = match &parent_rel {
+        Some(r) => disabled_base(game_path).join(r),
+        None => disabled_base(game_path),
+    };
+    let total = items.len() as i64;
+
+    // Collect folder renames using original state
+    struct FolderRename { id: String, old: String, new: String }
+    let folder_renames: Vec<FolderRename> = items
+        .iter()
+        .enumerate()
+        .filter_map(|(pos, item)| {
+            let TopLevelItem::Folder { id } = item else { return None };
+            let f = state.folders.iter().find(|f| &f.id == id)?;
+            let priority = total - pos as i64;
+            let new = apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority);
+            if new != f.disk_name {
+                Some(FolderRename { id: id.clone(), old: f.disk_name.clone(), new })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Collect mod renames using original state (folder path stable for direct children of parent)
+    struct ModRename { _uid: String, old: String, new: String, rel: Option<String>, enabled: bool }
+    let mod_renames: Vec<ModRename> = items
+        .iter()
+        .enumerate()
+        .filter_map(|(pos, item)| {
+            let TopLevelItem::Mod { id } = item else { return None };
+            let m = state.mods.iter().find(|m| &m.uid == id)?;
+            let priority = total - pos as i64;
+            let new = apply_priority_prefix(&m.filename, priority);
+            if new == m.filename {
+                return None;
+            }
+            let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
+            Some(ModRename { _uid: id.clone(), old: m.filename.clone(), new, rel, enabled: m.enabled })
+        })
+        .collect();
+
+    // Two-phase folder disk rename (avoids name collisions during reorder)
+    for r in &folder_renames {
+        let tmp = format!("__modrex_tmp_{}", r.id);
+        let a = mods_dir.join(&r.old);
+        if a.exists() {
+            if let Err(e) = fs::rename(&a, mods_dir.join(&tmp)) {
+                log::warn!("reorder_children: tmp rename active {a:?}: {e}");
+            }
+        }
+        let d = dis_dir.join(&r.old);
+        if d.exists() {
+            if let Err(e) = fs::rename(&d, dis_dir.join(&tmp)) {
+                log::warn!("reorder_children: tmp rename disabled {d:?}: {e}");
+            }
+        }
+    }
+    for r in &folder_renames {
+        let tmp = format!("__modrex_tmp_{}", r.id);
+        let a = mods_dir.join(&tmp);
+        if a.exists() {
+            if let Err(e) = fs::rename(&a, mods_dir.join(&r.new)) {
+                log::warn!("reorder_children: final rename active {a:?}: {e}");
+            }
+        }
+        let d = dis_dir.join(&tmp);
+        if d.exists() {
+            if let Err(e) = fs::rename(&d, dis_dir.join(&r.new)) {
+                log::warn!("reorder_children: final rename disabled {d:?}: {e}");
+            }
+        }
+    }
+
+    // Mod disk renames
+    for r in &mod_renames {
+        let old_path = if r.enabled {
+            active_mod_path(game_path, &r.old, r.rel.as_deref())
+        } else {
+            disabled_mod_path(game_path, &r.old, r.rel.as_deref())
+        };
+        let new_path = if r.enabled {
+            active_mod_path(game_path, &r.new, r.rel.as_deref())
+        } else {
+            disabled_mod_path(game_path, &r.new, r.rel.as_deref())
+        };
+        if old_path.exists() {
+            if let Err(e) = fs::rename(&old_path, &new_path) {
+                log::warn!("reorder_children: mod rename {old_path:?} -> {new_path:?}: {e}");
+            }
+        }
+    }
+
+    // Update state
+    for (pos, item) in items.iter().enumerate() {
+        let priority = total - pos as i64;
+        match item {
+            TopLevelItem::Folder { id } => {
+                if let Some(f) = state.folders.iter_mut().find(|f| &f.id == id) {
+                    f.disk_name = apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority);
+                    f.priority = priority;
+                }
+            }
+            TopLevelItem::Mod { id } => {
+                if let Some(m) = state.mods.iter_mut().find(|m| &m.uid == id) {
+                    m.filename = apply_priority_prefix(&m.filename, priority);
+                    m.priority = Some(priority);
+                }
+            }
+        }
+    }
+
+    save_state(state_path, &state);
+}

@@ -5,8 +5,8 @@ use tempfile::NamedTempFile;
 
 fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
     let f = NamedTempFile::new().unwrap();
-    let mut zip = zip::ZipWriter::new(File::create(f.path()).unwrap());
-    let opts = zip::write::SimpleFileOptions::default();
+    let mut zip = ::zip::ZipWriter::new(File::create(f.path()).unwrap());
+    let opts = ::zip::write::SimpleFileOptions::default();
     for (name, data) in entries {
         zip.start_file(*name, opts).unwrap();
         zip.write_all(data).unwrap();
