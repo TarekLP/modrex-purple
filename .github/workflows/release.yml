@@ -157,11 +157,9 @@ jobs:
                   LINUX_APPIMAGE=$(ls linux-appimage/*.AppImage | head -1)
                   LINUX_FILENAME=$(basename "$LINUX_APPIMAGE")
                   LINUX_SIG=$(cat "linux-appimage/${LINUX_FILENAME}.sig")
-                  NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
-                    -f tag_name="$TAG" --jq '.body' 2>/dev/null || echo "")
                   jq -n \
                     --arg version "${{ steps.ver.outputs.version }}" \
-                    --arg notes "$NOTES" \
+                    --arg notes "" \
                     --arg pub_date "$DATE" \
                     --arg win_sig "$WIN_SIG" \
                     --arg win_url "https://github.com/modrexio/modrex/releases/download/$TAG/$WIN_FILENAME" \
