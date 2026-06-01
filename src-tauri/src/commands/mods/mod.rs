@@ -114,7 +114,6 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         return Ok(InstalledResponse { mods, folders: state.folders, mods_hidden: false });
     }
 
-    // Auto-create folder entries for nested untracked paks
     {
         let mut folder_by_path: HashMap<String, String> = state
             .folders
@@ -149,14 +148,12 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         }
     }
 
-    // Build folder path to id map for lookups (computed once; used in both phases below)
     let folder_path_to_id: HashMap<String, String> = state
         .folders
         .iter()
         .filter_map(|f| get_folder_path(&state.folders, Some(&f.id)).map(|p| (p, f.id.clone())))
         .collect();
 
-    // Compute SHA256 for all untracked paks in parallel
     let sha_futures: Vec<_> = untracked
         .iter()
         .map(|(rel_path, enabled)| {
@@ -184,7 +181,6 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         .filter_map(|m| m.sha256.as_ref().map(|h| (h.clone(), m.uid.clone())))
         .collect();
 
-    let mut reconciled_uids: HashSet<String> = HashSet::new();
     let mut reconcile_ops: Vec<(String, String, bool, Option<String>)> = Vec::new();
 
     for ((rel_path, enabled), sha256) in untracked.iter().zip(sha256s.iter()) {
@@ -195,7 +191,6 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
         let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
         reconcile_ops.push((uid.clone(), filename, *enabled, folder_id));
-        reconciled_uids.insert(uid.clone());
     }
 
     for (uid, filename, enabled, folder_id) in reconcile_ops {
@@ -231,7 +226,6 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
             .unwrap_or(&filename);
         let stripped = strip_priority_prefix(stem);
 
-        // Try identification in priority order: SHA256, then name, then bare-number filename, then synthetic
         let stripped_name = stripped.replace('_', " ");
         let stripped_base = stripped
             .rfind('_')

@@ -50,7 +50,6 @@ pub fn move_folder_op(
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else { return };
     if folder.parent_id == target_parent_id { return; }
 
-    // Cycle detection
     let mut cur = target_parent_id.clone();
     while let Some(ref cid) = cur {
         if cid == folder_id { return; }
@@ -178,7 +177,6 @@ pub fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
         f.max(m)
     };
 
-    // Move direct child mods to target parent
     for m in state.mods.iter_mut() {
         if m.folder_id.as_deref() != Some(folder_id) { continue; }
         max_p += 1;
@@ -203,7 +201,6 @@ pub fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
         m.folder_id = target_parent_id.clone();
     }
 
-    // Move direct child folders to target parent
     let child_ids: Vec<String> = state
         .folders
         .iter()

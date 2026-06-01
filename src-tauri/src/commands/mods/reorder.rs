@@ -59,7 +59,6 @@ pub fn move_mod_to_folder_op(
     let src_rel = get_folder_path(&state.folders, moving.folder_id.as_deref());
     let tgt_rel = get_folder_path(&state.folders, target_folder_id.as_deref());
 
-    // Build ordered target list with the moved mod inserted at position
     let mut target_mods: Vec<InstalledMod> = state
         .mods
         .iter()
@@ -71,7 +70,6 @@ pub fn move_mod_to_folder_op(
     target_mods.insert(pos, moving.clone());
     let total = target_mods.len() as i64;
 
-    // Ensure target directories exist
     if let Some(r) = &tgt_rel {
         if let Err(e) = fs::create_dir_all(mods_base(game_path).join(r)) {
             log::warn!("move_to_folder: create_dir_all active: {e}");
@@ -137,7 +135,6 @@ pub fn reorder_children_op(
     };
     let total = items.len() as i64;
 
-    // Collect folder renames using original state
     struct FolderRename { id: String, old: String, new: String }
     let folder_renames: Vec<FolderRename> = items
         .iter()
@@ -155,8 +152,8 @@ pub fn reorder_children_op(
         })
         .collect();
 
-    // Collect mod renames using original state (folder path stable for direct children of parent)
-    struct ModRename { _uid: String, old: String, new: String, rel: Option<String>, enabled: bool }
+    // folder path is stable for direct children of parent, so compute renames from original state
+    struct ModRename { old: String, new: String, rel: Option<String>, enabled: bool }
     let mod_renames: Vec<ModRename> = items
         .iter()
         .enumerate()
@@ -169,7 +166,7 @@ pub fn reorder_children_op(
                 return None;
             }
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            Some(ModRename { _uid: id.clone(), old: m.filename.clone(), new, rel, enabled: m.enabled })
+            Some(ModRename { old: m.filename.clone(), new, rel, enabled: m.enabled })
         })
         .collect();
 
@@ -205,7 +202,6 @@ pub fn reorder_children_op(
         }
     }
 
-    // Mod disk renames
     for r in &mod_renames {
         let old_path = if r.enabled {
             active_mod_path(game_path, &r.old, r.rel.as_deref())
@@ -224,7 +220,6 @@ pub fn reorder_children_op(
         }
     }
 
-    // Update state
     for (pos, item) in items.iter().enumerate() {
         let priority = total - pos as i64;
         match item {

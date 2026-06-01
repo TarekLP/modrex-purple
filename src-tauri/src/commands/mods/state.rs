@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use super::naming::make_uid;
@@ -118,9 +118,8 @@ pub fn reconcile_state(game_path: &str, state_path: &Path) -> ModsState {
         );
     }
 
-    // Drop phantom folder entries (directories that no longer exist on disk)
     let mods_base_path = mods_base(game_path);
-    let phantom_ids: std::collections::HashSet<String> = state
+    let phantom_ids: HashSet<String> = state
         .folders
         .iter()
         .filter(|f| {
@@ -147,7 +146,6 @@ pub fn reconcile_state(game_path: &str, state_path: &Path) -> ModsState {
         );
     }
 
-    // Assign priorities to any mods that don't have one yet
     if reconciled.iter().any(|m| m.priority.is_none()) {
         let mut max_by_folder: HashMap<Option<String>, i64> = HashMap::new();
         for m in &reconciled {
