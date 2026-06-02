@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { getCachedMod, getModCacheEntry } from '../modCache'
 import { getLocalThumbnail } from '../thumbnailCache'
@@ -93,17 +93,19 @@ export function useModData(installed: InstalledMod[]): {
         })
     }, [installed])
 
-    const seenIds = new Set<number>()
-    const updatable = installed.filter((ins) => {
-        if (seenIds.has(ins.id)) return false
-        seenIds.add(ins.id)
-        if (ins.missing) return false
-        const mod = modData.get(ins.id)
-        if (!mod) return false
-        if (mod.version === ins.version) return false
-        if (installed.some((m) => m.id === ins.id && m.version === mod.version)) return false
-        return true
-    })
+    const updatable = useMemo(() => {
+        const seenIds = new Set<number>()
+        return installed.filter((ins) => {
+            if (seenIds.has(ins.id)) return false
+            seenIds.add(ins.id)
+            if (ins.missing) return false
+            const mod = modData.get(ins.id)
+            if (!mod) return false
+            if (mod.version === ins.version) return false
+            if (installed.some((m) => m.id === ins.id && m.version === mod.version)) return false
+            return true
+        })
+    }, [installed, modData])
 
     return { modData, failedIds, updatable }
 }
