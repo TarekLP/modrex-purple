@@ -23,13 +23,13 @@ pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix
 pub(crate) use self::paths::disabled_base;
 pub(crate) use self::reorder::{move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op};
 pub(crate) use self::state::save_state;
-pub(crate) use self::zip::{extract_zip_entry, mark_zip_archives, resolve_zip_download};
+pub(crate) use self::zip::{extract_entry, mark_archive_files, resolve_archive_download};
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
 #[cfg(test)]
 pub(crate) use self::naming::{apply_priority_prefix, make_uid};
 #[cfg(test)]
-pub(crate) use self::zip::{is_zip, list_pak_entries_in_zip};
+pub(crate) use self::zip::{detect_archive, is_zip, list_pak_entries, ArchiveFormat};
 
 use crate::commands::api::api_get;
 use crate::commands::download::download_file;
@@ -110,7 +110,7 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
 
     let untracked = find_untracked_paks(&game_path, &known).await;
     if untracked.is_empty() {
-        let mods = mark_zip_archives(&game_path, &state.folders, state.mods);
+        let mods = mark_archive_files(&game_path, &state.folders, state.mods);
         return Ok(InstalledResponse { mods, folders: state.folders, mods_hidden: false });
     }
 
@@ -279,7 +279,7 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
     let to_save = ModsState { folders: state.folders, mods: by_uid.into_values().collect() };
     save_state(&state_path, &to_save);
     let ModsState { folders, mods } = to_save;
-    let mods = mark_zip_archives(&game_path, &folders, mods);
+    let mods = mark_archive_files(&game_path, &folders, mods);
     Ok(InstalledResponse { mods, folders, mods_hidden: false })
 }
 
@@ -315,7 +315,7 @@ pub async fn install_mod(
     };
 
     let downloaded = download_file(&app, &download_url, &file_type).await?;
-    let (tmp, zip_orig) = match resolve_zip_download(downloaded) {
+    let (tmp, zip_orig) = match resolve_archive_download(downloaded) {
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
             if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
                 v["modId"] = serde_json::json!(remote_id);
@@ -401,7 +401,7 @@ pub async fn install_file(
     game_path: String,
 ) -> Result<(), String> {
     let downloaded = download_file(&app, &download_url, &file_type).await?;
-    let (tmp, zip_orig) = match resolve_zip_download(downloaded) {
+    let (tmp, zip_orig) = match resolve_archive_download(downloaded) {
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
             if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
                 v["modId"] = serde_json::json!(mod_id);
@@ -495,7 +495,7 @@ pub async fn install_from_zip_entry(
     let uid = format!("{}_{}", file_id, entry_stem);
 
     let result = async {
-        extract_zip_entry(&zip, &entry_name, &ext)?;
+        extract_entry(&zip, &entry_name, &ext)?;
         let sha256 = compute_sha256(&ext).await?;
         let sp = get_state_path(&game_path);
         let saved = read_state(&sp);

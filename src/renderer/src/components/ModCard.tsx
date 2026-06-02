@@ -147,7 +147,7 @@ export function ModCard({
                                 {t('common.fileMissing')}
                             </span>
                         )}
-                        {installed.zipArchive && (
+                        {installed.archiveBroken && (
                             <>
                                 <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
                                     {t('common.zipArchiveBroken')}

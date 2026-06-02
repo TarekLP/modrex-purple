@@ -311,7 +311,7 @@ export function InstalledPage({
             ...ins,
             enabled: mods.every((m) => m.enabled),
             missing: mods.some((m) => m.missing) ? true : undefined,
-            zipArchive: mods.some((m) => m.zipArchive) ? true : undefined,
+            archiveBroken: mods.some((m) => m.archiveBroken) ? true : undefined,
         }
 
         return (
@@ -378,7 +378,7 @@ export function InstalledPage({
             ...ins,
             enabled: mods.every((m) => m.enabled),
             missing: mods.some((m) => m.missing) ? true : undefined,
-            zipArchive: mods.some((m) => m.zipArchive) ? true : undefined,
+            archiveBroken: mods.some((m) => m.archiveBroken) ? true : undefined,
         }
 
         return (
