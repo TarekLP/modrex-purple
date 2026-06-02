@@ -72,7 +72,7 @@ fn list_pak_entries_7z(path: &Path) -> Result<Vec<String>, String> {
         if !entry.is_directory() && entry.name().ends_with(".pak") {
             entries.push(entry.name().replace('\\', "/")); // 7z archives may store paths with backslashes
         }
-        Ok(false)
+        Ok(true) // Ok(false) stops the loop; true continues to next entry
     })
     .map_err(|e| e.to_string())?;
     Ok(entries)
@@ -142,8 +142,12 @@ fn extract_7z_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resul
                 .and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ()))
                 .map_err(|e| e.to_string());
             *write_result.borrow_mut() = Some(r);
+            Ok(false)
+        } else {
+            // Drain so the stream stays at the right offset for the next entry in solid archives.
+            let _ = std::io::copy(reader, &mut std::io::sink());
+            Ok(true)
         }
-        Ok(false)
     })
     .map_err(|e| e.to_string())?;
 
