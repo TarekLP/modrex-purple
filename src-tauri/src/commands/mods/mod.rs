@@ -284,11 +284,11 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         });
     }
 
-    let final_mods: Vec<InstalledMod> = by_uid.into_values().collect();
-
-    save_state(&state_path, &ModsState { folders: state.folders.clone(), mods: final_mods.clone() });
-    let final_mods = mark_zip_archives(&game_path, &state.folders, final_mods);
-    Ok(InstalledResponse { mods: final_mods, folders: state.folders, mods_hidden: false })
+    let to_save = ModsState { folders: state.folders, mods: by_uid.into_values().collect() };
+    save_state(&state_path, &to_save);
+    let ModsState { folders, mods } = to_save;
+    let mods = mark_zip_archives(&game_path, &folders, mods);
+    Ok(InstalledResponse { mods, folders, mods_hidden: false })
 }
 
 #[tauri::command]
