@@ -61,6 +61,7 @@ pnpm dev        # start with hot reload
 pnpm build      # production build
 pnpm typecheck  # type-check renderer
 pnpm format     # format all files with prettier
+pnpm lint       # lint renderer source
 pnpm test       # run Rust unit tests
 ```
 

@@ -12,6 +12,8 @@ pnpm dist:linux   # Package Linux AppImage + .deb
 pnpm typecheck    # Type-check renderer without emitting
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
+pnpm lint         # ESLint on renderer source (src/renderer/src/)
+pnpm lint:fix     # ESLint with auto-fix
 pnpm test         # Run Rust unit tests (cargo test inside src-tauri/)
 cargo clippy      # Rust lints (run from src-tauri/); one expected warning: too_many_arguments on install_file
 ```
