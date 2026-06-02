@@ -71,6 +71,7 @@
     "installed": {
         "title": "Installed Mods",
         "openFolder": "Open mods folder",
+        "refresh": "Refresh installed mods",
         "modCount": "{count} mods",
         "modCountSingle": "{count} mod",
         "modCountFiltered": "{count} of {total} mods",

@@ -11,6 +11,7 @@ import {
     Pencil,
     Trash2,
     Check,
+    RefreshCw,
 } from 'lucide-react'
 import { t } from '../i18n'
 import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
@@ -60,6 +61,7 @@ export function InstalledPage({
 }: Props) {
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const { modData, failedIds, updatable } = useModData(installed)
+    const [refreshing, setRefreshing] = useState(false)
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
@@ -105,6 +107,15 @@ export function InstalledPage({
         onChildDrop,
         onNestFolderInto,
     } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled })
+
+    async function handleRefresh() {
+        setRefreshing(true)
+        try {
+            await onRefreshInstalled()
+        } finally {
+            setRefreshing(false)
+        }
+    }
 
     function setView(mode: ViewMode) {
         setViewMode(mode)
@@ -735,6 +746,16 @@ export function InstalledPage({
                                 <FolderOpen className="w-3.5 h-3.5" />
                             </button>
                         )}
+                        <button
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                            title={t('installed.refresh')}
+                            className="p-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed text-text-subtle hover:text-text transition-colors"
+                        >
+                            <RefreshCw
+                                className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                            />
+                        </button>
                     </div>
                     <div className="flex items-center gap-3">
                         {installed.length > 0 && (
