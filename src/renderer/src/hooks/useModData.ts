@@ -94,6 +94,7 @@ export function useModData(installed: InstalledMod[]): {
     }, [installed])
 
     const updatable = useMemo(() => {
+        const installedVersions = new Set(installed.map((m) => `${m.id}:${m.version}`))
         const seenIds = new Set<number>()
         return installed.filter((ins) => {
             if (seenIds.has(ins.id)) return false
@@ -102,7 +103,7 @@ export function useModData(installed: InstalledMod[]): {
             const mod = modData.get(ins.id)
             if (!mod) return false
             if (mod.version === ins.version) return false
-            if (installed.some((m) => m.id === ins.id && m.version === mod.version)) return false
+            if (installedVersions.has(`${ins.id}:${mod.version}`)) return false
             return true
         })
     }, [installed, modData])
