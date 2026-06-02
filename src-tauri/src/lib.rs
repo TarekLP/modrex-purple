@@ -90,6 +90,9 @@ pub fn run() {
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(commands::mod_index::ensure_index(handle));
 
+    let handle = app.handle().clone();
+    tauri::async_runtime::spawn(commands::thumbnails::cleanup_thumbnail_cache(handle));
+
     #[cfg(not(debug_assertions))]
     {
         let handle = app.handle().clone();

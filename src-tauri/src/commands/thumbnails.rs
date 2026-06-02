@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Manager};
 use tokio::sync::Semaphore;
+
+const CACHE_MAX_AGE: Duration = Duration::from_secs(90 * 24 * 60 * 60);
 
 const THUMBNAIL_BASE_URL: &str = "https://storage.modworkshop.net/mods/images";
 
@@ -63,4 +65,24 @@ pub async fn get_thumbnail(app: AppHandle, filename: String) -> Result<String, S
     tokio::fs::rename(&tmp, &path).await.map_err(|e| e.to_string())?;
 
     Ok(path.to_string_lossy().into_owned())
+}
+
+pub async fn cleanup_thumbnail_cache(app: AppHandle) {
+    let dir = match app.path().app_cache_dir() {
+        Ok(d) => d.join("thumbnails"),
+        Err(_) => return,
+    };
+    let cutoff = SystemTime::now() - CACHE_MAX_AGE;
+    let mut entries = match tokio::fs::read_dir(&dir).await {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let Ok(meta) = entry.metadata().await else { continue };
+        if !meta.is_file() { continue }
+        let Ok(modified) = meta.modified() else { continue };
+        if modified < cutoff {
+            let _ = tokio::fs::remove_file(entry.path()).await;
+        }
+    }
 }
