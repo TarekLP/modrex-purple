@@ -9,9 +9,10 @@ description: Remove AI-generated code slop
 
 Determine the target based on the argument passed:
 
-- **No argument** — scan the full codebase (`src/`)
+- **No argument** — scan uncommitted changes only (`git diff HEAD`)
 - **Path argument** (e.g. `src/renderer/`) — scan that path only
-- **`--diff`** — scan only the diff of the current branch against main (`git diff main...HEAD`)
+- **`--diff`** — scan the diff of the current branch against main (`git diff main...HEAD`)
+- **`--all`** — scan the full codebase (`src/`)
 
 Fix each issue you find, then report a 1–3 sentence summary of what you changed.
 
@@ -29,10 +30,10 @@ Fix each issue you find, then report a 1–3 sentence summary of what you change
 
 ## Project-specific violations
 
-- **Hardcoded Tailwind color classes** (`zinc-*`, `red-*`, `gray-*`, etc.) — use semantic tokens (`surface`, `text`, `accent`, `danger`, `border`, …) from `src/renderer/src/index.css`. Exception: hex equivalents inside `createDragImage` in `InstalledPage.tsx` only.
+- **Hardcoded Tailwind color classes** (`zinc-*`, `red-*`, `gray-*`, etc.) — use semantic tokens (`surface`, `text`, `accent`, `danger`, `border`, …) from `src/renderer/src/index.css`. Exception: CSS custom properties inside `createDragImage` in `useDragDrop.ts` only.
 - **Bare `ReactMarkdown`** — must go through `components/MarkdownContent.tsx`.
 - **Native `<select>`** — must use `components/Select.tsx`.
 - **Bare string literals in JSX** — must use `t('key')` from `../i18n`.
-- **Direct `window.api.getMod` or `window.api.listModFiles` in the renderer** — use `getCachedMod` / `getCachedModFiles` from `modCache.ts`.
-- **New IPC channels missing from any of the three required files** — every channel must appear in `src/main/index.ts` (handler), `src/preload/index.ts` (bridge), and `src/shared/api.d.ts` (type).
-- **Stray `console.log`/`console.warn` added for debugging** — `logger.ts` overrides console globally; debug logs added mid-task should be removed before committing.
+- **Direct `api.getMod`, `api.listModFiles`, or `api.listModLinks` calls in renderer components** — use `getCachedMod` / `getCachedModFiles` / `getCachedModLinks` from `modCache.ts`. Direct `api.getThumbnail` calls — use `getLocalThumbnail` / `getCachedThumbnailUrl` from `thumbnailCache.ts`.
+- **New Tauri commands missing from any of the three required places** — every command must appear in `src-tauri/src/commands/*.rs` (implementation), registered in `src-tauri/src/lib.rs` inside `tauri::generate_handler![...]`, and wrapped in `src/renderer/src/api.ts` (the only place `invoke` is called).
+- **Stray `console.log`/`console.warn` added for debugging** — remove before committing; there is no global console override in the renderer.
