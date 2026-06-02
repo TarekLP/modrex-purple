@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { getCachedMod, getModCacheEntry } from '../modCache'
+import { getLocalThumbnail } from '../thumbnailCache'
 
 const TTL_MS = 5 * 60 * 1000
 const FETCH_CONCURRENCY = 5
@@ -42,6 +43,9 @@ export function useModData(installed: InstalledMod[]): {
                 fetchedAt.current.set(m.id, entry.fetchedAt)
             }
         }
+        for (const [, mod] of fromCache) {
+            if (mod.thumbnail?.file) getLocalThumbnail(mod.thumbnail.file).catch(() => {})
+        }
         if (fromCache.length > 0) {
             setModData((prev) => {
                 const next = new Map(prev)
@@ -73,6 +77,9 @@ export function useModData(installed: InstalledMod[]): {
                     failed.push(stale[i].id)
                 }
             })
+            for (const [, mod] of updates) {
+                if (mod.thumbnail?.file) getLocalThumbnail(mod.thumbnail.file).catch(() => {})
+            }
             if (updates.length > 0) {
                 setModData((prev) => {
                     const next = new Map(prev)
