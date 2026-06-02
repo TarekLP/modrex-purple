@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Manager};
@@ -67,22 +67,29 @@ pub async fn get_thumbnail(app: AppHandle, filename: String) -> Result<String, S
     Ok(path.to_string_lossy().into_owned())
 }
 
+pub(crate) fn cleanup_dir(dir: &Path, max_age: Duration) {
+    let cutoff = SystemTime::now() - max_age;
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let Ok(meta) = entry.metadata() else { continue };
+        if !meta.is_file() { continue }
+        let Ok(modified) = meta.modified() else { continue };
+        if modified < cutoff {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
 pub async fn cleanup_thumbnail_cache(app: AppHandle) {
     let dir = match app.path().app_cache_dir() {
         Ok(d) => d.join("thumbnails"),
         Err(_) => return,
     };
-    let cutoff = SystemTime::now() - CACHE_MAX_AGE;
-    let mut entries = match tokio::fs::read_dir(&dir).await {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        let Ok(meta) = entry.metadata().await else { continue };
-        if !meta.is_file() { continue }
-        let Ok(modified) = meta.modified() else { continue };
-        if modified < cutoff {
-            let _ = tokio::fs::remove_file(entry.path()).await;
-        }
-    }
+    tokio::task::spawn_blocking(move || cleanup_dir(&dir, CACHE_MAX_AGE))
+        .await
+        .ok();
 }
+
+#[cfg(test)]
+#[path = "thumbnails_tests.rs"]
+mod tests;
