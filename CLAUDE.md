@@ -47,7 +47,7 @@ Missing any of these three breaks the channel silently at the type level.
 
 - **`settings.rs`** — reads/writes `settings.json` in Tauri's `app_data_dir()` (`%APPDATA%\Modrex\` on Windows, `~/.config/modrex/` on Linux). Fields: `gamePath?`, `launcher?`, `launchOptions?`, `skipFileOpenLogWarning?`, `dismissedDepsWarnings?`. On first launch after the Electron-to-Tauri migration, `migrate_from_electron` copies `settings.json` and `mod-index.db` from the old Electron path (`%APPDATA%\PD3 Mod Manager\` on Windows, `~/.config/pd3-mod-manager/` on Linux). Called from `lib.rs` setup hook before the window shows.
 
-- **`api.rs`** — modworkshop REST API via `reqwest`. Params sent as query string (GET requests). `get_mod` returns extra fields (`images`, `banner`, `dependencies`, `instructs_template`, `tags`) absent from `list_mods` results. `API_SEMAPHORE` caps concurrent requests at 3; 429 responses are retried up to 3 times — semaphore permit released before sleep, delay from `Retry-After` header or 1.5–3 s jitter. Shared `HTTP_CLIENT` static (connection pooling via `pool_max_idle_per_host(4)`).
+- **`api.rs`** — modworkshop REST API via `reqwest`. Params sent as query string (GET requests). `get_mod` returns extra fields (`images`, `banner`, `dependencies`, `instructs_template`, `tags`) absent from `list_mods` results. `API_SEMAPHORE` caps concurrent requests at 3; 429 responses are retried up to 3 times — semaphore permit released before sleep, delay from `Retry-After` header or 1.5–3 s jitter. Shared `HTTP_CLIENT` static (connection pooling via `pool_max_idle_per_host(4)`). **HTTP_CLIENT invariant**: every outgoing HTTP request anywhere in the Rust backend must go through `http_client()` from `api.rs` — never call `reqwest::Client::new()` directly. Creating a new client bypasses connection pooling and drops the `User-Agent` header that modworkshop requires.
 
 - **`download.rs`** — streams file to `temp_dir()/pd3-mod-{uuid}.{ext}`, emitting `download:progress` Tauri events with `{ downloaded, total }`. `total` is `0` when the server omits `content-length` — callers must handle the indeterminate case.
 
@@ -172,6 +172,7 @@ Rust unit tests live in separate test files referenced from the module via `#[cf
 ## Rules
 
 - **Never run any git command that touches the remote** (push, push tag, delete tag, force push) or is destructive locally (tag -d, reset --hard). Always write out the commands and let the user run them.
+- **Commit messages must follow conventional commits** — `type(scope): subject` — enforced by `commitlint.config.ts` at commit time. Common types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`.
 - **Never break the in-app update pipeline.** The updater endpoint is `https://github.com/modrexio/modrex/releases/latest/download/latest.json`. Any change to draft/publish behavior, `latest.json` generation, or the startup update check can silently stop all users on the current release from ever receiving future updates. Verify the full pipeline end-to-end when touching anything updater-related.
 
 ## Agent skills
