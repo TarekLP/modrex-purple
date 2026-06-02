@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
     X,
     Search,
@@ -122,9 +122,12 @@ export function InstalledPage({
         localStorage.setItem(`modrex:${GAME_STORAGE_KEY}:installed-view`, mode)
     }
 
-    const renderMods = normalizeModScopes(displayMods)
+    const renderMods = useMemo(() => normalizeModScopes(displayMods), [displayMods])
 
-    const rootChildren = computeChildren(renderMods, folders, null, visibleFolderIds)
+    const rootChildren = useMemo(
+        () => computeChildren(renderMods, folders, null, visibleFolderIds),
+        [renderMods, folders, visibleFolderIds]
+    )
 
     // --- Folder management ---
 
