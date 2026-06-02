@@ -1,8 +1,8 @@
 import { Download, Heart, Eye, Clock, Trash2 } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
-import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { t } from '../i18n'
+import { useThumbnail } from '../hooks/useThumbnail'
 
 function formatCount(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -56,6 +56,7 @@ export function ModCard({
     progress = null,
     showMeta = false,
 }: Props) {
+    const thumbSrc = useThumbnail(mod.thumbnail?.file)
     const canAct = !!gamePath && !loading
 
     const progressPct =
@@ -69,9 +70,9 @@ export function ModCard({
             onMouseEnter={onPrefetch}
         >
             <div className="cursor-pointer group relative" onClick={onOpen}>
-                {mod.thumbnail ? (
+                {thumbSrc ? (
                     <img
-                        src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
+                        src={thumbSrc}
                         alt={mod.name}
                         loading="lazy"
                         className={`w-full h-36 object-cover transition-[filter] ${installed && !installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}

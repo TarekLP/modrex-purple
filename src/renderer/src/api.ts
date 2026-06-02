@@ -236,6 +236,11 @@ export const api = {
         return onEvent<void>('updater:update-ready', () => callback())
     },
 
+    // ── Thumbnails ─────────────────────────────────────────────────────────────
+    getThumbnail(filename: string): Promise<string> {
+        return invoke('get_thumbnail', { filename })
+    },
+
     // ── Updater ────────────────────────────────────────────────────────────────
     download(): Promise<void> {
         return invoke('download_update')

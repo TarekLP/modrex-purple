@@ -79,6 +79,8 @@ pub fn run() {
             commands::updater::check_for_update,
             commands::updater::download_update,
             commands::updater::install_update,
+            // thumbnails
+            commands::thumbnails::get_thumbnail,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

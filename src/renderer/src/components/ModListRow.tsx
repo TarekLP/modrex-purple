@@ -1,8 +1,8 @@
 import { Trash2 } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
-import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { t } from '../i18n'
+import { useThumbnail } from '../hooks/useThumbnail'
 
 interface Props {
     mod: Mod
@@ -37,6 +37,7 @@ export function ModListRow({
     onDrop,
     onDragEnd,
 }: Props) {
+    const thumbSrc = useThumbnail(mod.thumbnail?.file)
     const canAct = !!gamePath && !loading
 
     return (
@@ -51,9 +52,9 @@ export function ModListRow({
             }`}
         >
             <div onClick={onOpen} className="shrink-0 w-28 bg-surface-hover cursor-pointer">
-                {mod.thumbnail ? (
+                {thumbSrc ? (
                     <img
-                        src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
+                        src={thumbSrc}
                         alt=""
                         loading="lazy"
                         className={`w-full h-full object-cover transition-[filter] ${!installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}
