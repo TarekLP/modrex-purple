@@ -114,45 +114,37 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         return Ok(InstalledResponse { mods, folders: state.folders, mods_hidden: false });
     }
 
-    {
-        let mut folder_by_path: HashMap<String, String> = state
-            .folders
-            .iter()
-            .filter_map(|f| get_folder_path(&state.folders, Some(&f.id)).map(|p| (p, f.id.clone())))
-            .collect();
-
-        let mut max_p = state.folders.iter().map(|f| f.priority).max().unwrap_or(0)
-            .max(state.mods.iter().filter(|m| m.folder_id.is_none()).filter_map(|m| m.priority).max().unwrap_or(0));
-
-        for (rel_path, _) in &untracked {
-            let parts: Vec<&str> = rel_path.split('/').collect();
-            if parts.len() <= 1 { continue; }
-            let segs = &parts[..parts.len() - 1];
-            let mut prefix = String::new();
-            for (i, &seg) in segs.iter().enumerate() {
-                prefix = if i == 0 { seg.to_string() } else { format!("{}/{}", prefix, seg) };
-                if folder_by_path.contains_key(&prefix) { continue; }
-                let parent_path = if i == 0 { None } else { Some(segs[..i].join("/")) };
-                let parent_id = parent_path.as_deref().and_then(|p| folder_by_path.get(p)).cloned();
-                max_p += 1;
-                let new_folder = ModFolder {
-                    id: Uuid::new_v4().to_string(),
-                    display_name: strip_priority_prefix(seg).replace('_', " ").trim().to_string(),
-                    disk_name: seg.to_string(),
-                    priority: max_p,
-                    parent_id,
-                };
-                folder_by_path.insert(prefix.clone(), new_folder.id.clone());
-                state.folders.push(new_folder);
-            }
-        }
-    }
-
-    let folder_path_to_id: HashMap<String, String> = state
+    let mut folder_path_to_id: HashMap<String, String> = state
         .folders
         .iter()
         .filter_map(|f| get_folder_path(&state.folders, Some(&f.id)).map(|p| (p, f.id.clone())))
         .collect();
+
+    let mut max_p = state.folders.iter().map(|f| f.priority).max().unwrap_or(0)
+        .max(state.mods.iter().filter(|m| m.folder_id.is_none()).filter_map(|m| m.priority).max().unwrap_or(0));
+
+    for (rel_path, _) in &untracked {
+        let parts: Vec<&str> = rel_path.split('/').collect();
+        if parts.len() <= 1 { continue; }
+        let segs = &parts[..parts.len() - 1];
+        let mut prefix = String::new();
+        for (i, &seg) in segs.iter().enumerate() {
+            prefix = if i == 0 { seg.to_string() } else { format!("{}/{}", prefix, seg) };
+            if folder_path_to_id.contains_key(&prefix) { continue; }
+            let parent_path = if i == 0 { None } else { Some(segs[..i].join("/")) };
+            let parent_id = parent_path.as_deref().and_then(|p| folder_path_to_id.get(p)).cloned();
+            max_p += 1;
+            let new_folder = ModFolder {
+                id: Uuid::new_v4().to_string(),
+                display_name: strip_priority_prefix(seg).replace('_', " ").trim().to_string(),
+                disk_name: seg.to_string(),
+                priority: max_p,
+                parent_id,
+            };
+            folder_path_to_id.insert(prefix.clone(), new_folder.id.clone());
+            state.folders.push(new_folder);
+        }
+    }
 
     let sha_futures: Vec<_> = untracked
         .iter()
