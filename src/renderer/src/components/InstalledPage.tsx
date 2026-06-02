@@ -88,6 +88,13 @@ export function InstalledPage({
         ? filterInstalled(installed, folders, filterQuery.trim())
         : { mods: installed, visibleFolderIds: undefined }
 
+    const totalUniqueMods = new Set(
+        installed.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
+    ).size
+    const filteredUniqueMods = new Set(
+        displayMods.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
+    ).size
+
     const {
         dragItem,
         dropTarget,
@@ -765,14 +772,14 @@ export function InstalledPage({
                             <span className="text-xs text-text-subtle">
                                 {isFiltering
                                     ? t('installed.modCountFiltered', {
-                                          count: displayMods.length,
-                                          total: installed.length,
+                                          count: filteredUniqueMods,
+                                          total: totalUniqueMods,
                                       })
                                     : t(
-                                          installed.length === 1
+                                          totalUniqueMods === 1
                                               ? 'installed.modCountSingle'
                                               : 'installed.modCount',
-                                          { count: installed.length }
+                                          { count: totalUniqueMods }
                                       )}
                             </span>
                         )}
