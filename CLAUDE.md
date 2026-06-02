@@ -22,6 +22,8 @@ Run a single Rust test by name filter:
 cd src-tauri && cargo test strip_priority
 ```
 
+In `pnpm dev`, renderer changes (`src/renderer/`) apply instantly via Vite HMR — no restart needed. Rust changes (`src-tauri/`) trigger an automatic `cargo` recompile via Tauri's file watcher; the window reloads when done.
+
 ## Architecture
 
 Tauri v2 app: **Rust backend** + **React renderer**, communicating via Tauri's `invoke` / `emit`.
