@@ -66,7 +66,8 @@ export function FileSelectModal({
     function toggleFile(fileId: number) {
         setSelectedIds((prev) => {
             const next = new Set(prev)
-            next.has(fileId) ? next.delete(fileId) : next.add(fileId)
+            if (next.has(fileId)) next.delete(fileId)
+            else next.add(fileId)
             return next
         })
     }

@@ -1,4 +1,4 @@
-import { useState, useMemo, createContext, useContext } from 'react'
+import { useState, useMemo, createContext, useContext, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeHighlight from 'rehype-highlight'
@@ -125,6 +125,17 @@ function EmbedPlayer({ embed }: { embed: Embed }) {
     )
 }
 
+function Code({ children }: { children?: ReactNode }) {
+    const inPre = useContext(InsidePreContext)
+    return inPre ? (
+        <code>{children}</code>
+    ) : (
+        <code className="font-mono text-[0.85em] bg-surface-hover px-1 py-0.5 rounded">
+            {children}
+        </code>
+    )
+}
+
 function makeMdComponents(defs: EmbedDef[]): Components {
     return {
         p: ({ children }) => (
@@ -165,16 +176,7 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         },
         strong: ({ children }) => <strong className="font-semibold text-text">{children}</strong>,
         em: ({ children }) => <em className="italic">{children}</em>,
-        code: ({ children }) => {
-            const inPre = useContext(InsidePreContext)
-            return inPre ? (
-                <code>{children}</code>
-            ) : (
-                <code className="font-mono text-[0.85em] bg-surface-hover px-1 py-0.5 rounded">
-                    {children}
-                </code>
-            )
-        },
+        code: Code,
         pre: ({ children }) => (
             <InsidePreContext.Provider value={true}>
                 <pre className="bg-surface-hover rounded p-3 my-2 overflow-x-auto text-sm font-mono text-text">

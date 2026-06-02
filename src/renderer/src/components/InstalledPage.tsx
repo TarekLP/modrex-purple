@@ -186,7 +186,8 @@ export function InstalledPage({
     function toggleCollapse(folderId: string) {
         setCollapsedFolders((prev) => {
             const next = new Set(prev)
-            next.has(folderId) ? next.delete(folderId) : next.add(folderId)
+            if (next.has(folderId)) next.delete(folderId)
+            else next.add(folderId)
             localStorage.setItem(
                 `modrex:${GAME_STORAGE_KEY}:collapsed-folders`,
                 JSON.stringify([...next])
@@ -296,7 +297,8 @@ export function InstalledPage({
     function toggleSelected(id: number) {
         setSelectedIds((prev) => {
             const next = new Set(prev)
-            next.has(id) ? next.delete(id) : next.add(id)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
             return next
         })
     }

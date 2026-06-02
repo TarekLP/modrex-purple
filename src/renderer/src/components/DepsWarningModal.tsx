@@ -15,7 +15,6 @@ interface Props {
 }
 
 export function DepsWarningModal({
-    modId,
     missingRequired,
     gamePath,
     onRefreshInstalled,
@@ -27,7 +26,7 @@ export function DepsWarningModal({
 
     useEffect(() => {
         if (missingRequired.length === 0) onClose()
-    }, [missingRequired.length])
+    }, [missingRequired.length, onClose])
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">

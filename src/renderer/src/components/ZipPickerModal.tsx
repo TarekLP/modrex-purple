@@ -69,7 +69,8 @@ export function ZipPickerModal({
     function toggle(entry: string) {
         setSelected((prev) => {
             const next = new Set(prev)
-            next.has(entry) ? next.delete(entry) : next.add(entry)
+            if (next.has(entry)) next.delete(entry)
+            else next.add(entry)
             return next
         })
     }
