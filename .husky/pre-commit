@@ -1,1 +1,2 @@
 npx prettier --check . || (echo "" && echo "Format errors found. Run: npm run format" && exit 1)
+npx eslint src/renderer/src || (echo "" && echo "Lint errors found. Run: pnpm lint:fix" && exit 1)

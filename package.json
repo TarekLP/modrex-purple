@@ -15,7 +15,9 @@
         "version": "node scripts/version.mjs",
         "test": "cargo test --manifest-path src-tauri/Cargo.toml",
         "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format:check": "prettier --check .",
+        "lint": "eslint src/renderer/src",
+        "lint:fix": "eslint src/renderer/src --fix"
     },
     "repository": {
         "type": "git",
@@ -36,16 +38,21 @@
     "devDependencies": {
         "@commitlint/cli": "^21.0.1",
         "@commitlint/config-conventional": "^21.0.1",
+        "@eslint/js": "^10.0.1",
         "@tailwindcss/vite": "^4.3.0",
         "@tauri-apps/cli": "^2",
         "@types/node": "^25.7.0",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^5.2.0",
+        "eslint": "^10.4.1",
+        "eslint-plugin-react-hooks": "^7.1.1",
+        "globals": "^17.6.0",
         "husky": "^9.1.7",
         "prettier": "^3.8.3",
         "tailwindcss": "^4.3.0",
         "typescript": "^6.0.3",
+        "typescript-eslint": "^8.60.1",
         "vite": "^6.4.2",
         "vite-plugin-svgr": "^5.2.0"
     },
