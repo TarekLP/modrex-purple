@@ -159,12 +159,13 @@ Icons: `lucide-react`. Platform SVGs (Steam, Epic, Xbox, Windows, Linux) live in
 
 ## Testing
 
-Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 62 tests across 4 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` crate is in `[dev-dependencies]` for filesystem tests.
+Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 66 tests across 5 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests.
 
 - `mods/tests.rs` — pure functions + state I/O (naming, paths, zip, state)
 - `launchers/mod_tests.rs` — VDF parser + launcher identification
 - `settings_tests.rs` — JSON roundtrip
 - `mod_index_tests.rs` — in-memory SQLite queries
+- `thumbnails_tests.rs` — `cleanup_dir` eviction logic (uses `filetime` to set mtime on temp files)
 
 `mods/` submodule uses `#[cfg(test)] pub(crate) use` to re-export private helpers so `tests.rs` can reach them via `use super::*`. The `::zip::` prefix is required in `tests.rs` to reference the external crate (not the local `mod zip` submodule).
 
