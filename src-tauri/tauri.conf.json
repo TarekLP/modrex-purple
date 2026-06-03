@@ -1,6 +1,6 @@
 {
     "productName": "Modrex",
-    "version": "0.9.0",
+    "version": "0.9.1",
     "identifier": "io.github.shulhaoleh.pd3modmanager",
     "build": {
         "beforeDevCommand": "pnpm run dev-renderer",
