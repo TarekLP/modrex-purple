@@ -1,15 +1,14 @@
-import type { ReactNode } from 'react'
 import { FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check } from 'lucide-react'
+import { InstalledModItem } from './InstalledModItem'
 import { t } from '../i18n'
-import type { InstalledMod, ModFolder } from '../../../shared/types'
+import type { ModFolder } from '../../../shared/types'
+import type { InstalledMod } from '../../../shared/types'
 import { Toggle } from './Toggle'
 import { computeChildren, groupChildren, getAllModsInFolder } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 
 interface Props {
     folder: ModFolder
-    renderModCard: (mods: InstalledMod[]) => ReactNode
-    renderModGridCard: (mods: InstalledMod[]) => ReactNode
 }
 
 export function NewFolderInput() {
@@ -41,7 +40,7 @@ export function NewFolderInput() {
     )
 }
 
-export function FolderSection({ folder, renderModCard, renderModGridCard }: Props) {
+export function FolderSection({ folder }: Props) {
     const {
         viewMode,
         gamePath,
@@ -249,14 +248,7 @@ export function FolderSection({ folder, renderModCard, renderModGridCard }: Prop
                     ) : viewMode === 'list' ? (
                         children.map((child) => {
                             if (child.type === 'folder') {
-                                return (
-                                    <FolderSection
-                                        key={child.folder.id}
-                                        folder={child.folder}
-                                        renderModCard={renderModCard}
-                                        renderModGridCard={renderModGridCard}
-                                    />
-                                )
+                                return <FolderSection key={child.folder.id} folder={child.folder} />
                             }
                             const repUid = child.mods[0].uid
                             const isChildDropBefore =
@@ -279,7 +271,7 @@ export function FolderSection({ folder, renderModCard, renderModGridCard }: Prop
                                     {isChildDropBefore && (
                                         <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />
                                     )}
-                                    {renderModCard(child.mods)}
+                                    <InstalledModItem mods={child.mods} />
                                     {isChildDropAfter && (
                                         <div className="h-0.5 rounded-full bg-accent mx-2 mt-1" />
                                     )}
@@ -289,21 +281,16 @@ export function FolderSection({ folder, renderModCard, renderModGridCard }: Prop
                     ) : (
                         groupChildren(children).map((group) => {
                             if (group.type === 'folder') {
-                                return (
-                                    <FolderSection
-                                        key={group.folder.id}
-                                        folder={group.folder}
-                                        renderModCard={renderModCard}
-                                        renderModGridCard={renderModGridCard}
-                                    />
-                                )
+                                return <FolderSection key={group.folder.id} folder={group.folder} />
                             }
                             return (
                                 <div
                                     key={`rg-${group.groups[0][0].uid}`}
                                     className="grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
                                 >
-                                    {group.groups.map((mods) => renderModGridCard(mods))}
+                                    {group.groups.map((mods) => (
+                                        <InstalledModItem key={mods[0].uid} mods={mods} />
+                                    ))}
                                 </div>
                             )
                         })
