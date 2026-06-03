@@ -1,0 +1,315 @@
+import type { ReactNode } from 'react'
+import { FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check } from 'lucide-react'
+import { t } from '../i18n'
+import type { InstalledMod, ModFolder } from '../../../shared/types'
+import { Toggle } from './Toggle'
+import { computeChildren, groupChildren, getAllModsInFolder } from '../hooks/installedUtils'
+import { useInstalledContext } from './InstalledContext'
+
+interface Props {
+    folder: ModFolder
+    renderModCard: (mods: InstalledMod[]) => ReactNode
+    renderModGridCard: (mods: InstalledMod[]) => ReactNode
+}
+
+export function NewFolderInput() {
+    const { folderActions } = useInstalledContext()
+    const { newFolderName, setNewFolderName, handleCreateFolder, cancelCreateFolder } =
+        folderActions
+    return (
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-accent bg-accent/5">
+            <FolderPlus className="w-3.5 h-3.5 text-accent shrink-0" />
+            <input
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateFolder()
+                    if (e.key === 'Escape') cancelCreateFolder()
+                }}
+                onBlur={handleCreateFolder}
+                placeholder={t('installed.folder.renamePlaceholder')}
+                className="flex-1 min-w-0 bg-transparent text-sm outline-none"
+            />
+            <button
+                onClick={handleCreateFolder}
+                className="p-1 text-accent hover:text-accent-bright transition-colors shrink-0"
+            >
+                <Check className="w-3.5 h-3.5" />
+            </button>
+        </div>
+    )
+}
+
+export function FolderSection({ folder, renderModCard, renderModGridCard }: Props) {
+    const {
+        viewMode,
+        gamePath,
+        isFiltering,
+        visibleFolderIds,
+        renderMods,
+        folders,
+        installed,
+        dragItem,
+        dropTarget,
+        folderActions,
+        onFolderDragStart,
+        handleDragEnd,
+        onFolderHeaderDragOver,
+        onDropIntoFolder,
+        onNestFolderInto,
+        onChildDrop,
+        onChildModDragOver,
+        onEmptyFolderDragOver,
+    } = useInstalledContext()
+
+    const {
+        collapsedFolders,
+        renamingFolderId,
+        renameValue,
+        loadingFolderId,
+        creatingFolderParentId,
+        startRename,
+        commitRename,
+        cancelRename,
+        setRenameValue,
+        handleDeleteFolder,
+        startCreateFolder,
+        handleToggleFolder,
+        toggleCollapse,
+    } = folderActions
+
+    const isCollapsed = !isFiltering && collapsedFolders.has(folder.id)
+    const isRenaming = renamingFolderId === folder.id
+    const isDraggingThisFolder = dragItem?.kind === 'folder' && dragItem.id === folder.id
+    const isDropBeforeThis = dropTarget?.kind === 'before-child' && dropTarget.id === folder.id
+    const isDropInto = dropTarget?.kind === 'into-folder' && dropTarget.folderId === folder.id
+
+    const children = computeChildren(renderMods, folders, folder.id, visibleFolderIds)
+    const directModGroups = children.filter(
+        (c): c is { type: 'mod'; mods: InstalledMod[] } => c.type === 'mod'
+    )
+    const isEmpty = children.length === 0
+    const allMods = getAllModsInFolder(installed, folders, folder.id)
+    const anyEnabled = allMods.some((m) => m.enabled)
+    const isFolderLoading = loadingFolderId === folder.id
+
+    return (
+        <div
+            className={`transition-opacity ${isDraggingThisFolder ? 'opacity-40' : 'opacity-100'}`}
+        >
+            {isDropBeforeThis && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
+            <div
+                draggable={!isRenaming}
+                onDragStart={(e) => onFolderDragStart(e, folder.id)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => onFolderHeaderDragOver(e, folder)}
+                onDrop={() => {
+                    if (dragItem?.kind === 'mod') {
+                        onDropIntoFolder(folder.id)
+                    } else if (dragItem?.kind === 'folder') {
+                        if (isDropInto) {
+                            onNestFolderInto(dragItem.id, folder.id)
+                        } else {
+                            onChildDrop(dragItem.id, folder.id, 'folder', folder.parentId)
+                        }
+                    }
+                }}
+                className={`group flex items-center gap-1.5 px-2 py-2 rounded-lg border transition-colors ${
+                    !isRenaming ? 'cursor-grab active:cursor-grabbing' : ''
+                } ${isDropInto ? 'border-accent bg-accent/10' : 'border-border bg-surface-raised'}`}
+            >
+                <button
+                    onClick={() => toggleCollapse(folder.id)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="text-text-subtle hover:text-text transition-colors shrink-0"
+                >
+                    {isCollapsed ? (
+                        <ChevronRight className="w-3.5 h-3.5" />
+                    ) : (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                    )}
+                </button>
+
+                {isRenaming ? (
+                    <>
+                        <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') commitRename(folder.id)
+                                if (e.key === 'Escape') cancelRename()
+                            }}
+                            onBlur={() => commitRename(folder.id)}
+                            placeholder={t('installed.folder.renamePlaceholder')}
+                            className="flex-1 min-w-0 bg-transparent text-sm font-medium outline-none border-b border-accent"
+                        />
+                        <button
+                            onClick={() => commitRename(folder.id)}
+                            className="p-1 text-accent hover:text-accent-bright transition-colors shrink-0"
+                        >
+                            <Check className="w-3.5 h-3.5" />
+                        </button>
+                    </>
+                ) : (
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                        <span
+                            className="text-sm font-medium truncate cursor-default"
+                            onDoubleClick={() => startRename(folder)}
+                        >
+                            {folder.displayName}
+                        </span>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                startRename(folder)
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            title={t('installed.folder.rename')}
+                            className="p-0.5 text-text-subtle hover:text-text transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                        >
+                            <Pencil className="w-3 h-3" />
+                        </button>
+                    </div>
+                )}
+
+                <span className="text-xs text-text-subtle leading-none shrink-0">
+                    {t(
+                        directModGroups.length === 1
+                            ? 'installed.folder.modCountSingle'
+                            : 'installed.folder.modCount',
+                        { count: directModGroups.length }
+                    )}
+                </span>
+
+                {!isRenaming && allMods.length > 0 && (
+                    <div
+                        className="flex items-center shrink-0"
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <Toggle
+                            checked={anyEnabled}
+                            onChange={() => handleToggleFolder(folder.id, anyEnabled)}
+                            disabled={isFolderLoading || !gamePath}
+                            title={t(
+                                anyEnabled ? 'installed.folder.disable' : 'installed.folder.enable'
+                            )}
+                        />
+                    </div>
+                )}
+
+                {!isRenaming && gamePath && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            startCreateFolder(folder.id)
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        title={t('installed.folder.newSubfolder')}
+                        className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
+                    >
+                        <FolderPlus className="w-3.5 h-3.5" />
+                    </button>
+                )}
+
+                {!isRenaming && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteFolder(folder.id)
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        title={t('installed.folder.delete')}
+                        className="p-1.5 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                )}
+            </div>
+
+            {!isCollapsed && (
+                <div
+                    className={`ml-4 flex flex-col ${viewMode === 'grid' ? 'mt-3 gap-3' : 'mt-1.5 gap-1.5'}`}
+                >
+                    {creatingFolderParentId === folder.id && <NewFolderInput />}
+
+                    {isEmpty && creatingFolderParentId !== folder.id ? (
+                        <div
+                            className={`h-10 rounded-lg border border-dashed transition-colors flex items-center justify-center text-xs text-text-subtle ${
+                                isDropInto ? 'border-accent bg-accent/5' : 'border-border'
+                            }`}
+                            onDragOver={(e) => onEmptyFolderDragOver(e, folder.id)}
+                            onDrop={() => {
+                                if (dragItem?.kind === 'mod') onDropIntoFolder(folder.id)
+                            }}
+                        >
+                            {t('installed.folder.dropHere')}
+                        </div>
+                    ) : viewMode === 'list' ? (
+                        children.map((child) => {
+                            if (child.type === 'folder') {
+                                return (
+                                    <FolderSection
+                                        key={child.folder.id}
+                                        folder={child.folder}
+                                        renderModCard={renderModCard}
+                                        renderModGridCard={renderModGridCard}
+                                    />
+                                )
+                            }
+                            const repUid = child.mods[0].uid
+                            const isChildDropBefore =
+                                dragItem?.kind === 'folder' &&
+                                dropTarget?.kind === 'before-child' &&
+                                dropTarget.id === repUid
+                            const isChildDropAfter =
+                                dragItem?.kind === 'folder' &&
+                                dropTarget?.kind === 'after-child' &&
+                                dropTarget.id === repUid
+                            return (
+                                <div
+                                    key={repUid}
+                                    onDragOver={(e) => onChildModDragOver(e, repUid, folder.id)}
+                                    onDrop={() =>
+                                        dragItem?.kind === 'folder' &&
+                                        onChildDrop(dragItem.id, repUid, 'mod', folder.id)
+                                    }
+                                >
+                                    {isChildDropBefore && (
+                                        <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />
+                                    )}
+                                    {renderModCard(child.mods)}
+                                    {isChildDropAfter && (
+                                        <div className="h-0.5 rounded-full bg-accent mx-2 mt-1" />
+                                    )}
+                                </div>
+                            )
+                        })
+                    ) : (
+                        groupChildren(children).map((group) => {
+                            if (group.type === 'folder') {
+                                return (
+                                    <FolderSection
+                                        key={group.folder.id}
+                                        folder={group.folder}
+                                        renderModCard={renderModCard}
+                                        renderModGridCard={renderModGridCard}
+                                    />
+                                )
+                            }
+                            return (
+                                <div
+                                    key={`rg-${group.groups[0][0].uid}`}
+                                    className="grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
+                                >
+                                    {group.groups.map((mods) => renderModGridCard(mods))}
+                                </div>
+                            )
+                        })
+                    )}
+                </div>
+            )}
+        </div>
+    )
+}

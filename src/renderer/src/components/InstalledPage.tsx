@@ -1,29 +1,17 @@
 import { useState, useMemo } from 'react'
-import {
-    X,
-    Search,
-    LayoutGrid,
-    List,
-    FolderOpen,
-    FolderPlus,
-    ChevronDown,
-    ChevronRight,
-    Pencil,
-    Trash2,
-    Check,
-    RefreshCw,
-} from 'lucide-react'
+import { X, Search, LayoutGrid, List, FolderOpen, FolderPlus, RefreshCw } from 'lucide-react'
 import { t } from '../i18n'
 import { ZipPickerModal } from './ZipPickerModal'
 import { UpdatesModal } from './UpdatesModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
+import { FolderSection, NewFolderInput } from './FolderSection'
+import { InstalledContext } from './InstalledContext'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
-import { Toggle } from './Toggle'
 import { useModData } from '../hooks/useModData'
 import { useDragDrop } from '../hooks/useDragDrop'
 import { useFolderActions } from '../hooks/useFolderActions'
@@ -31,7 +19,6 @@ import { useModActions } from '../hooks/useModActions'
 import {
     computeChildren,
     groupChildren,
-    getAllModsInFolder,
     normalizeModScopes,
     filterInstalled,
     syntheticMod,
@@ -65,6 +52,8 @@ export function InstalledPage({
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const { modData, failedIds, updatable } = useModData(installed)
     const [showUpdates, setShowUpdates] = useState(false)
+    const [filterQuery, setFilterQuery] = useState('')
+
     const {
         loadingMod,
         refreshing,
@@ -76,41 +65,8 @@ export function InstalledPage({
         handleDisable,
         handleReinstall,
     } = useModActions(gamePath, onRefreshInstalled)
-    const [filterQuery, setFilterQuery] = useState('')
-    const {
-        collapsedFolders,
-        renamingFolderId,
-        renameValue,
-        deletingFolderId,
-        creatingFolderParentId,
-        newFolderName,
-        loadingFolderId,
-        startRename,
-        commitRename,
-        cancelRename,
-        setRenameValue,
-        handleDeleteFolder,
-        confirmDeleteFolder,
-        cancelDelete,
-        startCreateFolder,
-        cancelCreateFolder,
-        setNewFolderName,
-        handleCreateFolder,
-        toggleCollapse,
-        handleToggleFolder,
-    } = useFolderActions(gamePath, onRefreshInstalled, installed, folders)
 
-    const isFiltering = filterQuery.trim().length > 0
-    const { mods: displayMods, visibleFolderIds } = isFiltering
-        ? filterInstalled(installed, folders, filterQuery.trim())
-        : { mods: installed, visibleFolderIds: undefined }
-
-    const totalUniqueMods = new Set(
-        installed.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
-    ).size
-    const filteredUniqueMods = new Set(
-        displayMods.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
-    ).size
+    const folderActions = useFolderActions(gamePath, onRefreshInstalled, installed, folders)
 
     const {
         dragItem,
@@ -131,6 +87,18 @@ export function InstalledPage({
         onChildDrop,
         onNestFolderInto,
     } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled })
+
+    const isFiltering = filterQuery.trim().length > 0
+    const { mods: displayMods, visibleFolderIds } = isFiltering
+        ? filterInstalled(installed, folders, filterQuery.trim())
+        : { mods: installed, visibleFolderIds: undefined }
+
+    const totalUniqueMods = new Set(
+        installed.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
+    ).size
+    const filteredUniqueMods = new Set(
+        displayMods.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
+    ).size
 
     function setView(mode: ViewMode) {
         setViewMode(mode)
@@ -268,269 +236,6 @@ export function InstalledPage({
         )
     }
 
-    function renderNewFolderInput() {
-        return (
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-accent bg-accent/5">
-                <FolderPlus className="w-3.5 h-3.5 text-accent shrink-0" />
-                <input
-                    autoFocus
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleCreateFolder()
-                        if (e.key === 'Escape') cancelCreateFolder()
-                    }}
-                    onBlur={handleCreateFolder}
-                    placeholder={t('installed.folder.renamePlaceholder')}
-                    className="flex-1 min-w-0 bg-transparent text-sm outline-none"
-                />
-                <button
-                    onClick={handleCreateFolder}
-                    className="p-1 text-accent hover:text-accent-bright transition-colors shrink-0"
-                >
-                    <Check className="w-3.5 h-3.5" />
-                </button>
-            </div>
-        )
-    }
-
-    function renderFolderSection(folder: ModFolder) {
-        const isCollapsed = !isFiltering && collapsedFolders.has(folder.id)
-        const isRenaming = renamingFolderId === folder.id
-        const isDraggingThisFolder = dragItem?.kind === 'folder' && dragItem.id === folder.id
-        const isDropBeforeThis = dropTarget?.kind === 'before-child' && dropTarget.id === folder.id
-        const isDropInto = dropTarget?.kind === 'into-folder' && dropTarget.folderId === folder.id
-
-        const children = computeChildren(renderMods, folders, folder.id, visibleFolderIds)
-        const directModGroups = children.filter(
-            (c): c is { type: 'mod'; mods: InstalledMod[] } => c.type === 'mod'
-        )
-        const isEmpty = children.length === 0
-        const allMods = getAllModsInFolder(installed, folders, folder.id)
-        const anyEnabled = allMods.some((m) => m.enabled)
-        const isFolderLoading = loadingFolderId === folder.id
-
-        return (
-            <div
-                key={folder.id}
-                className={`transition-opacity ${isDraggingThisFolder ? 'opacity-40' : 'opacity-100'}`}
-            >
-                {isDropBeforeThis && <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />}
-                {/* Folder header — entire row is draggable */}
-                <div
-                    draggable={!isRenaming}
-                    onDragStart={(e) => onFolderDragStart(e, folder.id)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={(e) => onFolderHeaderDragOver(e, folder)}
-                    onDrop={() => {
-                        if (dragItem?.kind === 'mod') {
-                            onDropIntoFolder(folder.id)
-                        } else if (dragItem?.kind === 'folder') {
-                            if (isDropInto) {
-                                onNestFolderInto(dragItem.id, folder.id)
-                            } else {
-                                onChildDrop(dragItem.id, folder.id, 'folder', folder.parentId)
-                            }
-                        }
-                    }}
-                    className={`group flex items-center gap-1.5 px-2 py-2 rounded-lg border transition-colors ${
-                        !isRenaming ? 'cursor-grab active:cursor-grabbing' : ''
-                    } ${
-                        isDropInto
-                            ? 'border-accent bg-accent/10'
-                            : 'border-border bg-surface-raised'
-                    }`}
-                >
-                    {/* Collapse toggle */}
-                    <button
-                        onClick={() => toggleCollapse(folder.id)}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="text-text-subtle hover:text-text transition-colors shrink-0"
-                    >
-                        {isCollapsed ? (
-                            <ChevronRight className="w-3.5 h-3.5" />
-                        ) : (
-                            <ChevronDown className="w-3.5 h-3.5" />
-                        )}
-                    </button>
-
-                    {/* Folder name / rename input */}
-                    {isRenaming ? (
-                        <>
-                            <input
-                                autoFocus
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') commitRename(folder.id)
-                                    if (e.key === 'Escape') cancelRename()
-                                }}
-                                onBlur={() => commitRename(folder.id)}
-                                placeholder={t('installed.folder.renamePlaceholder')}
-                                className="flex-1 min-w-0 bg-transparent text-sm font-medium outline-none border-b border-accent"
-                            />
-                            <button
-                                onClick={() => commitRename(folder.id)}
-                                className="p-1 text-accent hover:text-accent-bright transition-colors shrink-0"
-                            >
-                                <Check className="w-3.5 h-3.5" />
-                            </button>
-                        </>
-                    ) : (
-                        <div className="flex items-center gap-1 flex-1 min-w-0">
-                            <span
-                                className="text-sm font-medium truncate cursor-default"
-                                onDoubleClick={() => startRename(folder)}
-                            >
-                                {folder.displayName}
-                            </span>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    startRename(folder)
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                title={t('installed.folder.rename')}
-                                className="p-0.5 text-text-subtle hover:text-text transition-colors shrink-0 opacity-0 group-hover:opacity-100"
-                            >
-                                <Pencil className="w-3 h-3" />
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Mod count */}
-                    <span className="text-xs text-text-subtle leading-none shrink-0">
-                        {t(
-                            directModGroups.length === 1
-                                ? 'installed.folder.modCountSingle'
-                                : 'installed.folder.modCount',
-                            { count: directModGroups.length }
-                        )}
-                    </span>
-
-                    {!isRenaming && allMods.length > 0 && (
-                        <div
-                            className="flex items-center shrink-0"
-                            onMouseDown={(e) => e.stopPropagation()}
-                        >
-                            <Toggle
-                                checked={anyEnabled}
-                                onChange={() => handleToggleFolder(folder.id, anyEnabled)}
-                                disabled={isFolderLoading || !gamePath}
-                                title={t(
-                                    anyEnabled
-                                        ? 'installed.folder.disable'
-                                        : 'installed.folder.enable'
-                                )}
-                            />
-                        </div>
-                    )}
-
-                    {/* New subfolder button */}
-                    {!isRenaming && gamePath && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                startCreateFolder(folder.id)
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            title={t('installed.folder.newSubfolder')}
-                            className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
-                        >
-                            <FolderPlus className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-
-                    {/* Delete */}
-                    {!isRenaming && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteFolder(folder.id)
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            title={t('installed.folder.delete')}
-                            className="p-1.5 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
-                        >
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                </div>
-
-                {/* Folder contents */}
-                {!isCollapsed && (
-                    <div
-                        className={`ml-4 flex flex-col ${viewMode === 'grid' ? 'mt-3 gap-3' : 'mt-1.5 gap-1.5'}`}
-                    >
-                        {/* New subfolder input */}
-                        {creatingFolderParentId === folder.id && renderNewFolderInput()}
-
-                        {isEmpty && creatingFolderParentId !== folder.id ? (
-                            <div
-                                className={`h-10 rounded-lg border border-dashed transition-colors flex items-center justify-center text-xs text-text-subtle ${
-                                    isDropInto ? 'border-accent bg-accent/5' : 'border-border'
-                                }`}
-                                onDragOver={(e) => onEmptyFolderDragOver(e, folder.id)}
-                                onDrop={() => {
-                                    if (dragItem?.kind === 'mod') onDropIntoFolder(folder.id)
-                                }}
-                            >
-                                {t('installed.folder.dropHere')}
-                            </div>
-                        ) : viewMode === 'list' ? (
-                            children.map((child) => {
-                                if (child.type === 'folder') {
-                                    return renderFolderSection(child.folder)
-                                }
-                                const repUid = child.mods[0].uid
-                                const isChildDropBefore =
-                                    dragItem?.kind === 'folder' &&
-                                    dropTarget?.kind === 'before-child' &&
-                                    dropTarget.id === repUid
-                                const isChildDropAfter =
-                                    dragItem?.kind === 'folder' &&
-                                    dropTarget?.kind === 'after-child' &&
-                                    dropTarget.id === repUid
-                                return (
-                                    <div
-                                        key={repUid}
-                                        onDragOver={(e) => onChildModDragOver(e, repUid, folder.id)}
-                                        onDrop={() =>
-                                            dragItem?.kind === 'folder' &&
-                                            onChildDrop(dragItem.id, repUid, 'mod', folder.id)
-                                        }
-                                    >
-                                        {isChildDropBefore && (
-                                            <div className="h-0.5 rounded-full bg-accent mx-2 mb-1" />
-                                        )}
-                                        {renderModCard(child.mods)}
-                                        {isChildDropAfter && (
-                                            <div className="h-0.5 rounded-full bg-accent mx-2 mt-1" />
-                                        )}
-                                    </div>
-                                )
-                            })
-                        ) : (
-                            groupChildren(children).map((group) => {
-                                if (group.type === 'folder') {
-                                    return renderFolderSection(group.folder)
-                                }
-                                return (
-                                    <div
-                                        key={`rg-${group.groups[0][0].uid}`}
-                                        className="grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
-                                    >
-                                        {group.groups.map((mods) => renderModGridCard(mods))}
-                                    </div>
-                                )
-                            })
-                        )}
-                    </div>
-                )}
-            </div>
-        )
-    }
-
     function renderRootMod(mods: InstalledMod[], isFolderDropZone = false) {
         const repUid = mods[0].uid
         const isDropBefore =
@@ -572,212 +277,263 @@ export function InstalledPage({
         )
     }
 
+    const ctx = {
+        modData,
+        failedIds,
+        viewMode,
+        gamePath,
+        isFiltering,
+        visibleFolderIds,
+        renderMods,
+        folders,
+        installed,
+        onOpenDetail,
+        loadingMod,
+        handleUninstall,
+        handleEnable,
+        handleDisable,
+        handleReinstall,
+        folderActions,
+        dragItem,
+        dropTarget,
+        onFolderDragStart,
+        handleDragEnd,
+        onFolderHeaderDragOver,
+        onDropIntoFolder,
+        onNestFolderInto,
+        onChildDrop,
+        onChildModDragOver,
+        onEmptyFolderDragOver,
+        handleGapDragOver,
+        onModDropDirect,
+        onModDragStart,
+        onModDragOver,
+        onModDrop,
+    }
+
     return (
-        <div className="h-full flex flex-col">
-            {zipPickerData && gamePath && (
-                <ZipPickerModal
-                    payload={zipPickerData}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={clearZipPickerData}
-                />
-            )}
-            <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
-                        {gamePath && (
+        <InstalledContext.Provider value={ctx}>
+            <div className="h-full flex flex-col">
+                {zipPickerData && gamePath && (
+                    <ZipPickerModal
+                        payload={zipPickerData}
+                        gamePath={gamePath}
+                        onRefreshInstalled={onRefreshInstalled}
+                        onClose={clearZipPickerData}
+                    />
+                )}
+                <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
+                            {gamePath && (
+                                <button
+                                    onClick={() => api.openModsFolder()}
+                                    title={t('installed.openFolder')}
+                                    className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                                >
+                                    <FolderOpen className="w-3.5 h-3.5" />
+                                </button>
+                            )}
                             <button
-                                onClick={() => api.openModsFolder()}
-                                title={t('installed.openFolder')}
-                                className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                                onClick={handleRefresh}
+                                disabled={refreshing}
+                                title={t('installed.refresh')}
+                                className="p-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed text-text-subtle hover:text-text transition-colors"
                             >
-                                <FolderOpen className="w-3.5 h-3.5" />
-                            </button>
-                        )}
-                        <button
-                            onClick={handleRefresh}
-                            disabled={refreshing}
-                            title={t('installed.refresh')}
-                            className="p-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed text-text-subtle hover:text-text transition-colors"
-                        >
-                            <RefreshCw
-                                className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
-                            />
-                        </button>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {installed.length > 0 && (
-                            <span className="text-xs text-text-subtle">
-                                {isFiltering
-                                    ? t('installed.modCountFiltered', {
-                                          count: filteredUniqueMods,
-                                          total: totalUniqueMods,
-                                      })
-                                    : t(
-                                          totalUniqueMods === 1
-                                              ? 'installed.modCountSingle'
-                                              : 'installed.modCount',
-                                          { count: totalUniqueMods }
-                                      )}
-                            </span>
-                        )}
-                        {gamePath && (
-                            <button
-                                onClick={() => startCreateFolder(null)}
-                                title={t('installed.newFolder')}
-                                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
-                            >
-                                <FolderPlus className="w-3.5 h-3.5" />
-                                {t('installed.newFolder')}
-                            </button>
-                        )}
-                        <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
-                            <button
-                                onClick={() => setView('grid')}
-                                title={t('installed.gridView')}
-                                className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
-                            >
-                                <LayoutGrid className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                                onClick={() => setView('list')}
-                                title={t('installed.listView')}
-                                className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
-                            >
-                                <List className="w-3.5 h-3.5" />
+                                <RefreshCw
+                                    className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                                />
                             </button>
                         </div>
-                    </div>
-                </div>
-                {installed.length > 0 && (
-                    <div className="relative flex-1">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-subtle pointer-events-none" />
-                        <input
-                            value={filterQuery}
-                            onChange={(e) => setFilterQuery(e.target.value)}
-                            placeholder={t('installed.filterPlaceholder')}
-                            className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${filterQuery ? 'pr-7' : 'pr-3'}`}
-                        />
-                        {filterQuery && (
-                            <button
-                                onClick={() => setFilterQuery('')}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text transition-colors"
-                            >
-                                <X className="w-3.5 h-3.5" />
-                            </button>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            <div
-                ref={scrollContainerRef}
-                onDragOver={handleContainerDragOver}
-                className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-3"
-            >
-                {!installedReady ? (
-                    <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        {t('common.loading')}
-                    </div>
-                ) : installed.length === 0 && folders.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        {t('installed.empty')}
-                    </div>
-                ) : isFiltering && displayMods.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        {t('installed.filterEmpty', { query: filterQuery.trim() })}
-                    </div>
-                ) : (
-                    <>
-                        {updatable.length > 0 && (
-                            <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-accent/10 border border-accent/30">
-                                <span className="text-sm font-medium text-accent">
-                                    {t(
-                                        updatable.length === 1
-                                            ? 'installed.updatesAvailableSingle'
-                                            : 'installed.updatesAvailable',
-                                        { count: updatable.length }
-                                    )}
+                        <div className="flex items-center gap-3">
+                            {installed.length > 0 && (
+                                <span className="text-xs text-text-subtle">
+                                    {isFiltering
+                                        ? t('installed.modCountFiltered', {
+                                              count: filteredUniqueMods,
+                                              total: totalUniqueMods,
+                                          })
+                                        : t(
+                                              totalUniqueMods === 1
+                                                  ? 'installed.modCountSingle'
+                                                  : 'installed.modCount',
+                                              { count: totalUniqueMods }
+                                          )}
                                 </span>
+                            )}
+                            {gamePath && (
                                 <button
-                                    onClick={() => setShowUpdates(true)}
-                                    className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors"
+                                    onClick={() => folderActions.startCreateFolder(null)}
+                                    title={t('installed.newFolder')}
+                                    className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
                                 >
-                                    {t('installed.reviewUpdates')}
+                                    <FolderPlus className="w-3.5 h-3.5" />
+                                    {t('installed.newFolder')}
+                                </button>
+                            )}
+                            <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
+                                <button
+                                    onClick={() => setView('grid')}
+                                    title={t('installed.gridView')}
+                                    className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                                >
+                                    <LayoutGrid className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={() => setView('list')}
+                                    title={t('installed.listView')}
+                                    className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                                >
+                                    <List className="w-3.5 h-3.5" />
                                 </button>
                             </div>
-                        )}
+                        </div>
+                    </div>
+                    {installed.length > 0 && (
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-subtle pointer-events-none" />
+                            <input
+                                value={filterQuery}
+                                onChange={(e) => setFilterQuery(e.target.value)}
+                                placeholder={t('installed.filterPlaceholder')}
+                                className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${filterQuery ? 'pr-7' : 'pr-3'}`}
+                            />
+                            {filterQuery && (
+                                <button
+                                    onClick={() => setFilterQuery('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text transition-colors"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
 
-                        {/* New root folder input */}
-                        {creatingFolderParentId === null && renderNewFolderInput()}
+                <div
+                    ref={scrollContainerRef}
+                    onDragOver={handleContainerDragOver}
+                    className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-3"
+                >
+                    {!installedReady ? (
+                        <div className="flex items-center justify-center h-full text-text-subtle text-sm">
+                            {t('common.loading')}
+                        </div>
+                    ) : installed.length === 0 && folders.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-text-subtle text-sm">
+                            {t('installed.empty')}
+                        </div>
+                    ) : isFiltering && displayMods.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-text-subtle text-sm">
+                            {t('installed.filterEmpty', { query: filterQuery.trim() })}
+                        </div>
+                    ) : (
+                        <>
+                            {updatable.length > 0 && (
+                                <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-accent/10 border border-accent/30">
+                                    <span className="text-sm font-medium text-accent">
+                                        {t(
+                                            updatable.length === 1
+                                                ? 'installed.updatesAvailableSingle'
+                                                : 'installed.updatesAvailable',
+                                            { count: updatable.length }
+                                        )}
+                                    </span>
+                                    <button
+                                        onClick={() => setShowUpdates(true)}
+                                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors"
+                                    >
+                                        {t('installed.reviewUpdates')}
+                                    </button>
+                                </div>
+                            )}
 
-                        {/* Root-level items: folders and root mods interleaved by priority */}
-                        {viewMode === 'list' ? (
-                            <div className="flex flex-col gap-1.5">
-                                {rootChildren.map((item) =>
-                                    item.type === 'folder'
-                                        ? renderFolderSection(item.folder)
-                                        : renderRootMod(item.mods)
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-3">
-                                {groupChildren(rootChildren).map((group) => {
-                                    if (group.type === 'folder') {
-                                        return renderFolderSection(group.folder)
-                                    }
-                                    const leaderId = group.groups[0][0].uid
-                                    const isGroupDropBefore =
-                                        dragItem?.kind === 'folder' &&
-                                        dropTarget?.kind === 'before-child' &&
-                                        dropTarget.id === leaderId
-                                    const isGroupDropAfter =
-                                        dragItem?.kind === 'folder' &&
-                                        dropTarget?.kind === 'after-child' &&
-                                        dropTarget.id === leaderId
-                                    return (
-                                        <div
-                                            key={`rg-${leaderId}`}
-                                            className="relative grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
-                                            onDragOver={(e) =>
-                                                onChildModDragOver(e, leaderId, null)
-                                            }
-                                            onDrop={() =>
-                                                dragItem?.kind === 'folder' &&
-                                                onChildDrop(dragItem.id, leaderId, 'mod', null)
-                                            }
-                                        >
-                                            {isGroupDropBefore && (
-                                                <div className="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />
-                                            )}
-                                            {isGroupDropAfter && (
-                                                <div className="absolute -bottom-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />
-                                            )}
-                                            {group.groups.map((mods) => renderRootMod(mods))}
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </>
+                            {folderActions.creatingFolderParentId === null && <NewFolderInput />}
+
+                            {viewMode === 'list' ? (
+                                <div className="flex flex-col gap-1.5">
+                                    {rootChildren.map((item) =>
+                                        item.type === 'folder' ? (
+                                            <FolderSection
+                                                key={item.folder.id}
+                                                folder={item.folder}
+                                                renderModCard={renderModCard}
+                                                renderModGridCard={renderModGridCard}
+                                            />
+                                        ) : (
+                                            renderRootMod(item.mods)
+                                        )
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-3">
+                                    {groupChildren(rootChildren).map((group) => {
+                                        if (group.type === 'folder') {
+                                            return (
+                                                <FolderSection
+                                                    key={group.folder.id}
+                                                    folder={group.folder}
+                                                    renderModCard={renderModCard}
+                                                    renderModGridCard={renderModGridCard}
+                                                />
+                                            )
+                                        }
+                                        const leaderId = group.groups[0][0].uid
+                                        const isGroupDropBefore =
+                                            dragItem?.kind === 'folder' &&
+                                            dropTarget?.kind === 'before-child' &&
+                                            dropTarget.id === leaderId
+                                        const isGroupDropAfter =
+                                            dragItem?.kind === 'folder' &&
+                                            dropTarget?.kind === 'after-child' &&
+                                            dropTarget.id === leaderId
+                                        return (
+                                            <div
+                                                key={`rg-${leaderId}`}
+                                                className="relative grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
+                                                onDragOver={(e) =>
+                                                    onChildModDragOver(e, leaderId, null)
+                                                }
+                                                onDrop={() =>
+                                                    dragItem?.kind === 'folder' &&
+                                                    onChildDrop(dragItem.id, leaderId, 'mod', null)
+                                                }
+                                            >
+                                                {isGroupDropBefore && (
+                                                    <div className="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />
+                                                )}
+                                                {isGroupDropAfter && (
+                                                    <div className="absolute -bottom-1 left-0 right-0 h-0.5 rounded-full bg-accent pointer-events-none" />
+                                                )}
+                                                {group.groups.map((mods) => renderRootMod(mods))}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                {showUpdates && (
+                    <UpdatesModal
+                        updatable={updatable}
+                        modData={modData}
+                        gamePath={gamePath}
+                        onRefreshInstalled={onRefreshInstalled}
+                        onClose={() => setShowUpdates(false)}
+                        onOpenDetail={onOpenDetail}
+                    />
+                )}
+
+                {folderActions.deletingFolderId !== null && (
+                    <DeleteFolderModal
+                        onConfirm={folderActions.confirmDeleteFolder}
+                        onCancel={folderActions.cancelDelete}
+                    />
                 )}
             </div>
-
-            {showUpdates && (
-                <UpdatesModal
-                    updatable={updatable}
-                    modData={modData}
-                    gamePath={gamePath}
-                    onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setShowUpdates(false)}
-                    onOpenDetail={onOpenDetail}
-                />
-            )}
-
-            {deletingFolderId !== null && (
-                <DeleteFolderModal onConfirm={confirmDeleteFolder} onCancel={cancelDelete} />
-            )}
-        </div>
+        </InstalledContext.Provider>
     )
 }
