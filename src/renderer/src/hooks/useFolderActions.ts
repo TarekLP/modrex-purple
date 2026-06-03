@@ -1,0 +1,162 @@
+import { useState } from 'react'
+import type { InstalledMod, ModFolder } from '../../../shared/types'
+import { GAME_STORAGE_KEY } from '../../../shared/types'
+import { api } from '../api'
+import { getAllModsInFolder } from './installedUtils'
+
+export interface FolderActions {
+    collapsedFolders: Set<string>
+    renamingFolderId: string | null
+    renameValue: string
+    deletingFolderId: string | null
+    creatingFolderParentId: string | null | undefined
+    newFolderName: string
+    loadingFolderId: string | null
+    startRename: (folder: ModFolder) => void
+    commitRename: (folderId: string) => Promise<void>
+    cancelRename: () => void
+    setRenameValue: (value: string) => void
+    handleDeleteFolder: (folderId: string) => void
+    confirmDeleteFolder: () => Promise<void>
+    cancelDelete: () => void
+    startCreateFolder: (parentId: string | null) => void
+    cancelCreateFolder: () => void
+    setNewFolderName: (name: string) => void
+    handleCreateFolder: () => Promise<void>
+    toggleCollapse: (folderId: string) => void
+    handleToggleFolder: (folderId: string, anyEnabled: boolean) => Promise<void>
+}
+
+export function useFolderActions(
+    gamePath: string | null,
+    onRefreshInstalled: () => Promise<void>,
+    installed: InstalledMod[],
+    folders: ModFolder[]
+): FolderActions {
+    const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => {
+        const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:collapsed-folders`)
+        return saved ? new Set(JSON.parse(saved) as string[]) : new Set()
+    })
+    const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
+    const [renameValue, setRenameValue] = useState('')
+    const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null)
+    const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null | undefined>(
+        undefined
+    )
+    const [newFolderName, setNewFolderName] = useState('')
+    const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
+
+    function startRename(folder: ModFolder) {
+        setRenamingFolderId(folder.id)
+        setRenameValue(folder.displayName)
+    }
+
+    async function commitRename(folderId: string) {
+        if (!gamePath || !renameValue.trim()) {
+            setRenamingFolderId(null)
+            return
+        }
+        await api.renameFolder(folderId, renameValue.trim(), gamePath)
+        setRenamingFolderId(null)
+        await onRefreshInstalled()
+    }
+
+    function cancelRename() {
+        setRenamingFolderId(null)
+    }
+
+    function handleDeleteFolder(folderId: string) {
+        if (!gamePath) return
+        setDeletingFolderId(folderId)
+    }
+
+    async function confirmDeleteFolder() {
+        if (!deletingFolderId || !gamePath) return
+        const folderId = deletingFolderId
+        setDeletingFolderId(null)
+        await api.deleteFolder(folderId, gamePath)
+        await onRefreshInstalled()
+    }
+
+    function cancelDelete() {
+        setDeletingFolderId(null)
+    }
+
+    function startCreateFolder(parentId: string | null) {
+        setCreatingFolderParentId(parentId)
+        setNewFolderName('')
+    }
+
+    function cancelCreateFolder() {
+        setCreatingFolderParentId(undefined)
+        setNewFolderName('')
+    }
+
+    async function handleCreateFolder() {
+        if (creatingFolderParentId === undefined || !newFolderName.trim()) {
+            cancelCreateFolder()
+            return
+        }
+        if (!gamePath) {
+            cancelCreateFolder()
+            return
+        }
+        await api.createFolder(newFolderName.trim(), creatingFolderParentId, gamePath)
+        cancelCreateFolder()
+        await onRefreshInstalled()
+    }
+
+    function toggleCollapse(folderId: string) {
+        setCollapsedFolders((prev) => {
+            const next = new Set(prev)
+            if (next.has(folderId)) next.delete(folderId)
+            else next.add(folderId)
+            localStorage.setItem(
+                `modrex:${GAME_STORAGE_KEY}:collapsed-folders`,
+                JSON.stringify([...next])
+            )
+            return next
+        })
+    }
+
+    async function handleToggleFolder(folderId: string, anyEnabled: boolean) {
+        if (!gamePath) return
+        setLoadingFolderId(folderId)
+        try {
+            const mods = getAllModsInFolder(installed, folders, folderId)
+            for (const mod of mods) {
+                if (anyEnabled) {
+                    await api.disableMod(mod.uid, gamePath)
+                } else {
+                    await api.enableMod(mod.uid, gamePath)
+                }
+            }
+            await onRefreshInstalled()
+        } finally {
+            setLoadingFolderId(null)
+        }
+    }
+
+    return {
+        collapsedFolders,
+        renamingFolderId,
+        renameValue,
+        deletingFolderId,
+        creatingFolderParentId,
+        newFolderName,
+        loadingFolderId,
+        startRename,
+        commitRename,
+        cancelRename,
+        setRenameValue,
+        handleDeleteFolder,
+        confirmDeleteFolder,
+        cancelDelete,
+        startCreateFolder,
+        cancelCreateFolder,
+        setNewFolderName,
+        handleCreateFolder,
+        toggleCollapse,
+        handleToggleFolder,
+    }
+}

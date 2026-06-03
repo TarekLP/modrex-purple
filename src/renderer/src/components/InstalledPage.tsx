@@ -27,6 +27,7 @@ import { SkeletonListRow } from './SkeletonListRow'
 import { Toggle } from './Toggle'
 import { useModData } from '../hooks/useModData'
 import { useDragDrop } from '../hooks/useDragDrop'
+import { useFolderActions } from '../hooks/useFolderActions'
 import {
     computeChildren,
     groupChildren,
@@ -65,22 +66,31 @@ export function InstalledPage({
     const { modData, failedIds, updatable } = useModData(installed)
     const [refreshing, setRefreshing] = useState(false)
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
-    const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [showUpdates, setShowUpdates] = useState(false)
-    const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => {
-        const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:collapsed-folders`)
-        return saved ? new Set(JSON.parse(saved) as string[]) : new Set()
-    })
-    const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
-    const [renameValue, setRenameValue] = useState('')
-    const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null)
-    // undefined = not creating; null = creating at root; string = creating inside that folder
-    const [creatingFolderParentId, setCreatingFolderParentId] = useState<string | null | undefined>(
-        undefined
-    )
-    const [newFolderName, setNewFolderName] = useState('')
     const [filterQuery, setFilterQuery] = useState('')
+    const {
+        collapsedFolders,
+        renamingFolderId,
+        renameValue,
+        deletingFolderId,
+        creatingFolderParentId,
+        newFolderName,
+        loadingFolderId,
+        startRename,
+        commitRename,
+        cancelRename,
+        setRenameValue,
+        handleDeleteFolder,
+        confirmDeleteFolder,
+        cancelDelete,
+        startCreateFolder,
+        cancelCreateFolder,
+        setNewFolderName,
+        handleCreateFolder,
+        toggleCollapse,
+        handleToggleFolder,
+    } = useFolderActions(gamePath, onRefreshInstalled, installed, folders)
 
     const isFiltering = filterQuery.trim().length > 0
     const { mods: displayMods, visibleFolderIds } = isFiltering
@@ -135,66 +145,6 @@ export function InstalledPage({
         [renderMods, folders, visibleFolderIds]
     )
 
-    // --- Folder management ---
-
-    function startRename(folder: ModFolder) {
-        setRenamingFolderId(folder.id)
-        setRenameValue(folder.displayName)
-    }
-
-    async function commitRename(folderId: string) {
-        if (!gamePath || !renameValue.trim()) {
-            setRenamingFolderId(null)
-            return
-        }
-        await api.renameFolder(folderId, renameValue.trim(), gamePath)
-        setRenamingFolderId(null)
-        await onRefreshInstalled()
-    }
-
-    function handleDeleteFolder(folderId: string) {
-        if (!gamePath) return
-        setDeletingFolderId(folderId)
-    }
-
-    async function confirmDeleteFolder() {
-        if (!deletingFolderId || !gamePath) return
-        const folderId = deletingFolderId
-        setDeletingFolderId(null)
-        await api.deleteFolder(folderId, gamePath)
-        await onRefreshInstalled()
-    }
-
-    async function handleCreateFolder() {
-        if (creatingFolderParentId === undefined || !newFolderName.trim()) {
-            setCreatingFolderParentId(undefined)
-            setNewFolderName('')
-            return
-        }
-        if (!gamePath) {
-            setCreatingFolderParentId(undefined)
-            setNewFolderName('')
-            return
-        }
-        await api.createFolder(newFolderName.trim(), creatingFolderParentId, gamePath)
-        setCreatingFolderParentId(undefined)
-        setNewFolderName('')
-        await onRefreshInstalled()
-    }
-
-    function toggleCollapse(folderId: string) {
-        setCollapsedFolders((prev) => {
-            const next = new Set(prev)
-            if (next.has(folderId)) next.delete(folderId)
-            else next.add(folderId)
-            localStorage.setItem(
-                `modrex:${GAME_STORAGE_KEY}:collapsed-folders`,
-                JSON.stringify([...next])
-            )
-            return next
-        })
-    }
-
     async function handleUninstall(mods: InstalledMod[]) {
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
@@ -203,24 +153,6 @@ export function InstalledPage({
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
-        }
-    }
-
-    async function handleToggleFolder(folderId: string, anyEnabled: boolean) {
-        if (!gamePath) return
-        setLoadingFolderId(folderId)
-        try {
-            const mods = getAllModsInFolder(installed, folders, folderId)
-            for (const mod of mods) {
-                if (anyEnabled) {
-                    await api.disableMod(mod.uid, gamePath)
-                } else {
-                    await api.enableMod(mod.uid, gamePath)
-                }
-            }
-            await onRefreshInstalled()
-        } finally {
-            setLoadingFolderId(null)
         }
     }
 
@@ -396,10 +328,7 @@ export function InstalledPage({
                     onChange={(e) => setNewFolderName(e.target.value)}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') handleCreateFolder()
-                        if (e.key === 'Escape') {
-                            setCreatingFolderParentId(undefined)
-                            setNewFolderName('')
-                        }
+                        if (e.key === 'Escape') cancelCreateFolder()
                     }}
                     onBlur={handleCreateFolder}
                     placeholder={t('installed.folder.renamePlaceholder')}
@@ -484,7 +413,7 @@ export function InstalledPage({
                                 onChange={(e) => setRenameValue(e.target.value)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') commitRename(folder.id)
-                                    if (e.key === 'Escape') setRenamingFolderId(null)
+                                    if (e.key === 'Escape') cancelRename()
                                 }}
                                 onBlur={() => commitRename(folder.id)}
                                 placeholder={t('installed.folder.renamePlaceholder')}
@@ -552,8 +481,7 @@ export function InstalledPage({
                         <button
                             onClick={(e) => {
                                 e.stopPropagation()
-                                setCreatingFolderParentId(folder.id)
-                                setNewFolderName('')
+                                startCreateFolder(folder.id)
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
                             title={t('installed.folder.newSubfolder')}
@@ -746,10 +674,7 @@ export function InstalledPage({
                         )}
                         {gamePath && (
                             <button
-                                onClick={() => {
-                                    setCreatingFolderParentId(null)
-                                    setNewFolderName('')
-                                }}
+                                onClick={() => startCreateFolder(null)}
                                 title={t('installed.newFolder')}
                                 className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
                             >
@@ -901,10 +826,7 @@ export function InstalledPage({
             )}
 
             {deletingFolderId !== null && (
-                <DeleteFolderModal
-                    onConfirm={confirmDeleteFolder}
-                    onCancel={() => setDeletingFolderId(null)}
-                />
+                <DeleteFolderModal onConfirm={confirmDeleteFolder} onCancel={cancelDelete} />
             )}
         </div>
     )
