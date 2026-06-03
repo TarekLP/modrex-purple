@@ -15,9 +15,10 @@ import {
 } from 'lucide-react'
 import { t } from '../i18n'
 import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import { UpdatesModal } from './UpdatesModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
-import { THUMBNAIL_BASE_URL, GAME_STORAGE_KEY } from '../../../shared/types'
+import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
@@ -65,10 +66,7 @@ export function InstalledPage({
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
-    const [updatingAll, setUpdatingAll] = useState(false)
-    const [updateError, setUpdateError] = useState<string | null>(null)
     const [showUpdates, setShowUpdates] = useState(false)
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
     const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => {
         const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:collapsed-folders`)
         return saved ? new Set(JSON.parse(saved) as string[]) : new Set()
@@ -247,20 +245,6 @@ export function InstalledPage({
         }
     }
 
-    async function handleUpdate(uid: string, modId: number) {
-        if (!gamePath) return
-        setLoadingMod(uid)
-        setUpdateError(null)
-        try {
-            await api.installMod(modId, gamePath)
-            await onRefreshInstalled()
-        } catch {
-            setUpdateError(t('installed.updatesModal.error'))
-        } finally {
-            setLoadingMod(null)
-        }
-    }
-
     async function handleReinstall(mods: InstalledMod[]) {
         if (!gamePath || mods[0].id < 0) return
         setLoadingMod(mods[0].uid)
@@ -275,32 +259,6 @@ export function InstalledPage({
         } finally {
             setLoadingMod(null)
         }
-    }
-
-    async function handleUpdateSelected() {
-        if (!gamePath) return
-        setUpdatingAll(true)
-        setUpdateError(null)
-        try {
-            for (const ins of updatable.filter((m) => selectedIds.has(m.id))) {
-                await api.installMod(ins.id, gamePath)
-            }
-            await onRefreshInstalled()
-            setShowUpdates(false)
-        } catch {
-            setUpdateError(t('installed.updatesModal.error'))
-        } finally {
-            setUpdatingAll(false)
-        }
-    }
-
-    function toggleSelected(id: number) {
-        setSelectedIds((prev) => {
-            const next = new Set(prev)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
-            return next
-        })
     }
 
     // --- Render helpers ---
@@ -867,10 +825,7 @@ export function InstalledPage({
                                     )}
                                 </span>
                                 <button
-                                    onClick={() => {
-                                        setSelectedIds(new Set(updatable.map((m) => m.id)))
-                                        setShowUpdates(true)
-                                    }}
+                                    onClick={() => setShowUpdates(true)}
                                     className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors"
                                 >
                                     {t('installed.reviewUpdates')}
@@ -934,105 +889,14 @@ export function InstalledPage({
             </div>
 
             {showUpdates && (
-                <div
-                    className="absolute inset-0 bg-black/60 flex items-center justify-center z-50"
-                    onClick={(e) => e.target === e.currentTarget && setShowUpdates(false)}
-                >
-                    <div className="bg-surface-raised border border-border rounded-xl w-full max-w-lg mx-6 flex flex-col overflow-hidden">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                            <h2 className="text-sm font-semibold">
-                                {t('installed.updatesModal.title', { count: updatable.length })}
-                            </h2>
-                            <button
-                                onClick={() => setShowUpdates(false)}
-                                className="text-text-subtle hover:text-text transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className="overflow-y-auto max-h-96">
-                            {updatable.map((ins) => {
-                                const mod = modData.get(ins.id)!
-                                const checked = selectedIds.has(ins.id)
-                                const isLoading = loadingMod === ins.uid || updatingAll
-                                return (
-                                    <div
-                                        key={ins.uid}
-                                        className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={checked}
-                                            disabled={updatingAll}
-                                            onChange={() => toggleSelected(ins.id)}
-                                            className="accent-[oklch(0.65_0.18_47)] w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
-                                        />
-                                        <button
-                                            onClick={() => {
-                                                setShowUpdates(false)
-                                                onOpenDetail(ins.id)
-                                            }}
-                                            className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
-                                        >
-                                            {mod.thumbnail ? (
-                                                <img
-                                                    src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
-                                                    alt=""
-                                                    className="w-9 h-9 rounded object-cover shrink-0"
-                                                />
-                                            ) : (
-                                                <div className="w-9 h-9 rounded bg-surface-active shrink-0" />
-                                            )}
-                                            <div className="min-w-0">
-                                                <div className="text-sm font-medium truncate">
-                                                    {mod.name}
-                                                </div>
-                                                <div className="text-xs text-text-subtle">
-                                                    v{ins.version} to v{mod.version}
-                                                </div>
-                                            </div>
-                                        </button>
-                                        <button
-                                            disabled={!gamePath || isLoading}
-                                            onClick={() => handleUpdate(ins.uid, ins.id)}
-                                            className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
-                                        >
-                                            {loadingMod === ins.uid
-                                                ? t('installed.updatesModal.updating')
-                                                : t('installed.updatesModal.update')}
-                                        </button>
-                                    </div>
-                                )
-                            })}
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-                            {updateError && (
-                                <span className="text-xs text-danger-text mr-auto">
-                                    {updateError}
-                                </span>
-                            )}
-                            <button
-                                onClick={() => setShowUpdates(false)}
-                                className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
-                            >
-                                {t('common.close')}
-                            </button>
-                            <button
-                                disabled={!gamePath || updatingAll || selectedIds.size === 0}
-                                onClick={handleUpdateSelected}
-                                className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                {updatingAll
-                                    ? t('installed.updatesModal.updating')
-                                    : t('installed.updatesModal.updateSelected', {
-                                          count: selectedIds.size,
-                                      })}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <UpdatesModal
+                    updatable={updatable}
+                    modData={modData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setShowUpdates(false)}
+                    onOpenDetail={onOpenDetail}
+                />
             )}
 
             {deletingFolderId !== null && (
