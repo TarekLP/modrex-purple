@@ -145,7 +145,7 @@ export function FileSelectModal({
                 onClick={onClose}
             >
                 <div
-                    className="bg-surface-raised border border-border rounded-lg shadow-xl w-[540px] max-h-[80vh] flex flex-col"
+                    className="bg-surface-raised border border-border rounded-lg shadow-xl w-135 max-h-[80vh] flex flex-col"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
