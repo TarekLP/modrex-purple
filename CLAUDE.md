@@ -170,10 +170,12 @@ Rust unit tests live in separate test files referenced from the module via `#[cf
 - `mod_index_tests.rs` — in-memory SQLite queries
 - `thumbnails_tests.rs` — `cleanup_dir` eviction logic (uses `filetime` to set mtime on temp files)
 
-Renderer tests use Vitest (`pnpm test:renderer`) in a Node environment — no browser APIs needed since tested modules are pure TypeScript. Two test files, 56 tests:
+Renderer tests use Vitest (`pnpm test:renderer`) in a Node environment — no browser APIs needed since tested modules are pure TypeScript. Four test files, 86 tests:
 
 - `src/renderer/src/formatCheck.test.ts` — `isUnsupportedFormat`: type field, URL extension fallback, tar double-extensions, invalid URLs
 - `src/renderer/src/hooks/installedUtils.test.ts` — all six exports: `syntheticMod`, `getAllModsInFolder`, `filterInstalled`, `normalizeModScopes`, `computeChildren`, `groupChildren`
+- `src/renderer/src/browseCache.test.ts` — TTL/stale logic, cache key isolation, categories TTL; uses `vi.resetModules()` + dynamic import for per-test state isolation
+- `src/renderer/src/modCache.test.ts` — TTL/expiry for mod/files/links caches, `loadFromStorage` pre-warming and expiry, `scheduleStorage` debounce; uses `vi.doMock('./api', ...)` + `vi.stubGlobal('localStorage', ...)` before each dynamic import
 
 `mods/` submodule uses `#[cfg(test)] pub(crate) use` to re-export private helpers so `tests.rs` can reach them via `use super::*`. The `::zip::` prefix is required in `tests.rs` to reference the external crate (not the local `mod zip` submodule).
 
