@@ -115,6 +115,16 @@ Missing any of these three breaks the channel silently at the type level.
 
 **`hooks/useDragDrop.ts`** — all DnD state and handlers. `dragDropEnabled: false` in `tauri.conf.json` is required — without it Tauri's native file-drop intercepts HTML5 drag events on Windows.
 
+**InstalledPage component family** — `InstalledPage.tsx` is a ~230-line coordinator; the logic is split across focused files:
+
+- `hooks/useFolderActions.ts` — all folder state (rename, delete, create, collapse, toggle-enable) and their API calls. Owns `renamingFolderId`, `deletingFolderId`, `creatingFolderParentId`, `collapsedFolders`, `loadingFolderId`.
+- `hooks/useModActions.ts` — mod operation state: `loadingMod`, `refreshing`, `zipPickerData`. Owns `handleUninstall`, `handleEnable`, `handleDisable`, `handleReinstall`, `handleRefresh`.
+- `components/InstalledContext.tsx` — React context that `InstalledPage` provides and all descendants read via `useInstalledContext()`. Contains mod data, view mode, gamePath, folder/mod action handlers, and all DnD handlers. Any new component that needs shared installed-page state should read from this context rather than adding props.
+- `components/FolderSection.tsx` — renders a folder row + its contents recursively. Also exports `NewFolderInput` (used at root level in `InstalledPage` and inside folders). Reads everything from `InstalledContext`.
+- `components/InstalledModItem.tsx` — renders a single mod group (list or grid variant based on `viewMode` from context). Contains the skeleton guard, `combined` InstalledMod construction, and all per-mod DnD handlers.
+- `components/UpdatesModal.tsx` — owns `selectedIds`, `loadingMod`, `updatingAll`, `updateError` internally.
+- `components/DeleteFolderModal.tsx` — stateless confirm dialog; `onConfirm`/`onCancel` as props.
+
 ### Strings (i18n)
 
 All user-visible strings live in `src/renderer/src/i18n/en.json`. Use the typed helper:
@@ -137,7 +147,7 @@ Icons: `lucide-react`. Platform SVGs (Steam, Epic, Xbox, Windows, Linux) live in
 
 **Skeleton guard**: render a skeleton only when `!apiMod && !failedIds.has(id) && id >= 0`. The `id >= 0` is load-bearing — negative-id (unrecognized) mods are never fetched and never added to `failedIds`, so without it they render as permanent skeletons.
 
-**Confirm dialogs**: never use `window.confirm`. Two patterns: (1) scoped to a container — `fooId: string | null` state + `absolute inset-0 bg-black/60` backdrop (see `deletingFolderId` in `InstalledPage.tsx`); (2) global overlay needed from multiple places — `fixed inset-0 z-50` (see `NonPakConfirmModal.tsx`).
+**Confirm dialogs**: never use `window.confirm`. Two patterns: (1) scoped to a container — `fooId: string | null` state + `absolute inset-0 bg-black/60` backdrop (see `DeleteFolderModal.tsx`); (2) global overlay needed from multiple places — `fixed inset-0 z-50` (see `NonPakConfirmModal.tsx`).
 
 **Archive install flow**: `ZipPickerModal` handles multi-pak archives (ZIP, 7z, tar.gz, tar.xz) — all entries pre-selected, installs sequentially, calls `api.deleteTempFile(zipPath)` after all entries finish. The Rust command `install_from_zip_entry` (name kept for backwards compat) uses `extract_entry` internally and dispatches by magic bytes, so it handles all supported archive formats. `parseZipMultiPak(errStr)` is a utility exported from `ZipPickerModal.tsx` used by every install entry point to detect and parse the `ZIP_MULTI_PAK:{...}` error string — the wire protocol name is unchanged even for non-ZIP archives. `FileSelectModal` handles ZIP_MULTI_PAK inline: it pauses its install loop (via a Promise resolved by `zipResolveRef`), renders `ZipPickerModal` after its own main div (so it appears on top at the same `z-50`), then resumes with the next file when ZipPickerModal closes. When adding a new install entry point that calls a Rust install command, handle `parseZipMultiPak` in the catch block. `InstalledMod.archiveBroken` (previously `zipArchive`) is set at runtime by `mark_archive_files` when an installed pak file is detected as an archive by magic bytes — shown as a warning badge in `ModCard` and `ModListRow`.
 
