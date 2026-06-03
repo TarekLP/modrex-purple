@@ -14,7 +14,8 @@ pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
 pnpm lint         # ESLint on renderer source (src/renderer/src/)
 pnpm lint:fix     # ESLint with auto-fix
-pnpm test         # Run Rust unit tests (cargo test inside src-tauri/)
+pnpm test         # Run all tests: Rust (cargo test) then renderer (vitest)
+pnpm test:renderer # Run only renderer TypeScript tests (vitest)
 cargo clippy      # Rust lints (run from src-tauri/); one expected warning: too_many_arguments on install_file
 ```
 
@@ -161,13 +162,18 @@ Icons: `lucide-react`. Platform SVGs (Steam, Epic, Xbox, Windows, Linux) live in
 
 ## Testing
 
-Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 66 tests across 5 modules — run with `cargo test` inside `src-tauri/`. The renderer has no tests. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests.
+Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 66 tests across 5 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests.
 
 - `mods/tests.rs` — pure functions + state I/O (naming, paths, zip, state)
 - `launchers/mod_tests.rs` — VDF parser + launcher identification
 - `settings_tests.rs` — JSON roundtrip
 - `mod_index_tests.rs` — in-memory SQLite queries
 - `thumbnails_tests.rs` — `cleanup_dir` eviction logic (uses `filetime` to set mtime on temp files)
+
+Renderer tests use Vitest (`pnpm test:renderer`) in a Node environment — no browser APIs needed since tested modules are pure TypeScript. Two test files, 56 tests:
+
+- `src/renderer/src/formatCheck.test.ts` — `isUnsupportedFormat`: type field, URL extension fallback, tar double-extensions, invalid URLs
+- `src/renderer/src/hooks/installedUtils.test.ts` — all six exports: `syntheticMod`, `getAllModsInFolder`, `filterInstalled`, `normalizeModScopes`, `computeChildren`, `groupChildren`
 
 `mods/` submodule uses `#[cfg(test)] pub(crate) use` to re-export private helpers so `tests.rs` can reach them via `use super::*`. The `::zip::` prefix is required in `tests.rs` to reference the external crate (not the local `mod zip` submodule).
 
