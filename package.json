@@ -14,7 +14,8 @@
         "typecheck": "tsc --noEmit",
         "prepare": "husky",
         "version": "node scripts/version.mjs",
-        "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+        "test": "cargo test --manifest-path src-tauri/Cargo.toml && vitest run",
+        "test:renderer": "vitest run",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint src/renderer/src",
@@ -55,7 +56,8 @@
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.60.1",
         "vite": "^6.4.2",
-        "vite-plugin-svgr": "^5.2.0"
+        "vite-plugin-svgr": "^5.2.0",
+        "vitest": "^4.1.8"
     },
     "pnpm": {
         "onlyBuiltDependencies": [
