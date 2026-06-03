@@ -14,10 +14,9 @@ import {
     RefreshCw,
 } from 'lucide-react'
 import { t } from '../i18n'
-import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import { ZipPickerModal } from './ZipPickerModal'
 import { UpdatesModal } from './UpdatesModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
-import type { ZipMultiPakPayload } from './ZipPickerModal'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { ModCard } from './ModCard'
@@ -28,6 +27,7 @@ import { Toggle } from './Toggle'
 import { useModData } from '../hooks/useModData'
 import { useDragDrop } from '../hooks/useDragDrop'
 import { useFolderActions } from '../hooks/useFolderActions'
+import { useModActions } from '../hooks/useModActions'
 import {
     computeChildren,
     groupChildren,
@@ -64,10 +64,18 @@ export function InstalledPage({
 }: Props) {
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const { modData, failedIds, updatable } = useModData(installed)
-    const [refreshing, setRefreshing] = useState(false)
-    const [loadingMod, setLoadingMod] = useState<string | null>(null)
-    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [showUpdates, setShowUpdates] = useState(false)
+    const {
+        loadingMod,
+        refreshing,
+        zipPickerData,
+        clearZipPickerData,
+        handleRefresh,
+        handleUninstall,
+        handleEnable,
+        handleDisable,
+        handleReinstall,
+    } = useModActions(gamePath, onRefreshInstalled)
     const [filterQuery, setFilterQuery] = useState('')
     const {
         collapsedFolders,
@@ -124,15 +132,6 @@ export function InstalledPage({
         onNestFolderInto,
     } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled })
 
-    async function handleRefresh() {
-        setRefreshing(true)
-        try {
-            await onRefreshInstalled()
-        } finally {
-            setRefreshing(false)
-        }
-    }
-
     function setView(mode: ViewMode) {
         setViewMode(mode)
         localStorage.setItem(`modrex:${GAME_STORAGE_KEY}:installed-view`, mode)
@@ -144,55 +143,6 @@ export function InstalledPage({
         () => computeChildren(renderMods, folders, null, visibleFolderIds),
         [renderMods, folders, visibleFolderIds]
     )
-
-    async function handleUninstall(mods: InstalledMod[]) {
-        if (!gamePath) return
-        setLoadingMod(mods[0].uid)
-        try {
-            for (const m of mods) await api.uninstallMod(m.uid, gamePath)
-            await onRefreshInstalled()
-        } finally {
-            setLoadingMod(null)
-        }
-    }
-
-    async function handleEnable(mods: InstalledMod[]) {
-        if (!gamePath) return
-        setLoadingMod(mods[0].uid)
-        try {
-            for (const m of mods) await api.enableMod(m.uid, gamePath)
-            await onRefreshInstalled()
-        } finally {
-            setLoadingMod(null)
-        }
-    }
-
-    async function handleDisable(mods: InstalledMod[]) {
-        if (!gamePath) return
-        setLoadingMod(mods[0].uid)
-        try {
-            for (const m of mods) await api.disableMod(m.uid, gamePath)
-            await onRefreshInstalled()
-        } finally {
-            setLoadingMod(null)
-        }
-    }
-
-    async function handleReinstall(mods: InstalledMod[]) {
-        if (!gamePath || mods[0].id < 0) return
-        setLoadingMod(mods[0].uid)
-        try {
-            await api.installMod(mods[0].id, gamePath)
-            await onRefreshInstalled()
-        } catch (e) {
-            const zipData = parseZipMultiPak(String(e))
-            if (zipData) {
-                setZipPickerData(zipData)
-            }
-        } finally {
-            setLoadingMod(null)
-        }
-    }
 
     // --- Render helpers ---
 
@@ -629,7 +579,7 @@ export function InstalledPage({
                     payload={zipPickerData}
                     gamePath={gamePath}
                     onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setZipPickerData(null)}
+                    onClose={clearZipPickerData}
                 />
             )}
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
