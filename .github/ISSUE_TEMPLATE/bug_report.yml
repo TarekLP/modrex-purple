@@ -5,7 +5,7 @@ body:
     - type: markdown
       attributes:
           value: |
-              **Please attach your log file.** Open the app → Settings → Open Log File, then paste the relevant lines below.
+              **Please attach your log file.** Open the app, go to Settings, click "Open Log File", then drag the file into the comment box below the form. Large logs as file attachments are much easier to read than pasted text.
     - type: textarea
       id: description
       attributes:
@@ -35,7 +35,6 @@ body:
     - type: textarea
       id: log
       attributes:
-          label: Log file
-          description: 'Open the app → Settings → Open Log File. Paste the lines around the error.'
-          placeholder: Paste log lines here...
-          render: text
+          label: Relevant log lines (optional)
+          description: If the error is short, paste just the relevant lines here. For the full log, attach the file in the comment box after submitting.
+          placeholder: Paste a short snippet here, or leave blank and attach the full file below...
