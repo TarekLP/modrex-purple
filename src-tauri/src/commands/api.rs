@@ -1,17 +1,52 @@
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::Value;
-use std::sync::OnceLock;
-use std::time::Duration;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tauri::AppHandle;
 use tokio::sync::Semaphore;
 
 const BASE: &str = "https://api.modworkshop.net";
 const GAME_ID: u32 = 853;
 const MAX_CONCURRENT: usize = 3;
+// Burst up to 8, then 4/sec sustained — keeps total rate well under the API's threshold.
+const RATE_BURST: f64 = 8.0;
+const RATE_PER_SEC: f64 = 4.0;
 
+struct TokenBucket {
+    tokens: f64,
+    max: f64,
+    refill_per_ms: f64,
+    last_refill: Instant,
+}
+
+impl TokenBucket {
+    fn new(max: f64, per_second: f64) -> Self {
+        Self { tokens: max, max, refill_per_ms: per_second / 1000.0, last_refill: Instant::now() }
+    }
+
+    fn consume(&mut self) -> Duration {
+        let now = Instant::now();
+        let elapsed_ms = now.duration_since(self.last_refill).as_secs_f64() * 1000.0;
+        self.tokens = (self.tokens + elapsed_ms * self.refill_per_ms).min(self.max);
+        self.last_refill = now;
+        if self.tokens >= 1.0 {
+            self.tokens -= 1.0;
+            Duration::ZERO
+        } else {
+            let wait_ms = ((1.0 - self.tokens) / self.refill_per_ms) as u64;
+            Duration::from_millis(wait_ms)
+        }
+    }
+}
+
+static RATE_LIMITER: OnceLock<Mutex<TokenBucket>> = OnceLock::new();
 static API_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
 static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
+
+fn rate_limiter() -> &'static Mutex<TokenBucket> {
+    RATE_LIMITER.get_or_init(|| Mutex::new(TokenBucket::new(RATE_BURST, RATE_PER_SEC)))
+}
 
 fn semaphore() -> &'static Semaphore {
     API_SEMAPHORE.get_or_init(|| Semaphore::new(MAX_CONCURRENT))
@@ -36,7 +71,13 @@ pub(crate) async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, Stri
     let client = http_client();
     let ua = user_agent(app);
 
-    for attempt in 0..3 {
+    for attempt in 0u64..3 {
+        // Bucket refills during backoff sleep, so this is usually instant on retry.
+        let wait = rate_limiter().lock().unwrap().consume();
+        if !wait.is_zero() {
+            tokio::time::sleep(wait).await;
+        }
+
         let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
         let res = client
             .get(url.clone())
@@ -56,11 +97,13 @@ pub(crate) async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, Stri
                 .and_then(|v| v.parse::<u64>().ok())
                 .map(|s| s * 1000)
                 .unwrap_or_else(|| {
-                    let nanos = std::time::SystemTime::now()
+                    let base_ms = 1000u64 << attempt.min(3);
+                    let jitter = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
-                        .subsec_nanos();
-                    1500 + (nanos % 1500) as u64 * (attempt + 1)
+                        .subsec_nanos() as u64
+                        % 1000;
+                    base_ms + jitter
                 });
             tokio::time::sleep(Duration::from_millis(retry_ms)).await;
             continue;
