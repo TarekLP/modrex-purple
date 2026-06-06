@@ -66,6 +66,7 @@ export function ModDetailPage({
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<Tab>('description')
     const [actionLoading, setActionLoading] = useState(false)
+    const [installError, setInstallError] = useState<string | null>(null)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
     const [showDepsWarning, setShowDepsWarning] = useState(false)
     const [showFileSelect, setShowFileSelect] = useState(false)
@@ -131,7 +132,7 @@ export function ModDetailPage({
         return () => window.removeEventListener('keydown', onKey)
     }, [isActive, lightboxIndex, images.length, onBack])
 
-    function handleInstall() {
+    async function handleInstall() {
         if (!gamePath || !mod) return
         if (mod.download === null && files.length > 1) {
             setShowFileSelect(true)
@@ -144,7 +145,11 @@ export function ModDetailPage({
             setShowHeaderFormatWarning(true)
             return
         }
-        doInstall()
+        try {
+            await doInstall()
+        } catch (e) {
+            setInstallError(String(e))
+        }
     }
 
     async function doInstall() {
@@ -158,6 +163,7 @@ export function ModDetailPage({
                 }
             }
         }
+        setInstallError(null)
         setActionLoading(true)
         try {
             await api.installMod(mod.id, gamePath)
@@ -265,9 +271,13 @@ export function ModDetailPage({
             )}
             {showHeaderFormatWarning && (
                 <NonPakConfirmModal
-                    onConfirm={() => {
+                    onConfirm={async () => {
                         setShowHeaderFormatWarning(false)
-                        doInstall()
+                        try {
+                            await doInstall()
+                        } catch (e) {
+                            setInstallError(String(e))
+                        }
                     }}
                     onCancel={() => setShowHeaderFormatWarning(false)}
                 />
@@ -376,6 +386,18 @@ export function ModDetailPage({
                     ) : (
                         <div className="h-full bg-accent animate-pulse w-full" />
                     )}
+                </div>
+            )}
+
+            {installError && (
+                <div className="px-6 py-2 bg-danger/20 border-b border-danger/30 text-xs text-danger-text flex items-center justify-between shrink-0">
+                    <span>{installError}</span>
+                    <button
+                        onClick={() => setInstallError(null)}
+                        className="ml-2 shrink-0 text-danger-text/70 hover:text-danger-text transition-colors"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </button>
                 </div>
             )}
 
