@@ -441,7 +441,7 @@ export function ModDetailPage({
                             </div>
                             <div className="text-right text-xs text-text-subtle shrink-0">
                                 <div className="font-medium text-sm text-text">
-                                    v{installedMod?.version ?? mod.version}
+                                    {installedMod?.version ?? mod.version}
                                 </div>
                             </div>
                         </div>
