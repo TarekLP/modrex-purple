@@ -20,6 +20,12 @@ type Settings = {
     dismissedDepsWarnings?: number[]
 }
 
+type GameSettings = {
+    gamePath?: string
+    launcher?: string
+    launchOptions?: string
+}
+
 function onEvent<T>(eventName: string, callback: (payload: T) => void): () => void {
     let unlistenFn: (() => void) | null = null
     let cancelled = false
@@ -54,6 +60,9 @@ export const api = {
     // ── Settings ───────────────────────────────────────────────────────────────
     getSettings(): Promise<Settings> {
         return invoke('get_settings')
+    },
+    getGameSettings(gameId: string): Promise<GameSettings> {
+        return invoke('get_game_settings', { gameId })
     },
     async findGamePath(): Promise<string | null> {
         const s = await invoke<Settings>('get_settings')

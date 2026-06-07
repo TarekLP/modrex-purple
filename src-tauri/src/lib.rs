@@ -39,6 +39,7 @@ pub fn run() {
             commands::api::register_download,
             // settings
             commands::settings::get_settings,
+            commands::settings::get_game_settings,
             commands::settings::set_game_path,
             commands::settings::set_launcher,
             commands::settings::set_launch_options,

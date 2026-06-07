@@ -34,7 +34,7 @@ pub(crate) use self::zip::{detect_archive, is_zip, list_pak_entries, ArchiveForm
 use crate::commands::api::api_get;
 use crate::commands::download::download_file;
 use crate::commands::mod_index;
-use crate::commands::settings::read_settings;
+use crate::commands::settings::{game_settings, read_settings};
 use chrono::Utc;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -46,7 +46,7 @@ use uuid::Uuid;
 #[tauri::command]
 pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> {
     let settings = read_settings(&app);
-    let Some(game_path) = settings.game_path else {
+    let Some(game_path) = game_settings(&settings, "pd3").and_then(|gs| gs.game_path.clone()) else {
         return Ok(InstalledResponse { mods: vec![], folders: vec![], mods_hidden: false });
     };
 
@@ -603,7 +603,7 @@ pub fn delete_folder(game_path: String, folder_id: String) {
 #[tauri::command]
 pub fn open_mods_folder(app: AppHandle) {
     let settings = read_settings(&app);
-    let Some(game_path) = settings.game_path else { return };
+    let Some(game_path) = game_settings(&settings, "pd3").and_then(|gs| gs.game_path.clone()) else { return };
     let dir = mods_base(&game_path);
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(&dir).spawn();

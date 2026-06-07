@@ -1,19 +1,52 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct Settings {
+pub struct GameSettings {
     pub game_path: Option<String>,
     pub launcher: Option<String>,
     pub launch_options: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Settings {
+    pub games: Option<HashMap<String, GameSettings>>,
     pub skip_file_open_log_warning: Option<bool>,
     pub dismissed_deps_warnings: Option<Vec<i32>>,
+    // Legacy flat fields: deserialized from old files but never written back.
+    #[serde(skip_serializing, default)]
+    pub game_path: Option<String>,
+    #[serde(skip_serializing, default)]
+    pub launcher: Option<String>,
+    #[serde(skip_serializing, default)]
+    pub launch_options: Option<String>,
 }
 
 fn settings_path(app: &AppHandle) -> PathBuf {
     app.path().app_data_dir().unwrap().join("settings.json")
+}
+
+pub fn migrate_settings(mut s: Settings) -> Settings {
+    if s.games.is_none() {
+        let mut games: HashMap<String, GameSettings> = HashMap::new();
+        if s.game_path.is_some() || s.launcher.is_some() || s.launch_options.is_some() {
+            games.insert(
+                "pd3".to_string(),
+                GameSettings {
+                    game_path: s.game_path.clone(),
+                    launcher: s.launcher.clone(),
+                    launch_options: s.launch_options.clone(),
+                },
+            );
+        }
+        s.games = Some(games);
+    }
+    s
 }
 
 pub fn read_settings(app: &AppHandle) -> Settings {
@@ -22,7 +55,8 @@ pub fn read_settings(app: &AppHandle) -> Settings {
         return Settings::default();
     }
     let content = std::fs::read_to_string(path).unwrap_or_default();
-    serde_json::from_str(&content).unwrap_or_default()
+    let s: Settings = serde_json::from_str(&content).unwrap_or_default();
+    migrate_settings(s)
 }
 
 pub fn write_settings(app: &AppHandle, settings: &Settings) {
@@ -35,6 +69,10 @@ pub fn write_settings(app: &AppHandle, settings: &Settings) {
     if let Err(e) = std::fs::write(&path, serde_json::to_string_pretty(settings).unwrap_or_default()) {
         log::warn!("write_settings: write {path:?}: {e}");
     }
+}
+
+pub fn game_settings<'a>(s: &'a Settings, game_id: &str) -> Option<&'a GameSettings> {
+    s.games.as_ref()?.get(game_id)
 }
 
 /// On first launch after the Electron-to-Tauri migration, copy settings.json
@@ -77,29 +115,48 @@ pub fn migrate_from_electron(app: &AppHandle) {
     }
 }
 
+/// Returns a backwards-compatible flat view of PD3 settings for the renderer.
+/// Commit 4 will switch callers to `get_game_settings` once the game switcher lands.
 #[tauri::command]
-pub fn get_settings(app: AppHandle) -> Settings {
-    read_settings(&app)
+pub fn get_settings(app: AppHandle) -> Value {
+    let s = read_settings(&app);
+    let gs = s.games.as_ref().and_then(|g| g.get("pd3"));
+    serde_json::json!({
+        "gamePath": gs.and_then(|g| g.game_path.as_deref()),
+        "launcher": gs.and_then(|g| g.launcher.as_deref()),
+        "launchOptions": gs.and_then(|g| g.launch_options.as_deref()),
+        "skipFileOpenLogWarning": s.skip_file_open_log_warning,
+        "dismissedDepsWarnings": s.dismissed_deps_warnings,
+    })
 }
 
 #[tauri::command]
-pub fn set_game_path(app: AppHandle, game_path: Option<String>) {
+pub fn get_game_settings(app: AppHandle, game_id: String) -> GameSettings {
+    let s = read_settings(&app);
+    s.games.as_ref().and_then(|g| g.get(&game_id)).cloned().unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn set_game_path(app: AppHandle, game_id: Option<String>, game_path: Option<String>) {
+    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let mut s = read_settings(&app);
-    s.game_path = game_path;
+    s.games.get_or_insert_with(HashMap::new).entry(game_id).or_default().game_path = game_path;
     write_settings(&app, &s);
 }
 
 #[tauri::command]
-pub fn set_launcher(app: AppHandle, launcher: String) {
+pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
+    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let mut s = read_settings(&app);
-    s.launcher = Some(launcher);
+    s.games.get_or_insert_with(HashMap::new).entry(game_id).or_default().launcher = Some(launcher);
     write_settings(&app, &s);
 }
 
 #[tauri::command]
-pub fn set_launch_options(app: AppHandle, launch_options: String) {
+pub fn set_launch_options(app: AppHandle, game_id: Option<String>, launch_options: String) {
+    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let mut s = read_settings(&app);
-    s.launch_options = Some(launch_options);
+    s.games.get_or_insert_with(HashMap::new).entry(game_id).or_default().launch_options = Some(launch_options);
     write_settings(&app, &s);
 }
 

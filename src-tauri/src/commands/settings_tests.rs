@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashMap;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -17,20 +18,29 @@ fn read_from(path: &std::path::Path) -> Settings {
 #[test]
 fn roundtrip_all_fields_set() {
     let f = NamedTempFile::new().unwrap();
+    let mut games = HashMap::new();
+    games.insert(
+        "pd3".to_string(),
+        GameSettings {
+            game_path: Some("C:\\Games\\PAYDAY3".to_string()),
+            launcher: Some("steam".to_string()),
+            launch_options: Some("-fileopenlog".to_string()),
+        },
+    );
     let original = Settings {
-        game_path: Some("C:\\Games\\PAYDAY3".to_string()),
-        launcher: Some("steam".to_string()),
-        launch_options: Some("-fileopenlog".to_string()),
+        games: Some(games),
         skip_file_open_log_warning: Some(true),
         dismissed_deps_warnings: Some(vec![1, 2, 3]),
+        ..Default::default()
     };
     write_to(f.path(), &original);
     let loaded = read_from(f.path());
-    assert_eq!(loaded.game_path, original.game_path);
-    assert_eq!(loaded.launcher, original.launcher);
-    assert_eq!(loaded.launch_options, original.launch_options);
-    assert_eq!(loaded.skip_file_open_log_warning, original.skip_file_open_log_warning);
-    assert_eq!(loaded.dismissed_deps_warnings, original.dismissed_deps_warnings);
+    let pd3 = loaded.games.as_ref().unwrap().get("pd3").unwrap();
+    assert_eq!(pd3.game_path.as_deref(), Some("C:\\Games\\PAYDAY3"));
+    assert_eq!(pd3.launcher.as_deref(), Some("steam"));
+    assert_eq!(pd3.launch_options.as_deref(), Some("-fileopenlog"));
+    assert_eq!(loaded.skip_file_open_log_warning, Some(true));
+    assert_eq!(loaded.dismissed_deps_warnings, Some(vec![1, 2, 3]));
 }
 
 #[test]
@@ -66,5 +76,43 @@ fn unknown_fields_ignored() {
     let mut f = NamedTempFile::new().unwrap();
     write!(f, r#"{{"gamePath":"C:\\Games","unknownField":true}}"#).unwrap();
     let loaded = read_from(f.path());
+    // Legacy flat field is still deserializable from old JSON
     assert_eq!(loaded.game_path, Some("C:\\Games".to_string()));
+}
+
+#[test]
+fn migration_from_legacy_flat_fields() {
+    let mut f = NamedTempFile::new().unwrap();
+    write!(
+        f,
+        r#"{{"gamePath":"C:\\Games\\PAYDAY3","launcher":"steam","skipFileOpenLogWarning":true}}"#
+    )
+    .unwrap();
+    let content = std::fs::read_to_string(f.path()).unwrap();
+    let raw: Settings = serde_json::from_str(&content).unwrap();
+    let migrated = migrate_settings(raw);
+    let pd3 = migrated.games.as_ref().unwrap().get("pd3").unwrap();
+    assert_eq!(pd3.game_path.as_deref(), Some("C:\\Games\\PAYDAY3"));
+    assert_eq!(pd3.launcher.as_deref(), Some("steam"));
+    assert_eq!(migrated.skip_file_open_log_warning, Some(true));
+}
+
+#[test]
+fn migration_skipped_when_games_already_present() {
+    let mut games = HashMap::new();
+    games.insert("pd3".to_string(), GameSettings {
+        game_path: Some("new_path".to_string()),
+        ..Default::default()
+    });
+    let s = Settings {
+        games: Some(games),
+        game_path: Some("old_path".to_string()),
+        ..Default::default()
+    };
+    let migrated = migrate_settings(s);
+    // Existing games map must not be overwritten by legacy flat field
+    assert_eq!(
+        migrated.games.as_ref().unwrap().get("pd3").unwrap().game_path.as_deref(),
+        Some("new_path")
+    );
 }

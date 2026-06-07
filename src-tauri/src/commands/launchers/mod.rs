@@ -5,19 +5,18 @@ mod types;
 mod xbox;
 
 use epic::Epic;
-use games::PD3;
+use games::{PD2, PD3};
 use steam::Steam;
 use types::{GameDef, Launcher};
 use xbox::Xbox;
 
 use crate::commands::mods::mods_base;
-use crate::commands::settings::{read_settings, write_settings};
+use crate::commands::settings::{game_settings, read_settings, write_settings};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
-
-const GAME: &GameDef = &PD3;
 
 static STEAM: Steam = Steam;
 static EPIC: Epic = Epic;
@@ -25,6 +24,25 @@ static XBOX: Xbox = Xbox;
 
 fn all_launchers() -> [&'static dyn Launcher; 3] {
     [&STEAM, &EPIC, &XBOX]
+}
+
+fn game_def_for_id(game_id: &str) -> &'static GameDef {
+    match game_id {
+        "pd2" => &PD2,
+        _ => &PD3,
+    }
+}
+
+fn detect_game(game: &'static GameDef) -> Option<DetectedGame> {
+    for launcher in all_launchers() {
+        if !launcher.is_installed() {
+            continue;
+        }
+        if let Some(path) = launcher.find_game(game) {
+            return Some(DetectedGame { launcher: launcher.id().to_string(), game_path: path });
+        }
+    }
+    None
 }
 
 // ── OS helpers ────────────────────────────────────────────────────────────────
@@ -60,11 +78,11 @@ pub fn identify_launcher_for_path(game_path: &str) -> String {
     "manual".to_string()
 }
 
-fn launch_with(launcher_id: &str, game_path: &str, opts: Option<&str>) {
+fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts: Option<&str>) {
     if let Some(launcher) = all_launchers().iter().find(|l| l.id() == launcher_id) {
-        launcher.launch(GAME, game_path, opts);
+        launcher.launch(game, game_path, opts);
     } else {
-        let exe = Path::new(game_path).join(GAME.executable);
+        let exe = Path::new(game_path).join(game.executable);
         let args: Vec<&str> = opts.map(|o| o.split_whitespace().collect()).unwrap_or_default();
         if let Err(e) = std::process::Command::new(&exe).args(&args).spawn() {
             log::warn!("launch_game: spawn {exe:?}: {e}");
@@ -82,21 +100,16 @@ pub struct DetectedGame {
 }
 
 #[tauri::command]
-pub fn auto_detect_game() -> Option<DetectedGame> {
-    for launcher in all_launchers() {
-        if !launcher.is_installed() { continue; }
-        if let Some(path) = launcher.find_game(GAME) {
-            return Some(DetectedGame { launcher: launcher.id().to_string(), game_path: path });
-        }
-    }
-    None
+pub fn auto_detect_game(game_id: Option<String>) -> Option<DetectedGame> {
+    detect_game(game_def_for_id(game_id.as_deref().unwrap_or("pd3")))
 }
 
 #[tauri::command]
-pub fn installed_launchers() -> Vec<String> {
+pub fn installed_launchers(game_id: Option<String>) -> Vec<String> {
+    let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"));
     all_launchers()
         .iter()
-        .filter(|l| l.find_game(GAME).is_some())
+        .filter(|l| l.find_game(game).is_some())
         .map(|l| l.id().to_string())
         .collect()
 }
@@ -107,17 +120,21 @@ pub fn identify_launcher(game_path: String) -> String {
 }
 
 #[tauri::command]
-pub fn configure_game_path(app: AppHandle, game_path: Option<String>) {
+pub fn configure_game_path(app: AppHandle, game_id: Option<String>, game_path: Option<String>) {
+    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+    let game_def = game_def_for_id(&game_id);
     let mut s = read_settings(&app);
+    let games = s.games.get_or_insert_with(HashMap::new);
+    let entry = games.entry(game_id).or_default();
     if let Some(ref path) = game_path {
-        s.game_path = Some(path.clone());
-        s.launcher = Some(identify_launcher_for_path(path));
-    } else if let Some(detected) = auto_detect_game() {
-        s.game_path = Some(detected.game_path);
-        s.launcher = Some(detected.launcher);
+        entry.game_path = Some(path.clone());
+        entry.launcher = Some(identify_launcher_for_path(path));
+    } else if let Some(detected) = detect_game(game_def) {
+        entry.game_path = Some(detected.game_path);
+        entry.launcher = Some(detected.launcher);
     } else {
-        s.game_path = None;
-        s.launcher = None;
+        entry.game_path = None;
+        entry.launcher = None;
     }
     write_settings(&app, &s);
 }
@@ -129,7 +146,7 @@ pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option
         let mut builder = app
             .dialog()
             .file()
-            .set_title(format!("Select {} installation folder", GAME.name));
+            .set_title(format!("Select {} installation folder", PD3.name));
         if let Some(ref path) = default_path {
             builder = builder.set_directory(path);
         }
@@ -142,15 +159,16 @@ pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option
 #[tauri::command]
 pub fn launch_game(app: AppHandle) {
     let s = read_settings(&app);
-    let Some(game_path) = s.game_path else { return };
-    let launcher = s.launcher.as_deref().unwrap_or("steam");
-    launch_with(launcher, &game_path, s.launch_options.as_deref());
+    let Some(gs) = game_settings(&s, "pd3") else { return };
+    let Some(ref game_path) = gs.game_path else { return };
+    launch_with(gs.launcher.as_deref().unwrap_or("steam"), &PD3, game_path, gs.launch_options.as_deref());
 }
 
 #[tauri::command]
 pub fn launch_without_mods(app: AppHandle) -> Result<(), String> {
     let s = read_settings(&app);
-    let Some(ref game_path) = s.game_path else { return Ok(()) };
+    let Some(gs) = game_settings(&s, "pd3") else { return Ok(()) };
+    let Some(ref game_path) = gs.game_path else { return Ok(()) };
 
     let mods_dir = mods_base(game_path);
     let mods_bak = PathBuf::from(game_path).join("PAYDAY3").join("Content").join("~mods.bak");
@@ -165,9 +183,10 @@ pub fn launch_without_mods(app: AppHandle) -> Result<(), String> {
     }
 
     launch_with(
-        s.launcher.as_deref().unwrap_or("steam"),
+        gs.launcher.as_deref().unwrap_or("steam"),
+        &PD3,
         game_path,
-        s.launch_options.as_deref(),
+        gs.launch_options.as_deref(),
     );
     Ok(())
 }
@@ -175,12 +194,15 @@ pub fn launch_without_mods(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn restore_mods(app: AppHandle) -> Result<(), String> {
     let s = read_settings(&app);
-    let Some(ref game_path) = s.game_path else { return Ok(()) };
+    let Some(gs) = game_settings(&s, "pd3") else { return Ok(()) };
+    let Some(ref game_path) = gs.game_path else { return Ok(()) };
 
     let mods_dir = mods_base(game_path);
     let mods_bak = PathBuf::from(game_path).join("PAYDAY3").join("Content").join("~mods.bak");
 
-    if !mods_bak.exists() { return Ok(()); }
+    if !mods_bak.exists() {
+        return Ok(());
+    }
 
     if !mods_dir.exists() {
         fs::rename(&mods_bak, &mods_dir).map_err(|e| {
@@ -200,18 +222,18 @@ pub fn is_game_running() -> bool {
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        let filter = format!("IMAGENAME eq {}.exe", GAME.process_name);
+        let filter = format!("IMAGENAME eq {}.exe", PD3.process_name);
         std::process::Command::new("tasklist")
             .args(["/FI", &filter, "/NH"])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).contains(GAME.process_name))
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains(PD3.process_name))
             .unwrap_or(false)
     }
     #[cfg(not(target_os = "windows"))]
     {
         std::process::Command::new("pgrep")
-            .args(["-f", GAME.process_name])
+            .args(["-f", PD3.process_name])
             .status()
             .map(|s| s.success())
             .unwrap_or(false)
@@ -224,13 +246,13 @@ pub fn stop_game() {
     {
         use std::os::windows::process::CommandExt;
         let _ = std::process::Command::new("taskkill")
-            .args(["/F", "/IM", &format!("{}.exe", GAME.process_name)])
+            .args(["/F", "/IM", &format!("{}.exe", PD3.process_name)])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output();
     }
     #[cfg(not(target_os = "windows"))]
     let _ = std::process::Command::new("pkill")
-        .args(["-f", GAME.process_name])
+        .args(["-f", PD3.process_name])
         .output();
 }
 
