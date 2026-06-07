@@ -30,6 +30,13 @@ export function useModData(installed: InstalledMod[]): {
     const fetchedAt = useRef<Map<number, number>>(new Map())
 
     useEffect(() => {
+        if (installed.length === 0) {
+            setModData(new Map())
+            setFailedIds(new Set())
+            fetchedAt.current.clear()
+            return
+        }
+
         // Sync pre-populate from localStorage-backed cache for immediate render
         const now = Date.now()
         const fromCache: [number, Mod][] = []

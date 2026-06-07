@@ -80,11 +80,14 @@ export function BrowsePage({
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
+    const workshopId = GAMES[activeGame].workshopId
     const initialSort = getSavedSort(activeGame)
     const [sort, setSort] = useState<SortOption>(initialSort)
-    const initialCache = activeGame === 'pd3' ? getBrowseCache(1, '', initialSort, undefined) : null
+    const initialCache = getBrowseCache(workshopId, 1, '', initialSort, undefined)
     const [result, setResult] = useState<Paginated<Mod> | null>(initialCache?.result ?? null)
-    const [categories, setCategories] = useState<Category[]>(() => getCategoriesCache() ?? [])
+    const [categories, setCategories] = useState<Category[]>(
+        () => getCategoriesCache(workshopId) ?? []
+    )
     const [loadingMods, setLoadingMods] = useState(!initialCache)
     const [loadingMod, setLoadingMod] = useState<number | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -114,8 +117,7 @@ export function BrowsePage({
 
     const fetchMods = useCallback(
         async (p: number, q: string, cat: number | undefined, s: SortOption) => {
-            const workshopId = GAMES[activeGame].workshopId
-            const cached = activeGame === 'pd3' ? getBrowseCache(p, q, s, cat) : null
+            const cached = getBrowseCache(workshopId, p, q, s, cat)
             if (cached) {
                 setResult(cached.result)
                 if (!cached.stale) return
@@ -131,7 +133,7 @@ export function BrowsePage({
                     query: q || undefined,
                     category_id: cat,
                 })
-                if (activeGame === 'pd3') setBrowseCache(p, q, s, cat, data)
+                setBrowseCache(workshopId, p, q, s, cat, data)
                 startTransition(() => {
                     setResult(data)
                     setLoadingMods(false)
@@ -141,23 +143,20 @@ export function BrowsePage({
                 setLoadingMods(false)
             }
         },
-        [activeGame] // stable per mount — BrowsePage remounts on game change via key={activeGame}
+        [workshopId] // stable per mount — BrowsePage remounts on game change via key={activeGame}
     )
 
     useEffect(() => {
-        const workshopId = GAMES[activeGame].workshopId
-        if (activeGame === 'pd3') {
-            const cached = getCategoriesCache()
-            if (cached) {
-                setCategories(cached)
-                return
-            }
+        const cached = getCategoriesCache(workshopId)
+        if (cached) {
+            setCategories(cached)
+            return
         }
         api.listCategories(workshopId).then((r) => {
-            if (activeGame === 'pd3') setCategoriesCache(r.data)
+            setCategoriesCache(workshopId, r.data)
             setCategories(r.data)
         })
-    }, [activeGame]) // stable per mount — BrowsePage remounts on game change via key={activeGame}
+    }, [workshopId]) // stable per mount — BrowsePage remounts on game change via key={activeGame}
 
     useEffect(() => {
         if (scrollRef.current) scrollRef.current.scrollTop = 0

@@ -92,8 +92,10 @@ export const api = {
     },
 
     // ── Installed mods ─────────────────────────────────────────────────────────
-    getInstalled(): Promise<{ mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }> {
-        return invoke('get_installed')
+    getInstalled(
+        gameId = 'pd3'
+    ): Promise<{ mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }> {
+        return invoke('get_installed', { gameId })
     },
     openModsFolder(): Promise<void> {
         return invoke('open_mods_folder')

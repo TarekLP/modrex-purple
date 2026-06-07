@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, memo, useRef } from 'react'
 import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId } from '../../shared/types'
@@ -28,7 +28,8 @@ export default function App() {
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [activeGame, setActiveGame] = useState<GameId>(() => {
         const saved = localStorage.getItem('modrex:active-game')
-        return saved === 'pd2' ? 'pd2' : 'pd3'
+        if (saved === 'pd2' || saved === 'pdth') return saved
+        return 'pd3'
     })
     const [detailStack, setDetailStack] = useState<number[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
@@ -47,8 +48,20 @@ export default function App() {
     } | null>(null)
     const [showUpdateModal, setShowUpdateModal] = useState(false)
 
+    // Kept in sync with activeGame after every commit so async callbacks can detect staleness.
+    const activeGameRef = useRef<GameId>(activeGame)
+    useLayoutEffect(() => {
+        activeGameRef.current = activeGame
+    }, [activeGame])
+
+    // Per-session cache: last resolved path for each game. undefined = not yet loaded.
+    const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
+
     const refreshGamePath = useCallback(async () => {
-        const path = await api.findGamePath(activeGame)
+        const game = activeGame
+        const path = await api.findGamePath(game)
+        if (activeGameRef.current !== game) return
+        gamePathCache.current[game] = path
         setGamePath(path)
     }, [activeGame])
 
@@ -59,9 +72,13 @@ export default function App() {
 
     function handleGameChange(g: GameId) {
         setActiveGame(g)
-        setGamePath(null)
+        // Restore the last-known path for this game so the UI never flashes "not found"
+        // while refreshGamePath re-validates in the background.
+        const cached = gamePathCache.current[g]
+        setGamePath(cached !== undefined ? cached : null)
         setInstalled([])
         setFolders([])
+        setModsHidden(false)
         localStorage.setItem('modrex:active-game', g)
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
@@ -70,12 +87,14 @@ export default function App() {
     }
 
     const refreshInstalled = useCallback(async () => {
-        const { mods, folders, modsHidden } = await api.getInstalled()
+        const game = activeGame
+        const { mods, folders, modsHidden } = await api.getInstalled(game)
+        if (activeGameRef.current !== game) return
         setInstalled(mods)
         setFolders(folders)
         setModsHidden(modsHidden)
         setInstalledReady(true)
-    }, [])
+    }, [activeGame])
 
     async function handleRestoreMods() {
         setRestoreError(null)

@@ -9,44 +9,48 @@ interface BrowseCacheEntry {
 }
 
 const cache = new Map<string, BrowseCacheEntry>()
-let categoriesEntry: { categories: Category[]; fetchedAt: number } | null = null
+const categoriesCache = new Map<number, { categories: Category[]; fetchedAt: number }>()
 
 function makeKey(
+    workshopId: number,
     page: number,
     query: string,
     sort: SortOption,
     categoryId: number | undefined
 ): string {
-    return `${page}:${query}:${sort}:${categoryId ?? ''}`
+    return `${workshopId}:${page}:${query}:${sort}:${categoryId ?? ''}`
 }
 
 export function getBrowseCache(
+    workshopId: number,
     page: number,
     query: string,
     sort: SortOption,
     categoryId: number | undefined
 ): { result: Paginated<Mod>; stale: boolean } | null {
-    const entry = cache.get(makeKey(page, query, sort, categoryId))
+    const entry = cache.get(makeKey(workshopId, page, query, sort, categoryId))
     if (!entry) return null
     return { result: entry.result, stale: Date.now() - entry.fetchedAt >= TTL_MS }
 }
 
 export function setBrowseCache(
+    workshopId: number,
     page: number,
     query: string,
     sort: SortOption,
     categoryId: number | undefined,
     result: Paginated<Mod>
 ): void {
-    cache.set(makeKey(page, query, sort, categoryId), { result, fetchedAt: Date.now() })
+    cache.set(makeKey(workshopId, page, query, sort, categoryId), { result, fetchedAt: Date.now() })
 }
 
-export function getCategoriesCache(): Category[] | null {
-    if (!categoriesEntry) return null
-    if (Date.now() - categoriesEntry.fetchedAt >= CATEGORIES_TTL_MS) return null
-    return categoriesEntry.categories
+export function getCategoriesCache(workshopId: number): Category[] | null {
+    const entry = categoriesCache.get(workshopId)
+    if (!entry) return null
+    if (Date.now() - entry.fetchedAt >= CATEGORIES_TTL_MS) return null
+    return entry.categories
 }
 
-export function setCategoriesCache(categories: Category[]): void {
-    categoriesEntry = { categories, fetchedAt: Date.now() }
+export function setCategoriesCache(workshopId: number, categories: Category[]): void {
+    categoriesCache.set(workshopId, { categories, fetchedAt: Date.now() })
 }

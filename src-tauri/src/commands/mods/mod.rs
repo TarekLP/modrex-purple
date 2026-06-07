@@ -44,7 +44,11 @@ use uuid::Uuid;
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> {
+pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<InstalledResponse, String> {
+    let game_id = game_id.as_deref().unwrap_or("pd3");
+    if game_id != "pd3" {
+        return Ok(InstalledResponse { mods: vec![], folders: vec![], mods_hidden: false });
+    }
     let settings = read_settings(&app);
     let Some(game_path) = game_settings(&settings, "pd3").and_then(|gs| gs.game_path.clone()) else {
         return Ok(InstalledResponse { mods: vec![], folders: vec![], mods_hidden: false });
