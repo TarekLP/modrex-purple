@@ -120,7 +120,7 @@ export function BrowsePage({
             }
             setError(null)
             try {
-                const data = await api.listMods({
+                const data = await api.listMods(853, {
                     page: p,
                     limit: 24,
                     sort: s,
@@ -146,7 +146,7 @@ export function BrowsePage({
             setCategories(cached)
             return
         }
-        api.listCategories().then((r) => {
+        api.listCategories(853).then((r) => {
             setCategoriesCache(r.data)
             setCategories(r.data)
         })

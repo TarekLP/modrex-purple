@@ -7,7 +7,6 @@ use tauri::AppHandle;
 use tokio::sync::Semaphore;
 
 const BASE: &str = "https://api.modworkshop.net";
-const GAME_ID: u32 = 853;
 const MAX_CONCURRENT: usize = 3;
 // Burst up to 8, then 4/sec sustained — keeps total rate well under the API's threshold.
 const RATE_BURST: f64 = 8.0;
@@ -128,7 +127,7 @@ pub struct ListModsParams {
 }
 
 #[tauri::command]
-pub async fn list_mods(app: AppHandle, params: Option<ListModsParams>) -> Result<Value, String> {
+pub async fn list_mods(app: AppHandle, game_id: u32, params: Option<ListModsParams>) -> Result<Value, String> {
     let mut query: Vec<(&str, String)> = vec![];
     if let Some(p) = &params {
         if let Some(v) = &p.query { query.push(("query", v.clone())); }
@@ -137,7 +136,7 @@ pub async fn list_mods(app: AppHandle, params: Option<ListModsParams>) -> Result
         if let Some(v) = p.category_id { query.push(("category_id", v.to_string())); }
         if let Some(v) = p.page { query.push(("page", v.to_string())); }
     }
-    api_get(&app, &format!("/games/{}/mods", GAME_ID), query).await
+    api_get(&app, &format!("/games/{}/mods", game_id), query).await
 }
 
 #[tauri::command]
@@ -161,8 +160,8 @@ pub async fn list_mod_links(app: AppHandle, mod_id: u32) -> Result<Value, String
 }
 
 #[tauri::command]
-pub async fn list_categories(app: AppHandle) -> Result<Value, String> {
-    api_get(&app, &format!("/games/{}/categories", GAME_ID), vec![]).await
+pub async fn list_categories(app: AppHandle, game_id: u32) -> Result<Value, String> {
+    api_get(&app, &format!("/games/{}/categories", game_id), vec![]).await
 }
 
 #[tauri::command]

@@ -35,11 +35,11 @@ function onEvent<T>(eventName: string, callback: (payload: T) => void): () => vo
 
 export const api = {
     // ── Browse / API ───────────────────────────────────────────────────────────
-    listMods(params?: ListModsParams): Promise<Paginated<Mod>> {
-        return invoke('list_mods', { params: params ?? {} })
+    listMods(gameId: number, params?: ListModsParams): Promise<Paginated<Mod>> {
+        return invoke('list_mods', { gameId, params: params ?? {} })
     },
-    listCategories(): Promise<Paginated<Category>> {
-        return invoke('list_categories')
+    listCategories(gameId: number): Promise<Paginated<Category>> {
+        return invoke('list_categories', { gameId })
     },
     getMod(id: number): Promise<Mod> {
         return invoke('get_mod', { id })
