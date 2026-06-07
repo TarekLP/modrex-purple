@@ -8,8 +8,9 @@ import type {
     Category,
     ModDependency,
     SortOption,
+    GameId,
 } from '../../../shared/types'
-import { GAME_STORAGE_KEY } from '../../../shared/types'
+import { GAMES } from '../../../shared/types'
 import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
 import {
     getBrowseCache,
@@ -30,6 +31,7 @@ import { t } from '../i18n'
 import { api } from '../api'
 
 interface Props {
+    activeGame: GameId
     gamePath: string | null
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
@@ -62,12 +64,13 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'name', label: t('browse.sort.name') },
 ]
 
-function getSavedSort(): SortOption {
-    const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:browse-sort`)
+function getSavedSort(game: GameId): SortOption {
+    const saved = localStorage.getItem(`modrex:${GAMES[game].storageKey}:browse-sort`)
     return SORT_OPTIONS.some((o) => o.value === saved) ? (saved as SortOption) : 'bumped_at'
 }
 
 export function BrowsePage({
+    activeGame,
     gamePath,
     installed,
     onRefreshInstalled,
@@ -77,9 +80,9 @@ export function BrowsePage({
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
-    const initialSort = getSavedSort()
+    const initialSort = getSavedSort(activeGame)
     const [sort, setSort] = useState<SortOption>(initialSort)
-    const initialCache = getBrowseCache(1, '', initialSort, undefined)
+    const initialCache = activeGame === 'pd3' ? getBrowseCache(1, '', initialSort, undefined) : null
     const [result, setResult] = useState<Paginated<Mod> | null>(initialCache?.result ?? null)
     const [categories, setCategories] = useState<Category[]>(() => getCategoriesCache() ?? [])
     const [loadingMods, setLoadingMods] = useState(!initialCache)
@@ -111,7 +114,8 @@ export function BrowsePage({
 
     const fetchMods = useCallback(
         async (p: number, q: string, cat: number | undefined, s: SortOption) => {
-            const cached = getBrowseCache(p, q, s, cat)
+            const workshopId = GAMES[activeGame].workshopId
+            const cached = activeGame === 'pd3' ? getBrowseCache(p, q, s, cat) : null
             if (cached) {
                 setResult(cached.result)
                 if (!cached.stale) return
@@ -120,14 +124,14 @@ export function BrowsePage({
             }
             setError(null)
             try {
-                const data = await api.listMods(853, {
+                const data = await api.listMods(workshopId, {
                     page: p,
                     limit: 24,
                     sort: s,
                     query: q || undefined,
                     category_id: cat,
                 })
-                setBrowseCache(p, q, s, cat, data)
+                if (activeGame === 'pd3') setBrowseCache(p, q, s, cat, data)
                 startTransition(() => {
                     setResult(data)
                     setLoadingMods(false)
@@ -137,20 +141,23 @@ export function BrowsePage({
                 setLoadingMods(false)
             }
         },
-        []
+        [activeGame] // stable per mount — BrowsePage remounts on game change via key={activeGame}
     )
 
     useEffect(() => {
-        const cached = getCategoriesCache()
-        if (cached) {
-            setCategories(cached)
-            return
+        const workshopId = GAMES[activeGame].workshopId
+        if (activeGame === 'pd3') {
+            const cached = getCategoriesCache()
+            if (cached) {
+                setCategories(cached)
+                return
+            }
         }
-        api.listCategories(853).then((r) => {
-            setCategoriesCache(r.data)
+        api.listCategories(workshopId).then((r) => {
+            if (activeGame === 'pd3') setCategoriesCache(r.data)
             setCategories(r.data)
         })
-    }, [])
+    }, [activeGame]) // stable per mount — BrowsePage remounts on game change via key={activeGame}
 
     useEffect(() => {
         if (scrollRef.current) scrollRef.current.scrollTop = 0
@@ -177,7 +184,7 @@ export function BrowsePage({
     }
 
     function handleSortChange(val: string) {
-        localStorage.setItem(`modrex:${GAME_STORAGE_KEY}:browse-sort`, val)
+        localStorage.setItem(`modrex:${GAMES[activeGame].storageKey}:browse-sort`, val)
         setSort(val as SortOption)
         setPage(1)
     }

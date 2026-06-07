@@ -7,7 +7,7 @@ import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
 import { InstalledModItem } from './InstalledModItem'
 import { InstalledContext } from './InstalledContext'
-import type { InstalledMod, ModFolder } from '../../../shared/types'
+import type { InstalledMod, ModFolder, GameId } from '../../../shared/types'
 import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { useModData } from '../hooks/useModData'
 import { useDragDrop } from '../hooks/useDragDrop'
@@ -29,6 +29,7 @@ function getSavedViewMode(): ViewMode {
 }
 
 interface Props {
+    activeGame: GameId
     gamePath: string | null
     installed: InstalledMod[]
     folders: ModFolder[]
@@ -38,6 +39,7 @@ interface Props {
 }
 
 export function InstalledPage({
+    activeGame,
     gamePath,
     installed,
     folders,
@@ -181,6 +183,14 @@ export function InstalledPage({
         onModDragStart,
         onModDragOver,
         onModDrop,
+    }
+
+    if (activeGame !== 'pd3') {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <p className="text-sm text-text-subtle">{t('installed.comingSoon')}</p>
+            </div>
+        )
     }
 
     return (

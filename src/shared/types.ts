@@ -99,6 +99,16 @@ export interface Category {
 export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
 export const GAME_STORAGE_KEY = 'pd3'
 
+export type GameId = 'pd3' | 'pd2'
+
+export const GAMES: Record<
+    GameId,
+    { name: string; shortName: string; workshopId: number; storageKey: string }
+> = {
+    pd3: { name: 'PAYDAY 3', shortName: 'PD3', workshopId: 853, storageKey: 'pd3' },
+    pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2' },
+}
+
 export interface ModFolder {
     id: string
     diskName: string // priority-prefixed slug on disk, e.g. '002_weapons'

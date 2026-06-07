@@ -50,7 +50,8 @@
         "settings": "Settings",
         "collapse": "Collapse menu",
         "expandTitle": "Expand sidebar",
-        "collapseTitle": "Collapse sidebar"
+        "collapseTitle": "Collapse sidebar",
+        "changeGame": "Change game"
     },
     "browse": {
         "title": "Browse Mods",
@@ -69,6 +70,7 @@
         }
     },
     "installed": {
+        "comingSoon": "Mod management for this game is coming soon.",
         "title": "Installed Mods",
         "openFolder": "Open mods folder",
         "refresh": "Refresh installed mods",

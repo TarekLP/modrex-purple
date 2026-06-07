@@ -3,6 +3,8 @@ import { FolderOpen, RefreshCw, ScrollText } from 'lucide-react'
 import { t } from '../i18n'
 import { Select } from './Select'
 import { api } from '../api'
+import type { GameId } from '../../../shared/types'
+import { GAMES } from '../../../shared/types'
 import SteamIcon from '../../../../assets/icons/steam.svg?react'
 import EpicIcon from '../../../../assets/icons/epicgames.svg?react'
 import XboxIcon from '../../../../assets/icons/xbox.svg?react'
@@ -16,11 +18,12 @@ const LAUNCHER_OPTIONS = [
 ]
 
 interface Props {
+    activeGame: GameId
     gamePath: string | null
     onGamePathChange: () => Promise<void>
 }
 
-export function SettingsPage({ gamePath, onGamePathChange }: Props) {
+export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) {
     const [settings, setSettings] = useState<{
         gamePath?: string
         launcher?: string
@@ -35,20 +38,23 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
     const launchOptionsLoaded = useRef(false)
 
     useEffect(() => {
-        Promise.all([api.getSettings(), api.getInstalledLaunchers()]).then(([s, installed]) => {
-            setInstalledLaunchers(installed)
-            setSettings(s)
-            setLauncher(s.launcher ?? 'steam')
-            setLaunchOptions(s.launchOptions ?? '')
-            launchOptionsLoaded.current = true
-        })
-    }, [])
+        launchOptionsLoaded.current = false
+        Promise.all([api.getGameSettings(activeGame), api.getInstalledLaunchers(activeGame)]).then(
+            ([gs, installed]) => {
+                setInstalledLaunchers(installed)
+                setSettings(gs)
+                setLauncher(gs.launcher ?? 'steam')
+                setLaunchOptions(gs.launchOptions ?? '')
+                launchOptionsLoaded.current = true
+            }
+        )
+    }, [activeGame])
 
     useEffect(() => {
         if (!launchOptionsLoaded.current) return
-        const timer = setTimeout(() => api.setLaunchOptions(launchOptions), 500)
+        const timer = setTimeout(() => api.setLaunchOptions(launchOptions, activeGame), 500)
         return () => clearTimeout(timer)
-    }, [launchOptions])
+    }, [launchOptions, activeGame])
 
     const availableLaunchers = LAUNCHER_OPTIONS.filter((o) => installedLaunchers.includes(o.value))
 
@@ -59,7 +65,7 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
             const picked = await api.pickFolder()
             if (!picked) return
             try {
-                await api.setGamePath(picked)
+                await api.setGamePath(picked, activeGame)
                 setSettings((s) => ({ ...s, gamePath: picked }))
                 await onGamePathChange()
             } catch {
@@ -83,13 +89,14 @@ export function SettingsPage({ gamePath, onGamePathChange }: Props) {
 
     async function handleLauncherChange(value: string) {
         setLauncher(value)
-        await api.setLauncher(value)
+        await api.setLauncher(value, activeGame)
     }
 
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0">
                 <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
+                <p className="text-xs text-text-subtle mt-0.5">{GAMES[activeGame].name}</p>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-6">

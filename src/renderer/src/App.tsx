@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, memo } from 'react'
 import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
-import type { InstalledMod, ModFolder } from '../../shared/types'
+import type { InstalledMod, ModFolder, GameId } from '../../shared/types'
 import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
@@ -9,21 +9,27 @@ import { BrowsePage } from './components/BrowsePage'
 import { InstalledPage } from './components/InstalledPage'
 import { ModDetailPage } from './components/ModDetailPage'
 import { SettingsPage } from './components/SettingsPage'
+import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { api } from './api'
 
 const InstalledPageMemo = memo(InstalledPage)
 
-export type View = 'browse' | 'installed' | 'detail' | 'settings'
+export type View = 'browse' | 'installed' | 'detail' | 'settings' | 'welcome'
 
-function getSavedView(): View {
+function getInitialView(): View {
+    if (!localStorage.getItem('modrex:active-game')) return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
     return v === 'browse' || v === 'installed' || v === 'settings' ? v : 'browse'
 }
 
 export default function App() {
-    const [view, setView] = useState<View>(getSavedView)
+    const [view, setView] = useState<View>(getInitialView)
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
+    const [activeGame, setActiveGame] = useState<GameId>(() => {
+        const saved = localStorage.getItem('modrex:active-game')
+        return saved === 'pd2' ? 'pd2' : 'pd3'
+    })
     const [detailStack, setDetailStack] = useState<number[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
@@ -42,9 +48,23 @@ export default function App() {
     const [showUpdateModal, setShowUpdateModal] = useState(false)
 
     const refreshGamePath = useCallback(async () => {
-        const path = await api.findGamePath()
+        const path = await api.findGamePath(activeGame)
         setGamePath(path)
-    }, [])
+    }, [activeGame])
+
+    function handleShowWelcome() {
+        setDetailStack([])
+        setView('welcome')
+    }
+
+    function handleGameChange(g: GameId) {
+        setActiveGame(g)
+        localStorage.setItem('modrex:active-game', g)
+        const saved = localStorage.getItem('modrex:active-view')
+        const dest: View =
+            saved === 'browse' || saved === 'installed' || saved === 'settings' ? saved : 'browse'
+        setView(dest)
+    }
 
     const refreshInstalled = useCallback(async () => {
         const { mods, folders, modsHidden } = await api.getInstalled()
@@ -178,78 +198,95 @@ export default function App() {
                     <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
                 </div>
             )}
-            <TopBar
-                gamePath={gamePath}
-                onRefreshInstalled={refreshInstalled}
-                update={
-                    update && update.phase !== 'available'
-                        ? { phase: update.phase, percent: update.percent }
-                        : null
-                }
-                onDismissUpdate={() => setUpdate(null)}
-            />
-            {modsHidden && (
-                <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
-                    <span>{t('app.modsHidden')}</span>
-                    <div className="flex items-center gap-3 shrink-0">
-                        {restoreError && <span className="text-danger-text">{restoreError}</span>}
-                        <button
-                            onClick={handleRestoreMods}
-                            className="px-3 py-1 rounded bg-warning/20 hover:bg-warning/30 transition-colors"
-                        >
-                            {t('app.restoreMods')}
-                        </button>
-                    </div>
-                </div>
-            )}
-            <div className="flex flex-1 overflow-hidden">
-                <Sidebar
-                    view={sidebarView as 'browse' | 'installed' | 'settings'}
-                    onViewChange={handleSidebarChange}
-                />
-                <main className="flex-1 overflow-hidden">
-                    {view === 'browse' && (
-                        <div className="h-full">
-                            <BrowsePage
-                                gamePath={gamePath}
-                                installed={installed}
-                                onRefreshInstalled={refreshInstalled}
-                                onOpenDetail={(id) => openDetail(id, 'browse')}
-                                onGoToSettings={() => handleSidebarChange('settings')}
-                            />
+            {view === 'welcome' ? (
+                <WelcomeScreen onSelectGame={handleGameChange} />
+            ) : (
+                <>
+                    <TopBar
+                        gamePath={gamePath}
+                        onRefreshInstalled={refreshInstalled}
+                        update={
+                            update && update.phase !== 'available'
+                                ? { phase: update.phase, percent: update.percent }
+                                : null
+                        }
+                        onDismissUpdate={() => setUpdate(null)}
+                    />
+                    {modsHidden && (
+                        <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
+                            <span>{t('app.modsHidden')}</span>
+                            <div className="flex items-center gap-3 shrink-0">
+                                {restoreError && (
+                                    <span className="text-danger-text">{restoreError}</span>
+                                )}
+                                <button
+                                    onClick={handleRestoreMods}
+                                    className="px-3 py-1 rounded bg-warning/20 hover:bg-warning/30 transition-colors"
+                                >
+                                    {t('app.restoreMods')}
+                                </button>
+                            </div>
                         </div>
                     )}
-                    <div className={`h-full ${view === 'installed' ? '' : 'hidden'}`}>
-                        <InstalledPageMemo
-                            gamePath={gamePath}
-                            installed={installed}
-                            folders={folders}
-                            installedReady={installedReady}
-                            onRefreshInstalled={refreshInstalled}
-                            onOpenDetail={openDetailFromInstalled}
+                    <div className="flex flex-1 overflow-hidden">
+                        <Sidebar
+                            view={sidebarView as 'browse' | 'installed' | 'settings'}
+                            onViewChange={handleSidebarChange}
+                            activeGame={activeGame}
+                            onShowWelcome={handleShowWelcome}
                         />
+                        <main className="flex-1 overflow-hidden">
+                            {view === 'browse' && (
+                                <div className="h-full">
+                                    <BrowsePage
+                                        key={activeGame}
+                                        activeGame={activeGame}
+                                        gamePath={gamePath}
+                                        installed={installed}
+                                        onRefreshInstalled={refreshInstalled}
+                                        onOpenDetail={(id) => openDetail(id, 'browse')}
+                                        onGoToSettings={() => handleSidebarChange('settings')}
+                                    />
+                                </div>
+                            )}
+                            <div className={`h-full ${view === 'installed' ? '' : 'hidden'}`}>
+                                <InstalledPageMemo
+                                    activeGame={activeGame}
+                                    gamePath={gamePath}
+                                    installed={installed}
+                                    folders={folders}
+                                    installedReady={installedReady}
+                                    onRefreshInstalled={refreshInstalled}
+                                    onOpenDetail={openDetailFromInstalled}
+                                />
+                            </div>
+                            <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>
+                                <SettingsPage
+                                    activeGame={activeGame}
+                                    gamePath={gamePath}
+                                    onGamePathChange={refreshGamePath}
+                                />
+                            </div>
+                            {detailStack.map((modId, i) => (
+                                <div
+                                    key={modId}
+                                    className={`h-full ${view === 'detail' && i === detailStack.length - 1 ? '' : 'hidden'}`}
+                                >
+                                    <ModDetailPage
+                                        modId={modId}
+                                        isActive={view === 'detail' && i === detailStack.length - 1}
+                                        gamePath={gamePath}
+                                        installed={installed}
+                                        onBack={closeDetail}
+                                        onRefreshInstalled={refreshInstalled}
+                                        onOpenDetail={pushDetail}
+                                    />
+                                </div>
+                            ))}
+                        </main>
                     </div>
-                    <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>
-                        <SettingsPage gamePath={gamePath} onGamePathChange={refreshGamePath} />
-                    </div>
-                    {detailStack.map((modId, i) => (
-                        <div
-                            key={modId}
-                            className={`h-full ${view === 'detail' && i === detailStack.length - 1 ? '' : 'hidden'}`}
-                        >
-                            <ModDetailPage
-                                modId={modId}
-                                isActive={view === 'detail' && i === detailStack.length - 1}
-                                gamePath={gamePath}
-                                installed={installed}
-                                onBack={closeDetail}
-                                onRefreshInstalled={refreshInstalled}
-                                onOpenDetail={pushDetail}
-                            />
-                        </div>
-                    ))}
-                </main>
-            </div>
+                </>
+            )}
 
             {showUpdateModal && update && update.phase === 'available' && (
                 <div
