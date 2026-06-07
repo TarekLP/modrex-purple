@@ -28,7 +28,7 @@ pub struct Settings {
 }
 
 fn settings_path(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().unwrap().join("settings.json")
+    app.path().app_data_dir().expect("no app data dir").join("settings.json")
 }
 
 pub fn migrate_settings(mut s: Settings) -> Settings {

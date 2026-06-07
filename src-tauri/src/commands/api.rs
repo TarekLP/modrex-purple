@@ -52,7 +52,7 @@ fn semaphore() -> &'static Semaphore {
 }
 
 pub(crate) fn http_client() -> &'static Client {
-    HTTP_CLIENT.get_or_init(|| Client::builder().pool_max_idle_per_host(4).build().unwrap())
+    HTTP_CLIENT.get_or_init(|| Client::builder().pool_max_idle_per_host(4).build().expect("failed to build HTTP client"))
 }
 
 pub(crate) fn user_agent(app: &AppHandle) -> String {
@@ -72,7 +72,7 @@ pub(crate) async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, Stri
 
     for attempt in 0u64..3 {
         // Bucket refills during backoff sleep, so this is usually instant on retry.
-        let wait = rate_limiter().lock().unwrap().consume();
+        let wait = rate_limiter().lock().unwrap_or_else(|e| e.into_inner()).consume();
         if !wait.is_zero() {
             tokio::time::sleep(wait).await;
         }

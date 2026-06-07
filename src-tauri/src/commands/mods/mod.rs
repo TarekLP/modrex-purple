@@ -186,7 +186,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         let Some(sha) = sha256 else { continue };
         let Some(uid) = sha256_to_uid.get(sha.as_str()) else { continue };
         let parts: Vec<&str> = rel_path.split('/').collect();
-        let filename = parts.last().unwrap().to_string();
+        let filename = parts.last().unwrap_or(&"").to_string();
         let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
         let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
         reconcile_ops.push((uid.clone(), filename, *enabled, folder_id));
@@ -215,7 +215,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         }
 
         let parts: Vec<&str> = rel_path.split('/').collect();
-        let filename = parts.last().unwrap().to_string();
+        let filename = parts.last().unwrap_or(&"").to_string();
         let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
         let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
 
