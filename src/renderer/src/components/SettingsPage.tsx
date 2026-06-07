@@ -43,7 +43,11 @@ export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) 
             ([gs, installed]) => {
                 setInstalledLaunchers(installed)
                 setSettings(gs)
-                setLauncher(gs.launcher ?? 'steam')
+                const saved = gs.launcher ?? installed[0] ?? 'steam'
+                const effective =
+                    installed.length > 0 && !installed.includes(saved) ? installed[0] : saved
+                setLauncher(effective)
+                if (effective !== gs.launcher) api.setLauncher(effective, activeGame)
                 setLaunchOptions(gs.launchOptions ?? '')
                 launchOptionsLoaded.current = true
             }

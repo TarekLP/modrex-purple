@@ -134,7 +134,10 @@ pub fn configure_game_path(app: AppHandle, game_id: Option<String>, game_path: O
         // Validate existing saved path before falling back to auto-detect.
         if let Some(ref path) = entry.game_path.clone() {
             if Path::new(path).join(game_def.executable).exists() {
-                entry.launcher = Some(identify_launcher_for_path(path));
+                // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
+                if entry.launcher.is_none() {
+                    entry.launcher = Some(identify_launcher_for_path(path));
+                }
             } else if let Some(detected) = detect_game(game_def) {
                 entry.game_path = Some(detected.game_path);
                 entry.launcher = Some(detected.launcher);
