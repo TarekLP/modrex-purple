@@ -203,13 +203,16 @@ pub fn resolve_archive_download(downloaded: PathBuf) -> Result<(PathBuf, Option<
     }
 }
 
+/// Returns the updated mod list and whether any `archive_broken` value was newly determined.
+/// Skips mods where `archive_broken` is already `Some` — the result was cached in the state file.
 pub fn mark_archive_files(
     game_path: &str,
     folders: &[ModFolder],
     mut mods: Vec<InstalledMod>,
-) -> Vec<InstalledMod> {
+) -> (Vec<InstalledMod>, bool) {
+    let mut any_checked = false;
     for m in &mut mods {
-        if m.missing == Some(true) {
+        if m.missing == Some(true) || m.archive_broken.is_some() {
             continue;
         }
         let rel = get_folder_path(folders, m.folder_id.as_deref());
@@ -218,9 +221,8 @@ pub fn mark_archive_files(
         } else {
             disabled_mod_path(game_path, &m.filename, rel.as_deref())
         };
-        if detect_archive(&path).is_some() {
-            m.archive_broken = Some(true);
-        }
+        m.archive_broken = Some(detect_archive(&path).is_some());
+        any_checked = true;
     }
-    mods
+    (mods, any_checked)
 }

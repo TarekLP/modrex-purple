@@ -110,7 +110,10 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
 
     let untracked = find_untracked_paks(&game_path, &known).await;
     if untracked.is_empty() {
-        let mods = mark_archive_files(&game_path, &state.folders, state.mods);
+        let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods);
+        if any_checked {
+            save_state(&state_path, &ModsState { folders: state.folders.clone(), mods: mods.clone() });
+        }
         return Ok(InstalledResponse { mods, folders: state.folders, mods_hidden: false });
     }
 
@@ -276,10 +279,10 @@ pub async fn get_installed(app: AppHandle) -> Result<InstalledResponse, String> 
         });
     }
 
-    let to_save = ModsState { folders: state.folders, mods: by_uid.into_values().collect() };
-    save_state(&state_path, &to_save);
-    let ModsState { folders, mods } = to_save;
-    let mods = mark_archive_files(&game_path, &folders, mods);
+    let folders = state.folders;
+    let mods: Vec<InstalledMod> = by_uid.into_values().collect();
+    let (mods, _) = mark_archive_files(&game_path, &folders, mods);
+    save_state(&state_path, &ModsState { folders: folders.clone(), mods: mods.clone() });
     Ok(InstalledResponse { mods, folders, mods_hidden: false })
 }
 
