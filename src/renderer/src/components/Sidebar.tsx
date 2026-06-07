@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Compass, Package, Settings, ChevronLeft, Gamepad2 } from 'lucide-react'
+import { Compass, Package, Settings, ChevronLeft, ArrowLeftRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { t } from '../i18n'
 import type { StringKey } from '../i18n'
@@ -30,18 +30,18 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
         <aside
             className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-200 overflow-hidden`}
         >
-            {/* Current game indicator */}
+            {/* Game switcher */}
             <div className="p-2 border-b border-border shrink-0">
                 <button
                     onClick={onShowWelcome}
-                    title={collapsed ? GAMES[activeGame].name : t('sidebar.changeGame')}
-                    className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
+                    title={`${GAMES[activeGame].name} — ${t('sidebar.changeGame')}`}
+                    className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs hover:bg-surface-hover text-text hover:text-text transition-colors"
                 >
-                    <Gamepad2 className="w-4 h-4 shrink-0" />
+                    <ArrowLeftRight className="w-3.5 h-3.5 shrink-0 text-text-subtle" />
                     <span
-                        className={`truncate transition-opacity duration-200 font-medium ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                        className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                     >
-                        {GAMES[activeGame].shortName}
+                        {GAMES[activeGame].name}
                     </span>
                 </button>
             </div>
