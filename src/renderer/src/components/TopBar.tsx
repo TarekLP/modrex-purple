@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
 import { t } from '../i18n'
 import { api } from '../api'
+import type { GameId } from '../../../shared/types'
 
 interface UpdateState {
     phase: 'downloading' | 'ready'
@@ -10,12 +11,19 @@ interface UpdateState {
 
 interface Props {
     gamePath: string | null
+    activeGame: GameId
     onRefreshInstalled: () => Promise<void>
     update?: UpdateState | null
     onDismissUpdate?: () => void
 }
 
-export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }: Props) {
+export function TopBar({
+    gamePath,
+    activeGame,
+    onRefreshInstalled,
+    update,
+    onDismissUpdate,
+}: Props) {
     const [gameRunning, setGameRunning] = useState(false)
     const [launching, setLaunching] = useState<'modded' | 'vanilla' | null>(null)
     const [showWarning, setShowWarning] = useState(false)
@@ -69,11 +77,16 @@ export function TopBar({ gamePath, onRefreshInstalled, update, onDismissUpdate }
     }, [onRefreshInstalled])
 
     async function handleLaunchModded() {
-        const settings = await api.getSettings()
-        if (!settings.skipFileOpenLogWarning && !settings.launchOptions?.includes('-fileopenlog')) {
-            setDontShowAgain(false)
-            setShowWarning(true)
-            return
+        if (activeGame === 'pd3') {
+            const settings = await api.getSettings()
+            if (
+                !settings.skipFileOpenLogWarning &&
+                !settings.launchOptions?.includes('-fileopenlog')
+            ) {
+                setDontShowAgain(false)
+                setShowWarning(true)
+                return
+            }
         }
         startLaunching('modded')
         api.launchModded()

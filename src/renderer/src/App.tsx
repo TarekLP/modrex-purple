@@ -241,6 +241,7 @@ export default function App() {
                 <>
                     <TopBar
                         gamePath={gamePath}
+                        activeGame={activeGame}
                         onRefreshInstalled={refreshInstalled}
                         update={
                             update && update.phase !== 'available'

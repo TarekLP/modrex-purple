@@ -194,24 +194,27 @@ export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) 
                         <h2 className="text-sm font-semibold">
                             {t('settings.launchOptions.title')}
                         </h2>
-                        {launcher === 'xbox' ? (
-                            <p className="text-xs text-text-subtle">
-                                {t('settings.launchOptions.xboxNotePre')}{' '}
-                                <span className="font-mono text-text">-fileopenlog</span>{' '}
-                                {t('settings.launchOptions.xboxNotePost')}
-                            </p>
-                        ) : (
-                            <p className="text-xs text-text-subtle">
-                                {t('settings.launchOptions.descriptionPre')}{' '}
-                                <span className="font-mono text-text">-fileopenlog</span>{' '}
-                                {t('settings.launchOptions.descriptionPost')}
-                            </p>
-                        )}
+                        {activeGame === 'pd3' &&
+                            (launcher === 'xbox' ? (
+                                <p className="text-xs text-text-subtle">
+                                    {t('settings.launchOptions.xboxNotePre')}{' '}
+                                    <span className="font-mono text-text">-fileopenlog</span>{' '}
+                                    {t('settings.launchOptions.xboxNotePost')}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-text-subtle">
+                                    {t('settings.launchOptions.descriptionPre')}{' '}
+                                    <span className="font-mono text-text">-fileopenlog</span>{' '}
+                                    {t('settings.launchOptions.descriptionPost')}
+                                </p>
+                            ))}
                         <input
                             type="text"
                             value={launchOptions}
                             onChange={(e) => setLaunchOptions(e.target.value)}
-                            placeholder={t('settings.launchOptions.placeholder')}
+                            placeholder={
+                                activeGame === 'pd3' ? t('settings.launchOptions.placeholder') : ''
+                            }
                             disabled={launcher === 'xbox'}
                             className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
                         />
