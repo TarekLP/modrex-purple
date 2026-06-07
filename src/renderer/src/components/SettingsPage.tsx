@@ -69,7 +69,7 @@ export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) 
                 setSettings((s) => ({ ...s, gamePath: picked }))
                 await onGamePathChange()
             } catch {
-                setPathError(t('settings.gamePath.invalid'))
+                setPathError(t('settings.gamePath.invalid', { game: GAMES[activeGame].name }))
             }
         } finally {
             setPicking(false)
@@ -130,7 +130,7 @@ export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) 
                         </p>
                     ) : (
                         <p className="text-xs text-danger-text">
-                            {t('settings.gamePath.notDetected')}
+                            {t('settings.gamePath.notDetected', { game: GAMES[activeGame].name })}
                         </p>
                     )}
                 </section>

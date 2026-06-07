@@ -183,8 +183,8 @@
             "browse": "Browse",
             "picking": "Picking…",
             "autoDetected": "Auto-detected",
-            "notDetected": "Could not detect PD3 installation — set the path manually.",
-            "invalid": "Selected folder is not a valid PAYDAY 3 installation."
+            "notDetected": "Could not detect {game} installation — set the path manually.",
+            "invalid": "Selected folder is not a valid {game} installation."
         },
         "launcher": {
             "title": "Launcher",
