@@ -62,7 +62,6 @@ export default function App() {
         setGamePath(null)
         setInstalled([])
         setFolders([])
-        setInstalledReady(false)
         localStorage.setItem('modrex:active-game', g)
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
