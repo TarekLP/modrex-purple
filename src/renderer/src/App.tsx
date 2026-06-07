@@ -59,6 +59,10 @@ export default function App() {
 
     function handleGameChange(g: GameId) {
         setActiveGame(g)
+        setGamePath(null)
+        setInstalled([])
+        setFolders([])
+        setInstalledReady(false)
         localStorage.setItem('modrex:active-game', g)
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
@@ -262,6 +266,7 @@ export default function App() {
                             </div>
                             <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>
                                 <SettingsPage
+                                    key={activeGame}
                                     activeGame={activeGame}
                                     gamePath={gamePath}
                                     onGamePathChange={refreshGamePath}
