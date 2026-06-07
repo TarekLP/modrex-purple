@@ -18,7 +18,7 @@ impl Launcher for Steam {
         let steam_path = steam_install_path()?;
         for lib in steam_libraries(&steam_path) {
             let candidate = Path::new(&lib).join("steamapps").join("common").join(def.folder_name);
-            if candidate.exists() {
+            if candidate.join(game.executable).exists() {
                 return Some(candidate.to_string_lossy().into_owned());
             }
         }

@@ -65,11 +65,9 @@ export const api = {
         return invoke('get_game_settings', { gameId })
     },
     async findGamePath(gameId = 'pd3'): Promise<string | null> {
-        const gs = await invoke<GameSettings>('get_game_settings', { gameId })
-        if (gs.gamePath) return gs.gamePath
         await invoke('configure_game_path', { gamePath: null, gameId })
-        const gs2 = await invoke<GameSettings>('get_game_settings', { gameId })
-        return gs2.gamePath ?? null
+        const gs = await invoke<GameSettings>('get_game_settings', { gameId })
+        return gs.gamePath ?? null
     },
     setGamePath(gamePath: string | null, gameId?: string): Promise<void> {
         return invoke('configure_game_path', { gamePath, ...(gameId ? { gameId } : {}) })

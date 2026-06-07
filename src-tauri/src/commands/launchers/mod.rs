@@ -129,12 +129,25 @@ pub fn configure_game_path(app: AppHandle, game_id: Option<String>, game_path: O
     if let Some(ref path) = game_path {
         entry.game_path = Some(path.clone());
         entry.launcher = Some(identify_launcher_for_path(path));
-    } else if let Some(detected) = detect_game(game_def) {
-        entry.game_path = Some(detected.game_path);
-        entry.launcher = Some(detected.launcher);
     } else {
-        entry.game_path = None;
-        entry.launcher = None;
+        // Validate existing saved path before falling back to auto-detect.
+        if let Some(ref path) = entry.game_path.clone() {
+            if Path::new(path).join(game_def.executable).exists() {
+                entry.launcher = Some(identify_launcher_for_path(path));
+            } else if let Some(detected) = detect_game(game_def) {
+                entry.game_path = Some(detected.game_path);
+                entry.launcher = Some(detected.launcher);
+            } else {
+                entry.game_path = None;
+                entry.launcher = None;
+            }
+        } else if let Some(detected) = detect_game(game_def) {
+            entry.game_path = Some(detected.game_path);
+            entry.launcher = Some(detected.launcher);
+        } else {
+            entry.game_path = None;
+            entry.launcher = None;
+        }
     }
     write_settings(&app, &s);
 }
