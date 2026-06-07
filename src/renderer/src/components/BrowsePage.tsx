@@ -94,6 +94,7 @@ export function BrowsePage({
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const scrollRef = useRef<HTMLDivElement>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -152,6 +153,7 @@ export function BrowsePage({
     }, [])
 
     useEffect(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = 0
         if (debounceRef.current) clearTimeout(debounceRef.current)
         debounceRef.current = setTimeout(
             () => {
@@ -412,7 +414,7 @@ export function BrowsePage({
                 </div>
             )}
 
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
                 {loadingMods || !result ? (
                     <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                         {Array.from({ length: 24 }, (_, i) => (
