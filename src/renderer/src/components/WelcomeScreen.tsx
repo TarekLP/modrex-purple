@@ -6,11 +6,13 @@ import { GAMES } from '../../../shared/types'
 const CDN_URLS: Record<GameId, string> = {
     pd3: 'https://cdn.akamai.steamstatic.com/steam/apps/1272080/library_600x900.jpg',
     pd2: 'https://cdn.akamai.steamstatic.com/steam/apps/218620/library_600x900.jpg',
+    pdth: 'https://cdn.akamai.steamstatic.com/steam/apps/24240/library_600x900.jpg',
 }
 
 const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }> = {
     pd3: { background: 'linear-gradient(135deg, #1c0808 0%, #3d1212 100%)', nameColor: '#e05555' },
     pd2: { background: 'linear-gradient(135deg, #1a1306 0%, #3d2d0f 100%)', nameColor: '#e09020' },
+    pdth: { background: 'linear-gradient(135deg, #060d1a 0%, #0f1f3d 100%)', nameColor: '#5588cc' },
 }
 
 interface Props {

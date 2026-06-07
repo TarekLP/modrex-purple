@@ -5,7 +5,7 @@ mod types;
 mod xbox;
 
 use epic::Epic;
-use games::{PD2, PD3};
+use games::{PD2, PD3, PDTH};
 use steam::Steam;
 use types::{GameDef, Launcher};
 use xbox::Xbox;
@@ -29,6 +29,7 @@ fn all_launchers() -> [&'static dyn Launcher; 3] {
 fn game_def_for_id(game_id: &str) -> &'static GameDef {
     match game_id {
         "pd2" => &PD2,
+        "pdth" => &PDTH,
         _ => &PD3,
     }
 }

@@ -99,7 +99,7 @@ export interface Category {
 export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
 export const GAME_STORAGE_KEY = 'pd3'
 
-export type GameId = 'pd3' | 'pd2'
+export type GameId = 'pd3' | 'pd2' | 'pdth'
 
 export const GAMES: Record<
     GameId,
@@ -107,6 +107,7 @@ export const GAMES: Record<
 > = {
     pd3: { name: 'PAYDAY 3', shortName: 'PD3', workshopId: 853, storageKey: 'pd3' },
     pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2' },
+    pdth: { name: 'PAYDAY: The Heist', shortName: 'PDTH', workshopId: 2, storageKey: 'pdth' },
 }
 
 export interface ModFolder {
