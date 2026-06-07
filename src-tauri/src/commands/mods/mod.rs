@@ -31,7 +31,7 @@ pub(crate) use self::naming::{apply_priority_prefix, make_uid};
 #[cfg(test)]
 pub(crate) use self::zip::{detect_archive, is_zip, list_pak_entries, ArchiveFormat};
 
-use crate::commands::api::api_get;
+use crate::commands::api::{api_get, http_client, user_agent};
 use crate::commands::download::download_file;
 use crate::commands::mod_index;
 use crate::commands::settings::{game_settings, read_settings};
@@ -380,8 +380,9 @@ pub async fn install_mod(
             effective_folder_id,
         )?;
 
-        let _ = reqwest::Client::new()
+        let _ = http_client()
             .post(format!("https://api.modworkshop.net/files/{}/register-download", file_id))
+            .header("User-Agent", user_agent(&app))
             .send()
             .await;
 
@@ -458,8 +459,9 @@ pub async fn install_file(
             effective_folder_id,
         )?;
 
-        let _ = reqwest::Client::new()
+        let _ = http_client()
             .post(format!("https://api.modworkshop.net/files/{}/register-download", file_id))
+            .header("User-Agent", user_agent(&app))
             .send()
             .await;
 
@@ -476,6 +478,7 @@ pub async fn install_file(
 
 #[tauri::command]
 pub async fn install_from_zip_entry(
+    app: AppHandle,
     zip_path: String,
     entry_name: String,
     mod_id: i64,
@@ -534,8 +537,9 @@ pub async fn install_from_zip_entry(
             effective_folder_id,
         )?;
 
-        let _ = reqwest::Client::new()
+        let _ = http_client()
             .post(format!("https://api.modworkshop.net/files/{}/register-download", file_id))
+            .header("User-Agent", user_agent(&app))
             .send()
             .await;
 

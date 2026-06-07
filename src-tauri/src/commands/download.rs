@@ -16,9 +16,9 @@ pub struct DownloadProgress {
 pub async fn download_file(app: &AppHandle, url: &str, ext: &str) -> Result<PathBuf, String> {
     let dest = std::env::temp_dir().join(format!("modrex-{}.{}", Uuid::new_v4(), ext));
 
-    let res = reqwest::Client::new()
+    let res = crate::commands::api::http_client()
         .get(url)
-        .header("User-Agent", format!("modrex/{}", app.package_info().version))
+        .header("User-Agent", crate::commands::api::user_agent(app))
         .send()
         .await
         .map_err(|e| e.to_string())?;

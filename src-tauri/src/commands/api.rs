@@ -51,11 +51,11 @@ fn semaphore() -> &'static Semaphore {
     API_SEMAPHORE.get_or_init(|| Semaphore::new(MAX_CONCURRENT))
 }
 
-fn http_client() -> &'static Client {
+pub(crate) fn http_client() -> &'static Client {
     HTTP_CLIENT.get_or_init(|| Client::builder().pool_max_idle_per_host(4).build().unwrap())
 }
 
-fn user_agent(app: &AppHandle) -> String {
+pub(crate) fn user_agent(app: &AppHandle) -> String {
     format!("modrex/{}", app.package_info().version)
 }
 
