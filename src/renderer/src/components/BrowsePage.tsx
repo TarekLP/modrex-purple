@@ -250,7 +250,7 @@ export function BrowsePage({
                 ...(fullMod.instructs_template?.dependencies ?? []),
             ]
             const missingRequired = allDeps.filter(
-                (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
+                (d) => !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
             )
             if (missingRequired.length > 0) {
                 const s = await api.getSettings()
@@ -306,7 +306,7 @@ export function BrowsePage({
 
     const missingDepsList = depsWarning
         ? depsWarning.allDeps.filter(
-              (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
+              (d) => !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
           )
         : []
 

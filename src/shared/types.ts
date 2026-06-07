@@ -12,7 +12,7 @@ export interface ModDependency {
     id: number
     mod_id: number
     optional: boolean
-    mod: Mod
+    mod: Mod | null
 }
 
 export interface InstructsTemplate {

@@ -218,10 +218,10 @@ export function ModDetailPage({
     const allDeps: ModDependency[] = [
         ...(mod?.dependencies ?? []),
         ...(mod?.instructs_template?.dependencies ?? []),
-    ]
+    ].filter((d) => d.mod !== null)
 
     const missingRequired = allDeps.filter(
-        (d) => !d.optional && !installed.some((m) => m.id === d.mod.id)
+        (d) => !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
     )
 
     const showChangelogTab = !!mod?.changelog
@@ -1050,17 +1050,18 @@ function DepRow({
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
+    const [installing, setInstalling] = useState(false)
     const { mod } = dep
+    if (!mod) return null
     const thumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
     const isInstalled = installed.some((m) => m.id === mod.id)
-    const [installing, setInstalling] = useState(false)
 
     async function handleInstall(e: React.MouseEvent) {
         e.stopPropagation()
         if (!gamePath) return
         setInstalling(true)
         try {
-            await api.installMod(mod.id, gamePath)
+            await api.installMod(mod!.id, gamePath)
             await onRefreshInstalled()
         } finally {
             setInstalling(false)

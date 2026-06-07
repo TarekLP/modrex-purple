@@ -47,58 +47,60 @@ export function DepsWarningModal({
                     </button>
                 </div>
                 <div className="flex flex-col gap-2">
-                    {missingRequired.map((dep) => {
-                        const thumbUrl = dep.mod.thumbnail
-                            ? `${THUMBNAIL_BASE_URL}/${dep.mod.thumbnail.file}`
-                            : null
-                        const isInstalling = installingDeps[dep.mod.id]
-                        async function handleInstallDep() {
-                            if (!gamePath) return
-                            setInstallingDeps((prev) => ({ ...prev, [dep.mod.id]: true }))
-                            try {
-                                await api.installMod(dep.mod.id, gamePath)
-                                await onRefreshInstalled()
-                            } finally {
-                                setInstallingDeps((prev) => ({ ...prev, [dep.mod.id]: false }))
+                    {missingRequired
+                        .filter((dep) => dep.mod !== null)
+                        .map((dep) => {
+                            const thumbUrl = dep.mod!.thumbnail
+                                ? `${THUMBNAIL_BASE_URL}/${dep.mod!.thumbnail.file}`
+                                : null
+                            const isInstalling = installingDeps[dep.mod!.id]
+                            async function handleInstallDep() {
+                                if (!gamePath) return
+                                setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: true }))
+                                try {
+                                    await api.installMod(dep.mod!.id, gamePath)
+                                    await onRefreshInstalled()
+                                } finally {
+                                    setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: false }))
+                                }
                             }
-                        }
-                        return (
-                            <div
-                                key={dep.id}
-                                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-hover border border-border"
-                            >
-                                {thumbUrl ? (
-                                    <img
-                                        src={thumbUrl}
-                                        alt={dep.mod.name}
-                                        loading="lazy"
-                                        className="w-8 h-8 rounded object-cover shrink-0"
-                                    />
-                                ) : (
-                                    <div className="w-8 h-8 rounded bg-surface-active shrink-0" />
-                                )}
-                                <div className="min-w-0 flex-1">
-                                    <div className="text-xs font-medium truncate">
-                                        {dep.mod.name}
+                            return (
+                                <div
+                                    key={dep.id}
+                                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-hover border border-border"
+                                >
+                                    {thumbUrl ? (
+                                        <img
+                                            src={thumbUrl}
+                                            alt={dep.mod!.name}
+                                            loading="lazy"
+                                            className="w-8 h-8 rounded object-cover shrink-0"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded bg-surface-active shrink-0" />
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-xs font-medium truncate">
+                                            {dep.mod!.name}
+                                        </div>
+                                        <div className="text-xs text-text-subtle">
+                                            {t('common.by', { name: dep.mod!.user.name })}
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-text-subtle">
-                                        {t('common.by', { name: dep.mod.user.name })}
-                                    </div>
+                                    {dep.mod!.has_download && gamePath && (
+                                        <button
+                                            disabled={isInstalling}
+                                            onClick={handleInstallDep}
+                                            className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                                        >
+                                            {isInstalling
+                                                ? t('common.installing')
+                                                : t('common.install')}
+                                        </button>
+                                    )}
                                 </div>
-                                {dep.mod.has_download && gamePath && (
-                                    <button
-                                        disabled={isInstalling}
-                                        onClick={handleInstallDep}
-                                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
-                                    >
-                                        {isInstalling
-                                            ? t('common.installing')
-                                            : t('common.install')}
-                                    </button>
-                                )}
-                            </div>
-                        )
-                    })}
+                            )
+                        })}
                 </div>
                 <div className="flex items-center justify-between">
                     <div
