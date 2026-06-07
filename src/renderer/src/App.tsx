@@ -57,6 +57,11 @@ export default function App() {
     // Per-session cache: last resolved path for each game. undefined = not yet loaded.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
 
+    // Per-session cache: last resolved installed state for each game. undefined = not yet loaded.
+    const installedCache = useRef<
+        Partial<Record<GameId, { mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }>>
+    >({})
+
     const refreshGamePath = useCallback(async () => {
         const game = activeGame
         const path = await api.findGamePath(game)
@@ -74,11 +79,20 @@ export default function App() {
         setActiveGame(g)
         // Restore the last-known path for this game so the UI never flashes "not found"
         // while refreshGamePath re-validates in the background.
-        const cached = gamePathCache.current[g]
-        setGamePath(cached !== undefined ? cached : null)
-        setInstalled([])
-        setFolders([])
-        setModsHidden(false)
+        const cachedPath = gamePathCache.current[g]
+        setGamePath(cachedPath !== undefined ? cachedPath : null)
+        // Restore last-known installed state so the installed page never flashes empty
+        // while refreshInstalled re-validates in the background.
+        const cachedInstalled = installedCache.current[g]
+        if (cachedInstalled) {
+            setInstalled(cachedInstalled.mods)
+            setFolders(cachedInstalled.folders)
+            setModsHidden(cachedInstalled.modsHidden)
+        } else {
+            setInstalled([])
+            setFolders([])
+            setModsHidden(false)
+        }
         localStorage.setItem('modrex:active-game', g)
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
@@ -88,11 +102,12 @@ export default function App() {
 
     const refreshInstalled = useCallback(async () => {
         const game = activeGame
-        const { mods, folders, modsHidden } = await api.getInstalled(game)
+        const result = await api.getInstalled(game)
         if (activeGameRef.current !== game) return
-        setInstalled(mods)
-        setFolders(folders)
-        setModsHidden(modsHidden)
+        installedCache.current[game] = result
+        setInstalled(result.mods)
+        setFolders(result.folders)
+        setModsHidden(result.modsHidden)
         setInstalledReady(true)
     }, [activeGame])
 
