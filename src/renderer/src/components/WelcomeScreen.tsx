@@ -1,16 +1,16 @@
+import { useState } from 'react'
 import appIcon from '../../../../assets/icon.png'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 
-const GAME_STYLES: Record<GameId, { background: string; nameColor: string }> = {
-    pd3: {
-        background: 'linear-gradient(135deg, #1c0808 0%, #3d1212 100%)',
-        nameColor: '#e05555',
-    },
-    pd2: {
-        background: 'linear-gradient(135deg, #1a1306 0%, #3d2d0f 100%)',
-        nameColor: '#e09020',
-    },
+const CDN_URLS: Record<GameId, string> = {
+    pd3: 'https://cdn.akamai.steamstatic.com/steam/apps/1272080/library_600x900.jpg',
+    pd2: 'https://cdn.akamai.steamstatic.com/steam/apps/218620/library_600x900.jpg',
+}
+
+const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }> = {
+    pd3: { background: 'linear-gradient(135deg, #1c0808 0%, #3d1212 100%)', nameColor: '#e05555' },
+    pd2: { background: 'linear-gradient(135deg, #1a1306 0%, #3d2d0f 100%)', nameColor: '#e09020' },
 }
 
 interface Props {
@@ -18,6 +18,8 @@ interface Props {
 }
 
 export function WelcomeScreen({ onSelectGame }: Props) {
+    const [failed, setFailed] = useState<Partial<Record<GameId, boolean>>>({})
+
     return (
         <div className="h-full flex flex-col items-center justify-center gap-10 p-8 bg-surface">
             <div className="flex flex-col items-center gap-3">
@@ -38,28 +40,42 @@ export function WelcomeScreen({ onSelectGame }: Props) {
 
             <div className="flex gap-6">
                 {(Object.keys(GAMES) as GameId[]).map((g) => {
-                    const s = GAME_STYLES[g]
+                    const fallback = FALLBACK_STYLES[g]
+                    const showFallback = failed[g]
                     return (
                         <button
                             key={g}
                             onClick={() => onSelectGame(g)}
-                            className="group relative w-64 h-44 rounded-2xl border border-border overflow-hidden transition-all duration-200 hover:scale-[1.03] focus:outline-none"
-                            style={{ background: s.background }}
+                            className="group relative rounded-2xl border border-border overflow-hidden transition-all duration-200 hover:scale-[1.03] hover:border-accent/50 focus:outline-none focus:border-accent/50 shadow-lg"
+                            style={{ width: 200, height: 300 }}
                         >
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span
-                                    style={{
-                                        fontFamily: "'Bebas Neue', sans-serif",
-                                        fontSize: '2.8rem',
-                                        letterSpacing: '0.08em',
-                                        color: s.nameColor,
-                                        lineHeight: 1,
-                                    }}
+                            {showFallback ? (
+                                <div
+                                    className="absolute inset-0 flex items-center justify-center"
+                                    style={{ background: fallback.background }}
                                 >
-                                    {GAMES[g].name}
-                                </span>
-                            </div>
-                            <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-200" />
+                                    <span
+                                        style={{
+                                            fontFamily: "'Bebas Neue', sans-serif",
+                                            fontSize: '2.2rem',
+                                            letterSpacing: '0.08em',
+                                            color: fallback.nameColor,
+                                            lineHeight: 1,
+                                        }}
+                                    >
+                                        {GAMES[g].name}
+                                    </span>
+                                </div>
+                            ) : (
+                                <img
+                                    src={CDN_URLS[g]}
+                                    alt={GAMES[g].name}
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                    draggable={false}
+                                    onError={() => setFailed((prev) => ({ ...prev, [g]: true }))}
+                                />
+                            )}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
                         </button>
                     )
                 })}

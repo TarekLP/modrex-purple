@@ -64,21 +64,21 @@ export const api = {
     getGameSettings(gameId: string): Promise<GameSettings> {
         return invoke('get_game_settings', { gameId })
     },
-    async findGamePath(): Promise<string | null> {
-        const s = await invoke<Settings>('get_settings')
-        if (s.gamePath) return s.gamePath
-        await invoke('configure_game_path', { gamePath: null })
-        const s2 = await invoke<Settings>('get_settings')
-        return s2.gamePath ?? null
+    async findGamePath(gameId = 'pd3'): Promise<string | null> {
+        const gs = await invoke<GameSettings>('get_game_settings', { gameId })
+        if (gs.gamePath) return gs.gamePath
+        await invoke('configure_game_path', { gamePath: null, gameId })
+        const gs2 = await invoke<GameSettings>('get_game_settings', { gameId })
+        return gs2.gamePath ?? null
     },
-    setGamePath(gamePath: string | null): Promise<void> {
-        return invoke('configure_game_path', { gamePath })
+    setGamePath(gamePath: string | null, gameId?: string): Promise<void> {
+        return invoke('configure_game_path', { gamePath, ...(gameId ? { gameId } : {}) })
     },
-    setLauncher(launcher: string): Promise<void> {
-        return invoke('set_launcher', { launcher })
+    setLauncher(launcher: string, gameId?: string): Promise<void> {
+        return invoke('set_launcher', { launcher, ...(gameId ? { gameId } : {}) })
     },
-    setLaunchOptions(launchOptions: string): Promise<void> {
-        return invoke('set_launch_options', { launchOptions })
+    setLaunchOptions(launchOptions: string, gameId?: string): Promise<void> {
+        return invoke('set_launch_options', { launchOptions, ...(gameId ? { gameId } : {}) })
     },
     setSkipFileOpenLogWarning(skip: boolean): Promise<void> {
         return invoke('set_skip_fileopenlog_warning', { skip })
@@ -212,8 +212,8 @@ export const api = {
     restoreMods(): Promise<void> {
         return invoke('restore_mods')
     },
-    getInstalledLaunchers(): Promise<string[]> {
-        return invoke('installed_launchers')
+    getInstalledLaunchers(gameId?: string): Promise<string[]> {
+        return gameId ? invoke('installed_launchers', { gameId }) : invoke('installed_launchers')
     },
     openExternal(url: string): Promise<void> {
         return invoke('shell_open_external', { url })
