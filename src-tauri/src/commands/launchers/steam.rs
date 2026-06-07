@@ -53,16 +53,20 @@ impl Launcher for Steam {
 
 #[cfg(target_os = "windows")]
 fn steam_install_path() -> Option<String> {
-    use std::os::windows::process::CommandExt;
-    let out = std::process::Command::new("reg")
-        .args(["query", "HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam", "/v", "InstallPath"])
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-        .output()
-        .ok()?;
-    let text = String::from_utf8_lossy(&out.stdout);
-    let line = text.lines().find(|l| l.contains("InstallPath") && l.contains("REG_SZ"))?;
-    let value = line.split("REG_SZ").nth(1)?.trim().to_string();
-    if value.is_empty() { None } else { Some(value) }
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<Option<String>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        use std::os::windows::process::CommandExt;
+        let out = std::process::Command::new("reg")
+            .args(["query", "HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam", "/v", "InstallPath"])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .output()
+            .ok()?;
+        let text = String::from_utf8_lossy(&out.stdout);
+        let line = text.lines().find(|l| l.contains("InstallPath") && l.contains("REG_SZ"))?;
+        let value = line.split("REG_SZ").nth(1)?.trim().to_string();
+        if value.is_empty() { None } else { Some(value) }
+    }).clone()
 }
 
 #[cfg(not(target_os = "windows"))]
