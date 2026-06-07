@@ -193,6 +193,7 @@ export function BrowsePage({
 
     async function handleInstall(modId: number) {
         if (!gamePath) return
+        setError(null)
         setLoadingMod(modId)
         try {
             const fullMod = await getCachedMod(modId)
