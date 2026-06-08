@@ -159,10 +159,21 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
             let rel_path = rel_path.clone();
             let enabled = *enabled;
             async move {
-                let path = if enabled {
-                    mods_base(&game_path, cfg).join(&rel_path)
-                } else {
-                    disabled_base(&game_path, cfg).join(format!("{}{}", rel_path, cfg.disabled_suffix()))
+                let path = match &cfg.unit {
+                    engine::ModUnit::File { .. } => {
+                        if enabled {
+                            mods_base(&game_path, cfg).join(&rel_path)
+                        } else {
+                            disabled_base(&game_path, cfg).join(format!("{}{}", rel_path, cfg.disabled_suffix()))
+                        }
+                    }
+                    engine::ModUnit::Directory { entry_marker, .. } => {
+                        if enabled {
+                            mods_base(&game_path, cfg).join(&rel_path).join(entry_marker)
+                        } else {
+                            disabled_base(&game_path, cfg).join(&rel_path).join(entry_marker)
+                        }
+                    }
                 };
                 compute_sha256(&path).await.ok()
             }
@@ -218,10 +229,13 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
         let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
 
-        let stem = filename
-            .strip_suffix(".pak")
-            .or_else(|| filename.strip_suffix(".pak.disabled"))
-            .unwrap_or(&filename);
+        let stem = match &cfg.unit {
+            engine::ModUnit::File { .. } => filename
+                .strip_suffix(".pak")
+                .or_else(|| filename.strip_suffix(".pak.disabled"))
+                .unwrap_or(&filename),
+            engine::ModUnit::Directory { .. } => &filename[..],
+        };
         let stripped = strip_priority_prefix(stem);
 
         let stripped_name = stripped.replace('_', " ");
