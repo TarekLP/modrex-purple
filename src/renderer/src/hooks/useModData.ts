@@ -28,14 +28,25 @@ export function useModData(installed: InstalledMod[]): {
     const [modData, setModData] = useState<Map<number, Mod>>(new Map())
     const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
     const fetchedAt = useRef<Map<number, number>>(new Map())
+    const installedKey = useRef<string>('')
 
     useEffect(() => {
         if (installed.length === 0) {
+            installedKey.current = ''
             setModData(new Map())
             setFailedIds(new Set())
             fetchedAt.current.clear()
             return
         }
+
+        // Bail early when the set of mod ids hasn't changed — avoids redundant
+        // sync pre-populate on every focus refresh that produces a new array reference.
+        const nextKey = installed
+            .map((m) => m.id)
+            .sort((a, b) => a - b)
+            .join(',')
+        if (nextKey === installedKey.current) return
+        installedKey.current = nextKey
 
         // Sync pre-populate from localStorage-backed cache for immediate render
         const now = Date.now()
