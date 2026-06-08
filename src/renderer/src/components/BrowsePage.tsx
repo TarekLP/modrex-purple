@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, startTransition } from 'react'
 import { Search, X } from 'lucide-react'
 import type {
     Mod,
@@ -303,6 +303,16 @@ export function BrowsePage({
         }
     }
 
+    const installedByModId = useMemo(() => {
+        const map = new Map<number, InstalledMod[]>()
+        for (const m of installed) {
+            const list = map.get(m.id)
+            if (list) list.push(m)
+            else map.set(m.id, [m])
+        }
+        return map
+    }, [installed])
+
     const missingDepsList = depsWarning
         ? depsWarning.allDeps.filter(
               (d) => !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
@@ -441,10 +451,8 @@ export function BrowsePage({
                             <ModCard
                                 key={mod.id}
                                 mod={mod}
-                                installed={installed.find((m) => m.id === mod.id)}
-                                installedCount={
-                                    installed.filter((m) => m.id === mod.id).length || undefined
-                                }
+                                installed={installedByModId.get(mod.id)?.[0]}
+                                installedCount={installedByModId.get(mod.id)?.length || undefined}
                                 gamePath={gamePath}
                                 loading={loadingMod === mod.id}
                                 progress={loadingMod === mod.id ? downloadProgress : null}
