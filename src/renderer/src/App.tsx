@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, memo, useRef } from 'react'
 import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
-import type { InstalledMod, ModFolder, GameId } from '../../shared/types'
+import type { InstalledMod, ModFolder, GameId, Mod } from '../../shared/types'
 import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
@@ -31,7 +31,7 @@ export default function App() {
         if (saved === 'pd2' || saved === 'pdth') return saved
         return 'pd3'
     })
-    const [detailStack, setDetailStack] = useState<number[]>([])
+    const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: Mod }[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
     const [folders, setFolders] = useState<ModFolder[]>([])
@@ -180,11 +180,14 @@ export default function App() {
         }
     }
 
-    const openDetail = useCallback((modId: number, from: 'browse' | 'installed') => {
-        setPrevView(from)
-        setDetailStack([modId])
-        setView('detail')
-    }, [])
+    const openDetail = useCallback(
+        (modId: number, from: 'browse' | 'installed', initialMod?: Mod) => {
+            setPrevView(from)
+            setDetailStack([{ modId, initialMod }])
+            setView('detail')
+        },
+        []
+    )
 
     const openDetailFromInstalled = useCallback(
         (id: number) => openDetail(id, 'installed'),
@@ -193,9 +196,9 @@ export default function App() {
 
     const pushDetail = useCallback((modId: number) => {
         setDetailStack((prev) => {
-            const existingIndex = prev.indexOf(modId)
+            const existingIndex = prev.findIndex((d) => d.modId === modId)
             if (existingIndex !== -1) return prev.slice(0, existingIndex + 1)
-            return [...prev, modId]
+            return [...prev, { modId }]
         })
     }, [])
 
@@ -282,7 +285,9 @@ export default function App() {
                                         gamePath={gamePath}
                                         installed={installed}
                                         onRefreshInstalled={refreshInstalled}
-                                        onOpenDetail={(id) => openDetail(id, 'browse')}
+                                        onOpenDetail={(id, initialMod) =>
+                                            openDetail(id, 'browse', initialMod)
+                                        }
                                         onGoToSettings={() => handleSidebarChange('settings')}
                                     />
                                 </div>
@@ -306,13 +311,14 @@ export default function App() {
                                     onGamePathChange={refreshGamePath}
                                 />
                             </div>
-                            {detailStack.map((modId, i) => (
+                            {detailStack.map(({ modId, initialMod }, i) => (
                                 <div
                                     key={modId}
                                     className={`h-full ${view === 'detail' && i === detailStack.length - 1 ? '' : 'hidden'}`}
                                 >
                                     <ModDetailPage
                                         modId={modId}
+                                        initialMod={initialMod}
                                         isActive={view === 'detail' && i === detailStack.length - 1}
                                         gamePath={gamePath}
                                         installed={installed}

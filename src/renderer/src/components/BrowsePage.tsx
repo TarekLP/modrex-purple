@@ -35,7 +35,7 @@ interface Props {
     gamePath: string | null
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
-    onOpenDetail: (modId: number) => void
+    onOpenDetail: (modId: number, initialMod?: Mod) => void
     onGoToSettings?: () => void
 }
 
@@ -457,7 +457,7 @@ export function BrowsePage({
                                 loading={loadingMod === mod.id}
                                 progress={loadingMod === mod.id ? downloadProgress : null}
                                 showMeta
-                                onOpen={() => onOpenDetail(mod.id)}
+                                onOpen={() => onOpenDetail(mod.id, mod)}
                                 onPrefetch={() => handlePrefetch(mod.id)}
                                 onInstall={() => handleInstall(mod.id)}
                                 onUninstall={() => handleUninstall(mod.id)}

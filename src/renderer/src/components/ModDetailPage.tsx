@@ -56,6 +56,7 @@ function formatDate(iso: string): string {
 
 interface Props {
     modId: number
+    initialMod?: Mod
     isActive?: boolean
     gamePath: string | null
     installed: InstalledMod[]
@@ -67,6 +68,7 @@ interface Props {
 
 export function ModDetailPage({
     modId,
+    initialMod,
     isActive = true,
     gamePath,
     installed,
@@ -75,11 +77,14 @@ export function ModDetailPage({
     onRefreshInstalled,
     onOpenDetail,
 }: Props) {
-    const [mod, setMod] = useState<Mod | null>(() => getModCacheEntry(modId)?.mod ?? null)
+    // Seed order: full cached entry > initialMod from browse list > null (shows spinner).
+    const [mod, setMod] = useState<Mod | null>(
+        () => getModCacheEntry(modId)?.mod ?? initialMod ?? null
+    )
     const [files, setFiles] = useState<ModFile[]>(() => getFilesCacheEntry(modId)?.files ?? [])
     const [links, setLinks] = useState<ModLink[]>(() => getLinksCacheEntry(modId)?.links ?? [])
-    // Skip full-page spinner when mod is already cached; skip files spinner when files are cached.
-    const [loading, setLoading] = useState(() => !getModCacheEntry(modId))
+    // Skip full-page spinner when any mod data is available; skip files spinner when files are cached.
+    const [loading, setLoading] = useState(() => !getModCacheEntry(modId) && !initialMod)
     const [filesLoading, setFilesLoading] = useState(() => !getFilesCacheEntry(modId))
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<Tab>('description')
