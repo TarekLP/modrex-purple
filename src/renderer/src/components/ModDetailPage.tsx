@@ -22,7 +22,7 @@ import type {
     InstalledMod,
 } from '../../../shared/types'
 import { MarkdownContent } from './MarkdownContent'
-import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
+import { getCachedMod, getCachedModFiles, getCachedModLinks, getModCacheEntry } from '../modCache'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
@@ -68,10 +68,11 @@ export function ModDetailPage({
     onRefreshInstalled,
     onOpenDetail,
 }: Props) {
-    const [mod, setMod] = useState<Mod | null>(null)
+    const [mod, setMod] = useState<Mod | null>(() => getModCacheEntry(modId)?.mod ?? null)
     const [files, setFiles] = useState<ModFile[]>([])
     const [links, setLinks] = useState<ModLink[]>([])
-    const [loading, setLoading] = useState(true)
+    // Start without spinner when mod data is already in cache — fetchData refreshes silently.
+    const [loading, setLoading] = useState(() => !getModCacheEntry(modId))
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<Tab>('description')
     const [actionLoading, setActionLoading] = useState(false)
@@ -91,17 +92,16 @@ export function ModDetailPage({
     const installedMod = installedFiles[0]
 
     const fetchData = useCallback(async () => {
-        setLoading(true)
         setError(null)
         try {
-            const [modData, files, links] = await Promise.all([
+            const [modData, filesData, linksData] = await Promise.all([
                 getCachedMod(modId),
                 getCachedModFiles(modId),
                 getCachedModLinks(modId),
             ])
             setMod(modData)
-            setFiles(files)
-            setLinks(links)
+            setFiles(filesData)
+            setLinks(linksData)
         } catch (e) {
             setError(String(e))
         } finally {
