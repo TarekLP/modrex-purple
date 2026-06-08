@@ -3,7 +3,9 @@ import { api } from './api'
 
 const TTL_MS = 5 * 60 * 1000
 const STORAGE_TTL_MS = 24 * 60 * 60 * 1000
-const STORAGE_KEY = 'modrex:mod-cache'
+const MOD_STORAGE_KEY = 'modrex:mod-cache'
+const FILES_STORAGE_KEY = 'modrex:files-cache'
+const LINKS_STORAGE_KEY = 'modrex:links-cache'
 
 interface ModCacheEntry {
     mod: Mod
@@ -25,14 +27,41 @@ const filesCache = new Map<number, FilesCacheEntry>()
 const linksCache = new Map<number, LinksCacheEntry>()
 
 function loadFromStorage(): void {
+    const now = Date.now()
     try {
-        const raw = localStorage.getItem(STORAGE_KEY)
-        if (!raw) return
-        const stored = JSON.parse(raw) as Record<string, ModCacheEntry>
-        const now = Date.now()
-        for (const [key, entry] of Object.entries(stored)) {
-            if (now - entry.fetchedAt < STORAGE_TTL_MS) {
-                modCache.set(Number(key), entry)
+        const raw = localStorage.getItem(MOD_STORAGE_KEY)
+        if (raw) {
+            const stored = JSON.parse(raw) as Record<string, ModCacheEntry>
+            for (const [key, entry] of Object.entries(stored)) {
+                if (now - entry.fetchedAt < STORAGE_TTL_MS) {
+                    modCache.set(Number(key), entry)
+                }
+            }
+        }
+    } catch {
+        // Corrupted storage or unavailable — start fresh
+    }
+    try {
+        const raw = localStorage.getItem(FILES_STORAGE_KEY)
+        if (raw) {
+            const stored = JSON.parse(raw) as Record<string, FilesCacheEntry>
+            for (const [key, entry] of Object.entries(stored)) {
+                if (now - entry.fetchedAt < STORAGE_TTL_MS) {
+                    filesCache.set(Number(key), entry)
+                }
+            }
+        }
+    } catch {
+        // Corrupted storage or unavailable — start fresh
+    }
+    try {
+        const raw = localStorage.getItem(LINKS_STORAGE_KEY)
+        if (raw) {
+            const stored = JSON.parse(raw) as Record<string, LinksCacheEntry>
+            for (const [key, entry] of Object.entries(stored)) {
+                if (now - entry.fetchedAt < STORAGE_TTL_MS) {
+                    linksCache.set(Number(key), entry)
+                }
             }
         }
     } catch {
@@ -46,11 +75,23 @@ function scheduleStorage(): void {
     if (saveTimer !== null) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
         try {
-            const obj: Record<string, ModCacheEntry> = {}
-            for (const [id, entry] of modCache) {
-                obj[String(id)] = entry
-            }
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(obj))
+            const mods: Record<string, ModCacheEntry> = {}
+            for (const [id, entry] of modCache) mods[String(id)] = entry
+            localStorage.setItem(MOD_STORAGE_KEY, JSON.stringify(mods))
+        } catch {
+            // Quota exceeded or unavailable — ignore
+        }
+        try {
+            const files: Record<string, FilesCacheEntry> = {}
+            for (const [id, entry] of filesCache) files[String(id)] = entry
+            localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(files))
+        } catch {
+            // Quota exceeded or unavailable — ignore
+        }
+        try {
+            const links: Record<string, LinksCacheEntry> = {}
+            for (const [id, entry] of linksCache) links[String(id)] = entry
+            localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(links))
         } catch {
             // Quota exceeded or unavailable — ignore
         }
@@ -77,6 +118,7 @@ export async function getCachedModFiles(id: number): Promise<ModFile[]> {
     if (entry && Date.now() - entry.fetchedAt < TTL_MS) return entry.files
     const { data } = await api.listModFiles(id)
     filesCache.set(id, { files: data, fetchedAt: Date.now() })
+    scheduleStorage()
     return data
 }
 
@@ -85,5 +127,6 @@ export async function getCachedModLinks(id: number): Promise<ModLink[]> {
     if (entry && Date.now() - entry.fetchedAt < TTL_MS) return entry.links
     const { data } = await api.listModLinks(id)
     linksCache.set(id, { links: data, fetchedAt: Date.now() })
+    scheduleStorage()
     return data
 }

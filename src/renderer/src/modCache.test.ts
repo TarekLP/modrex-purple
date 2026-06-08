@@ -227,12 +227,13 @@ describe('scheduleStorage', () => {
         expect(storage.getItem(STORAGE_KEY)).toBeNull()
     })
 
-    it('debounces multiple rapid fetches into a single localStorage write', async () => {
+    it('debounces multiple rapid fetches into a single flush cycle', async () => {
         const setItemSpy = vi.spyOn(storage, 'setItem')
         mockGetMod.mockResolvedValueOnce(makeMod(1)).mockResolvedValueOnce(makeMod(2))
         await cache.getCachedMod(1)
         await cache.getCachedMod(2)
         vi.advanceTimersByTime(2001)
-        expect(setItemSpy).toHaveBeenCalledOnce()
+        // One flush writes three keys: mod-cache, files-cache, links-cache
+        expect(setItemSpy).toHaveBeenCalledTimes(3)
     })
 })
