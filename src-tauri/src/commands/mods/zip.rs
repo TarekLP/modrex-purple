@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use super::engine::ModEngineConfig;
+use super::engine::{ModEngineConfig, ModUnit};
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
@@ -181,25 +182,250 @@ pub async fn compute_sha256(path: &Path) -> Result<String, String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-pub fn resolve_archive_download(downloaded: PathBuf) -> Result<(PathBuf, Option<PathBuf>), String> {
+/// Returns the directory paths (in archive-relative notation) that directly contain
+/// `entry_marker` as a child entry. Used to locate BLT mod directories inside archives.
+pub fn list_mod_dir_entries(path: &Path, entry_marker: &str) -> Result<Vec<String>, String> {
+    match detect_archive(path) {
+        Some(ArchiveFormat::Zip) => list_mod_dirs_zip(path, entry_marker),
+        Some(ArchiveFormat::SevenZip) => list_mod_dirs_7z(path, entry_marker),
+        Some(ArchiveFormat::TarGz) => list_mod_dirs_tar(
+            flate2::read::GzDecoder::new(File::open(path).map_err(|e| e.to_string())?),
+            entry_marker,
+        ),
+        Some(ArchiveFormat::TarXz) => list_mod_dirs_tar(
+            xz2::read::XzDecoder::new(File::open(path).map_err(|e| e.to_string())?),
+            entry_marker,
+        ),
+        None => Err("Not a supported archive format".to_string()),
+    }
+}
+
+fn list_mod_dirs_zip(path: &Path, entry_marker: &str) -> Result<Vec<String>, String> {
+    let file = File::open(path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+    let mut dirs: HashSet<String> = HashSet::new();
+    let marker_suffix = format!("/{}", entry_marker);
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = entry.name().replace('\\', "/");
+        if let Some(pos) = name.rfind(&marker_suffix) {
+            let dir = &name[..pos];
+            if !dir.is_empty() {
+                dirs.insert(dir.to_string());
+            }
+        }
+    }
+    let mut result: Vec<String> = dirs.into_iter().collect();
+    result.sort();
+    Ok(result)
+}
+
+fn list_mod_dirs_7z(path: &Path, entry_marker: &str) -> Result<Vec<String>, String> {
+    let file = File::open(path).map_err(|e| e.to_string())?;
+    let mut dirs: HashSet<String> = HashSet::new();
+    let marker_suffix = format!("/{}", entry_marker);
+    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dest| {
+        let name = entry.name().replace('\\', "/");
+        if let Some(pos) = name.rfind(&marker_suffix) {
+            let dir = &name[..pos];
+            if !dir.is_empty() {
+                dirs.insert(dir.to_string());
+            }
+        }
+        let _ = std::io::copy(reader, &mut std::io::sink());
+        Ok(true)
+    })
+    .map_err(|e| e.to_string())?;
+    let mut result: Vec<String> = dirs.into_iter().collect();
+    result.sort();
+    Ok(result)
+}
+
+fn list_mod_dirs_tar<R: Read>(reader: R, entry_marker: &str) -> Result<Vec<String>, String> {
+    let mut archive = tar::Archive::new(reader);
+    let mut dirs: HashSet<String> = HashSet::new();
+    let marker_suffix = format!("/{}", entry_marker);
+    for entry in archive.entries().map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        if entry.header().entry_type().is_dir() {
+            continue;
+        }
+        let name = entry.path().map_err(|e| e.to_string())?.to_string_lossy().replace('\\', "/");
+        if let Some(pos) = name.rfind(&marker_suffix) {
+            let dir = &name[..pos];
+            if !dir.is_empty() {
+                dirs.insert(dir.to_string());
+            }
+        }
+    }
+    let mut result: Vec<String> = dirs.into_iter().collect();
+    result.sort();
+    Ok(result)
+}
+
+/// Extracts all entries under `dir_prefix/` from the archive into `dest/`.
+pub fn extract_dir_entry(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+    match detect_archive(archive_path) {
+        Some(ArchiveFormat::Zip) => extract_dir_zip(archive_path, dir_prefix, dest),
+        Some(ArchiveFormat::SevenZip) => extract_dir_7z(archive_path, dir_prefix, dest),
+        Some(ArchiveFormat::TarGz) => extract_dir_tar(
+            flate2::read::GzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
+            dir_prefix,
+            dest,
+        ),
+        Some(ArchiveFormat::TarXz) => extract_dir_tar(
+            xz2::read::XzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
+            dir_prefix,
+            dest,
+        ),
+        None => Err("Not a supported archive format".to_string()),
+    }
+}
+
+fn extract_dir_zip(zip_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+    let file = File::open(zip_path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+    let prefix = format!("{}/", dir_prefix);
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = entry.name().replace('\\', "/");
+        let relative = match name.strip_prefix(&prefix) {
+            Some(r) if !r.is_empty() => r.to_string(),
+            _ => continue,
+        };
+        if entry.is_dir() {
+            std::fs::create_dir_all(dest.join(&relative)).map_err(|e| e.to_string())?;
+            continue;
+        }
+        let dest_path = dest.join(&relative);
+        if let Some(parent) = dest_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let mut out = File::create(&dest_path).map_err(|e| e.to_string())?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn extract_dir_7z(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+    use std::cell::RefCell;
+    let file = File::open(archive_path).map_err(|e| e.to_string())?;
+    let prefix = format!("{}/", dir_prefix);
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    let dest = dest.to_path_buf();
+    let write_err: RefCell<Option<String>> = RefCell::new(None);
+    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dst| {
+        let name = entry.name().replace('\\', "/");
+        let relative = match name.strip_prefix(&prefix) {
+            Some(r) if !r.is_empty() => r.to_string(),
+            _ => {
+                let _ = std::io::copy(reader, &mut std::io::sink());
+                return Ok(true);
+            }
+        };
+        if entry.is_directory() {
+            let _ = std::fs::create_dir_all(dest.join(&relative));
+            let _ = std::io::copy(reader, &mut std::io::sink());
+            return Ok(true);
+        }
+        let dest_path = dest.join(&relative);
+        if let Some(parent) = dest_path.parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                *write_err.borrow_mut() = Some(e.to_string());
+                let _ = std::io::copy(reader, &mut std::io::sink());
+                return Ok(true);
+            }
+        }
+        match File::create(&dest_path).and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ())) {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                *write_err.borrow_mut() = Some(e.to_string());
+                Ok(true)
+            }
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    if let Some(e) = write_err.into_inner() {
+        return Err(e);
+    }
+    Ok(())
+}
+
+fn extract_dir_tar<R: Read>(reader: R, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+    let mut archive = tar::Archive::new(reader);
+    let prefix = format!("{}/", dir_prefix);
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    for entry in archive.entries().map_err(|e| e.to_string())? {
+        let mut entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.path().map_err(|e| e.to_string())?.to_string_lossy().replace('\\', "/");
+        let relative = match name.strip_prefix(&prefix) {
+            Some(r) if !r.is_empty() => r.to_string(),
+            _ => continue,
+        };
+        if entry.header().entry_type().is_dir() {
+            std::fs::create_dir_all(dest.join(&relative)).map_err(|e| e.to_string())?;
+            continue;
+        }
+        let dest_path = dest.join(&relative);
+        if let Some(parent) = dest_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let mut out = File::create(&dest_path).map_err(|e| e.to_string())?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> Result<(PathBuf, Option<PathBuf>), String> {
     if detect_archive(&downloaded).is_none() {
         return Ok((downloaded, None));
     }
-    let entries = list_pak_entries(&downloaded)?;
-    match entries.len() {
-        0 => {
-            let _ = std::fs::remove_file(&downloaded);
-            Err("This mod is packaged as an archive with no .pak files inside.".to_string())
+    match &cfg.unit {
+        ModUnit::File { .. } => {
+            let entries = list_pak_entries(&downloaded)?;
+            match entries.len() {
+                0 => {
+                    let _ = std::fs::remove_file(&downloaded);
+                    Err("This mod is packaged as an archive with no .pak files inside.".to_string())
+                }
+                1 => {
+                    let tmp = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
+                    extract_entry(&downloaded, &entries[0], &tmp)?;
+                    Ok((tmp, Some(downloaded)))
+                }
+                _ => {
+                    let zip_path = downloaded.to_string_lossy().to_string();
+                    let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries });
+                    Err(format!("ZIP_MULTI_PAK:{}", payload))
+                }
+            }
         }
-        1 => {
-            let tmp = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
-            extract_entry(&downloaded, &entries[0], &tmp)?;
-            Ok((tmp, Some(downloaded)))
-        }
-        _ => {
-            let zip_path = downloaded.to_string_lossy().to_string();
-            let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries });
-            Err(format!("ZIP_MULTI_PAK:{}", payload))
+        ModUnit::Directory { entry_marker, .. } => {
+            let dirs = list_mod_dir_entries(&downloaded, entry_marker)?;
+            match dirs.len() {
+                0 => {
+                    let _ = std::fs::remove_file(&downloaded);
+                    Err(format!("This mod is packaged as an archive with no {} found inside.", entry_marker))
+                }
+                1 => {
+                    let dir_name = Path::new(&dirs[0])
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("mod")
+                        .to_string();
+                    // Two-level temp: {uuid_dir}/{dir_name} so tmp.file_name() == dir_name.
+                    let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+                    let tmp = tmp_parent.join(&dir_name);
+                    extract_dir_entry(&downloaded, &dirs[0], &tmp)?;
+                    Ok((tmp, Some(downloaded)))
+                }
+                _ => {
+                    let zip_path = downloaded.to_string_lossy().to_string();
+                    let payload = serde_json::json!({ "zipPath": zip_path, "entries": dirs });
+                    Err(format!("ZIP_MULTI_PAK:{}", payload))
+                }
+            }
         }
     }
 }

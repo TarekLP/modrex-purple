@@ -25,7 +25,7 @@ pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix
 pub(crate) use self::paths::disabled_base;
 pub(crate) use self::reorder::{move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op};
 pub(crate) use self::state::save_state;
-pub(crate) use self::zip::{extract_entry, mark_archive_files, resolve_archive_download};
+pub(crate) use self::zip::{extract_dir_entry, extract_entry, mark_archive_files, resolve_archive_download};
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
 #[cfg(test)]
@@ -321,8 +321,9 @@ pub async fn install_mod(
         return Err("Mod has no download".to_string());
     };
 
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let downloaded = download_file(&app, &download_url, &file_type).await?;
-    let (tmp, zip_orig) = match resolve_archive_download(downloaded) {
+    let (tmp, zip_orig) = match resolve_archive_download(downloaded, cfg) {
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
             if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
                 v["modId"] = serde_json::json!(remote_id);
@@ -338,9 +339,13 @@ pub async fn install_mod(
     };
 
     let result = async {
-        let sha256 = compute_sha256(&tmp).await?;
+        let sha256 = match &cfg.unit {
+            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
+            engine::ModUnit::Directory { entry_marker, .. } => {
+                compute_sha256(&tmp.join(entry_marker)).await?
+            }
+        };
         let uid = file_id.to_string();
-        let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter()
@@ -349,9 +354,16 @@ pub async fn install_mod(
         let effective_folder_id = folder_id.or_else(|| existing_entry.and_then(|e| e.folder_id.clone()));
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| pak_filename(&mod_name));
+            .unwrap_or_else(|| match &cfg.unit {
+                engine::ModUnit::File { .. } => pak_filename(&mod_name),
+                engine::ModUnit::Directory { .. } => tmp
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(&mod_name)
+                    .to_string(),
+            });
 
-        // If the mod had a single previously-installed pak under a different uid
+        // If the mod had a single previously-installed entry under a different uid
         // (i.e. an older version with a different file_id), remove it first so
         // install_mod_from_path doesn't produce two entries for the same mod.
         if saved.mods.iter().all(|m| m.uid != uid) && remote_id > 0 {
@@ -392,7 +404,14 @@ pub async fn install_mod(
     }
     .await;
 
-    let _ = tokio::fs::remove_file(&tmp).await;
+    match &cfg.unit {
+        engine::ModUnit::File { .. } => { let _ = tokio::fs::remove_file(&tmp).await; }
+        engine::ModUnit::Directory { .. } => {
+            if let Some(parent) = tmp.parent() {
+                let _ = tokio::fs::remove_dir_all(parent).await;
+            }
+        }
+    }
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
@@ -411,8 +430,9 @@ pub async fn install_file(
     game_path: String,
     game_id: Option<String>,
 ) -> Result<(), String> {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let downloaded = download_file(&app, &download_url, &file_type).await?;
-    let (tmp, zip_orig) = match resolve_archive_download(downloaded) {
+    let (tmp, zip_orig) = match resolve_archive_download(downloaded, cfg) {
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
             if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
                 v["modId"] = serde_json::json!(mod_id);
@@ -428,9 +448,13 @@ pub async fn install_file(
     };
 
     let result = async {
-        let sha256 = compute_sha256(&tmp).await?;
+        let sha256 = match &cfg.unit {
+            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
+            engine::ModUnit::Directory { entry_marker, .. } => {
+                compute_sha256(&tmp.join(entry_marker)).await?
+            }
+        };
         let uid = file_id.to_string();
-        let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter()
@@ -439,8 +463,15 @@ pub async fn install_file(
         let effective_folder_id = existing_entry.and_then(|e| e.folder_id.clone());
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| {
-                if file_type == "main" { pak_filename(&mod_name) } else { pak_filename(&format!("{}_{}", mod_name, file_id)) }
+            .unwrap_or_else(|| match &cfg.unit {
+                engine::ModUnit::File { .. } => {
+                    if file_type == "main" { pak_filename(&mod_name) } else { pak_filename(&format!("{}_{}", mod_name, file_id)) }
+                }
+                engine::ModUnit::Directory { .. } => tmp
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(&mod_name)
+                    .to_string(),
             });
 
         install_mod_from_path(
@@ -474,7 +505,14 @@ pub async fn install_file(
     }
     .await;
 
-    let _ = tokio::fs::remove_file(&tmp).await;
+    match &cfg.unit {
+        engine::ModUnit::File { .. } => { let _ = tokio::fs::remove_file(&tmp).await; }
+        engine::ModUnit::Directory { .. } => {
+            if let Some(parent) = tmp.parent() {
+                let _ = tokio::fs::remove_dir_all(parent).await;
+            }
+        }
+    }
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
@@ -495,10 +533,10 @@ pub async fn install_from_zip_entry(
     folder_id: Option<String>,
     game_id: Option<String>,
 ) -> Result<(), String> {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let zip = PathBuf::from(&zip_path);
-    let ext = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
 
-    // Derive a per-entry uid so each pak from the same ZIP file gets its own state slot.
+    // entry_stem / entry_filename are the last path component of entry_name.
     let entry_stem = std::path::Path::new(&entry_name)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -508,12 +546,34 @@ pub async fn install_from_zip_entry(
         .and_then(|s| s.to_str())
         .unwrap_or(&entry_name)
         .to_string();
+
+    // For File mods: ext is a temp .pak file.
+    // For Directory mods: ext is {tmp_parent}/{dir_name} (two-level, consistent with resolve_archive_download).
+    let (ext, tmp_parent) = match &cfg.unit {
+        engine::ModUnit::File { .. } => {
+            let p = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
+            (p, None)
+        }
+        engine::ModUnit::Directory { .. } => {
+            let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+            let p = parent.join(&entry_filename);
+            (p, Some(parent))
+        }
+    };
+
     let uid = format!("{}_{}", file_id, entry_stem);
 
     let result = async {
-        extract_entry(&zip, &entry_name, &ext)?;
-        let sha256 = compute_sha256(&ext).await?;
-        let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+        match &cfg.unit {
+            engine::ModUnit::File { .. } => extract_entry(&zip, &entry_name, &ext)?,
+            engine::ModUnit::Directory { .. } => extract_dir_entry(&zip, &entry_name, &ext)?,
+        }
+        let sha256 = match &cfg.unit {
+            engine::ModUnit::File { .. } => compute_sha256(&ext).await?,
+            engine::ModUnit::Directory { entry_marker, .. } => {
+                compute_sha256(&ext.join(entry_marker)).await?
+            }
+        };
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
 
@@ -521,7 +581,7 @@ pub async fn install_from_zip_entry(
         let sha256_match = saved.mods.iter().find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
         let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
 
-        // Never inherit folderId from existing entries; zip paks must land where the caller specifies.
+        // Never inherit folderId from existing entries; callers always supply the target folder.
         let effective_folder_id = folder_id;
 
         install_mod_from_path(
@@ -556,7 +616,11 @@ pub async fn install_from_zip_entry(
     .await;
 
     // Keep the zip alive for multi-entry installs; only remove the extracted temp here.
-    let _ = tokio::fs::remove_file(&ext).await;
+    if let Some(parent) = tmp_parent {
+        let _ = tokio::fs::remove_dir_all(parent).await;
+    } else {
+        let _ = tokio::fs::remove_file(&ext).await;
+    }
     result
 }
 
