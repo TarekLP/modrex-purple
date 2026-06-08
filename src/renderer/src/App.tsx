@@ -316,6 +316,7 @@ export default function App() {
                                         isActive={view === 'detail' && i === detailStack.length - 1}
                                         gamePath={gamePath}
                                         installed={installed}
+                                        activeGame={activeGame}
                                         onBack={closeDetail}
                                         onRefreshInstalled={refreshInstalled}
                                         onOpenDetail={pushDetail}

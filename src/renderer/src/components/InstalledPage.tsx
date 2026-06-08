@@ -62,9 +62,15 @@ export function InstalledPage({
         handleEnable,
         handleDisable,
         handleReinstall,
-    } = useModActions(gamePath, onRefreshInstalled)
+    } = useModActions(gamePath, onRefreshInstalled, activeGame)
 
-    const folderActions = useFolderActions(gamePath, onRefreshInstalled, installed, folders)
+    const folderActions = useFolderActions(
+        gamePath,
+        onRefreshInstalled,
+        installed,
+        folders,
+        activeGame
+    )
 
     const {
         dragItem,
@@ -84,7 +90,7 @@ export function InstalledPage({
         onFolderDragStart,
         onChildDrop,
         onNestFolderInto,
-    } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled })
+    } = useDragDrop({ installed, folders, gamePath, modData, onRefreshInstalled, activeGame })
 
     const isFiltering = filterQuery.trim().length > 0
     const { mods: displayMods, visibleFolderIds } = isFiltering
@@ -155,6 +161,7 @@ export function InstalledPage({
         modData,
         failedIds,
         viewMode,
+        activeGame,
         gamePath,
         isFiltering,
         visibleFolderIds,
@@ -185,14 +192,6 @@ export function InstalledPage({
         onModDrop,
     }
 
-    if (activeGame !== 'pd3') {
-        return (
-            <div className="h-full flex items-center justify-center">
-                <p className="text-sm text-text-subtle">{t('installed.comingSoon')}</p>
-            </div>
-        )
-    }
-
     return (
         <InstalledContext.Provider value={ctx}>
             <div className="h-full flex flex-col">
@@ -200,6 +199,7 @@ export function InstalledPage({
                     <ZipPickerModal
                         payload={zipPickerData}
                         gamePath={gamePath}
+                        gameId={activeGame}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={clearZipPickerData}
                     />
@@ -210,7 +210,7 @@ export function InstalledPage({
                             <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
                             {gamePath && (
                                 <button
-                                    onClick={() => api.openModsFolder()}
+                                    onClick={() => api.openModsFolder(activeGame)}
                                     title={t('installed.openFolder')}
                                     className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
                                 >
@@ -399,6 +399,7 @@ export function InstalledPage({
                         updatable={updatable}
                         modData={modData}
                         gamePath={gamePath}
+                        gameId={activeGame}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={() => setShowUpdates(false)}
                         onOpenDetail={onOpenDetail}

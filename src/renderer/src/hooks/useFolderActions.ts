@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { InstalledMod, ModFolder } from '../../../shared/types'
+import type { GameId, InstalledMod, ModFolder } from '../../../shared/types'
 import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { api } from '../api'
 import { getAllModsInFolder } from './installedUtils'
@@ -31,7 +31,8 @@ export function useFolderActions(
     gamePath: string | null,
     onRefreshInstalled: () => Promise<void>,
     installed: InstalledMod[],
-    folders: ModFolder[]
+    folders: ModFolder[],
+    activeGame?: GameId
 ): FolderActions {
     const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => {
         const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:collapsed-folders`)
@@ -56,7 +57,7 @@ export function useFolderActions(
             setRenamingFolderId(null)
             return
         }
-        await api.renameFolder(folderId, renameValue.trim(), gamePath)
+        await api.renameFolder(folderId, renameValue.trim(), gamePath, activeGame)
         setRenamingFolderId(null)
         await onRefreshInstalled()
     }
@@ -74,7 +75,7 @@ export function useFolderActions(
         if (!deletingFolderId || !gamePath) return
         const folderId = deletingFolderId
         setDeletingFolderId(null)
-        await api.deleteFolder(folderId, gamePath)
+        await api.deleteFolder(folderId, gamePath, activeGame)
         await onRefreshInstalled()
     }
 
@@ -101,7 +102,7 @@ export function useFolderActions(
             cancelCreateFolder()
             return
         }
-        await api.createFolder(newFolderName.trim(), creatingFolderParentId, gamePath)
+        await api.createFolder(newFolderName.trim(), creatingFolderParentId, gamePath, activeGame)
         cancelCreateFolder()
         await onRefreshInstalled()
     }
@@ -126,9 +127,9 @@ export function useFolderActions(
             const mods = getAllModsInFolder(installed, folders, folderId)
             for (const mod of mods) {
                 if (anyEnabled) {
-                    await api.disableMod(mod.uid, gamePath)
+                    await api.disableMod(mod.uid, gamePath, activeGame)
                 } else {
-                    await api.enableMod(mod.uid, gamePath)
+                    await api.enableMod(mod.uid, gamePath, activeGame)
                 }
             }
             await onRefreshInstalled()

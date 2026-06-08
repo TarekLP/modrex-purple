@@ -9,6 +9,7 @@ interface Props {
     modId: number
     missingRequired: ModDependency[]
     gamePath: string | null
+    gameId?: string
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
     onGotIt: (permanent: boolean) => void
@@ -17,6 +18,7 @@ interface Props {
 export function DepsWarningModal({
     missingRequired,
     gamePath,
+    gameId,
     onRefreshInstalled,
     onClose,
     onGotIt,
@@ -58,7 +60,7 @@ export function DepsWarningModal({
                                 if (!gamePath) return
                                 setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: true }))
                                 try {
-                                    await api.installMod(dep.mod!.id, gamePath)
+                                    await api.installMod(dep.mod!.id, gamePath, gameId)
                                     await onRefreshInstalled()
                                 } finally {
                                     setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: false }))

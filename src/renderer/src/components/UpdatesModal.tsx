@@ -9,6 +9,7 @@ interface Props {
     updatable: InstalledMod[]
     modData: Map<number, Mod>
     gamePath: string | null
+    gameId?: string
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
     onOpenDetail: (modId: number) => void
@@ -18,6 +19,7 @@ export function UpdatesModal({
     updatable,
     modData,
     gamePath,
+    gameId,
     onRefreshInstalled,
     onClose,
     onOpenDetail,
@@ -43,7 +45,7 @@ export function UpdatesModal({
         setLoadingMod(uid)
         setUpdateError(null)
         try {
-            await api.installMod(modId, gamePath)
+            await api.installMod(modId, gamePath, gameId)
             await onRefreshInstalled()
         } catch {
             setUpdateError(t('installed.updatesModal.error'))
@@ -58,7 +60,7 @@ export function UpdatesModal({
         setUpdateError(null)
         try {
             for (const ins of updatable.filter((m) => selectedIds.has(m.id))) {
-                await api.installMod(ins.id, gamePath)
+                await api.installMod(ins.id, gamePath, gameId)
             }
             await onRefreshInstalled()
             onClose()

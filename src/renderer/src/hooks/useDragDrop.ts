@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import type { DragEvent } from 'react'
-import type { Mod, InstalledMod, ModFolder, TopLevelItem } from '../../../shared/types'
+import type { GameId, Mod, InstalledMod, ModFolder, TopLevelItem } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { computeChildren, syntheticMod } from './installedUtils'
 import { api } from '../api'
@@ -21,6 +21,7 @@ interface Options {
     gamePath: string | null
     modData: Map<number, Mod>
     onRefreshInstalled: () => Promise<void>
+    activeGame?: GameId
 }
 
 export function useDragDrop({
@@ -29,6 +30,7 @@ export function useDragDrop({
     gamePath,
     modData,
     onRefreshInstalled,
+    activeGame,
 }: Options) {
     const [dragItem, setDragItem] = useState<DragItem | null>(null)
     const dragItemRef = useRef<DragItem | null>(null)
@@ -240,7 +242,8 @@ export function useDragDrop({
             await api.reorderModsInFolder(
                 srcFolderId,
                 reordered.map((m) => m.uid),
-                gamePath
+                gamePath,
+                activeGame
             )
         } else {
             const targetScopeMods = installed
@@ -249,7 +252,13 @@ export function useDragDrop({
             const toIdx = targetScopeMods.findIndex((m) => m.uid === targetRepUid)
             const targetPosition = isBefore ? toIdx : toIdx + 1
             for (const m of srcGroupMods) {
-                await api.moveModToFolder(m.uid, targetFolderId, targetPosition, gamePath)
+                await api.moveModToFolder(
+                    m.uid,
+                    targetFolderId,
+                    targetPosition,
+                    gamePath,
+                    activeGame
+                )
             }
         }
         await onRefreshInstalled()
@@ -288,7 +297,8 @@ export function useDragDrop({
             await api.reorderModsInFolder(
                 srcFolderId,
                 reordered.map((m) => m.uid),
-                gamePath
+                gamePath,
+                activeGame
             )
         } else {
             const targetScopeMods = installed
@@ -297,7 +307,13 @@ export function useDragDrop({
             const toIdx = targetScopeMods.findIndex((m) => m.uid === targetRepUid)
             const targetPosition = isBefore ? toIdx : toIdx + 1
             for (const m of srcGroupMods) {
-                await api.moveModToFolder(m.uid, targetFolderId, targetPosition, gamePath)
+                await api.moveModToFolder(
+                    m.uid,
+                    targetFolderId,
+                    targetPosition,
+                    gamePath,
+                    activeGame
+                )
             }
         }
         await onRefreshInstalled()
@@ -316,7 +332,7 @@ export function useDragDrop({
         )
         const folderMods = installed.filter((m) => m.folderId === folderId)
         for (const m of srcGroupMods) {
-            await api.moveModToFolder(m.uid, folderId, folderMods.length, gamePath)
+            await api.moveModToFolder(m.uid, folderId, folderMods.length, gamePath, activeGame)
         }
         await onRefreshInstalled()
     }
@@ -364,9 +380,9 @@ export function useDragDrop({
 
         const draggedFolder = folders.find((f) => f.id === srcFolderId)
         if (draggedFolder && draggedFolder.parentId !== parentId) {
-            await api.moveFolder(srcFolderId, parentId, gamePath)
+            await api.moveFolder(srcFolderId, parentId, gamePath, activeGame)
         }
-        await api.reorderChildren(parentId, items, gamePath)
+        await api.reorderChildren(parentId, items, gamePath, activeGame)
         await onRefreshInstalled()
     }
 
@@ -375,7 +391,7 @@ export function useDragDrop({
         dragItemRef.current = null
         setDragItem(null)
         setDropTarget(null)
-        await api.moveFolder(srcFolderId, targetFolderId, gamePath)
+        await api.moveFolder(srcFolderId, targetFolderId, gamePath, activeGame)
         await onRefreshInstalled()
     }
 

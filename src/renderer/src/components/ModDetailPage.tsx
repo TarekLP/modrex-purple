@@ -13,7 +13,14 @@ import {
 } from 'lucide-react'
 import { t } from '../i18n'
 import { Toggle } from './Toggle'
-import type { Mod, ModFile, ModLink, ModDependency, InstalledMod } from '../../../shared/types'
+import type {
+    GameId,
+    Mod,
+    ModFile,
+    ModLink,
+    ModDependency,
+    InstalledMod,
+} from '../../../shared/types'
 import { MarkdownContent } from './MarkdownContent'
 import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
@@ -45,6 +52,7 @@ interface Props {
     isActive?: boolean
     gamePath: string | null
     installed: InstalledMod[]
+    activeGame?: GameId
     onBack: () => void
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
@@ -55,6 +63,7 @@ export function ModDetailPage({
     isActive = true,
     gamePath,
     installed,
+    activeGame = 'pd3',
     onBack,
     onRefreshInstalled,
     onOpenDetail,
@@ -166,7 +175,7 @@ export function ModDetailPage({
         setInstallError(null)
         setActionLoading(true)
         try {
-            await api.installMod(mod.id, gamePath)
+            await api.installMod(mod.id, gamePath, activeGame)
             await onRefreshInstalled()
         } catch (e) {
             const zipData = parseZipMultiPak(String(e))
@@ -184,7 +193,7 @@ export function ModDetailPage({
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            for (const m of installedFiles) await api.uninstallMod(m.uid, gamePath)
+            for (const m of installedFiles) await api.uninstallMod(m.uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -195,7 +204,7 @@ export function ModDetailPage({
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            for (const m of installedFiles) await api.enableMod(m.uid, gamePath)
+            for (const m of installedFiles) await api.enableMod(m.uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -206,7 +215,7 @@ export function ModDetailPage({
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
         try {
-            for (const m of installedFiles) await api.disableMod(m.uid, gamePath)
+            for (const m of installedFiles) await api.disableMod(m.uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setActionLoading(false)
@@ -255,6 +264,7 @@ export function ModDetailPage({
                 <ZipPickerModal
                     payload={zipPickerData}
                     gamePath={gamePath}
+                    gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}
                 />
@@ -265,6 +275,7 @@ export function ModDetailPage({
                     files={files}
                     gamePath={gamePath}
                     installedFiles={installedFiles}
+                    gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setShowFileSelect(false)}
                 />
@@ -287,6 +298,7 @@ export function ModDetailPage({
                     modId={modId}
                     missingRequired={missingRequired}
                     gamePath={gamePath}
+                    gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setShowDepsWarning(false)}
                     onGotIt={async (permanent) => {
@@ -524,6 +536,7 @@ export function ModDetailPage({
                                 gamePath={gamePath}
                                 installedFiles={installedFiles}
                                 downloadProgress={downloadProgress}
+                                activeGame={activeGame}
                                 onRefreshInstalled={onRefreshInstalled}
                             />
                         )}
@@ -533,6 +546,7 @@ export function ModDetailPage({
                                 deps={allDeps}
                                 installed={installed}
                                 gamePath={gamePath}
+                                activeGame={activeGame}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -662,6 +676,7 @@ function DownloadsTab({
     gamePath,
     installedFiles,
     downloadProgress,
+    activeGame,
     onRefreshInstalled,
 }: {
     files: ModFile[]
@@ -670,6 +685,7 @@ function DownloadsTab({
     gamePath: string | null
     installedFiles: InstalledMod[]
     downloadProgress: { downloaded: number; total: number } | null
+    activeGame?: GameId
     onRefreshInstalled: () => Promise<void>
 }) {
     const [installingId, setInstallingId] = useState<number | null>(null)
@@ -684,7 +700,7 @@ function DownloadsTab({
         if (!installedMod) return
         setUninstallingId(file.id)
         try {
-            await api.uninstallMod(installedMod.uid, gamePath)
+            await api.uninstallMod(installedMod.uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setUninstallingId(null)
@@ -711,7 +727,8 @@ function DownloadsTab({
                 file.download_url,
                 file.type ?? '',
                 mod.version,
-                gamePath
+                gamePath,
+                activeGame
             )
             await onRefreshInstalled()
         } catch (e) {
@@ -740,6 +757,7 @@ function DownloadsTab({
                 <ZipPickerModal
                     payload={zipPickerData}
                     gamePath={gamePath}
+                    gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}
                 />
@@ -962,6 +980,7 @@ function DepsTab({
     deps,
     installed,
     gamePath,
+    activeGame,
     onRefreshInstalled,
     onOpenDetail,
 }: {
@@ -969,6 +988,7 @@ function DepsTab({
     deps: ModDependency[]
     installed: InstalledMod[]
     gamePath: string | null
+    activeGame?: GameId
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
@@ -1006,6 +1026,7 @@ function DepsTab({
                                 dep={dep}
                                 installed={installed}
                                 gamePath={gamePath}
+                                activeGame={activeGame}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -1026,6 +1047,7 @@ function DepsTab({
                                 dep={dep}
                                 installed={installed}
                                 gamePath={gamePath}
+                                activeGame={activeGame}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -1041,12 +1063,14 @@ function DepRow({
     dep,
     installed,
     gamePath,
+    activeGame,
     onRefreshInstalled,
     onOpenDetail,
 }: {
     dep: ModDependency
     installed: InstalledMod[]
     gamePath: string | null
+    activeGame?: GameId
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
@@ -1061,7 +1085,7 @@ function DepRow({
         if (!gamePath) return
         setInstalling(true)
         try {
-            await api.installMod(mod!.id, gamePath)
+            await api.installMod(mod!.id, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setInstalling(false)

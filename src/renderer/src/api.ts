@@ -97,11 +97,11 @@ export const api = {
     ): Promise<{ mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }> {
         return invoke('get_installed', { gameId })
     },
-    openModsFolder(): Promise<void> {
-        return invoke('open_mods_folder')
+    openModsFolder(gameId?: string): Promise<void> {
+        return gameId ? invoke('open_mods_folder', { gameId }) : invoke('open_mods_folder')
     },
-    installMod(modId: number, gamePath: string): Promise<void> {
-        return invoke('install_mod', { modId, gamePath })
+    installMod(modId: number, gamePath: string, gameId?: string): Promise<void> {
+        return invoke('install_mod', { modId, gamePath, gameId })
     },
     installModFile(
         modId: number,
@@ -110,7 +110,8 @@ export const api = {
         downloadUrl: string,
         fileType: string,
         modVersion: string,
-        gamePath: string
+        gamePath: string,
+        gameId?: string
     ): Promise<void> {
         return invoke('install_file', {
             modId,
@@ -120,6 +121,7 @@ export const api = {
             fileType,
             modVersion,
             gamePath,
+            gameId,
         })
     },
     deleteTempFile(path: string): Promise<void> {
@@ -134,7 +136,8 @@ export const api = {
         fileType: string,
         modVersion: string,
         gamePath: string,
-        folderId?: string | null
+        folderId?: string | null,
+        gameId?: string
     ): Promise<void> {
         return invoke('install_from_zip_entry', {
             zipPath,
@@ -146,54 +149,69 @@ export const api = {
             modVersion,
             gamePath,
             folderId,
+            gameId,
         })
     },
-    uninstallMod(uid: string, gamePath: string): Promise<void> {
-        return invoke('uninstall_mod', { uid, gamePath })
+    uninstallMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
+        return invoke('uninstall_mod', { uid, gamePath, gameId })
     },
-    enableMod(uid: string, gamePath: string): Promise<void> {
-        return invoke('enable_mod', { uid, gamePath })
+    enableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
+        return invoke('enable_mod', { uid, gamePath, gameId })
     },
-    disableMod(uid: string, gamePath: string): Promise<void> {
-        return invoke('disable_mod', { uid, gamePath })
+    disableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
+        return invoke('disable_mod', { uid, gamePath, gameId })
     },
     reorderModsInFolder(
         folderId: string | null,
         orderedUids: string[],
-        gamePath: string
+        gamePath: string,
+        gameId?: string
     ): Promise<void> {
-        return invoke('reorder_in_folder', { folderId, orderedUids, gamePath })
+        return invoke('reorder_in_folder', { folderId, orderedUids, gamePath, gameId })
     },
     moveModToFolder(
         uid: string,
         targetFolderId: string | null,
         targetPosition: number,
-        gamePath: string
+        gamePath: string,
+        gameId?: string
     ): Promise<void> {
-        return invoke('move_to_folder', { uid, targetFolderId, targetPosition, gamePath })
+        return invoke('move_to_folder', { uid, targetFolderId, targetPosition, gamePath, gameId })
     },
     reorderChildren(
         parentId: string | null,
         items: TopLevelItem[],
-        gamePath: string
+        gamePath: string,
+        gameId?: string
     ): Promise<void> {
-        return invoke('reorder_children', { parentId, items, gamePath })
+        return invoke('reorder_children', { parentId, items, gamePath, gameId })
     },
-    moveFolder(folderId: string, targetParentId: string | null, gamePath: string): Promise<void> {
-        return invoke('move_folder', { folderId, targetParentId, gamePath })
+    moveFolder(
+        folderId: string,
+        targetParentId: string | null,
+        gamePath: string,
+        gameId?: string
+    ): Promise<void> {
+        return invoke('move_folder', { folderId, targetParentId, gamePath, gameId })
     },
     createFolder(
         displayName: string,
         parentId: string | null,
-        gamePath: string
+        gamePath: string,
+        gameId?: string
     ): Promise<ModFolder> {
-        return invoke('create_folder', { displayName, parentId, gamePath })
+        return invoke('create_folder', { displayName, parentId, gamePath, gameId })
     },
-    renameFolder(folderId: string, displayName: string, gamePath: string): Promise<void> {
-        return invoke('rename_folder', { folderId, displayName, gamePath })
+    renameFolder(
+        folderId: string,
+        displayName: string,
+        gamePath: string,
+        gameId?: string
+    ): Promise<void> {
+        return invoke('rename_folder', { folderId, displayName, gamePath, gameId })
     },
-    deleteFolder(folderId: string, gamePath: string): Promise<void> {
-        return invoke('delete_folder', { folderId, gamePath })
+    deleteFolder(folderId: string, gamePath: string, gameId?: string): Promise<void> {
+        return invoke('delete_folder', { folderId, gamePath, gameId })
     },
 
     // ── Launchers & system ─────────────────────────────────────────────────────

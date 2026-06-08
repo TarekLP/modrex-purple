@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { InstalledMod } from '../../../shared/types'
+import type { GameId, InstalledMod } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
 import { parseZipMultiPak } from '../components/ZipPickerModal'
 import { api } from '../api'
@@ -18,7 +18,8 @@ export interface ModActions {
 
 export function useModActions(
     gamePath: string | null,
-    onRefreshInstalled: () => Promise<void>
+    onRefreshInstalled: () => Promise<void>,
+    activeGame?: GameId
 ): ModActions {
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [refreshing, setRefreshing] = useState(false)
@@ -37,7 +38,7 @@ export function useModActions(
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
         try {
-            for (const m of mods) await api.uninstallMod(m.uid, gamePath)
+            for (const m of mods) await api.uninstallMod(m.uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -48,7 +49,7 @@ export function useModActions(
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
         try {
-            for (const m of mods) await api.enableMod(m.uid, gamePath)
+            for (const m of mods) await api.enableMod(m.uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -59,7 +60,7 @@ export function useModActions(
         if (!gamePath) return
         setLoadingMod(mods[0].uid)
         try {
-            for (const m of mods) await api.disableMod(m.uid, gamePath)
+            for (const m of mods) await api.disableMod(m.uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -70,7 +71,7 @@ export function useModActions(
         if (!gamePath || mods[0].id < 0) return
         setLoadingMod(mods[0].uid)
         try {
-            await api.installMod(mods[0].id, gamePath)
+            await api.installMod(mods[0].id, gamePath, activeGame)
             await onRefreshInstalled()
         } catch (e) {
             const zipData = parseZipMultiPak(String(e))

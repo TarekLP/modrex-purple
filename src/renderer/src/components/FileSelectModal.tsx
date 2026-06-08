@@ -19,6 +19,7 @@ interface Props {
     files: ModFile[]
     gamePath: string | null
     installedFiles: InstalledMod[]
+    gameId?: string
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
 }
@@ -28,6 +29,7 @@ export function FileSelectModal({
     files,
     gamePath,
     installedFiles,
+    gameId,
     onRefreshInstalled,
     onClose,
 }: Props) {
@@ -100,7 +102,8 @@ export function FileSelectModal({
                     file.download_url,
                     file.type ?? '',
                     mod.version,
-                    gamePath
+                    gamePath,
+                    gameId
                 )
                 await onRefreshInstalled()
                 setSelectedIds((prev) => {
@@ -315,6 +318,7 @@ export function FileSelectModal({
                 <ZipPickerModal
                     payload={zipPayload}
                     gamePath={gamePath}
+                    gameId={gameId}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => {
                         zipResolveRef.current?.()

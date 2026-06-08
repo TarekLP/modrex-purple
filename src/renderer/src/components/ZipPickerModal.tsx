@@ -27,6 +27,7 @@ interface Props {
     payload: ZipMultiPakPayload
     gamePath: string
     folderId?: string | null
+    gameId?: string
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
 }
@@ -35,6 +36,7 @@ export function ZipPickerModal({
     payload,
     gamePath,
     folderId,
+    gameId,
     onRefreshInstalled,
     onClose,
 }: Props) {
@@ -97,7 +99,8 @@ export function ZipPickerModal({
                     payload.fileType,
                     payload.modVersion,
                     gamePath,
-                    folderId
+                    folderId,
+                    gameId
                 )
                 await onRefreshInstalled()
             } catch (e) {

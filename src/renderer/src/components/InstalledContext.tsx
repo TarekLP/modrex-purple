@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { DragEvent } from 'react'
-import type { InstalledMod, Mod, ModFolder } from '../../../shared/types'
+import type { GameId, InstalledMod, Mod, ModFolder } from '../../../shared/types'
 import type { FolderActions } from '../hooks/useFolderActions'
 import type { DragItem, DropTarget } from '../hooks/useDragDrop'
 
@@ -8,6 +8,7 @@ export interface InstalledContextValue {
     modData: Map<number, Mod>
     failedIds: Set<number>
     viewMode: 'grid' | 'list'
+    activeGame: GameId
     gamePath: string | null
     isFiltering: boolean
     visibleFolderIds: Set<string> | undefined

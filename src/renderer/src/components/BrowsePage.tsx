@@ -260,7 +260,7 @@ export function BrowsePage({
                 }
             }
         }
-        await api.installMod(modId, gamePath)
+        await api.installMod(modId, gamePath, activeGame)
         await onRefreshInstalled()
     }
 
@@ -270,7 +270,7 @@ export function BrowsePage({
         if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            for (const uid of uids) await api.uninstallMod(uid, gamePath)
+            for (const uid of uids) await api.uninstallMod(uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -283,7 +283,7 @@ export function BrowsePage({
         if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            for (const uid of uids) await api.enableMod(uid, gamePath)
+            for (const uid of uids) await api.enableMod(uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -296,7 +296,7 @@ export function BrowsePage({
         if (uids.length === 0) return
         setLoadingMod(modId)
         try {
-            for (const uid of uids) await api.disableMod(uid, gamePath)
+            for (const uid of uids) await api.disableMod(uid, gamePath, activeGame)
             await onRefreshInstalled()
         } finally {
             setLoadingMod(null)
@@ -334,6 +334,7 @@ export function BrowsePage({
                     files={fileSelect.files}
                     gamePath={gamePath}
                     installedFiles={installed.filter((m) => m.id === fileSelect.mod.id)}
+                    gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setFileSelect(null)}
                 />
@@ -342,6 +343,7 @@ export function BrowsePage({
                 <ZipPickerModal
                     payload={zipPickerData}
                     gamePath={gamePath}
+                    gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}
                 />
@@ -351,6 +353,7 @@ export function BrowsePage({
                     modId={depsWarning.modId}
                     missingRequired={missingDepsList}
                     gamePath={gamePath}
+                    gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setDepsWarning(null)}
                     onGotIt={async (permanent) => {
