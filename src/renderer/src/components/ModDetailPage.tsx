@@ -22,7 +22,14 @@ import type {
     InstalledMod,
 } from '../../../shared/types'
 import { MarkdownContent } from './MarkdownContent'
-import { getCachedMod, getCachedModFiles, getCachedModLinks, getModCacheEntry } from '../modCache'
+import {
+    getCachedMod,
+    getCachedModFiles,
+    getCachedModLinks,
+    getModCacheEntry,
+    getFilesCacheEntry,
+    getLinksCacheEntry,
+} from '../modCache'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
@@ -69,10 +76,11 @@ export function ModDetailPage({
     onOpenDetail,
 }: Props) {
     const [mod, setMod] = useState<Mod | null>(() => getModCacheEntry(modId)?.mod ?? null)
-    const [files, setFiles] = useState<ModFile[]>([])
-    const [links, setLinks] = useState<ModLink[]>([])
-    // Start without spinner when mod data is already in cache — fetchData refreshes silently.
+    const [files, setFiles] = useState<ModFile[]>(() => getFilesCacheEntry(modId)?.files ?? [])
+    const [links, setLinks] = useState<ModLink[]>(() => getLinksCacheEntry(modId)?.links ?? [])
+    // Skip full-page spinner when mod is already cached; skip files spinner when files are cached.
     const [loading, setLoading] = useState(() => !getModCacheEntry(modId))
+    const [filesLoading, setFilesLoading] = useState(() => !getFilesCacheEntry(modId))
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<Tab>('description')
     const [actionLoading, setActionLoading] = useState(false)
@@ -91,22 +99,23 @@ export function ModDetailPage({
     const installedFiles = installed.filter((m) => m.id === modId)
     const installedMod = installedFiles[0]
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(() => {
         setError(null)
-        try {
-            const [modData, filesData, linksData] = await Promise.all([
-                getCachedMod(modId),
-                getCachedModFiles(modId),
-                getCachedModLinks(modId),
-            ])
-            setMod(modData)
-            setFiles(filesData)
-            setLinks(linksData)
-        } catch (e) {
-            setError(String(e))
-        } finally {
-            setLoading(false)
-        }
+
+        // Mod and files/links fetch in parallel; each resolves independently so
+        // the header renders as soon as mod data is available.
+        getCachedMod(modId)
+            .then((modData) => setMod(modData))
+            .catch((e) => setError(String(e)))
+            .finally(() => setLoading(false))
+
+        Promise.all([getCachedModFiles(modId), getCachedModLinks(modId)])
+            .then(([filesData, linksData]) => {
+                setFiles(filesData)
+                setLinks(linksData)
+            })
+            .catch(() => {})
+            .finally(() => setFilesLoading(false))
     }, [modId])
 
     useEffect(() => {
@@ -532,6 +541,7 @@ export function ModDetailPage({
                             <DownloadsTab
                                 files={files}
                                 links={links}
+                                loading={filesLoading}
                                 mod={mod}
                                 gamePath={gamePath}
                                 installedFiles={installedFiles}
@@ -672,6 +682,7 @@ function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (index: number
 function DownloadsTab({
     files,
     links,
+    loading,
     mod,
     gamePath,
     installedFiles,
@@ -681,6 +692,7 @@ function DownloadsTab({
 }: {
     files: ModFile[]
     links: ModLink[]
+    loading: boolean
     mod: Mod
     gamePath: string | null
     installedFiles: InstalledMod[]
@@ -742,6 +754,14 @@ function DownloadsTab({
         } finally {
             setInstallingId(null)
         }
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-10 text-text-subtle text-sm">
+                {t('common.loading')}
+            </div>
+        )
     }
 
     if (files.length === 0 && links.length === 0) {

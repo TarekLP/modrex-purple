@@ -104,6 +104,14 @@ export function getModCacheEntry(id: number): ModCacheEntry | undefined {
     return modCache.get(id)
 }
 
+export function getFilesCacheEntry(id: number): FilesCacheEntry | undefined {
+    return filesCache.get(id)
+}
+
+export function getLinksCacheEntry(id: number): LinksCacheEntry | undefined {
+    return linksCache.get(id)
+}
+
 export async function getCachedMod(id: number): Promise<Mod> {
     const entry = modCache.get(id)
     if (entry && Date.now() - entry.fetchedAt < TTL_MS) return entry.mod
