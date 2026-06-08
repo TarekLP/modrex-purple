@@ -468,6 +468,22 @@ export function ModDetailPage({
                                             </button>
                                         </>
                                     )}
+                                    {mod.id > 0 && (
+                                        <>
+                                            {' · '}
+                                            <button
+                                                onClick={() =>
+                                                    api.openExternal(
+                                                        `https://modworkshop.net/mod/${mod.id}`
+                                                    )
+                                                }
+                                                className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
+                                            >
+                                                {t('detail.viewOnSite')}
+                                                <ExternalLink className="w-3 h-3" />
+                                            </button>
+                                        </>
+                                    )}
                                 </p>
                                 {mod.tags && mod.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5 mt-3">
