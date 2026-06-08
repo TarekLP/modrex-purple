@@ -54,8 +54,8 @@ pub async fn find_untracked_paks(
         return vec![];
     }
     let mut out = Vec::new();
-    scan_active(&mods_base(game_path, cfg), "", known, &mut out).await;
-    scan_disabled(&disabled_base(game_path, cfg), "", known, &mut out).await;
+    scan_active(&mods_base(game_path, cfg), "", known, cfg, &mut out).await;
+    scan_disabled(&disabled_base(game_path, cfg), "", known, cfg, &mut out).await;
     out
 }
 
@@ -63,6 +63,7 @@ async fn scan_active(
     dir: &Path,
     prefix: &str,
     known: &HashSet<String>,
+    cfg: &ModEngineConfig,
     out: &mut Vec<(String, bool)>,
 ) {
     let mut rd = match tokio::fs::read_dir(dir).await {
@@ -80,14 +81,29 @@ async fn scan_active(
             Err(_) => continue,
         };
         let rel = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
-        if ft.is_dir() {
-            subdirs.push((entry.path(), rel));
-        } else if name.ends_with(".pak") && !known.contains(&rel) {
-            out.push((rel, true));
+        match &cfg.unit {
+            ModUnit::File { .. } => {
+                if ft.is_dir() {
+                    subdirs.push((entry.path(), rel));
+                } else if name.ends_with(".pak") && !known.contains(&rel) {
+                    out.push((rel, true));
+                }
+            }
+            ModUnit::Directory { entry_marker, .. } => {
+                if ft.is_dir() {
+                    if entry.path().join(entry_marker).exists() {
+                        if !known.contains(&rel) {
+                            out.push((rel, true));
+                        }
+                    } else {
+                        subdirs.push((entry.path(), rel));
+                    }
+                }
+            }
         }
     }
     for (path, sub) in subdirs {
-        Box::pin(scan_active(&path, &sub, known, out)).await;
+        Box::pin(scan_active(&path, &sub, known, cfg, out)).await;
     }
 }
 
@@ -95,6 +111,7 @@ async fn scan_disabled(
     dir: &Path,
     prefix: &str,
     known: &HashSet<String>,
+    cfg: &ModEngineConfig,
     out: &mut Vec<(String, bool)>,
 ) {
     let mut rd = match tokio::fs::read_dir(dir).await {
@@ -109,17 +126,32 @@ async fn scan_disabled(
             Err(_) => continue,
         };
         let sub = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
-        if ft.is_dir() {
-            subdirs.push((entry.path(), sub));
-        } else if name.ends_with(".pak.disabled") {
-            let pak = name.trim_end_matches(".disabled").to_string();
-            let rel = if prefix.is_empty() { pak.clone() } else { format!("{}/{}", prefix, pak) };
-            if !known.contains(&rel) {
-                out.push((rel, false));
+        match &cfg.unit {
+            ModUnit::File { .. } => {
+                if ft.is_dir() {
+                    subdirs.push((entry.path(), sub));
+                } else if name.ends_with(".pak.disabled") {
+                    let pak = name.trim_end_matches(".disabled").to_string();
+                    let rel = if prefix.is_empty() { pak.clone() } else { format!("{}/{}", prefix, pak) };
+                    if !known.contains(&rel) {
+                        out.push((rel, false));
+                    }
+                }
+            }
+            ModUnit::Directory { entry_marker, .. } => {
+                if ft.is_dir() {
+                    if entry.path().join(entry_marker).exists() {
+                        if !known.contains(&sub) {
+                            out.push((sub, false));
+                        }
+                    } else {
+                        subdirs.push((entry.path(), sub));
+                    }
+                }
             }
         }
     }
     for (path, sub) in subdirs {
-        Box::pin(scan_disabled(&path, &sub, known, out)).await;
+        Box::pin(scan_disabled(&path, &sub, known, cfg, out)).await;
     }
 }
