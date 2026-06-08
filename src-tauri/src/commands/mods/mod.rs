@@ -48,12 +48,9 @@ use uuid::Uuid;
 #[tauri::command]
 pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<InstalledResponse, String> {
     let game_id = game_id.as_deref().unwrap_or("pd3");
-    if game_id != "pd3" {
-        return Ok(InstalledResponse { mods: vec![], folders: vec![], mods_hidden: false });
-    }
     let cfg = engine_for_game(game_id);
     let settings = read_settings(&app);
-    let Some(game_path) = game_settings(&settings, "pd3").and_then(|gs| gs.game_path.clone()) else {
+    let Some(game_path) = game_settings(&settings, game_id).and_then(|gs| gs.game_path.clone()) else {
         return Ok(InstalledResponse { mods: vec![], folders: vec![], mods_hidden: false });
     };
 
@@ -298,6 +295,7 @@ pub async fn install_mod(
     mod_id: u32,
     game_path: String,
     folder_id: Option<String>,
+    game_id: Option<String>,
 ) -> Result<(), String> {
     let mod_val = api_get(&app, &format!("/mods/{}", mod_id), vec![]).await?;
 
@@ -342,7 +340,7 @@ pub async fn install_mod(
     let result = async {
         let sha256 = compute_sha256(&tmp).await?;
         let uid = file_id.to_string();
-        let cfg = engine_for_game("pd3");
+        let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter()
@@ -411,6 +409,7 @@ pub async fn install_file(
     file_type: String,
     mod_version: String,
     game_path: String,
+    game_id: Option<String>,
 ) -> Result<(), String> {
     let downloaded = download_file(&app, &download_url, &file_type).await?;
     let (tmp, zip_orig) = match resolve_archive_download(downloaded) {
@@ -431,7 +430,7 @@ pub async fn install_file(
     let result = async {
         let sha256 = compute_sha256(&tmp).await?;
         let uid = file_id.to_string();
-        let cfg = engine_for_game("pd3");
+        let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter()
@@ -494,6 +493,7 @@ pub async fn install_from_zip_entry(
     mod_version: String,
     game_path: String,
     folder_id: Option<String>,
+    game_id: Option<String>,
 ) -> Result<(), String> {
     let zip = PathBuf::from(&zip_path);
     let ext = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
@@ -513,7 +513,7 @@ pub async fn install_from_zip_entry(
     let result = async {
         extract_entry(&zip, &entry_name, &ext)?;
         let sha256 = compute_sha256(&ext).await?;
-        let cfg = engine_for_game("pd3");
+        let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
 
@@ -566,44 +566,44 @@ pub async fn delete_temp_file(path: String) {
 }
 
 #[tauri::command]
-pub fn uninstall_mod(game_path: String, uid: String) {
-    let cfg = engine_for_game("pd3");
+pub fn uninstall_mod(game_path: String, uid: String, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
 }
 
 #[tauri::command]
-pub fn enable_mod(game_path: String, uid: String) {
-    let cfg = engine_for_game("pd3");
+pub fn enable_mod(game_path: String, uid: String, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     enable_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
 }
 
 #[tauri::command]
-pub fn disable_mod(game_path: String, uid: String) {
-    let cfg = engine_for_game("pd3");
+pub fn disable_mod(game_path: String, uid: String, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     disable_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
 }
 
 #[tauri::command]
-pub fn reorder_in_folder(game_path: String, folder_id: Option<String>, ordered_uids: Vec<String>) {
-    let cfg = engine_for_game("pd3");
+pub fn reorder_in_folder(game_path: String, folder_id: Option<String>, ordered_uids: Vec<String>, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     reorder_mods_in_folder_op(&game_path, &get_state_path(&game_path, cfg), folder_id.as_deref(), &ordered_uids, cfg);
 }
 
 #[tauri::command]
-pub fn move_to_folder(game_path: String, uid: String, target_folder_id: Option<String>, target_position: usize) {
-    let cfg = engine_for_game("pd3");
+pub fn move_to_folder(game_path: String, uid: String, target_folder_id: Option<String>, target_position: usize, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     move_mod_to_folder_op(&game_path, &get_state_path(&game_path, cfg), &uid, target_folder_id, target_position, cfg);
 }
 
 #[tauri::command]
-pub fn reorder_children(game_path: String, parent_id: Option<String>, items: Vec<TopLevelItem>) {
-    let cfg = engine_for_game("pd3");
+pub fn reorder_children(game_path: String, parent_id: Option<String>, items: Vec<TopLevelItem>, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     reorder_children_op(&game_path, &get_state_path(&game_path, cfg), parent_id.as_deref(), &items, cfg);
 }
 
 #[tauri::command]
-pub fn move_folder(game_path: String, folder_id: String, target_parent_id: Option<String>) {
-    let cfg = engine_for_game("pd3");
+pub fn move_folder(game_path: String, folder_id: String, target_parent_id: Option<String>, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     move_folder_op(&game_path, &get_state_path(&game_path, cfg), &folder_id, target_parent_id, cfg);
 }
 
@@ -612,28 +612,30 @@ pub fn create_folder(
     game_path: String,
     display_name: String,
     parent_id: Option<String>,
+    game_id: Option<String>,
 ) -> Result<ModFolder, String> {
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     create_folder_op(&game_path, &get_state_path(&game_path, cfg), &display_name, parent_id, cfg)
 }
 
 #[tauri::command]
-pub fn rename_folder(game_path: String, folder_id: String, display_name: String) {
-    let cfg = engine_for_game("pd3");
+pub fn rename_folder(game_path: String, folder_id: String, display_name: String, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     rename_folder_op(&game_path, &get_state_path(&game_path, cfg), &folder_id, &display_name, cfg);
 }
 
 #[tauri::command]
-pub fn delete_folder(game_path: String, folder_id: String) {
-    let cfg = engine_for_game("pd3");
+pub fn delete_folder(game_path: String, folder_id: String, game_id: Option<String>) {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     delete_folder_op(&game_path, &get_state_path(&game_path, cfg), &folder_id, cfg);
 }
 
 #[tauri::command]
-pub fn open_mods_folder(app: AppHandle) {
+pub fn open_mods_folder(app: AppHandle, game_id: Option<String>) {
+    let gid = game_id.as_deref().unwrap_or("pd3");
     let settings = read_settings(&app);
-    let Some(game_path) = game_settings(&settings, "pd3").and_then(|gs| gs.game_path.clone()) else { return };
-    let cfg = engine_for_game("pd3");
+    let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else { return };
+    let cfg = engine_for_game(gid);
     let dir = mods_base(&game_path, cfg);
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(&dir).spawn();
