@@ -63,7 +63,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
     for m in &mut state.mods {
         if m.id >= 0 { continue; }
         let Some(ref sha) = m.sha256 else { continue };
-        let Some(hit) = mod_index::lookup_sha256(&app, sha) else { continue };
+        let Some(hit) = mod_index::lookup_sha256(&app, sha, cfg.index_game_name) else { continue };
         m.id = hit.mod_remote_id;
         m.name = hit.mod_name;
         m.version = hit.version;
@@ -244,12 +244,13 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
             .filter(|&p| stripped[p + 1..].chars().all(|c| c.is_ascii_digit()))
             .map(|p| stripped[..p].replace('_', " "));
 
+        let gname = cfg.index_game_name;
         let (id, name, file_id, version) = if let Some(sha) = sha256 {
-            if let Some(hit) = mod_index::lookup_sha256(&app, sha) {
+            if let Some(hit) = mod_index::lookup_sha256(&app, sha, gname) {
                 (hit.mod_remote_id, hit.mod_name, Some(hit.file_remote_id), hit.version)
-            } else if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped_name) {
+            } else if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped_name, gname) {
                 (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
-            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(&app, b)) {
+            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(&app, b, gname)) {
                 (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
             } else if let Ok(num_id) = stripped.parse::<i64>() {
                 (num_id, stripped.to_string(), None, "unknown".to_string())
@@ -257,9 +258,9 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
                 (hash_filename(&filename), stripped_name.trim().to_string(), None, "unknown".to_string())
             }
         } else {
-            if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped_name) {
+            if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped_name, gname) {
                 (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
-            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(&app, b)) {
+            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(&app, b, gname)) {
                 (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
             } else if let Ok(num_id) = stripped.parse::<i64>() {
                 (num_id, stripped.to_string(), None, "unknown".to_string())

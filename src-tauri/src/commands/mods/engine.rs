@@ -14,6 +14,7 @@ pub enum ModUnit {
 
 pub struct ModEngineConfig {
     pub game_id: &'static str,
+    pub index_game_name: &'static str,
     pub unit: ModUnit,
     pub state_filename: &'static str,
     pub mods_subpath: &'static [&'static str],
@@ -23,6 +24,7 @@ pub struct ModEngineConfig {
 
 pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pd3",
+    index_game_name: "PAYDAY 3",
     unit: ModUnit::File {
         extension: "pak",
         disabled_suffix: ".disabled",
@@ -36,6 +38,7 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
 
 pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pd2",
+    index_game_name: "PAYDAY 2",
     unit: ModUnit::Directory {
         entry_marker: "mod.txt",
         priority_prefix: false,
@@ -48,6 +51,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
 
 pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pdth",
+    index_game_name: "PAYDAY: The Heist",
     unit: ModUnit::Directory {
         entry_marker: "mod.txt",
         priority_prefix: false,

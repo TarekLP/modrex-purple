@@ -72,14 +72,16 @@ fn open_conn(path: &std::path::Path) -> Option<rusqlite::Connection> {
     .ok()
 }
 
-fn query_sha256(conn: &rusqlite::Connection, sha256: &str) -> Option<IndexMatch> {
+fn query_sha256(conn: &rusqlite::Connection, sha256: &str, game_name: &str) -> Option<IndexMatch> {
     conn.query_row(
         "SELECT m.remote_id, m.name, f.remote_id, f.version
          FROM files f
          JOIN mods m ON m.id = f.mod_id
-         WHERE f.sha256 = ?1
+         JOIN sources s ON s.id = m.source_id
+         JOIN games g ON g.id = s.game_id
+         WHERE f.sha256 = ?1 AND g.name = ?2
          LIMIT 1",
-        rusqlite::params![sha256],
+        rusqlite::params![sha256, game_name],
         |row| {
             Ok(IndexMatch {
                 mod_remote_id: row.get(0)?,
@@ -92,31 +94,37 @@ fn query_sha256(conn: &rusqlite::Connection, sha256: &str) -> Option<IndexMatch>
     .ok()
 }
 
-fn query_by_name(conn: &rusqlite::Connection, name: &str) -> Option<i64> {
+fn query_by_name(conn: &rusqlite::Connection, name: &str, game_name: &str) -> Option<i64> {
     let pattern = format!("%{}%", name);
     let mut stmt = conn
-        .prepare("SELECT remote_id FROM mods WHERE name LIKE ?1 LIMIT 2")
+        .prepare(
+            "SELECT m.remote_id FROM mods m
+             JOIN sources s ON s.id = m.source_id
+             JOIN games g ON g.id = s.game_id
+             WHERE m.name LIKE ?1 AND g.name = ?2
+             LIMIT 2",
+        )
         .ok()?;
     let rows: Vec<i64> = stmt
-        .query_map(rusqlite::params![pattern], |row| row.get(0))
+        .query_map(rusqlite::params![pattern, game_name], |row| row.get(0))
         .ok()?
         .filter_map(|r| r.ok())
         .collect();
     if rows.len() == 1 { Some(rows[0]) } else { None }
 }
 
-pub fn lookup_sha256(app: &AppHandle, sha256: &str) -> Option<IndexMatch> {
+pub fn lookup_sha256(app: &AppHandle, sha256: &str, game_name: &str) -> Option<IndexMatch> {
     let path = index_path(app);
     if !path.exists() { return None; }
     let conn = open_conn(&path)?;
-    query_sha256(&conn, sha256)
+    query_sha256(&conn, sha256, game_name)
 }
 
-pub fn lookup_by_name(app: &AppHandle, name: &str) -> Option<i64> {
+pub fn lookup_by_name(app: &AppHandle, name: &str, game_name: &str) -> Option<i64> {
     let path = index_path(app);
     if !path.exists() { return None; }
     let conn = open_conn(&path)?;
-    query_by_name(&conn, name)
+    query_by_name(&conn, name, game_name)
 }
 
 #[cfg(test)]
