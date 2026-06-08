@@ -369,7 +369,7 @@ export function InstalledPage({
                                         return (
                                             <div
                                                 key={`rg-${leaderId}`}
-                                                className="relative grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
+                                                className="relative grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4"
                                                 onDragOver={(e) =>
                                                     onChildModDragOver(e, leaderId, null)
                                                 }

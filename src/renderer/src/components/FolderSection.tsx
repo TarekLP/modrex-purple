@@ -286,7 +286,7 @@ export function FolderSection({ folder }: Props) {
                             return (
                                 <div
                                     key={`rg-${group.groups[0][0].uid}`}
-                                    className="grid grid-cols-2 gap-3 xl:grid-cols-3 2xl:grid-cols-4"
+                                    className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4"
                                 >
                                     {group.groups.map((mods) => (
                                         <InstalledModItem key={mods[0].uid} mods={mods} />
