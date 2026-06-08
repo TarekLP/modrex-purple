@@ -17,6 +17,7 @@ pnpm lint:fix     # ESLint with auto-fix
 pnpm test         # Run all tests: Rust (cargo test) then renderer (vitest)
 pnpm test:renderer # Run only renderer TypeScript tests (vitest)
 cargo clippy      # Rust lints (run from src-tauri/); one expected warning: too_many_arguments on install_file
+cargo fmt         # Format Rust code (run from src-tauri/)
 ```
 
 Run a single Rust test by name filter:
@@ -25,7 +26,16 @@ Run a single Rust test by name filter:
 cd src-tauri && cargo test strip_priority
 ```
 
+Run a single renderer test file or filter by name:
+
+```bash
+pnpm test:renderer -- src/renderer/src/browseCache.test.ts
+pnpm test:renderer -- -t "returns stale"
+```
+
 In `pnpm dev`, renderer changes (`src/renderer/`) apply instantly via Vite HMR — no restart needed. Rust changes (`src-tauri/`) trigger an automatic `cargo` recompile via Tauri's file watcher; the window reloads when done.
+
+**Pre-commit hooks** (`.husky/pre-commit`): runs `prettier --check` then `eslint` — both must pass before a commit is accepted. Run `pnpm format` and `pnpm lint:fix` to fix failures. `commit-msg` runs `commitlint` to enforce the conventional commit format.
 
 ## Architecture
 
@@ -47,6 +57,8 @@ src/shared/types.ts       ← TypeScript types shared by renderer and api.ts
 Missing any of these three breaks the channel silently at the type level.
 
 ### Rust backend modules (`src-tauri/src/commands/`)
+
+**App startup sequence** (`src-tauri/src/lib.rs` setup hook, fires before the window shows): `migrate_from_electron` runs synchronously first, then fire-and-forget: `cleanup_thumbnail_cache` and the `mod_index` download/TTL refresh.
 
 - **`settings.rs`** — reads/writes `settings.json` in Tauri's `app_data_dir()` (`%APPDATA%\Modrex\` on Windows, `~/.config/modrex/` on Linux). Top-level fields: `skipFileOpenLogWarning?` (global flag, PD3-only — see TopBar), `dismissedDepsWarnings?`, `games: Option<HashMap<String, GameSettings>>`. `GameSettings` holds `game_path?`, `launcher?`, `launch_options?` per game. Legacy flat fields (`game_path`, `launcher`, `launch_options`) carry `#[serde(skip_serializing, default)]` so old settings files still deserialize but writes always use the new `games` map. `migrate_settings(s: Settings) -> Settings` promotes legacy flat fields to `games["pd3"]` on first read — called inside `read_settings`. `game_settings<'a>(s, game_id) -> Option<&'a GameSettings>` is the canonical helper for reading per-game config; always use it instead of touching legacy fields directly. Commands: `get_game_settings(game_id: String) -> GameSettings` (new); `set_game_path`, `set_launcher`, `set_launch_options`, `configure_game_path`, `installed_launchers`, `auto_detect_game` all accept `Option<String> game_id` defaulting to `"pd3"` for backwards compatibility. On first launch after the Electron-to-Tauri migration, `migrate_from_electron` copies `settings.json` and `mod-index.db` from the old Electron path (`%APPDATA%\PD3 Mod Manager\` on Windows, `~/.config/pd3-mod-manager/` on Linux). Called from `lib.rs` setup hook before the window shows.
 
