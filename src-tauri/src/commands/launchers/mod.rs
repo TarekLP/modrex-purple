@@ -174,20 +174,22 @@ pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option
 }
 
 #[tauri::command]
-pub fn launch_game(app: AppHandle) {
+pub fn launch_game(app: AppHandle, game_id: Option<String>) {
+    let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
-    let Some(gs) = game_settings(&s, "pd3") else { return };
+    let Some(gs) = game_settings(&s, game_id) else { return };
     let Some(ref game_path) = gs.game_path else { return };
-    launch_with(gs.launcher.as_deref().unwrap_or("steam"), &PD3, game_path, gs.launch_options.as_deref());
+    launch_with(gs.launcher.as_deref().unwrap_or("steam"), game_def_for_id(game_id), game_path, gs.launch_options.as_deref());
 }
 
 #[tauri::command]
-pub fn launch_without_mods(app: AppHandle) -> Result<(), String> {
+pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
+    let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
-    let Some(gs) = game_settings(&s, "pd3") else { return Ok(()) };
+    let Some(gs) = game_settings(&s, game_id) else { return Ok(()) };
     let Some(ref game_path) = gs.game_path else { return Ok(()) };
 
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game(game_id);
     let mods_dir = mods_base(game_path, cfg);
     let mods_bak = backup_dir(game_path, cfg);
 
@@ -202,7 +204,7 @@ pub fn launch_without_mods(app: AppHandle) -> Result<(), String> {
 
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
-        &PD3,
+        game_def_for_id(game_id),
         game_path,
         gs.launch_options.as_deref(),
     );
@@ -210,12 +212,13 @@ pub fn launch_without_mods(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn restore_mods(app: AppHandle) -> Result<(), String> {
+pub fn restore_mods(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
+    let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
-    let Some(gs) = game_settings(&s, "pd3") else { return Ok(()) };
+    let Some(gs) = game_settings(&s, game_id) else { return Ok(()) };
     let Some(ref game_path) = gs.game_path else { return Ok(()) };
 
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game(game_id);
     let mods_dir = mods_base(game_path, cfg);
     let mods_bak = backup_dir(game_path, cfg);
 
@@ -226,7 +229,7 @@ pub fn restore_mods(app: AppHandle) -> Result<(), String> {
     if !mods_dir.exists() {
         fs::rename(&mods_bak, &mods_dir).map_err(|e| {
             format!(
-                "Could not restore mods folder. You may need to manually rename ~mods.bak back to ~mods. ({})",
+                "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
                 e.kind()
             )
         })?;
@@ -237,22 +240,23 @@ pub fn restore_mods(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn is_game_running() -> bool {
+pub fn is_game_running(game_id: Option<String>) -> bool {
+    let process_name = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_name;
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        let filter = format!("IMAGENAME eq {}.exe", PD3.process_name);
+        let filter = format!("IMAGENAME eq {}.exe", process_name);
         std::process::Command::new("tasklist")
             .args(["/FI", &filter, "/NH"])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).contains(PD3.process_name))
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains(process_name))
             .unwrap_or(false)
     }
     #[cfg(not(target_os = "windows"))]
     {
         std::process::Command::new("pgrep")
-            .args(["-f", PD3.process_name])
+            .args(["-f", process_name])
             .status()
             .map(|s| s.success())
             .unwrap_or(false)
@@ -260,18 +264,19 @@ pub fn is_game_running() -> bool {
 }
 
 #[tauri::command]
-pub fn stop_game() {
+pub fn stop_game(game_id: Option<String>) {
+    let process_name = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_name;
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
         let _ = std::process::Command::new("taskkill")
-            .args(["/F", "/IM", &format!("{}.exe", PD3.process_name)])
+            .args(["/F", "/IM", &format!("{}.exe", process_name)])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output();
     }
     #[cfg(not(target_os = "windows"))]
     let _ = std::process::Command::new("pkill")
-        .args(["-f", PD3.process_name])
+        .args(["-f", process_name])
         .output();
 }
 

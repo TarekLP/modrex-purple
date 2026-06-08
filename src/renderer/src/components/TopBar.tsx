@@ -43,10 +43,10 @@ export function TopBar({
 
     useEffect(() => {
         const check = async () => {
-            const running = await api.isGameRunning()
+            const running = await api.isGameRunning(activeGame)
             if (!running && (wasRunning.current || pendingRestore.current)) {
                 try {
-                    await api.restoreMods()
+                    await api.restoreMods(activeGame)
                 } catch (e) {
                     setLaunchError(String(e))
                 }
@@ -74,7 +74,7 @@ export function TopBar({
         check()
         const id = setInterval(check, 3000)
         return () => clearInterval(id)
-    }, [onRefreshInstalled])
+    }, [onRefreshInstalled, activeGame])
 
     async function handleLaunchModded() {
         if (activeGame === 'pd3') {
@@ -89,21 +89,21 @@ export function TopBar({
             }
         }
         startLaunching('modded')
-        api.launchModded()
+        api.launchModded(activeGame)
     }
 
     async function confirmLaunch() {
         if (dontShowAgain) await api.setSkipFileOpenLogWarning(true)
         setShowWarning(false)
         startLaunching('modded')
-        api.launchModded()
+        api.launchModded(activeGame)
     }
 
     async function launchWithoutMods() {
         if (!gamePath) return
         try {
             startLaunching('vanilla')
-            await api.launchWithoutMods()
+            await api.launchWithoutMods(activeGame)
             pendingRestore.current = true
         } catch (e) {
             setLaunching(null)
@@ -116,7 +116,7 @@ export function TopBar({
     }
 
     function stopGame() {
-        api.stopGame()
+        api.stopGame(activeGame)
     }
 
     return (

@@ -215,20 +215,20 @@ export const api = {
     },
 
     // ── Launchers & system ─────────────────────────────────────────────────────
-    isGameRunning(): Promise<boolean> {
-        return invoke('is_game_running')
+    isGameRunning(gameId?: string): Promise<boolean> {
+        return gameId ? invoke('is_game_running', { gameId }) : invoke('is_game_running')
     },
-    stopGame(): Promise<void> {
-        return invoke('stop_game')
+    stopGame(gameId?: string): Promise<void> {
+        return gameId ? invoke('stop_game', { gameId }) : invoke('stop_game')
     },
-    launchModded(): Promise<void> {
-        return invoke('launch_game')
+    launchModded(gameId?: string): Promise<void> {
+        return gameId ? invoke('launch_game', { gameId }) : invoke('launch_game')
     },
-    launchWithoutMods(): Promise<void> {
-        return invoke('launch_without_mods')
+    launchWithoutMods(gameId?: string): Promise<void> {
+        return gameId ? invoke('launch_without_mods', { gameId }) : invoke('launch_without_mods')
     },
-    restoreMods(): Promise<void> {
-        return invoke('restore_mods')
+    restoreMods(gameId?: string): Promise<void> {
+        return gameId ? invoke('restore_mods', { gameId }) : invoke('restore_mods')
     },
     getInstalledLaunchers(gameId?: string): Promise<string[]> {
         return gameId ? invoke('installed_launchers', { gameId }) : invoke('installed_launchers')
