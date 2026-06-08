@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 use chrono::Utc;
-use super::engine::ModEngineConfig;
+use super::engine::{ModEngineConfig, ModUnit};
 use super::naming::apply_priority_prefix;
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_state};
@@ -41,10 +41,24 @@ pub fn install_mod_from_path(
         .max()
         .unwrap_or(0);
     let priority = existing.as_ref().and_then(|e| e.priority).unwrap_or(max_mod.max(max_folder) + 1);
-    let filename = apply_priority_prefix(&mod_data.filename, priority);
+    let priority_prefix_enabled = match &cfg.unit {
+        ModUnit::File { priority_prefix, .. } | ModUnit::Directory { priority_prefix, .. } => *priority_prefix,
+    };
+    let filename = if priority_prefix_enabled {
+        apply_priority_prefix(&mod_data.filename, priority)
+    } else {
+        mod_data.filename.clone()
+    };
 
-    fs::copy(source, active_mod_path(game_path, &filename, folder_rel.as_deref(), cfg))
-        .map_err(|e| e.to_string())?;
+    let dest = active_mod_path(game_path, &filename, folder_rel.as_deref(), cfg);
+    match &cfg.unit {
+        ModUnit::File { .. } => {
+            fs::copy(source, &dest).map_err(|e| e.to_string())?;
+        }
+        ModUnit::Directory { .. } => {
+            copy_dir_all(source, &dest)?;
+        }
+    }
 
     if let Some(ref ex) = existing {
         let ex_rel = get_folder_path(&state.folders, ex.folder_id.as_deref());
@@ -55,8 +69,17 @@ pub fn install_mod_from_path(
         };
         let new_active = active_mod_path(game_path, &filename, folder_rel.as_deref(), cfg);
         if old != new_active && old.exists() {
-            if let Err(e) = fs::remove_file(&old) {
-                log::warn!("install: remove old pak {old:?}: {e}");
+            match &cfg.unit {
+                ModUnit::File { .. } => {
+                    if let Err(e) = fs::remove_file(&old) {
+                        log::warn!("install: remove old pak {old:?}: {e}");
+                    }
+                }
+                ModUnit::Directory { .. } => {
+                    if let Err(e) = fs::remove_dir_all(&old) {
+                        log::warn!("install: remove old mod dir {old:?}: {e}");
+                    }
+                }
             }
         }
     }
@@ -95,8 +118,17 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
         disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
     };
     if path.exists() {
-        if let Err(e) = fs::remove_file(&path) {
-            log::warn!("uninstall: remove {path:?}: {e}");
+        match &cfg.unit {
+            ModUnit::File { .. } => {
+                if let Err(e) = fs::remove_file(&path) {
+                    log::warn!("uninstall: remove {path:?}: {e}");
+                }
+            }
+            ModUnit::Directory { .. } => {
+                if let Err(e) = fs::remove_dir_all(&path) {
+                    log::warn!("uninstall: remove dir {path:?}: {e}");
+                }
+            }
         }
     }
     state.mods.retain(|m| m.uid != uid);
@@ -151,4 +183,18 @@ pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEn
         }
     }
     save_state(state_path, &state);
+}
+
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
+    fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let dest = dst.join(entry.file_name());
+        if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
+            copy_dir_all(&entry.path(), &dest)?;
+        } else {
+            fs::copy(&entry.path(), &dest).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
