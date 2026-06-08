@@ -62,7 +62,13 @@ pub fn save_state(state_path: &Path, state: &ModsState) {
 pub fn reconcile_state(game_path: &str, state_path: &Path) -> ModsState {
     let bak = PathBuf::from(game_path).join("PAYDAY3").join("Content").join("~mods.bak");
     if bak.exists() {
-        return read_state(&bak.join(".pd3mm.json"));
+        return read_state(&bak.join(".modrex.json"));
+    }
+
+    // Migrate legacy state file name from .pd3mm.json to .modrex.json.
+    let legacy = state_path.with_file_name(".pd3mm.json");
+    if legacy.exists() && !state_path.exists() {
+        let _ = fs::rename(&legacy, state_path);
     }
 
     let state = read_state(state_path);

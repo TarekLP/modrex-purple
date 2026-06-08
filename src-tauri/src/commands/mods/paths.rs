@@ -14,7 +14,7 @@ pub fn disabled_base(game_path: &str) -> PathBuf {
 }
 
 pub fn get_state_path(game_path: &str) -> PathBuf {
-    mods_base(game_path).join(".pd3mm.json")
+    mods_base(game_path).join(".modrex.json")
 }
 
 pub fn active_mod_path(game_path: &str, filename: &str, folder_rel: Option<&str>) -> PathBuf {
