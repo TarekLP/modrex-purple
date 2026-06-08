@@ -5,7 +5,7 @@ import { getLocalThumbnail } from '../thumbnailCache'
 
 const TTL_MS = 5 * 60 * 1000
 const FETCH_CONCURRENCY = 5
-const BATCH_DELAY_MS = 200
+const BATCH_DELAY_MS = 50
 
 async function fetchInBatches<T, R>(
     items: T[],
