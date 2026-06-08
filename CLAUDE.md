@@ -101,7 +101,7 @@ Missing any of these three breaks the channel silently at the type level.
 
 **`WelcomeScreen.tsx`** — full-screen game picker shown on first launch and when the user clicks the game switcher in the sidebar. Banner images load from Steam CDN (`cdn.akamai.steamstatic.com/steam/apps/{appid}/library_600x900.jpg`) with a per-game gradient fallback on `onError`. Selecting a game calls `onSelectGame(g: GameId)` which is wired to `handleGameChange` in `App.tsx`.
 
-**`Sidebar.tsx`** — game switcher is an `ArrowLeftRight` + full game name button at the top; clicking calls `onShowWelcome`. No game-selection logic lives in the sidebar itself.
+**`Sidebar.tsx`** — game switcher is an `ArrowLeftRight` + full game name button at the top; clicking calls `onShowWelcome`. No game-selection logic lives in the sidebar itself. A "Documentation" button (`CircleHelp` icon) sits above the collapse button and calls `api.openExternal` to open `https://modrex.net/docs/getting-started/` in the system browser.
 
 **`modCache.ts`** — 5-minute in-memory TTL cache, persisted to `modrex:mod-cache` in localStorage (24-hour shelf life). On module init, `loadFromStorage()` pre-warms the in-memory Maps from localStorage. Writes are debounced 2 s via `scheduleStorage()` to coalesce batch fetches into a single write. Always use `getCachedMod` / `getCachedModFiles` / `getCachedModLinks` — never call `api.getMod`, `api.listModFiles`, or `api.listModLinks` directly. `getModCacheEntry(id)` is a synchronous accessor that returns `{ mod, fetchedAt }` without fetching — used by `useModData` for the instant pre-populate pass. Only mod data (not files or links) is persisted to localStorage.
 
@@ -135,6 +135,7 @@ Missing any of these three breaks the channel silently at the type level.
 - `components/InstalledModItem.tsx` — renders a single mod group (list or grid variant based on `viewMode` from context). Contains the skeleton guard, `combined` InstalledMod construction, and all per-mod DnD handlers.
 - `components/UpdatesModal.tsx` — owns `selectedIds`, `loadingMod`, `updatingAll`, `updateError` internally.
 - `components/DeleteFolderModal.tsx` — stateless confirm dialog; `onConfirm`/`onCancel` as props.
+- `components/ErrorBoundary.tsx` — class component wrapping the entire app; catches render errors, logs them via `@tauri-apps/plugin-log`, and shows a minimal crash screen.
 
 ### Strings (i18n)
 
@@ -188,7 +189,7 @@ Icons: `lucide-react`. Platform SVGs (Steam, Epic, Xbox, Windows, Linux) live in
 
 ## Testing
 
-Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 66 tests across 5 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests.
+Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 68 tests across 5 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests.
 
 - `mods/tests.rs` — pure functions + state I/O (naming, paths, zip, state)
 - `launchers/mod_tests.rs` — VDF parser + launcher identification
