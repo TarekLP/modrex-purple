@@ -72,7 +72,7 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
                 })}
             </nav>
 
-            <div className="px-2 pb-1">
+            <div className="p-2">
                 <button
                     onClick={() => api.openExternal('https://modrex.net/docs/getting-started/')}
                     title={t('sidebar.docsTitle')}
