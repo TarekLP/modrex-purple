@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
+use super::engine::ModEngineConfig;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_state};
@@ -11,6 +12,7 @@ pub fn create_folder_op(
     state_path: &Path,
     display_name: &str,
     parent_id: Option<String>,
+    cfg: &ModEngineConfig,
 ) -> Result<ModFolder, String> {
     let mut state = read_state(state_path);
 
@@ -29,8 +31,8 @@ pub fn create_folder_op(
 
     let parent_rel = get_folder_path(&state.folders, parent_id.as_deref());
     let dir = match &parent_rel {
-        Some(r) => mods_base(game_path).join(r).join(&disk_name),
-        None => mods_base(game_path).join(&disk_name),
+        Some(r) => mods_base(game_path, cfg).join(r).join(&disk_name),
+        None => mods_base(game_path, cfg).join(&disk_name),
     };
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
@@ -45,6 +47,7 @@ pub fn move_folder_op(
     state_path: &Path,
     folder_id: &str,
     target_parent_id: Option<String>,
+    cfg: &ModEngineConfig,
 ) {
     let mut state = read_state(state_path);
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else { return };
@@ -56,8 +59,8 @@ pub fn move_folder_op(
         cur = state.folders.iter().find(|f| &f.id == cid).and_then(|f| f.parent_id.clone());
     }
 
-    let mods_b = mods_base(game_path);
-    let dis_b = disabled_base(game_path);
+    let mods_b = mods_base(game_path, cfg);
+    let dis_b = disabled_base(game_path, cfg);
     let old_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
 
     let max_f = state.folders.iter().filter(|f| f.parent_id == target_parent_id).map(|f| f.priority).max().unwrap_or(0);
@@ -111,6 +114,7 @@ pub fn rename_folder_op(
     state_path: &Path,
     folder_id: &str,
     display_name: &str,
+    cfg: &ModEngineConfig,
 ) {
     let mut state = read_state(state_path);
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else { return };
@@ -121,8 +125,8 @@ pub fn rename_folder_op(
 
     if new_disk_name != folder.disk_name {
         let parent_rel = get_folder_path(&state.folders, folder.parent_id.as_deref());
-        let mods_b = mods_base(game_path);
-        let dis_b = disabled_base(game_path);
+        let mods_b = mods_base(game_path, cfg);
+        let dis_b = disabled_base(game_path, cfg);
 
         let (old_a, new_a) = match &parent_rel {
             Some(r) => (mods_b.join(r).join(&folder.disk_name), mods_b.join(r).join(&new_disk_name)),
@@ -154,7 +158,12 @@ pub fn rename_folder_op(
     save_state(state_path, &state);
 }
 
-pub fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
+pub fn delete_folder_op(
+    game_path: &str,
+    state_path: &Path,
+    folder_id: &str,
+    cfg: &ModEngineConfig,
+) {
     let mut state = read_state(state_path);
     let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else { return };
 
@@ -162,8 +171,8 @@ pub fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
     let folder_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
     let target_parent_rel = get_folder_path(&state.folders, target_parent_id.as_deref());
 
-    let mods_b = mods_base(game_path);
-    let dis_b = disabled_base(game_path);
+    let mods_b = mods_base(game_path, cfg);
+    let dis_b = disabled_base(game_path, cfg);
 
     if let Some(r) = &target_parent_rel {
         if let Err(e) = fs::create_dir_all(mods_b.join(r)) {
@@ -182,14 +191,14 @@ pub fn delete_folder_op(game_path: &str, state_path: &Path, folder_id: &str) {
         max_p += 1;
         let new_filename = apply_priority_prefix(&m.filename, max_p);
         let old = if m.enabled {
-            active_mod_path(game_path, &m.filename, Some(&folder_rel))
+            active_mod_path(game_path, &m.filename, Some(&folder_rel), cfg)
         } else {
-            disabled_mod_path(game_path, &m.filename, Some(&folder_rel))
+            disabled_mod_path(game_path, &m.filename, Some(&folder_rel), cfg)
         };
         let new = if m.enabled {
-            active_mod_path(game_path, &new_filename, target_parent_rel.as_deref())
+            active_mod_path(game_path, &new_filename, target_parent_rel.as_deref(), cfg)
         } else {
-            disabled_mod_path(game_path, &new_filename, target_parent_rel.as_deref())
+            disabled_mod_path(game_path, &new_filename, target_parent_rel.as_deref(), cfg)
         };
         if old.exists() {
             if let Err(e) = fs::rename(&old, &new) {

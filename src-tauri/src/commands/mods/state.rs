@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use super::engine::{backup_dir, ModEngineConfig};
 use super::naming::make_uid;
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::types::{InstalledMod, ModFolder, ModsState};
@@ -59,10 +60,10 @@ pub fn save_state(state_path: &Path, state: &ModsState) {
     }
 }
 
-pub fn reconcile_state(game_path: &str, state_path: &Path) -> ModsState {
-    let bak = PathBuf::from(game_path).join("PAYDAY3").join("Content").join("~mods.bak");
+pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig) -> ModsState {
+    let bak = backup_dir(game_path, cfg);
     if bak.exists() {
-        return read_state(&bak.join(".modrex.json"));
+        return read_state(&bak.join(cfg.state_filename));
     }
 
     // Migrate legacy state file name from .pd3mm.json to .modrex.json.
@@ -74,11 +75,11 @@ pub fn reconcile_state(game_path: &str, state_path: &Path) -> ModsState {
     let state = read_state(state_path);
 
     // Migrate legacy disabled paths: disabled/foo.pak becomes disabled/foo.pak.disabled
-    let dis_dir = disabled_base(game_path);
+    let dis_dir = disabled_base(game_path, cfg);
     let disabled_mods: Vec<InstalledMod> = state.mods.iter().filter(|m| !m.enabled).cloned().collect();
     for m in &disabled_mods {
         let folder_rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-        let new_path = disabled_mod_path(game_path, &m.filename, folder_rel.as_deref());
+        let new_path = disabled_mod_path(game_path, &m.filename, folder_rel.as_deref(), cfg);
         let legacy = dis_dir.join(&m.filename);
         if !new_path.exists() && legacy.exists() {
             if let Some(rel) = &folder_rel {
@@ -97,8 +98,8 @@ pub fn reconcile_state(game_path: &str, state_path: &Path) -> ModsState {
         .iter()
         .map(|m| {
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            active_mod_path(game_path, &m.filename, rel.as_deref()).exists()
-                || disabled_mod_path(game_path, &m.filename, rel.as_deref()).exists()
+            active_mod_path(game_path, &m.filename, rel.as_deref(), cfg).exists()
+                || disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg).exists()
         })
         .collect();
 
@@ -124,7 +125,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path) -> ModsState {
         );
     }
 
-    let mods_base_path = mods_base(game_path);
+    let mods_base_path = mods_base(game_path, cfg);
     let phantom_ids: HashSet<String> = state
         .folders
         .iter()

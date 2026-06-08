@@ -3,6 +3,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
+use super::engine::ModEngineConfig;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
@@ -209,6 +210,7 @@ pub fn mark_archive_files(
     game_path: &str,
     folders: &[ModFolder],
     mut mods: Vec<InstalledMod>,
+    cfg: &ModEngineConfig,
 ) -> (Vec<InstalledMod>, bool) {
     let mut any_checked = false;
     for m in &mut mods {
@@ -217,9 +219,9 @@ pub fn mark_archive_files(
         }
         let rel = get_folder_path(folders, m.folder_id.as_deref());
         let path = if m.enabled {
-            active_mod_path(game_path, &m.filename, rel.as_deref())
+            active_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
         } else {
-            disabled_mod_path(game_path, &m.filename, rel.as_deref())
+            disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
         };
         m.archive_broken = Some(detect_archive(&path).is_some());
         any_checked = true;

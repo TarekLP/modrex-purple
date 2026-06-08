@@ -81,3 +81,12 @@ pub fn backup_dir(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
 pub fn state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
     mods_dir(game_path, cfg).join(cfg.state_filename)
 }
+
+impl ModEngineConfig {
+    pub fn disabled_suffix(&self) -> &'static str {
+        match &self.unit {
+            ModUnit::File { disabled_suffix, .. } => disabled_suffix,
+            ModUnit::Directory { .. } => "",
+        }
+    }
+}

@@ -1,49 +1,70 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use super::engine::{
+    backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
+    ModEngineConfig, ModUnit,
+};
 
-pub fn mods_base(game_path: &str) -> PathBuf {
-    PathBuf::from(game_path)
-        .join("PAYDAY3")
-        .join("Content")
-        .join("Paks")
-        .join("~mods")
+pub fn mods_base(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
+    mods_dir(game_path, cfg)
 }
 
-pub fn disabled_base(game_path: &str) -> PathBuf {
-    mods_base(game_path).join("disabled")
+pub fn disabled_base(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
+    disabled_dir(game_path, cfg)
 }
 
-pub fn get_state_path(game_path: &str) -> PathBuf {
-    mods_base(game_path).join(".modrex.json")
+pub fn get_state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
+    engine_state_path(game_path, cfg)
 }
 
-pub fn active_mod_path(game_path: &str, filename: &str, folder_rel: Option<&str>) -> PathBuf {
+pub fn active_mod_path(
+    game_path: &str,
+    filename: &str,
+    folder_rel: Option<&str>,
+    cfg: &ModEngineConfig,
+) -> PathBuf {
     match folder_rel {
-        Some(rel) => mods_base(game_path).join(rel).join(filename),
-        None => mods_base(game_path).join(filename),
+        Some(rel) => mods_base(game_path, cfg).join(rel).join(filename),
+        None => mods_base(game_path, cfg).join(filename),
     }
 }
 
-pub fn disabled_mod_path(game_path: &str, filename: &str, folder_rel: Option<&str>) -> PathBuf {
+pub fn disabled_mod_path(
+    game_path: &str,
+    filename: &str,
+    folder_rel: Option<&str>,
+    cfg: &ModEngineConfig,
+) -> PathBuf {
     let base = match folder_rel {
-        Some(rel) => disabled_base(game_path).join(rel),
-        None => disabled_base(game_path),
+        Some(rel) => disabled_base(game_path, cfg).join(rel),
+        None => disabled_base(game_path, cfg),
     };
-    base.join(format!("{}.disabled", filename))
+    match &cfg.unit {
+        ModUnit::File { disabled_suffix, .. } => base.join(format!("{}{}", filename, disabled_suffix)),
+        ModUnit::Directory { .. } => base.join(filename),
+    }
 }
 
-pub async fn find_untracked_paks(game_path: &str, known: &HashSet<String>) -> Vec<(String, bool)> {
-    let bak = PathBuf::from(game_path).join("PAYDAY3").join("Content").join("~mods.bak");
-    if bak.exists() {
+pub async fn find_untracked_paks(
+    game_path: &str,
+    known: &HashSet<String>,
+    cfg: &ModEngineConfig,
+) -> Vec<(String, bool)> {
+    if engine_backup_dir(game_path, cfg).exists() {
         return vec![];
     }
     let mut out = Vec::new();
-    scan_active(&mods_base(game_path), "", known, &mut out).await;
-    scan_disabled(&disabled_base(game_path), "", known, &mut out).await;
+    scan_active(&mods_base(game_path, cfg), "", known, &mut out).await;
+    scan_disabled(&disabled_base(game_path, cfg), "", known, &mut out).await;
     out
 }
 
-async fn scan_active(dir: &Path, prefix: &str, known: &HashSet<String>, out: &mut Vec<(String, bool)>) {
+async fn scan_active(
+    dir: &Path,
+    prefix: &str,
+    known: &HashSet<String>,
+    out: &mut Vec<(String, bool)>,
+) {
     let mut rd = match tokio::fs::read_dir(dir).await {
         Ok(r) => r,
         Err(_) => return,
@@ -70,7 +91,12 @@ async fn scan_active(dir: &Path, prefix: &str, known: &HashSet<String>, out: &mu
     }
 }
 
-async fn scan_disabled(dir: &Path, prefix: &str, known: &HashSet<String>, out: &mut Vec<(String, bool)>) {
+async fn scan_disabled(
+    dir: &Path,
+    prefix: &str,
+    known: &HashSet<String>,
+    out: &mut Vec<(String, bool)>,
+) {
     let mut rd = match tokio::fs::read_dir(dir).await {
         Ok(r) => r,
         Err(_) => return,

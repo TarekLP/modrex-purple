@@ -10,12 +10,12 @@ use steam::Steam;
 use types::{GameDef, Launcher};
 use xbox::Xbox;
 
-use crate::commands::mods::mods_base;
+use crate::commands::mods::{backup_dir, engine_for_game, mods_base};
 use crate::commands::settings::{game_settings, read_settings, write_settings};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tauri::AppHandle;
 
 static STEAM: Steam = Steam;
@@ -187,8 +187,9 @@ pub fn launch_without_mods(app: AppHandle) -> Result<(), String> {
     let Some(gs) = game_settings(&s, "pd3") else { return Ok(()) };
     let Some(ref game_path) = gs.game_path else { return Ok(()) };
 
-    let mods_dir = mods_base(game_path);
-    let mods_bak = PathBuf::from(game_path).join("PAYDAY3").join("Content").join("~mods.bak");
+    let cfg = engine_for_game("pd3");
+    let mods_dir = mods_base(game_path, cfg);
+    let mods_bak = backup_dir(game_path, cfg);
 
     if mods_dir.exists() {
         fs::rename(&mods_dir, &mods_bak).map_err(|e| {
@@ -214,8 +215,9 @@ pub fn restore_mods(app: AppHandle) -> Result<(), String> {
     let Some(gs) = game_settings(&s, "pd3") else { return Ok(()) };
     let Some(ref game_path) = gs.game_path else { return Ok(()) };
 
-    let mods_dir = mods_base(game_path);
-    let mods_bak = PathBuf::from(game_path).join("PAYDAY3").join("Content").join("~mods.bak");
+    let cfg = engine_for_game("pd3");
+    let mods_dir = mods_base(game_path, cfg);
+    let mods_bak = backup_dir(game_path, cfg);
 
     if !mods_bak.exists() {
         return Ok(());
