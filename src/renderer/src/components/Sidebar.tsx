@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Compass, Package, Settings, ChevronLeft, ArrowLeftRight } from 'lucide-react'
+import { Compass, Package, Settings, ChevronLeft, ArrowLeftRight, CircleHelp } from 'lucide-react'
+import { api } from '../api'
 import type { LucideIcon } from 'lucide-react'
 import { t } from '../i18n'
 import type { StringKey } from '../i18n'
@@ -70,6 +71,21 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
                     )
                 })}
             </nav>
+
+            <div className="px-2 pb-1">
+                <button
+                    onClick={() => api.openExternal('https://modrex.net/docs/getting-started/')}
+                    title={t('sidebar.docsTitle')}
+                    className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
+                >
+                    <CircleHelp className="w-4 h-4 shrink-0" />
+                    <span
+                        className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                    >
+                        {t('sidebar.docs')}
+                    </span>
+                </button>
+            </div>
 
             <div className="p-2 border-t border-border">
                 <button

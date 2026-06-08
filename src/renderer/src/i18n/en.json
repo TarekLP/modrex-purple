@@ -51,7 +51,9 @@
         "collapse": "Collapse menu",
         "expandTitle": "Expand sidebar",
         "collapseTitle": "Collapse sidebar",
-        "changeGame": "Change game"
+        "changeGame": "Change game",
+        "docs": "Documentation",
+        "docsTitle": "Open documentation"
     },
     "browse": {
         "title": "Browse Mods",
