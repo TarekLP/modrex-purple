@@ -9784,7 +9784,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: modrex 0.9.1, brotli-decompressor 5.0.0, cargo_toml 0.22.3, chrono 0.4.44, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, siphasher 1.0.3, tauri-build 2.6.2, tauri-codegen 2.6.2, tauri-macros 2.6.2, tauri-plugin-dialog 2.7.1, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.8.0, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.2, tauri-runtime 2.11.2, tauri-utils 2.9.2, tauri 2.11.2, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-version 0.1.7, windows 0.61.3, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
+Used by: modrex 0.9.1, brotli-decompressor 5.0.0, cargo_toml 0.22.3, chrono 0.4.44, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, siphasher 1.0.3, tauri-build 2.6.2, tauri-codegen 2.6.2, tauri-macros 2.6.2, tauri-plugin-dialog 2.7.1, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.8.0, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.2, tauri-runtime 2.11.2, tauri-utils 2.9.2, tauri 2.11.2, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-version 0.1.7, windows 0.61.3, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
 
 ```
 MIT License
@@ -9944,7 +9944,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: ident_case 1.0.1
+Used by: ident_case 1.0.1, widestring 1.2.1
 
 ```
 MIT License
@@ -10005,7 +10005,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: adler2 2.0.1, anyhow 1.0.102, atomic-waker 1.1.2, camino 1.2.2, cargo-platform 0.1.9, cargo_metadata 0.19.2, displaydoc 0.2.5, dtoa 1.0.11, dyn-clone 1.0.20, erased-serde 0.4.10, fastrand 2.4.1, itoa 1.0.18, linux-raw-sys 0.12.1, once_cell 1.21.4, pin-project-lite 0.2.17, proc-macro-crate 1.3.1, proc-macro-crate 2.0.2, proc-macro2 1.0.106, quote 1.0.45, rustix 1.1.4, semver 1.0.28, serde-untagged 0.1.9, serde 1.0.228, serde_core 1.0.228, serde_derive 1.0.228, serde_derive_internals 0.29.1, serde_json 1.0.150, serde_repr 0.1.20, servo_arc 0.4.3, syn 1.0.109, syn 2.0.117, system-deps 6.2.2, thiserror-impl 1.0.69, thiserror-impl 2.0.18, thiserror 1.0.69, thiserror 2.0.18, typeid 1.0.3, unicode-ident 1.0.24, utf-8 0.7.6, x11-dl 2.21.0, x11 2.21.0, zmij 1.0.21
+Used by: adler2 2.0.1, anyhow 1.0.102, atomic-waker 1.1.2, camino 1.2.2, cargo-platform 0.1.9, cargo_metadata 0.19.2, displaydoc 0.2.5, dtoa 1.0.11, dyn-clone 1.0.20, erased-serde 0.4.10, fastrand 2.4.1, itoa 1.0.18, linux-raw-sys 0.12.1, once_cell 1.21.4, pin-project-lite 0.2.17, proc-macro-crate 1.3.1, proc-macro-crate 2.0.2, proc-macro2 1.0.106, quote 1.0.45, rustix 1.1.4, semver 1.0.28, serde-untagged 0.1.9, serde 1.0.228, serde_core 1.0.228, serde_derive 1.0.228, serde_derive_internals 0.29.1, serde_json 1.0.150, serde_repr 0.1.20, servo_arc 0.4.3, syn 1.0.109, syn 2.0.117, system-deps 6.2.2, thiserror-impl 1.0.69, thiserror-impl 2.0.18, thiserror 1.0.69, thiserror 2.0.18, typeid 1.0.3, unicode-ident 1.0.24, unrar 0.5.8, utf-8 0.7.6, x11-dl 2.21.0, x11 2.21.0, zmij 1.0.21
 
 ```
 Permission is hereby granted, free of charge, to any
@@ -12052,3 +12052,20 @@ the following restrictions:
 
 ---
 
+
+## UnRAR C++ Library (bundled via `unrar` crate)
+
+Used by: unrar (native code compiled from vendor source)
+
+```
+Copyright (C) 1993-2024 Alexander Roshal
+
+The unrar source code may be used in any software to handle RAR archives
+without limitations FREE OF CHARGE, but cannot be used to re-create the
+RAR compression algorithm, which is proprietary. Distribution of modified
+unrar sources in separate form or as a part of other software is permitted,
+provided that it is clearly stated in the documentation and source comments
+that the code may not be used to develop a RAR (WinRAR) compatible archiver.
+```
+
+---

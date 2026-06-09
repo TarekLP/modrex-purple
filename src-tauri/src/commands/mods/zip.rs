@@ -15,6 +15,7 @@ pub enum ArchiveFormat {
     SevenZip,
     TarGz,
     TarXz,
+    Rar,
 }
 
 pub fn detect_archive(path: &Path) -> Option<ArchiveFormat> {
@@ -30,6 +31,8 @@ pub fn detect_archive(path: &Path) -> Option<ArchiveFormat> {
         Some(ArchiveFormat::TarGz)
     } else if n >= 6 && buf[..6] == [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00] {
         Some(ArchiveFormat::TarXz)
+    } else if n >= 6 && buf[..6] == [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07] {
+        Some(ArchiveFormat::Rar)
     } else {
         None
     }
@@ -50,6 +53,7 @@ pub fn list_pak_entries(path: &Path) -> Result<Vec<String>, String> {
         Some(ArchiveFormat::TarXz) => list_pak_entries_tar(xz2::read::XzDecoder::new(
             File::open(path).map_err(|e| e.to_string())?,
         )),
+        Some(ArchiveFormat::Rar) => list_pak_entries_rar(path),
         None => Err("Not a supported archive format".to_string()),
     }
 }
@@ -115,6 +119,7 @@ pub fn extract_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resu
             entry_name,
             dest,
         ),
+        Some(ArchiveFormat::Rar) => extract_rar_entry(archive_path, entry_name, dest),
         None => Err("Not a supported archive format".to_string()),
     }
 }
@@ -196,6 +201,7 @@ pub fn list_mod_dir_entries(path: &Path, entry_marker: &str) -> Result<Vec<Strin
             xz2::read::XzDecoder::new(File::open(path).map_err(|e| e.to_string())?),
             entry_marker,
         ),
+        Some(ArchiveFormat::Rar) => list_mod_dirs_rar(path, entry_marker),
         None => Err("Not a supported archive format".to_string()),
     }
 }
@@ -278,6 +284,7 @@ pub fn extract_dir_entry(archive_path: &Path, dir_prefix: &str, dest: &Path) -> 
             dir_prefix,
             dest,
         ),
+        Some(ArchiveFormat::Rar) => extract_dir_rar(archive_path, dir_prefix, dest),
         None => Err("Not a supported archive format".to_string()),
     }
 }
@@ -428,6 +435,117 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             }
         }
     }
+}
+
+fn list_pak_entries_rar(path: &Path) -> Result<Vec<String>, String> {
+    let archive = unrar::Archive::new(path)
+        .open_for_listing()
+        .map_err(|e| e.to_string())?;
+    let mut entries = Vec::new();
+    for entry in archive {
+        let entry = entry.map_err(|e| e.to_string())?;
+        if !entry.is_directory() {
+            let name = entry.filename.to_string_lossy().replace('\\', "/");
+            if name.ends_with(".pak") {
+                entries.push(name);
+            }
+        }
+    }
+    Ok(entries)
+}
+
+fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
+    let normalized = entry_name.replace('\\', "/");
+    let tmp_dir = std::env::temp_dir().join(format!("rar-{}", Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+    let result = (|| -> Result<(), String> {
+        let mut archive = unrar::Archive::new(archive_path)
+            .open_for_processing()
+            .map_err(|e| e.to_string())?;
+        loop {
+            match archive.read_header().map_err(|e| e.to_string())? {
+                None => return Err(format!("entry '{}' not found in archive", entry_name)),
+                Some(header) => {
+                    let name = header.entry().filename.to_string_lossy().replace('\\', "/");
+                    if name == normalized {
+                        let entry_filename = header.entry().filename.clone();
+                        header.extract_with_base(&tmp_dir).map_err(|e| e.to_string())?;
+                        let extracted = tmp_dir.join(&entry_filename);
+                        return std::fs::copy(&extracted, dest).map(|_| ()).map_err(|e| e.to_string());
+                    } else {
+                        archive = header.skip().map_err(|e| e.to_string())?;
+                    }
+                }
+            }
+        }
+    })();
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    result
+}
+
+fn list_mod_dirs_rar(path: &Path, entry_marker: &str) -> Result<Vec<String>, String> {
+    let archive = unrar::Archive::new(path)
+        .open_for_listing()
+        .map_err(|e| e.to_string())?;
+    let mut dirs: HashSet<String> = HashSet::new();
+    let marker_suffix = format!("/{}", entry_marker);
+    for entry in archive {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.filename.to_string_lossy().replace('\\', "/");
+        if let Some(pos) = name.rfind(&marker_suffix) {
+            let dir = &name[..pos];
+            if !dir.is_empty() {
+                dirs.insert(dir.to_string());
+            }
+        }
+    }
+    let mut result: Vec<String> = dirs.into_iter().collect();
+    result.sort();
+    Ok(result)
+}
+
+fn rar_copy_dir(src: &Path, dst: &Path) -> Result<(), String> {
+    for entry in std::fs::read_dir(src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if src_path.is_dir() {
+            std::fs::create_dir_all(&dst_path).map_err(|e| e.to_string())?;
+            rar_copy_dir(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn extract_dir_rar(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+    let prefix = format!("{}/", dir_prefix);
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    let tmp_dir = std::env::temp_dir().join(format!("rar-{}", Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+    let result = (|| -> Result<(), String> {
+        let mut archive = unrar::Archive::new(archive_path)
+            .open_for_processing()
+            .map_err(|e| e.to_string())?;
+        loop {
+            match archive.read_header().map_err(|e| e.to_string())? {
+                None => break,
+                Some(header) => {
+                    let name = header.entry().filename.to_string_lossy().replace('\\', "/");
+                    if !header.entry().is_directory() && name.starts_with(&prefix) {
+                        archive = header.extract_with_base(&tmp_dir).map_err(|e| e.to_string())?;
+                    } else {
+                        archive = header.skip().map_err(|e| e.to_string())?;
+                    }
+                }
+            }
+        }
+        let src = tmp_dir.join(dir_prefix.replace('/', std::path::MAIN_SEPARATOR_STR));
+        rar_copy_dir(&src, dest)
+    })();
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    result
 }
 
 /// Returns the updated mod list and whether any `archive_broken` value was newly determined.
