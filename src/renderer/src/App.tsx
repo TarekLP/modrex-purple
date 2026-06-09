@@ -114,7 +114,7 @@ export default function App() {
     async function handleRestoreMods() {
         setRestoreError(null)
         try {
-            await api.restoreMods()
+            await api.restoreMods(activeGame)
             await refreshInstalled()
         } catch (e) {
             setRestoreError(String(e))

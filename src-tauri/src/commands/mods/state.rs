@@ -63,6 +63,11 @@ pub fn save_state(state_path: &Path, state: &ModsState) {
 pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig) -> ModsState {
     let bak = backup_dir(game_path, cfg);
     if bak.exists() {
+        if cfg.is_directory_unit() {
+            // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
+            return read_state(state_path);
+        }
+        // PD3: the entire mods folder was renamed, so the state file is inside the backup.
         return read_state(&bak.join(cfg.state_filename));
     }
 

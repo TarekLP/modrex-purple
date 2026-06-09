@@ -44,11 +44,13 @@ export function TopBar({
     useEffect(() => {
         const check = async () => {
             const running = await api.isGameRunning(activeGame)
-            if (!running && (wasRunning.current || pendingRestore.current)) {
-                try {
-                    await api.restoreMods(activeGame)
-                } catch (e) {
-                    setLaunchError(String(e))
+            if (!running && wasRunning.current) {
+                if (pendingRestore.current) {
+                    try {
+                        await api.restoreMods(activeGame)
+                    } catch (e) {
+                        setLaunchError(String(e))
+                    }
                 }
                 pendingRestore.current = false
                 await onRefreshInstalled()

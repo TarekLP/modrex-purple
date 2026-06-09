@@ -93,4 +93,8 @@ impl ModEngineConfig {
             ModUnit::Directory { .. } => "",
         }
     }
+
+    pub fn is_directory_unit(&self) -> bool {
+        matches!(self.unit, ModUnit::Directory { .. })
+    }
 }

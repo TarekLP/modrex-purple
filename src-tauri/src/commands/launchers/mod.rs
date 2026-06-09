@@ -173,12 +173,45 @@ pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option
     .ok()?
 }
 
+fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
+    let mods_dir = mods_base(game_path, cfg);
+    let mods_bak = backup_dir(game_path, cfg);
+
+    if !mods_bak.exists() {
+        return Ok(());
+    }
+
+    if cfg.is_directory_unit() {
+        let _ = fs::create_dir_all(&mods_dir);
+        if let Ok(entries) = fs::read_dir(&mods_bak) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let _ = fs::rename(mods_bak.join(&name), mods_dir.join(&name));
+            }
+        }
+        // remove_dir no-ops when non-empty, so any entry that failed to rename is never deleted.
+        fs::remove_dir(&mods_bak).ok();
+    } else if !mods_dir.exists() {
+        fs::rename(&mods_bak, &mods_dir).map_err(|e| {
+            format!(
+                "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
+                e.kind()
+            )
+        })?;
+    } else {
+        fs::remove_dir_all(&mods_bak).ok();
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn launch_game(app: AppHandle, game_id: Option<String>) {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else { return };
     let Some(ref game_path) = gs.game_path else { return };
+    let cfg = engine_for_game(game_id);
+    let _ = do_restore(game_path, cfg);
     launch_with(gs.launcher.as_deref().unwrap_or("steam"), game_def_for_id(game_id), game_path, gs.launch_options.as_deref());
 }
 
@@ -193,13 +226,38 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
     let mods_dir = mods_base(game_path, cfg);
     let mods_bak = backup_dir(game_path, cfg);
 
-    if mods_dir.exists() {
-        fs::rename(&mods_dir, &mods_bak).map_err(|e| {
-            format!(
-                "Could not hide mods folder — the game may still have files open. Close the game first and try again. ({})",
-                e.kind()
-            )
-        })?;
+    if !mods_bak.exists() {
+        if cfg.is_directory_unit() {
+            if mods_dir.exists() {
+                fs::create_dir(&mods_bak).map_err(|e| {
+                    format!(
+                        "Could not create backup folder — try running as administrator. ({})",
+                        e.kind()
+                    )
+                })?;
+                if let Ok(entries) = fs::read_dir(&mods_dir) {
+                    for entry in entries.flatten() {
+                        if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                            continue;
+                        }
+                        if entry.file_name().to_string_lossy() == "base" {
+                            continue; // BLT recreates base/ if missing, showing a "base mod missing" dialog
+                        }
+                        let _ = fs::rename(
+                            mods_dir.join(entry.file_name()),
+                            mods_bak.join(entry.file_name()),
+                        );
+                    }
+                }
+            }
+        } else if mods_dir.exists() {
+            fs::rename(&mods_dir, &mods_bak).map_err(|e| {
+                format!(
+                    "Could not hide mods folder — the game may still have files open. Close the game first and try again. ({})",
+                    e.kind()
+                )
+            })?;
+        }
     }
 
     launch_with(
@@ -217,26 +275,8 @@ pub fn restore_mods(app: AppHandle, game_id: Option<String>) -> Result<(), Strin
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else { return Ok(()) };
     let Some(ref game_path) = gs.game_path else { return Ok(()) };
-
     let cfg = engine_for_game(game_id);
-    let mods_dir = mods_base(game_path, cfg);
-    let mods_bak = backup_dir(game_path, cfg);
-
-    if !mods_bak.exists() {
-        return Ok(());
-    }
-
-    if !mods_dir.exists() {
-        fs::rename(&mods_bak, &mods_dir).map_err(|e| {
-            format!(
-                "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
-                e.kind()
-            )
-        })?;
-    } else {
-        fs::remove_dir_all(&mods_bak).ok();
-    }
-    Ok(())
+    do_restore(game_path, cfg)
 }
 
 #[tauri::command]
