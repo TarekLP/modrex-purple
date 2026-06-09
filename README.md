@@ -55,15 +55,16 @@ If something goes wrong, attach your log file to a [bug report](https://github.c
 
 ## Development
 
-```bash
-pnpm install
-pnpm dev        # start with hot reload
-pnpm build      # production build
-pnpm typecheck  # type-check renderer
-pnpm format     # format all files with prettier
-pnpm lint       # lint renderer source
-pnpm test       # run Rust unit tests
-```
+| Command                  | Description                        |
+| ------------------------ | ---------------------------------- |
+| `pnpm install`           | Install dependencies               |
+| `pnpm dev`               | Start with hot reload              |
+| `pnpm build`             | Production build                   |
+| `pnpm typecheck`         | Type-check renderer                |
+| `pnpm format`            | Format all files with Prettier     |
+| `pnpm lint`              | Lint renderer source               |
+| `pnpm test`              | Run all tests (Rust + renderer)    |
+| `pnpm generate-licenses` | Regenerate THIRD_PARTY_LICENSES.md |
 
 ## Tech stack
 
