@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
+import { readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs'
 import { execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
@@ -7,20 +7,14 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const rootDir = resolve(__dirname, '..')
 
 function findLicenseText(pkgPath) {
-    const candidates = [
-        'LICENSE',
-        'LICENSE.txt',
-        'LICENSE.md',
-        'license',
-        'license.txt',
-        'LICENCE',
-        'LICENCE.txt',
-    ]
-    for (const name of candidates) {
-        const p = join(pkgPath, name)
-        if (existsSync(p)) return readFileSync(p, 'utf-8').trim()
+    let files
+    try {
+        files = readdirSync(pkgPath)
+    } catch {
+        return null
     }
-    return null
+    const match = files.find((f) => /^licen[sc]e(\.txt|\.md)?$/i.test(f))
+    return match ? readFileSync(join(pkgPath, match), 'utf-8').trim() : null
 }
 
 const raw = execSync('pnpm licenses list --prod --json', { cwd: rootDir }).toString()
