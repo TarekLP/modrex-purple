@@ -16,6 +16,7 @@ pnpm lint         # ESLint on renderer source (src/renderer/src/)
 pnpm lint:fix     # ESLint with auto-fix
 pnpm test         # Run all tests: Rust (cargo test) then renderer (vitest)
 pnpm test:renderer # Run only renderer TypeScript tests (vitest)
+pnpm generate-licenses # Regenerate THIRD_PARTY_LICENSES.md (run after adding/updating deps)
 cargo clippy      # Rust lints (run from src-tauri/); one expected warning: too_many_arguments on install_file
 cargo fmt         # Format Rust code (run from src-tauri/)
 ```
@@ -225,6 +226,7 @@ Renderer tests use Vitest (`pnpm test:renderer`) in a Node environment — no br
 ## Rules
 
 - **Never run any git command that touches the remote** (push, push tag, delete tag, force push) or is destructive locally (tag -d, reset --hard). Always write out the commands and let the user run them.
+- **When adding or updating dependencies** (Cargo.toml or package.json), remind the user to run `pnpm generate-licenses` to update `THIRD_PARTY_LICENSES.md`. The pre-commit hook does this automatically when dep files are staged. CI enforces it via the `check-licenses` job in `ci.yml`.
 - **Commit messages must follow conventional commits** — `type(scope): subject` — enforced by `commitlint.config.ts` at commit time. Common types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`.
 - **Prefer `.expect("reason")` over `.unwrap()`** for paths that are infallible in practice (OnceLock init, app path resolution). Prefer `.unwrap_or_else(|e| e.into_inner())` for Mutex guards so a poisoned lock recovers rather than re-panicking. Reserve plain `.unwrap()` for tests only.
 - **Never break the in-app update pipeline.** The updater endpoint is `https://github.com/modrexio/modrex/releases/latest/download/latest.json`. Any change to draft/publish behavior, `latest.json` generation, or the startup update check can silently stop all users on the current release from ever receiving future updates. Verify the full pipeline end-to-end when touching anything updater-related.

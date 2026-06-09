@@ -37,3 +37,31 @@ jobs:
             - run: pnpm install --frozen-lockfile
             - run: pnpm typecheck
             - run: pnpm test
+
+    check-licenses:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+
+            - name: Cache cargo-about
+              id: cache-cargo-about
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cargo/bin/cargo-about
+                  key: cargo-about-${{ runner.os }}-v0.9.0
+
+            - name: Install cargo-about
+              if: steps.cache-cargo-about.outputs.cache-hit != 'true'
+              run: cargo install cargo-about --features=cli
+
+            - run: pnpm generate-licenses
+
+            - name: Fail if THIRD_PARTY_LICENSES.md is stale
+              run: git diff --exit-code THIRD_PARTY_LICENSES.md

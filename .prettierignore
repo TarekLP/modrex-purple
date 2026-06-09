@@ -3,3 +3,4 @@ out
 dist
 package-lock.json
 src-tauri/
+THIRD_PARTY_LICENSES.md

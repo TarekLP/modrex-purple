@@ -1,2 +1,7 @@
 npx prettier --check . || (echo "" && echo "Format errors found. Run: npm run format" && exit 1)
 npx eslint src/renderer/src || (echo "" && echo "Lint errors found. Run: pnpm lint:fix" && exit 1)
+
+if git diff --cached --name-only | grep -qE '(Cargo\.toml|Cargo\.lock|package\.json|pnpm-lock\.yaml)'; then
+    pnpm generate-licenses
+    git add THIRD_PARTY_LICENSES.md
+fi

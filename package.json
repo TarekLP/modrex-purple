@@ -19,7 +19,8 @@
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint src/renderer/src",
-        "lint:fix": "eslint src/renderer/src --fix"
+        "lint:fix": "eslint src/renderer/src --fix",
+        "generate-licenses": "node scripts/generate-licenses.mjs"
     },
     "repository": {
         "type": "git",

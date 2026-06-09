@@ -36,6 +36,7 @@
         "targets": ["nsis", "deb", "rpm", "appimage"],
         "icon": ["../assets/icon.ico", "../assets/icon.png"],
         "license": "../LICENSE",
+        "resources": ["../THIRD_PARTY_LICENSES.md"],
         "windows": {
             "nsis": {
                 "installMode": "currentUser",
