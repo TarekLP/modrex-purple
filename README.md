@@ -69,3 +69,7 @@ If something goes wrong, attach your log file to a [bug report](https://github.c
 ## Tech stack
 
 Tauri v2 · React · Tailwind CSS · Lucide · TypeScript
+
+## License
+
+Modrex is open source under the [MIT License](LICENSE).
