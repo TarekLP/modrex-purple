@@ -75,7 +75,7 @@ export function ModCard({
                         src={thumbSrc}
                         alt={mod.name}
                         loading="lazy"
-                        className={`w-full h-36 object-cover transition-[filter] ${installed && !installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}
+                        className={`w-full h-36 object-cover${installed && !installed.enabled ? ' grayscale' : ''}`}
                     />
                 ) : (
                     <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
