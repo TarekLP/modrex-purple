@@ -54,6 +54,9 @@ export function InstalledPage({
 
     const {
         loadingMod,
+        reinstallProgress,
+        reinstallError,
+        clearReinstallError,
         refreshing,
         zipPickerData,
         clearZipPickerData,
@@ -170,6 +173,9 @@ export function InstalledPage({
         installed,
         onOpenDetail,
         loadingMod,
+        reinstallProgress,
+        reinstallError,
+        clearReinstallError,
         handleUninstall,
         handleEnable,
         handleDisable,
@@ -293,6 +299,19 @@ export function InstalledPage({
                     )}
                 </div>
 
+                {reinstallError && (
+                    <div className="px-6 py-2 shrink-0 flex items-center justify-between gap-3 bg-danger/10 border-b border-danger/30 text-danger text-xs">
+                        <span className="truncate">
+                            {t('installed.reinstallFailed', { error: reinstallError })}
+                        </span>
+                        <button
+                            onClick={clearReinstallError}
+                            className="shrink-0 hover:opacity-70 transition-opacity"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
                 <div
                     ref={scrollContainerRef}
                     onDragOver={handleContainerDragOver}

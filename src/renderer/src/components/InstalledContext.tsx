@@ -17,6 +17,9 @@ export interface InstalledContextValue {
     installed: InstalledMod[]
     onOpenDetail: (modId: number) => void
     loadingMod: string | null
+    reinstallProgress: { downloaded: number; total: number } | null
+    reinstallError: string | null
+    clearReinstallError: () => void
     handleUninstall: (mods: InstalledMod[]) => Promise<void>
     handleEnable: (mods: InstalledMod[]) => Promise<void>
     handleDisable: (mods: InstalledMod[]) => Promise<void>

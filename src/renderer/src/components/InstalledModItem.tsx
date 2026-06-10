@@ -16,6 +16,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         modData,
         failedIds,
         loadingMod,
+        reinstallProgress,
         dragItem,
         dropTarget,
         onOpenDetail,
@@ -102,6 +103,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     installed={combined}
                     gamePath={gamePath}
                     loading={isBusy}
+                    progress={isBusy ? reinstallProgress : null}
                     isDragging={isDragging}
                     onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
                     onUninstall={() => handleUninstall(mods)}
@@ -150,6 +152,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 installed={combined}
                 gamePath={gamePath}
                 loading={isBusy}
+                progress={isBusy ? reinstallProgress : null}
                 onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
                 onInstall={() => {}}
                 onUninstall={() => handleUninstall(mods)}

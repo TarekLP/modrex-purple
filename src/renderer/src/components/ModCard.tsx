@@ -1,4 +1,4 @@
-import { Download, Heart, Eye, Clock, Trash2 } from 'lucide-react'
+import { Download, Heart, Eye, Clock, Trash2, RotateCcw } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
@@ -143,9 +143,21 @@ export function ModCard({
                 {installed && (
                     <div className="flex items-center gap-2">
                         {installed.missing && (
-                            <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
-                                {t('common.fileMissing')}
-                            </span>
+                            <>
+                                <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
+                                    {t('common.fileMissing')}
+                                </span>
+                                {installed.id >= 0 && (
+                                    <button
+                                        disabled={!canAct}
+                                        onClick={onReinstall}
+                                        title={t('common.reinstall')}
+                                        className="p-1.5 rounded bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </>
                         )}
                         {installed.archiveBroken && (
                             <>

@@ -6,6 +6,9 @@ import { api } from '../api'
 
 export interface ModActions {
     loadingMod: string | null
+    reinstallProgress: { downloaded: number; total: number } | null
+    reinstallError: string | null
+    clearReinstallError: () => void
     refreshing: boolean
     zipPickerData: ZipMultiPakPayload | null
     clearZipPickerData: () => void
@@ -22,6 +25,11 @@ export function useModActions(
     activeGame?: GameId
 ): ModActions {
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
+    const [reinstallProgress, setReinstallProgress] = useState<{
+        downloaded: number
+        total: number
+    } | null>(null)
+    const [reinstallError, setReinstallError] = useState<string | null>(null)
     const [refreshing, setRefreshing] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
 
@@ -69,20 +77,42 @@ export function useModActions(
 
     async function handleReinstall(mods: InstalledMod[]) {
         if (!gamePath || mods[0].id < 0) return
+
+        const missingMods = mods.filter((m) => m.missing)
+        if (missingMods.length === 0) return
+
         setLoadingMod(mods[0].uid)
+        setReinstallProgress(null)
+        setReinstallError(null)
+
+        // ZIP-installed paks use {file_id}_{stem} uids; install_mod creates {file_id} — old entries stay missing without this.
+        for (const m of missingMods) {
+            await api.uninstallMod(m.uid, gamePath, activeGame)
+        }
+
+        const unsub = api.onDownloadProgress(setReinstallProgress)
         try {
             await api.installMod(mods[0].id, gamePath, activeGame)
-            await onRefreshInstalled()
         } catch (e) {
             const zipData = parseZipMultiPak(String(e))
-            if (zipData) setZipPickerData(zipData)
+            if (zipData) {
+                setZipPickerData(zipData)
+            } else {
+                setReinstallError(String(e))
+            }
         } finally {
+            unsub()
+            setReinstallProgress(null)
             setLoadingMod(null)
         }
+        await onRefreshInstalled()
     }
 
     return {
         loadingMod,
+        reinstallProgress,
+        reinstallError,
+        clearReinstallError: () => setReinstallError(null),
         refreshing,
         zipPickerData,
         clearZipPickerData: () => setZipPickerData(null),
