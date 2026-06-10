@@ -108,10 +108,7 @@ export function computeChildren(
         items.push({ type: 'mod', mods: groupMods })
     }
     for (const folder of folders.filter(
-        (f) =>
-            f.parentId === parentId &&
-            (!visibleFolderIds || visibleFolderIds.has(f.id)) &&
-            getAllModsInFolder(mods, folders, f.id).length > 0
+        (f) => f.parentId === parentId && (!visibleFolderIds || visibleFolderIds.has(f.id))
     )) {
         items.push({ type: 'folder', folder })
     }

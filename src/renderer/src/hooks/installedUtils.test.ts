@@ -278,10 +278,11 @@ describe('computeChildren', () => {
         expect(folderEntries[1].folder.id).toBe('f1')
     })
 
-    it('excludes folders that have no mods anywhere in their subtree', () => {
+    it('includes folders that have no mods', () => {
         const folders = [makeFolder('empty')]
         const result = computeChildren([], folders, null)
-        expect(result).toHaveLength(0)
+        expect(result).toHaveLength(1)
+        expect(result[0].type).toBe('folder')
     })
 
     it('only includes mods whose folderId matches parentId', () => {
@@ -308,7 +309,7 @@ describe('computeChildren', () => {
         expect(folderIds).toEqual(['f1'])
     })
 
-    it('shows all non-empty folders when visibleFolderIds is undefined', () => {
+    it('shows all folders when visibleFolderIds is undefined', () => {
         const folders = [makeFolder('f1'), makeFolder('f2')]
         const mods = [
             makeMod('a', 1, 'A', { folderId: 'f1' }),
