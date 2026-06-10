@@ -3,7 +3,7 @@ import { isUnsupportedFormat } from './formatCheck'
 
 describe('isUnsupportedFormat', () => {
     describe('when type is provided', () => {
-        it.each(['pak', 'zip', '7z'])('returns false for supported type "%s"', (type) => {
+        it.each(['pak', 'zip', '7z', 'rar'])('returns false for supported type "%s"', (type) => {
             expect(isUnsupportedFormat(type)).toBe(false)
         })
 
@@ -11,9 +11,10 @@ describe('isUnsupportedFormat', () => {
             expect(isUnsupportedFormat('PAK')).toBe(false)
             expect(isUnsupportedFormat('ZIP')).toBe(false)
             expect(isUnsupportedFormat('7Z')).toBe(false)
+            expect(isUnsupportedFormat('RAR')).toBe(false)
         })
 
-        it.each(['exe', 'rar', 'dll', 'txt'])('returns true for unsupported type "%s"', (type) => {
+        it.each(['exe', 'dll', 'txt'])('returns true for unsupported type "%s"', (type) => {
             expect(isUnsupportedFormat(type)).toBe(true)
         })
 
@@ -32,6 +33,7 @@ describe('isUnsupportedFormat', () => {
             'https://cdn.example.com/mods/mod.pak',
             'https://cdn.example.com/mods/mod.zip',
             'https://cdn.example.com/mods/mod.7z',
+            'https://cdn.example.com/mods/mod.rar',
         ])('returns false for supported URL extension: %s', (url) => {
             expect(isUnsupportedFormat(undefined, url)).toBe(false)
         })
@@ -43,7 +45,7 @@ describe('isUnsupportedFormat', () => {
             expect(isUnsupportedFormat(undefined, url)).toBe(false)
         })
 
-        it.each(['https://cdn.example.com/mods/mod.exe', 'https://cdn.example.com/mods/mod.rar'])(
+        it.each(['https://cdn.example.com/mods/mod.exe'])(
             'returns true for unsupported URL extension: %s',
             (url) => {
                 expect(isUnsupportedFormat(undefined, url)).toBe(true)
