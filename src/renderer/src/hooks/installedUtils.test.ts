@@ -184,14 +184,13 @@ describe('normalizeModScopes', () => {
         expect(result.find((m) => m.uid === 'b')!.folderId ?? null).toBeNull()
     })
 
-    it('majority folder scope wins when no copies are at root', () => {
+    it('does not normalize entries spread across non-root folders', () => {
         const mods = [
             makeMod('a', 1, 'A', { folderId: 'f1' }),
             makeMod('b', 1, 'B', { folderId: 'f1' }),
             makeMod('c', 1, 'C', { folderId: 'f2' }),
         ]
-        const result = normalizeModScopes(mods)
-        expect(result.every((m) => (m.folderId ?? null) === 'f1')).toBe(true)
+        expect(normalizeModScopes(mods)).toBe(mods)
     })
 
     it('does not affect mods with negative IDs', () => {
@@ -278,11 +277,10 @@ describe('computeChildren', () => {
         expect(folderEntries[1].folder.id).toBe('f1')
     })
 
-    it('includes folders that have no mods', () => {
+    it('excludes folders that have no mods', () => {
         const folders = [makeFolder('empty')]
         const result = computeChildren([], folders, null)
-        expect(result).toHaveLength(1)
-        expect(result[0].type).toBe('folder')
+        expect(result).toHaveLength(0)
     })
 
     it('only includes mods whose folderId matches parentId', () => {

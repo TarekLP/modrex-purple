@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { t } from '../i18n'
 import type { InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
@@ -6,6 +7,7 @@ import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
 import { syntheticMod } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
+import { ManageFilesModal } from './ManageFilesModal'
 
 export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const {
@@ -28,6 +30,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         handleGapDragOver,
         onModDropDirect,
     } = useInstalledContext()
+    const [showManageFiles, setShowManageFiles] = useState(false)
 
     const ins = mods[0]
     const id = ins.id
@@ -37,7 +40,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
     const combined: InstalledMod = {
         ...ins,
-        enabled: mods.every((m) => m.enabled),
+        enabled: mods.some((m) => m.enabled),
         missing: mods.some((m) => m.missing) ? true : undefined,
         archiveBroken: mods.some((m) => m.archiveBroken) ? true : undefined,
     }
@@ -80,9 +83,19 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     />
                 </div>
                 {mods.length > 1 && (
-                    <div className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none">
+                    <button
+                        onClick={() => setShowManageFiles(true)}
+                        className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle hover:text-text hover:border-accent/60 transition-colors"
+                    >
                         {t('installed.fileCount', { count: mods.length })}
-                    </div>
+                    </button>
+                )}
+                {showManageFiles && (
+                    <ManageFilesModal
+                        mods={mods}
+                        modName={mod.name}
+                        onClose={() => setShowManageFiles(false)}
+                    />
                 )}
                 <ModListRow
                     mod={mod}
@@ -118,9 +131,19 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
             )}
             {mods.length > 1 && (
-                <div className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none">
+                <button
+                    onClick={() => setShowManageFiles(true)}
+                    className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle hover:text-text hover:border-accent/60 transition-colors"
+                >
                     {t('installed.fileCount', { count: mods.length })}
-                </div>
+                </button>
+            )}
+            {showManageFiles && (
+                <ManageFilesModal
+                    mods={mods}
+                    modName={mod.name}
+                    onClose={() => setShowManageFiles(false)}
+                />
             )}
             <ModCard
                 mod={mod}

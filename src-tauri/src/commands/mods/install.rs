@@ -111,6 +111,7 @@ pub fn install_mod_from_path(
 pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
     let mut state = read_state(state_path);
     let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else { return };
+    let folder_id = m.folder_id.clone();
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let path = if m.enabled {
         active_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
@@ -132,7 +133,29 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
         }
     }
     state.mods.retain(|m| m.uid != uid);
+    prune_empty_folders(game_path, &mut state, folder_id, cfg);
     save_state(state_path, &state);
+}
+
+fn prune_empty_folders(
+    game_path: &str,
+    state: &mut ModsState,
+    folder_id: Option<String>,
+    cfg: &ModEngineConfig,
+) {
+    let Some(fid) = folder_id else { return };
+    let has_mods = state.mods.iter().any(|m| m.folder_id.as_deref() == Some(fid.as_str()));
+    let has_children = state.folders.iter().any(|f| f.parent_id.as_deref() == Some(fid.as_str()));
+    if has_mods || has_children {
+        return;
+    }
+    let rel = get_folder_path(&state.folders, Some(fid.as_str()));
+    let parent_id = state.folders.iter().find(|f| f.id == fid).and_then(|f| f.parent_id.clone());
+    state.folders.retain(|f| f.id != fid);
+    if let Some(rel_path) = rel {
+        let _ = fs::remove_dir(mods_base(game_path, cfg).join(rel_path));
+    }
+    prune_empty_folders(game_path, state, parent_id, cfg);
 }
 
 pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {

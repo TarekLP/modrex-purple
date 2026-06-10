@@ -2,7 +2,6 @@ import { FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check } from 'lu
 import { InstalledModItem } from './InstalledModItem'
 import { t } from '../i18n'
 import type { ModFolder } from '../../../shared/types'
-import type { InstalledMod } from '../../../shared/types'
 import { Toggle } from './Toggle'
 import { computeChildren, groupChildren, getAllModsInFolder } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
@@ -85,11 +84,13 @@ export function FolderSection({ folder }: Props) {
     const isDropInto = dropTarget?.kind === 'into-folder' && dropTarget.folderId === folder.id
 
     const children = computeChildren(renderMods, folders, folder.id, visibleFolderIds)
-    const directModGroups = children.filter(
-        (c): c is { type: 'mod'; mods: InstalledMod[] } => c.type === 'mod'
-    )
     const isEmpty = children.length === 0
     const allMods = getAllModsInFolder(installed, folders, folder.id)
+    const normalizedCount = new Set(
+        getAllModsInFolder(renderMods, folders, folder.id).map((m) =>
+            m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`
+        )
+    ).size
     const anyEnabled = allMods.some((m) => m.enabled)
     const isFolderLoading = loadingFolderId === folder.id
 
@@ -175,10 +176,10 @@ export function FolderSection({ folder }: Props) {
 
                 <span className="text-xs text-text-subtle leading-none shrink-0">
                     {t(
-                        directModGroups.length === 1
+                        normalizedCount === 1
                             ? 'installed.folder.modCountSingle'
                             : 'installed.folder.modCount',
-                        { count: directModGroups.length }
+                        { count: normalizedCount }
                     )}
                 </span>
 

@@ -65,7 +65,7 @@ fn list_pak_entries_zip(path: &Path) -> Result<Vec<String>, String> {
     for i in 0..archive.len() {
         let entry = archive.by_index(i).map_err(|e| e.to_string())?;
         if !entry.is_dir() && entry.name().ends_with(".pak") {
-            entries.push(entry.name().to_string());
+            entries.push(entry.name().replace('\\', "/"));
         }
     }
     Ok(entries)
@@ -127,9 +127,12 @@ pub fn extract_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resu
 pub fn extract_zip_entry(zip_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
     let file = File::open(zip_path).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
-    let mut entry = archive
-        .by_name(entry_name)
-        .map_err(|_| format!("entry '{}' not found in archive", entry_name))?;
+    // Some Windows ZIPs store paths with backslashes; try both separators.
+    let index = archive
+        .index_for_name(entry_name)
+        .or_else(|| archive.index_for_name(&entry_name.replace('/', "\\")))
+        .ok_or_else(|| format!("entry '{}' not found in archive", entry_name))?;
+    let mut entry = archive.by_index(index).map_err(|e| e.to_string())?;
     let mut dest_file = File::create(dest).map_err(|e| e.to_string())?;
     std::io::copy(&mut entry, &mut dest_file).map_err(|e| e.to_string())?;
     Ok(())

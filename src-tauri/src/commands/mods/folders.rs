@@ -24,8 +24,7 @@ pub fn create_folder_op(
     let slug = if slug.is_empty() { "folder".to_string() } else { slug };
 
     let max_folders = state.folders.iter().filter(|f| f.parent_id == parent_id).map(|f| f.priority).max().unwrap_or(0);
-    let max_mods = state.mods.iter().filter(|m| m.folder_id == parent_id).filter_map(|m| m.priority).max().unwrap_or(0);
-    let priority = max_folders.max(max_mods) + 1;
+    let priority = max_folders + 1;
     let disk_name = apply_priority_prefix(&slug, priority);
     let id = Uuid::new_v4().to_string();
 

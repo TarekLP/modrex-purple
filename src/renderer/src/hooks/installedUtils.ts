@@ -71,18 +71,11 @@ export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
         const scopes = group.map((m) => m.folderId ?? null)
         const distinct = new Set(scopes.map(String))
         if (distinct.size <= 1) continue
-
-        // Root wins if any entry is there; prevents zip paks from being split across scopes.
-        const canonical: string | null = scopes.some((s) => s === null)
-            ? null
-            : (() => {
-                  const counts = new Map<string | null, number>()
-                  for (const s of scopes) counts.set(s, (counts.get(s) ?? 0) + 1)
-                  return [...counts.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))[0]
-              })()
-
+        // Only collapse when some files ended up at root — handles the split-install artifact
+        // where reinstalling puts some paks at root. Leave intentional multi-folder layouts alone.
+        if (!scopes.some((s) => s === null)) continue
         for (const m of group) {
-            if ((m.folderId ?? null) !== canonical) overrides.set(m.uid, canonical)
+            if ((m.folderId ?? null) !== null) overrides.set(m.uid, null)
         }
     }
 
@@ -108,20 +101,17 @@ export function computeChildren(
         items.push({ type: 'mod', mods: groupMods })
     }
     for (const folder of folders.filter(
-        (f) => f.parentId === parentId && (!visibleFolderIds || visibleFolderIds.has(f.id))
+        (f) =>
+            f.parentId === parentId &&
+            (!visibleFolderIds || visibleFolderIds.has(f.id)) &&
+            getAllModsInFolder(mods, folders, f.id).length > 0
     )) {
         items.push({ type: 'folder', folder })
     }
     items.sort((a, b) => {
         if (a.type !== b.type) return a.type === 'mod' ? -1 : 1
-        const pa =
-            a.type === 'folder'
-                ? a.folder.priority
-                : Math.min(...a.mods.map((m) => m.priority ?? 0))
-        const pb =
-            b.type === 'folder'
-                ? b.folder.priority
-                : Math.min(...b.mods.map((m) => m.priority ?? 0))
+        const pa = a.type === 'folder' ? a.folder.priority : (a.mods[0].priority ?? 0)
+        const pb = b.type === 'folder' ? b.folder.priority : (b.mods[0].priority ?? 0)
         return pb - pa
     })
     return items

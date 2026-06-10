@@ -363,10 +363,19 @@ pub async fn install_mod(
         let uid = file_id.to_string();
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
-        let existing_entry = saved.mods.iter()
-            .find(|m| m.uid == uid)
-            .or_else(|| if remote_id > 0 { saved.mods.iter().find(|m| m.id == remote_id) } else { None });
-        let effective_folder_id = folder_id.or_else(|| existing_entry.and_then(|e| e.folder_id.clone()));
+        let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
+            if remote_id <= 0 { return None; }
+            let same: Vec<_> = saved.mods.iter().filter(|m| m.id == remote_id).collect();
+            // Only inherit for single-entry mods; multi-pak entries span different folders.
+            if same.len() == 1 { same.into_iter().next() } else { None }
+        });
+        // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
+        let effective_folder_id = folder_id.or_else(|| {
+            if remote_id > 0 && saved.mods.iter().filter(|m| m.id == remote_id).count() > 1 {
+                return None;
+            }
+            existing_entry.and_then(|e| e.folder_id.clone())
+        });
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
             .unwrap_or_else(|| match &cfg.unit {
@@ -474,8 +483,17 @@ pub async fn install_file(
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter()
             .find(|m| m.uid == uid)
-            .or_else(|| if mod_id > 0 { saved.mods.iter().find(|m| m.id == mod_id) } else { None });
-        let effective_folder_id = existing_entry.and_then(|e| e.folder_id.clone());
+            .or_else(|| {
+                if mod_id <= 0 { return None; }
+                let same: Vec<_> = saved.mods.iter().filter(|m| m.id == mod_id).collect();
+                if same.len() == 1 { same.into_iter().next() } else { None }
+            });
+        // Never inherit folder when this mod_id already has multiple installed files.
+        let effective_folder_id = if mod_id > 0 && saved.mods.iter().filter(|m| m.id == mod_id).count() > 1 {
+            None
+        } else {
+            existing_entry.and_then(|e| e.folder_id.clone())
+        };
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
             .unwrap_or_else(|| match &cfg.unit {
