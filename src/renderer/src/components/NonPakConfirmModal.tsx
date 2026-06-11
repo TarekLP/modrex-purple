@@ -28,7 +28,7 @@ export function NonPakConfirmModal({ onConfirm, onCancel }: Props) {
                 <div className="flex items-center justify-end gap-2">
                     <button
                         onClick={onCancel}
-                        className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                        className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
                     >
                         {t('common.cancel')}
                     </button>

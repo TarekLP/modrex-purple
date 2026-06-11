@@ -158,7 +158,7 @@ export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) 
                         <button
                             disabled={checkState === 'checking'}
                             onClick={handleCheckForUpdates}
-                            className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                            className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                         >
                             <RefreshCw
                                 className={`w-3.5 h-3.5 ${checkState === 'checking' ? 'animate-spin' : ''}`}
@@ -181,7 +181,7 @@ export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) 
                     <div className="mt-1">
                         <button
                             onClick={() => api.openLog()}
-                            className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active transition-colors flex items-center gap-1.5"
+                            className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors flex items-center gap-1.5"
                         >
                             <ScrollText className="w-3.5 h-3.5" />
                             {t('settings.logs.open')}

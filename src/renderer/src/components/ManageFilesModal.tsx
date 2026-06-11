@@ -182,7 +182,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             <div className="flex justify-end px-5 py-4 border-t border-border shrink-0">
                 <button
                     onClick={onClose}
-                    className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                    className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
                 >
                     {t('common.close')}
                 </button>

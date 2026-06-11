@@ -55,7 +55,7 @@ export function ModListRow({
             onDragOver={onDragOver}
             onDrop={onDrop}
             onDragEnd={onDragEnd}
-            className="group relative rounded-lg border bg-surface-raised border-border hover:border-border/60 overflow-hidden"
+            className="group relative rounded-lg border bg-surface-raised border-border hover:border-accent/25 transition-colors overflow-hidden"
         >
             <div
                 className={`flex items-stretch transition-opacity ${isDragging || loading ? 'opacity-40' : 'opacity-100'}`}

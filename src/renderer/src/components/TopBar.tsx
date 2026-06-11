@@ -191,7 +191,7 @@ export function TopBar({
                                 <button
                                     disabled={!gamePath || !!launching}
                                     onClick={launchWithoutMods}
-                                    className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                    className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                 >
                                     {launching === 'vanilla' ? (
                                         <Loader className="w-3.5 h-3.5 animate-spin" />
@@ -266,7 +266,7 @@ export function TopBar({
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setShowWarning(false)}
-                                className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                                className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
                             >
                                 {t('common.cancel')}
                             </button>

@@ -361,7 +361,7 @@ export function ZipPickerModal({
                 <button
                     onClick={!isBusy ? onClose : undefined}
                     disabled={isBusy}
-                    className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
+                    className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
                 >
                     {t('common.cancel')}
                 </button>

@@ -151,7 +151,7 @@ export function UpdatesModal({
                 )}
                 <button
                     onClick={onClose}
-                    className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                    className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
                 >
                     {t('common.close')}
                 </button>

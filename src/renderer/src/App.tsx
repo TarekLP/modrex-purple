@@ -374,7 +374,7 @@ export default function App() {
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => setShowUpdateModal(false)}
-                                        className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                                        className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
                                     >
                                         {t('app.updateLater')}
                                     </button>

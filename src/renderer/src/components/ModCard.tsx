@@ -67,7 +67,7 @@ export function ModCard({
 
     return (
         <div
-            className="h-full bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col"
+            className="h-full bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col transition-colors hover:border-accent/25"
             onMouseEnter={onPrefetch}
         >
             <div className="cursor-pointer group relative" onClick={onOpen}>
