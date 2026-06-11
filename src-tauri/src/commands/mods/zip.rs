@@ -184,10 +184,22 @@ fn extract_tar_entry<R: Read>(reader: R, entry_name: &str, dest: &Path) -> Resul
 }
 
 pub async fn compute_sha256(path: &Path) -> Result<String, String> {
-    let bytes = tokio::fs::read(path).await.map_err(|e| e.to_string())?;
-    let mut hasher = Sha256::new();
-    hasher.update(&bytes);
-    Ok(hex::encode(hasher.finalize()))
+    let path = path.to_path_buf();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut file = File::open(&path).map_err(|e| e.to_string())?;
+        let mut hasher = Sha256::new();
+        let mut buf = vec![0u8; 64 * 1024];
+        loop {
+            let n = file.read(&mut buf).map_err(|e| e.to_string())?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buf[..n]);
+        }
+        Ok(hex::encode(hasher.finalize()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Returns the directory paths (in archive-relative notation) that directly contain
