@@ -135,6 +135,7 @@ export interface InstalledMod {
     missing?: boolean
     folderId?: string | null // null or absent = root level
     archiveBroken?: boolean
+    location?: string // scan target tag; absent = primary target
 }
 
 export interface ModsState {

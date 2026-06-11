@@ -44,6 +44,8 @@ pub struct InstalledMod {
     pub folder_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub archive_broken: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
