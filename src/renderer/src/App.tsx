@@ -12,10 +12,22 @@ import { SettingsPage } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { api } from './api'
+import { getSettingsCache, setSettingsCache } from './settingsCache'
 import { Dialog } from './components/Dialog'
 import { TooltipProvider } from './components/Tooltip'
 
 const InstalledPageMemo = memo(InstalledPage)
+
+// Warm the settings cache as soon as a game becomes active, so SettingsPage can
+// render once with final values instead of showing provisional state that flips.
+function warmSettingsCache(game: GameId) {
+    if (getSettingsCache(game)) return
+    Promise.all([api.getGameSettings(game), api.getInstalledLaunchers(game)])
+        .then(([settings, installedLaunchers]) =>
+            setSettingsCache(game, { settings, installedLaunchers })
+        )
+        .catch(() => {})
+}
 
 export type View = 'browse' | 'installed' | 'detail' | 'settings' | 'welcome'
 
@@ -155,6 +167,10 @@ export default function App() {
             if (timer) clearTimeout(timer)
         }
     }, [refreshAll])
+
+    useEffect(() => {
+        warmSettingsCache(activeGame)
+    }, [activeGame])
 
     useEffect(() => {
         api.checkForUpdates().catch(() => {})

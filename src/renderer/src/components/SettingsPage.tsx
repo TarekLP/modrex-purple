@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FolderOpen, RefreshCw, ScrollText } from 'lucide-react'
+import { FolderOpen, Loader, RefreshCw, ScrollText } from 'lucide-react'
 import { t } from '../i18n'
 import { Select } from './Select'
 import { api } from '../api'
@@ -121,8 +121,13 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
         await api.setLauncher(value, activeGame)
     }
 
+    // Render once with final values: until the first fetch (usually the prefetch in
+    // App.tsx's warmSettingsCache) lands, render nothing. A sub-100 ms blank reads
+    // as instant; values flipping in place after render reads as a glitch.
+    if (settings === null) return null
+
     return (
-        <div className="h-full flex flex-col animate-page-in">
+        <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0">
                 <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
                 <p className="text-xs text-text-subtle mt-0.5">{GAMES[activeGame].name}</p>
@@ -134,11 +139,16 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
                     <p className="text-xs text-text-subtle">{t('settings.gamePath.description')}</p>
 
                     <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
-                        <span className="text-sm font-mono truncate flex-1 text-text-muted">
-                            {!gamePathReady
-                                ? t('settings.gamePath.detecting')
-                                : (gamePath ?? t('settings.gamePath.notFound'))}
-                        </span>
+                        {!gamePathReady ? (
+                            <span className="text-sm flex-1 text-text-muted flex items-center gap-2">
+                                <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                {t('settings.gamePath.detecting')}
+                            </span>
+                        ) : (
+                            <span className="text-sm font-mono truncate flex-1 text-text-muted">
+                                {gamePath ?? t('settings.gamePath.notFound')}
+                            </span>
+                        )}
                         <div className="flex gap-2 shrink-0">
                             <button
                                 disabled={picking}
@@ -166,9 +176,7 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
                     )}
                 </section>
 
-                <section
-                    className={`max-w-xl flex flex-col gap-2 mt-6 ${settings === null ? 'opacity-50 pointer-events-none' : ''}`}
-                >
+                <section className="max-w-xl flex flex-col gap-2 mt-6">
                     <h2 className="text-sm font-semibold">{t('settings.launcher.title')}</h2>
                     <p className="text-xs text-text-subtle">{t('settings.launcher.description')}</p>
                     <div className="mt-1">
@@ -218,9 +226,7 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
                     </div>
                 </section>
 
-                <section
-                    className={`max-w-xl flex flex-col gap-2 mt-6 ${settings === null ? 'opacity-50 pointer-events-none' : ''}`}
-                >
+                <section className="max-w-xl flex flex-col gap-2 mt-6">
                     <h2 className="text-sm font-semibold">{t('settings.launchOptions.title')}</h2>
                     {activeGame === 'pd3' &&
                         (launcher === 'xbox' ? (

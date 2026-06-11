@@ -322,7 +322,7 @@ export function BrowsePage({
         : []
 
     return (
-        <div className="h-full flex flex-col animate-page-in">
+        <div className="h-full flex flex-col">
             {formatWarning && (
                 <NonPakConfirmModal
                     onConfirm={async () => {
