@@ -130,23 +130,31 @@ export default function App() {
         }
     }
 
+    // Path resolution must finish (persisting any newly detected path to settings)
+    // before get_installed reads it — fetching concurrently can return a false-empty
+    // list that gets cached as truth.
+    const refreshAll = useCallback(async () => {
+        try {
+            await refreshGamePath()
+        } catch {
+            // detection failure must not block the installed fetch
+        }
+        await refreshInstalled()
+    }, [refreshGamePath, refreshInstalled])
+
     useEffect(() => {
-        refreshGamePath()
-        refreshInstalled()
+        refreshAll()
         let timer: ReturnType<typeof setTimeout> | null = null
         function onFocus() {
             if (timer) clearTimeout(timer)
-            timer = setTimeout(() => {
-                refreshGamePath()
-                refreshInstalled()
-            }, 500)
+            timer = setTimeout(refreshAll, 500)
         }
         window.addEventListener('focus', onFocus)
         return () => {
             window.removeEventListener('focus', onFocus)
             if (timer) clearTimeout(timer)
         }
-    }, [refreshGamePath, refreshInstalled])
+    }, [refreshAll])
 
     useEffect(() => {
         api.checkForUpdates().catch(() => {})
@@ -320,7 +328,7 @@ export default function App() {
                                         activeGame={activeGame}
                                         gamePath={gamePath}
                                         gamePathReady={gamePathReady}
-                                        onGamePathChange={refreshGamePath}
+                                        onGamePathChange={refreshAll}
                                     />
                                 </div>
                                 {detailStack.map(({ modId, initialMod }, i) => (
