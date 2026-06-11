@@ -35,6 +35,9 @@ export default function App() {
     })
     const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: Mod }[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
+    // false while the active game's path is still being resolved this session —
+    // consumers must not render "not found" states until this is true.
+    const [gamePathReady, setGamePathReady] = useState(false)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
     const [folders, setFolders] = useState<ModFolder[]>([])
     const [installedReady, setInstalledReady] = useState(false)
@@ -70,6 +73,7 @@ export default function App() {
         if (activeGameRef.current !== game) return
         gamePathCache.current[game] = path
         setGamePath(path)
+        setGamePathReady(true)
     }, [activeGame])
 
     function handleShowWelcome() {
@@ -83,6 +87,7 @@ export default function App() {
         // while refreshGamePath re-validates in the background.
         const cachedPath = gamePathCache.current[g]
         setGamePath(cachedPath !== undefined ? cachedPath : null)
+        setGamePathReady(cachedPath !== undefined)
         // Restore last-known installed state so the installed page never flashes empty
         // while refreshInstalled re-validates in the background.
         const cachedInstalled = installedCache.current[g]
@@ -286,6 +291,7 @@ export default function App() {
                                             key={activeGame}
                                             activeGame={activeGame}
                                             gamePath={gamePath}
+                                            gamePathReady={gamePathReady}
                                             installed={installed}
                                             onRefreshInstalled={refreshInstalled}
                                             onOpenDetail={(id, initialMod) =>
@@ -311,6 +317,7 @@ export default function App() {
                                         key={activeGame}
                                         activeGame={activeGame}
                                         gamePath={gamePath}
+                                        gamePathReady={gamePathReady}
                                         onGamePathChange={refreshGamePath}
                                     />
                                 </div>

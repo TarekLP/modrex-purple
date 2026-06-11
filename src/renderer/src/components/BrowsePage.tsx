@@ -33,6 +33,7 @@ import { api } from '../api'
 interface Props {
     activeGame: GameId
     gamePath: string | null
+    gamePathReady: boolean
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number, initialMod?: Mod) => void
@@ -72,6 +73,7 @@ function getSavedSort(game: GameId): SortOption {
 export function BrowsePage({
     activeGame,
     gamePath,
+    gamePathReady,
     installed,
     onRefreshInstalled,
     onOpenDetail,
@@ -376,7 +378,7 @@ export function BrowsePage({
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                     <h1 className="text-lg font-semibold">{t('browse.title')}</h1>
-                    {!gamePath && (
+                    {gamePathReady && !gamePath && (
                         <div className="flex items-center gap-2">
                             <span className="text-xs text-warning bg-warning/10 px-3 py-1 rounded">
                                 {t('browse.gameNotFound')}

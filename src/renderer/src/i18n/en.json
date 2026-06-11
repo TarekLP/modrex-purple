@@ -184,6 +184,7 @@
             "title": "Game Path",
             "description": "Path to your PAYDAY 3 installation. Detected automatically from your installed launchers if not set manually.",
             "notFound": "Not found",
+            "detecting": "Detecting…",
             "reset": "Reset",
             "browse": "Browse",
             "picking": "Picking…",

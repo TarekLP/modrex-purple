@@ -20,10 +20,11 @@ const LAUNCHER_OPTIONS = [
 interface Props {
     activeGame: GameId
     gamePath: string | null
+    gamePathReady: boolean
     onGamePathChange: () => Promise<void>
 }
 
-export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) {
+export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathChange }: Props) {
     const [settings, setSettings] = useState<{
         gamePath?: string
         launcher?: string
@@ -110,7 +111,9 @@ export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) 
 
                     <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
                         <span className="text-sm font-mono truncate flex-1 text-text-muted">
-                            {gamePath ?? t('settings.gamePath.notFound')}
+                            {!gamePathReady
+                                ? t('settings.gamePath.detecting')
+                                : (gamePath ?? t('settings.gamePath.notFound'))}
                         </span>
                         <div className="flex gap-2 shrink-0">
                             <button
@@ -128,7 +131,7 @@ export function SettingsPage({ activeGame, gamePath, onGamePathChange }: Props) 
 
                     {pathError ? (
                         <p className="text-xs text-danger-text">{pathError}</p>
-                    ) : gamePath ? (
+                    ) : !gamePathReady ? null : gamePath ? (
                         <p className="text-xs text-success-text">
                             {t('settings.gamePath.autoDetected')}
                         </p>
