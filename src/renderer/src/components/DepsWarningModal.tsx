@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, TriangleAlert } from 'lucide-react'
 import type { ModDependency } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
+import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
 
@@ -31,8 +32,13 @@ export function DepsWarningModal({
     }, [missingRequired.length, onClose])
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-surface-raised border border-border rounded-lg shadow-xl w-[480px] p-6 flex flex-col gap-4">
+        <Dialog
+            open={true}
+            onOpenChange={(open) => !open && onClose()}
+            title={t('depsWarning.title')}
+            className="w-[480px]"
+        >
+            <div className="p-6 flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex flex-col gap-1">
                         <h2 className="text-sm font-semibold flex items-center gap-2">
@@ -63,7 +69,10 @@ export function DepsWarningModal({
                                     await api.installMod(dep.mod!.id, gamePath, gameId)
                                     await onRefreshInstalled()
                                 } finally {
-                                    setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: false }))
+                                    setInstallingDeps((prev) => ({
+                                        ...prev,
+                                        [dep.mod!.id]: false,
+                                    }))
                                 }
                             }
                             return (
@@ -125,6 +134,6 @@ export function DepsWarningModal({
                     </button>
                 </div>
             </div>
-        </div>
+        </Dialog>
     )
 }

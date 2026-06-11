@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import type { InstalledMod, Mod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
@@ -72,102 +73,100 @@ export function UpdatesModal({
     }
 
     return (
-        <div
-            className="absolute inset-0 bg-black/60 flex items-center justify-center z-50"
-            onClick={(e) => e.target === e.currentTarget && onClose()}
+        <Dialog
+            open={true}
+            onOpenChange={(open) => !open && onClose()}
+            title={t('installed.updatesModal.title', { count: updatable.length })}
+            className="w-[32rem]"
         >
-            <div className="bg-surface-raised border border-border rounded-xl w-full max-w-lg mx-6 flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                    <h2 className="text-sm font-semibold">
-                        {t('installed.updatesModal.title', { count: updatable.length })}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-text-subtle hover:text-text transition-colors"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-
-                <div className="overflow-y-auto max-h-96">
-                    {updatable.map((ins) => {
-                        const mod = modData.get(ins.id)!
-                        const checked = selectedIds.has(ins.id)
-                        const isLoading = loadingMod === ins.uid || updatingAll
-                        return (
-                            <div
-                                key={ins.uid}
-                                className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0"
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    disabled={updatingAll}
-                                    onChange={() => toggleSelected(ins.id)}
-                                    className="accent-[oklch(0.65_0.18_47)] w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
-                                />
-                                <button
-                                    onClick={() => {
-                                        onClose()
-                                        onOpenDetail(ins.id)
-                                    }}
-                                    className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
-                                >
-                                    {mod.thumbnail ? (
-                                        <img
-                                            src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
-                                            alt=""
-                                            className="w-9 h-9 rounded object-cover shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-9 h-9 rounded bg-surface-active shrink-0" />
-                                    )}
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-medium truncate">
-                                            {mod.name}
-                                        </div>
-                                        <div className="text-xs text-text-subtle">
-                                            v{ins.version} to v{mod.version}
-                                        </div>
-                                    </div>
-                                </button>
-                                <button
-                                    disabled={!gamePath || isLoading}
-                                    onClick={() => handleUpdate(ins.uid, ins.id)}
-                                    className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
-                                >
-                                    {loadingMod === ins.uid
-                                        ? t('installed.updatesModal.updating')
-                                        : t('installed.updatesModal.update')}
-                                </button>
-                            </div>
-                        )
-                    })}
-                </div>
-
-                <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-                    {updateError && (
-                        <span className="text-xs text-danger-text mr-auto">{updateError}</span>
-                    )}
-                    <button
-                        onClick={onClose}
-                        className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
-                    >
-                        {t('common.close')}
-                    </button>
-                    <button
-                        disabled={!gamePath || updatingAll || selectedIds.size === 0}
-                        onClick={handleUpdateSelected}
-                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                        {updatingAll
-                            ? t('installed.updatesModal.updating')
-                            : t('installed.updatesModal.updateSelected', {
-                                  count: selectedIds.size,
-                              })}
-                    </button>
-                </div>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+                <h2 className="text-sm font-semibold">
+                    {t('installed.updatesModal.title', { count: updatable.length })}
+                </h2>
+                <button
+                    onClick={onClose}
+                    className="text-text-subtle hover:text-text transition-colors"
+                >
+                    <X className="w-4 h-4" />
+                </button>
             </div>
-        </div>
+
+            <div className="overflow-y-auto max-h-96">
+                {updatable.map((ins) => {
+                    const mod = modData.get(ins.id)!
+                    const checked = selectedIds.has(ins.id)
+                    const isLoading = loadingMod === ins.uid || updatingAll
+                    return (
+                        <div
+                            key={ins.uid}
+                            className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0"
+                        >
+                            <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={updatingAll}
+                                onChange={() => toggleSelected(ins.id)}
+                                className="accent-[oklch(0.65_0.18_47)] w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                            />
+                            <button
+                                onClick={() => {
+                                    onClose()
+                                    onOpenDetail(ins.id)
+                                }}
+                                className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
+                            >
+                                {mod.thumbnail ? (
+                                    <img
+                                        src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
+                                        alt=""
+                                        className="w-9 h-9 rounded object-cover shrink-0"
+                                    />
+                                ) : (
+                                    <div className="w-9 h-9 rounded bg-surface-active shrink-0" />
+                                )}
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium truncate">{mod.name}</div>
+                                    <div className="text-xs text-text-subtle">
+                                        v{ins.version} to v{mod.version}
+                                    </div>
+                                </div>
+                            </button>
+                            <button
+                                disabled={!gamePath || isLoading}
+                                onClick={() => handleUpdate(ins.uid, ins.id)}
+                                className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                            >
+                                {loadingMod === ins.uid
+                                    ? t('installed.updatesModal.updating')
+                                    : t('installed.updatesModal.update')}
+                            </button>
+                        </div>
+                    )
+                })}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+                {updateError && (
+                    <span className="text-xs text-danger-text mr-auto">{updateError}</span>
+                )}
+                <button
+                    onClick={onClose}
+                    className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                >
+                    {t('common.close')}
+                </button>
+                <button
+                    disabled={!gamePath || updatingAll || selectedIds.size === 0}
+                    onClick={handleUpdateSelected}
+                    className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                    {updatingAll
+                        ? t('installed.updatesModal.updating')
+                        : t('installed.updatesModal.updateSelected', {
+                              count: selectedIds.size,
+                          })}
+                </button>
+            </div>
+        </Dialog>
     )
 }

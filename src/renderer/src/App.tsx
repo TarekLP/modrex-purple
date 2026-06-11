@@ -12,6 +12,7 @@ import { SettingsPage } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { api } from './api'
+import { Dialog } from './components/Dialog'
 import { TooltipProvider } from './components/Tooltip'
 
 const InstalledPageMemo = memo(InstalledPage)
@@ -338,12 +339,14 @@ export default function App() {
                     </>
                 )}
 
-                {showUpdateModal && update && update.phase === 'available' && (
-                    <div
-                        className="absolute inset-0 bg-black/60 flex items-center justify-center z-50"
-                        onClick={(e) => e.target === e.currentTarget && setShowUpdateModal(false)}
-                    >
-                        <div className="bg-surface-raised border border-border rounded-xl w-full max-w-lg mx-6 flex flex-col overflow-hidden max-h-[80vh]">
+                <Dialog
+                    open={showUpdateModal && !!update && update.phase === 'available'}
+                    onOpenChange={(open) => !open && setShowUpdateModal(false)}
+                    title={update ? t('app.updateNotesTitle', { version: update.version }) : ''}
+                    className="w-full max-w-lg max-h-[80vh]"
+                >
+                    {update && (
+                        <>
                             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
                                 <h2 className="text-sm font-semibold">
                                     {t('app.updateNotesTitle', { version: update.version })}
@@ -394,9 +397,9 @@ export default function App() {
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                )}
+                        </>
+                    )}
+                </Dialog>
             </div>
         </TooltipProvider>
     )

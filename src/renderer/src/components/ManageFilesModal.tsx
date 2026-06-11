@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { X, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
+import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { useInstalledContext } from './InstalledContext'
 
@@ -84,111 +84,109 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         }))
         .sort((a, b) => a.priority - b.priority)
 
-    const modal = (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-            onClick={(e) => e.target === e.currentTarget && onClose()}
+    return (
+        <Dialog
+            open={true}
+            onOpenChange={(open) => !open && onClose()}
+            title={modName}
+            className="w-[32rem] max-h-[70vh] text-text"
         >
-            <div className="bg-surface-raised border border-border rounded-xl w-full max-w-lg mx-6 max-h-[70vh] flex flex-col overflow-hidden text-text">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-                    <div className="min-w-0">
-                        <h2 className="text-sm font-semibold truncate">{modName}</h2>
-                        <p className="text-xs text-text-muted mt-0.5">
-                            {t('installed.fileCount', { count: mods.length })}
-                        </p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="text-text-subtle hover:text-text transition-colors shrink-0"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+                <div className="min-w-0">
+                    <h2 className="text-sm font-semibold truncate">{modName}</h2>
+                    <p className="text-xs text-text-muted mt-0.5">
+                        {t('installed.fileCount', { count: mods.length })}
+                    </p>
                 </div>
-
-                <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-1">
-                    {rootMods.map((mod) => (
-                        <FileRow
-                            key={mod.uid}
-                            mod={mod}
-                            loadingMod={loadingMod}
-                            onToggle={() => handleToggleMod(mod)}
-                            onRemove={() => handleRemoveMod(mod)}
-                        />
-                    ))}
-
-                    {folderGroups.map(({ folderId, folder, path, mods: groupMods }) => {
-                        const isCollapsed = collapsed.has(folderId)
-                        const allEnabled = groupMods.every((m) => m.enabled)
-                        return (
-                            <div key={folderId}>
-                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors">
-                                    <button
-                                        onClick={() => toggleCollapse(folderId)}
-                                        className="text-text-subtle hover:text-text transition-colors shrink-0"
-                                    >
-                                        {isCollapsed ? (
-                                            <ChevronRight className="w-3.5 h-3.5" />
-                                        ) : (
-                                            <ChevronDown className="w-3.5 h-3.5" />
-                                        )}
-                                    </button>
-                                    <span className="text-sm font-medium truncate flex-1 min-w-0">
-                                        {folder?.displayName ?? path ?? folderId}
-                                    </span>
-                                    <span className="text-xs text-text-muted shrink-0">
-                                        {groupMods.length}
-                                    </span>
-                                    <div
-                                        className="flex items-center gap-2 shrink-0"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <Toggle
-                                            checked={allEnabled}
-                                            disabled={!!loadingMod}
-                                            onChange={() => handleToggleGroup(groupMods)}
-                                        />
-                                        <button
-                                            onClick={() => handleRemoveGroup(groupMods)}
-                                            disabled={!!loadingMod}
-                                            title={t('common.remove')}
-                                            className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {!isCollapsed && (
-                                    <div className="ml-4 flex flex-col gap-0.5">
-                                        {groupMods.map((mod) => (
-                                            <FileRow
-                                                key={mod.uid}
-                                                mod={mod}
-                                                loadingMod={loadingMod}
-                                                onToggle={() => handleToggleMod(mod)}
-                                                onRemove={() => handleRemoveMod(mod)}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
-                </div>
-
-                <div className="flex justify-end px-5 py-4 border-t border-border shrink-0">
-                    <button
-                        onClick={onClose}
-                        className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
-                    >
-                        {t('common.close')}
-                    </button>
-                </div>
+                <button
+                    onClick={onClose}
+                    className="text-text-subtle hover:text-text transition-colors shrink-0"
+                >
+                    <X className="w-4 h-4" />
+                </button>
             </div>
-        </div>
-    )
 
-    return createPortal(modal, document.body)
+            <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-1">
+                {rootMods.map((mod) => (
+                    <FileRow
+                        key={mod.uid}
+                        mod={mod}
+                        loadingMod={loadingMod}
+                        onToggle={() => handleToggleMod(mod)}
+                        onRemove={() => handleRemoveMod(mod)}
+                    />
+                ))}
+
+                {folderGroups.map(({ folderId, folder, path, mods: groupMods }) => {
+                    const isCollapsed = collapsed.has(folderId)
+                    const allEnabled = groupMods.every((m) => m.enabled)
+                    return (
+                        <div key={folderId}>
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors">
+                                <button
+                                    onClick={() => toggleCollapse(folderId)}
+                                    className="text-text-subtle hover:text-text transition-colors shrink-0"
+                                >
+                                    {isCollapsed ? (
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    ) : (
+                                        <ChevronDown className="w-3.5 h-3.5" />
+                                    )}
+                                </button>
+                                <span className="text-sm font-medium truncate flex-1 min-w-0">
+                                    {folder?.displayName ?? path ?? folderId}
+                                </span>
+                                <span className="text-xs text-text-muted shrink-0">
+                                    {groupMods.length}
+                                </span>
+                                <div
+                                    className="flex items-center gap-2 shrink-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <Toggle
+                                        checked={allEnabled}
+                                        disabled={!!loadingMod}
+                                        onChange={() => handleToggleGroup(groupMods)}
+                                    />
+                                    <button
+                                        onClick={() => handleRemoveGroup(groupMods)}
+                                        disabled={!!loadingMod}
+                                        title={t('common.remove')}
+                                        className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {!isCollapsed && (
+                                <div className="ml-4 flex flex-col gap-0.5">
+                                    {groupMods.map((mod) => (
+                                        <FileRow
+                                            key={mod.uid}
+                                            mod={mod}
+                                            loadingMod={loadingMod}
+                                            onToggle={() => handleToggleMod(mod)}
+                                            onRemove={() => handleRemoveMod(mod)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+
+            <div className="flex justify-end px-5 py-4 border-t border-border shrink-0">
+                <button
+                    onClick={onClose}
+                    className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                >
+                    {t('common.close')}
+                </button>
+            </div>
+        </Dialog>
+    )
 }
 
 function FileRow({

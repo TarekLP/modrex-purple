@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react'
+import { Dialog } from './Dialog'
 import { t } from '../i18n'
 
 interface Props {
@@ -8,14 +9,13 @@ interface Props {
 
 export function NonPakConfirmModal({ onConfirm, onCancel }: Props) {
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-            onClick={onCancel}
+        <Dialog
+            open={true}
+            onOpenChange={(open) => !open && onCancel()}
+            title={t('common.nonPakWarning')}
+            className="w-80"
         >
-            <div
-                className="bg-surface-raised border border-border rounded-lg shadow-xl w-80 p-5 flex flex-col gap-4"
-                onClick={(e) => e.stopPropagation()}
-            >
+            <div className="p-5 flex flex-col gap-4">
                 <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                     <div>
@@ -40,6 +40,6 @@ export function NonPakConfirmModal({ onConfirm, onCancel }: Props) {
                     </button>
                 </div>
             </div>
-        </div>
+        </Dialog>
     )
 }

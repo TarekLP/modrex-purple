@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
+import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
 import type { GameId } from '../../../shared/types'
@@ -227,53 +228,56 @@ export function TopBar({
                 )}
             </div>
 
-            {showWarning && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                    <div className="bg-surface-raised border border-border rounded-lg shadow-xl w-96 p-6 flex flex-col gap-4">
-                        <div className="flex flex-col gap-1">
-                            <h2 className="text-sm font-semibold flex items-center gap-2">
-                                <TriangleAlert className="w-4 h-4 text-warning shrink-0" />
-                                {t('topBar.missingLaunchOption.title')}
-                            </h2>
-                            <p className="text-xs text-text-muted">
-                                <span className="font-mono text-text">-fileopenlog</span>{' '}
-                                {t('topBar.missingLaunchOption.bodyPre')}{' '}
-                                <span className="text-text">
-                                    {t('topBar.missingLaunchOption.location')}
-                                </span>
-                                .
-                            </p>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={dontShowAgain}
-                                    onChange={(e) => setDontShowAgain(e.target.checked)}
-                                    className="accent-accent"
-                                />
-                                <span className="text-xs text-text-muted">
-                                    {t('common.dontShowAgain')}
-                                </span>
-                            </label>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setShowWarning(false)}
-                                    className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active transition-colors"
-                                >
-                                    {t('common.cancel')}
-                                </button>
-                                <button
-                                    onClick={confirmLaunch}
-                                    className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
-                                >
-                                    {t('topBar.missingLaunchOption.launchAnyway')}
-                                </button>
-                            </div>
+            <Dialog
+                open={showWarning}
+                onOpenChange={(open) => !open && setShowWarning(false)}
+                title={t('topBar.missingLaunchOption.title')}
+                className="w-96"
+            >
+                <div className="p-6 flex flex-col gap-4">
+                    <div className="flex flex-col gap-1">
+                        <h2 className="text-sm font-semibold flex items-center gap-2">
+                            <TriangleAlert className="w-4 h-4 text-warning shrink-0" />
+                            {t('topBar.missingLaunchOption.title')}
+                        </h2>
+                        <p className="text-xs text-text-muted">
+                            <span className="font-mono text-text">-fileopenlog</span>{' '}
+                            {t('topBar.missingLaunchOption.bodyPre')}{' '}
+                            <span className="text-text">
+                                {t('topBar.missingLaunchOption.location')}
+                            </span>
+                            .
+                        </p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={dontShowAgain}
+                                onChange={(e) => setDontShowAgain(e.target.checked)}
+                                className="accent-accent"
+                            />
+                            <span className="text-xs text-text-muted">
+                                {t('common.dontShowAgain')}
+                            </span>
+                        </label>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowWarning(false)}
+                                className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                            >
+                                {t('common.cancel')}
+                            </button>
+                            <button
+                                onClick={confirmLaunch}
+                                className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
+                            >
+                                {t('topBar.missingLaunchOption.launchAnyway')}
+                            </button>
                         </div>
                     </div>
                 </div>
-            )}
+            </Dialog>
         </>
     )
 }

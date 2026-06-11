@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { X, Folder } from 'lucide-react'
+import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
 
@@ -124,14 +125,6 @@ export function ZipPickerModal({
         })
     }, [])
 
-    useEffect(() => {
-        function onKey(e: KeyboardEvent) {
-            if (e.key === 'Escape' && !isBusy) onClose()
-        }
-        window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
-    }, [onClose, isBusy])
-
     function toggle(entry: string) {
         setSelected((prev) => {
             const next = new Set(prev)
@@ -253,139 +246,135 @@ export function ZipPickerModal({
     }
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-            onClick={!isBusy ? onClose : undefined}
+        <Dialog
+            open={true}
+            onOpenChange={(open) => !open && !isBusy && onClose()}
+            title={t('zipPicker.title')}
+            className="w-[520px] max-h-[75vh]"
         >
-            <div
-                className="bg-surface-raised border border-border rounded-lg shadow-xl w-[520px] max-h-[75vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
-                    <div className="min-w-0">
-                        <h2 className="text-sm font-semibold">{t('zipPicker.title')}</h2>
-                        <p className="text-xs text-text-muted mt-0.5 truncate">
-                            {t('zipPicker.subtitle', { modName: payload.modName })}
-                        </p>
-                    </div>
-                    <button
-                        onClick={!isBusy ? onClose : undefined}
-                        disabled={isBusy}
-                        className="text-text-subtle hover:text-text transition-colors shrink-0 mt-0.5 disabled:opacity-40"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
+            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
+                <div className="min-w-0">
+                    <h2 className="text-sm font-semibold">{t('zipPicker.title')}</h2>
+                    <p className="text-xs text-text-muted mt-0.5 truncate">
+                        {t('zipPicker.subtitle', { modName: payload.modName })}
+                    </p>
                 </div>
+                <button
+                    onClick={!isBusy ? onClose : undefined}
+                    disabled={isBusy}
+                    className="text-text-subtle hover:text-text transition-colors shrink-0 mt-0.5 disabled:opacity-40"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+            </div>
 
-                {downloadProgress !== null && (
-                    <div className="h-0.5 bg-surface-active shrink-0">
-                        {downloadProgress.total > 0 ? (
-                            <div
-                                className="h-full bg-accent transition-[width] duration-100"
-                                style={{
-                                    width: `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`,
-                                }}
-                            />
-                        ) : (
-                            <div className="h-full bg-accent animate-pulse w-full" />
-                        )}
+            {downloadProgress !== null && (
+                <div className="h-0.5 bg-surface-active shrink-0">
+                    {downloadProgress.total > 0 ? (
+                        <div
+                            className="h-full bg-accent transition-[width] duration-100"
+                            style={{
+                                width: `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`,
+                            }}
+                        />
+                    ) : (
+                        <div className="h-full bg-accent animate-pulse w-full" />
+                    )}
+                </div>
+            )}
+
+            <div className="overflow-y-auto flex-1 px-4 py-3 flex flex-col gap-2">
+                {error && (
+                    <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
+                        {error}
                     </div>
                 )}
 
-                <div className="overflow-y-auto flex-1 px-4 py-3 flex flex-col gap-2">
-                    {error && (
-                        <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
-                            {error}
-                        </div>
-                    )}
-
-                    <div
-                        onClick={() => !isBusy && toggleAll()}
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-hover cursor-pointer hover:bg-surface-active transition-colors"
-                    >
-                        <input
-                            type="checkbox"
-                            checked={selected.size === payload.entries.length}
-                            ref={(el) => {
-                                if (el)
-                                    el.indeterminate =
-                                        selected.size > 0 && selected.size < payload.entries.length
-                            }}
-                            onChange={toggleAll}
-                            disabled={isBusy}
-                            onClick={(e) => e.stopPropagation()}
-                            className="accent-accent w-4 h-4 shrink-0"
-                        />
-                        <span className="text-xs font-medium text-text-muted">
-                            {selected.size === payload.entries.length
-                                ? t('zipPicker.deselectAll')
-                                : t('zipPicker.selectAll', { count: payload.entries.length })}
-                        </span>
-                    </div>
-
-                    {isStructured ? (
-                        <>
-                            {rootEntries.map((entry) => renderEntry(entry))}
-                            {subdirSections.map(([dir, dirEntries]) => {
-                                const dirName = dir.split('/').pop() ?? dir
-                                const allInGroup = dirEntries.every((e) => selected.has(e))
-                                const someInGroup = dirEntries.some((e) => selected.has(e))
-                                return (
-                                    <div key={dir} className="flex flex-col gap-1.5">
-                                        <div
-                                            onClick={() => !isBusy && toggleGroup(dirEntries)}
-                                            className="flex items-center gap-2 px-3 py-1.5 cursor-pointer select-none"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={allInGroup}
-                                                ref={(el) => {
-                                                    if (el)
-                                                        el.indeterminate =
-                                                            !allInGroup && someInGroup
-                                                }}
-                                                onChange={() => toggleGroup(dirEntries)}
-                                                disabled={isBusy}
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="accent-accent w-4 h-4 shrink-0"
-                                            />
-                                            <Folder className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                                            <span className="text-xs font-medium text-text-muted">
-                                                {dirName}
-                                            </span>
-                                            <span className="text-xs text-text-subtle">
-                                                ({dirEntries.length})
-                                            </span>
-                                        </div>
-                                        {dirEntries.map((entry) => renderEntry(entry, true))}
-                                    </div>
-                                )
-                            })}
-                        </>
-                    ) : (
-                        payload.entries.map((entry) => renderEntry(entry))
-                    )}
-                </div>
-
-                <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
-                    <button
-                        onClick={!isBusy ? onClose : undefined}
+                <div
+                    onClick={() => !isBusy && toggleAll()}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-hover cursor-pointer hover:bg-surface-active transition-colors"
+                >
+                    <input
+                        type="checkbox"
+                        checked={selected.size === payload.entries.length}
+                        ref={(el) => {
+                            if (el)
+                                el.indeterminate =
+                                    selected.size > 0 && selected.size < payload.entries.length
+                        }}
+                        onChange={toggleAll}
                         disabled={isBusy}
-                        className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
-                    >
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        disabled={pendingCount === 0 || isBusy}
-                        onClick={handleInstall}
-                        className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                        {isBusy
-                            ? t('common.installing')
-                            : t('zipPicker.installSelected', { count: pendingCount })}
-                    </button>
+                        onClick={(e) => e.stopPropagation()}
+                        className="accent-accent w-4 h-4 shrink-0"
+                    />
+                    <span className="text-xs font-medium text-text-muted">
+                        {selected.size === payload.entries.length
+                            ? t('zipPicker.deselectAll')
+                            : t('zipPicker.selectAll', { count: payload.entries.length })}
+                    </span>
                 </div>
+
+                {isStructured ? (
+                    <>
+                        {rootEntries.map((entry) => renderEntry(entry))}
+                        {subdirSections.map(([dir, dirEntries]) => {
+                            const dirName = dir.split('/').pop() ?? dir
+                            const allInGroup = dirEntries.every((e) => selected.has(e))
+                            const someInGroup = dirEntries.some((e) => selected.has(e))
+                            return (
+                                <div key={dir} className="flex flex-col gap-1.5">
+                                    <div
+                                        onClick={() => !isBusy && toggleGroup(dirEntries)}
+                                        className="flex items-center gap-2 px-3 py-1.5 cursor-pointer select-none"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={allInGroup}
+                                            ref={(el) => {
+                                                if (el)
+                                                    el.indeterminate = !allInGroup && someInGroup
+                                            }}
+                                            onChange={() => toggleGroup(dirEntries)}
+                                            disabled={isBusy}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="accent-accent w-4 h-4 shrink-0"
+                                        />
+                                        <Folder className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                                        <span className="text-xs font-medium text-text-muted">
+                                            {dirName}
+                                        </span>
+                                        <span className="text-xs text-text-subtle">
+                                            ({dirEntries.length})
+                                        </span>
+                                    </div>
+                                    {dirEntries.map((entry) => renderEntry(entry, true))}
+                                </div>
+                            )
+                        })}
+                    </>
+                ) : (
+                    payload.entries.map((entry) => renderEntry(entry))
+                )}
             </div>
-        </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+                <button
+                    onClick={!isBusy ? onClose : undefined}
+                    disabled={isBusy}
+                    className="text-xs px-3 py-1.5 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
+                >
+                    {t('common.cancel')}
+                </button>
+                <button
+                    disabled={pendingCount === 0 || isBusy}
+                    onClick={handleInstall}
+                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                    {isBusy
+                        ? t('common.installing')
+                        : t('zipPicker.installSelected', { count: pendingCount })}
+                </button>
+            </div>
+        </Dialog>
     )
 }
