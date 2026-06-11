@@ -72,16 +72,22 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pd2",
     index_game_name: "PAYDAY 2",
     state_filename: ".modrex.json",
-    targets: &[ScanTarget {
-        tag: "mods",
-        unit: ModUnit::Directory {
-            entry_marker: "mod.txt",
-            priority_prefix: false,
+    targets: &[
+        ScanTarget {
+            tag: "mods",
+            unit: ModUnit::Directory { entry_marker: "mod.txt", priority_prefix: false },
+            mods_subpath: &["mods"],
+            disabled_subpath: &["mods", "disabled"],
+            backup_subpath: &["mods.bak"],
         },
-        mods_subpath: &["mods"],
-        disabled_subpath: &["mods", "disabled"],
-        backup_subpath: &["mods.bak"],
-    }],
+        ScanTarget {
+            tag: "mod_overrides",
+            unit: ModUnit::Directory { entry_marker: "main.xml", priority_prefix: false },
+            mods_subpath: &["assets", "mod_overrides"],
+            disabled_subpath: &["assets", "mod_overrides", "disabled"],
+            backup_subpath: &["assets", "mod_overrides.bak"],
+        },
+    ],
 };
 
 pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {

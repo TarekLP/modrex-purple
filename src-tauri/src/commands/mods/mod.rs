@@ -104,10 +104,11 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         .iter()
         .map(|m| {
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            match rel {
+            let rel_path = match rel {
                 Some(r) => format!("{}/{}", r, m.filename),
                 None => m.filename.clone(),
-            }
+            };
+            format!("{}:{}", m.location.as_deref().unwrap_or(""), rel_path)
         })
         .collect();
 
@@ -129,7 +130,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
     let mut max_p = state.folders.iter().map(|f| f.priority).max().unwrap_or(0)
         .max(state.mods.iter().filter(|m| m.folder_id.is_none()).filter_map(|m| m.priority).max().unwrap_or(0));
 
-    for (rel_path, _) in &untracked {
+    for (rel_path, _, _) in &untracked {
         let parts: Vec<&str> = rel_path.split('/').collect();
         if parts.len() <= 1 { continue; }
         let segs = &parts[..parts.len() - 1];
@@ -154,24 +155,25 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
 
     let sha_futures: Vec<_> = untracked
         .iter()
-        .map(|(rel_path, enabled)| {
+        .map(|(rel_path, enabled, location_tag)| {
             let game_path = game_path.clone();
             let rel_path = rel_path.clone();
             let enabled = *enabled;
+            let entry_target = cfg.target_for(location_tag.as_deref());
             async move {
-                let path = match &cfg.primary().unit {
+                let path = match &entry_target.unit {
                     engine::ModUnit::File { .. } => {
                         if enabled {
-                            mods_base(&game_path, cfg.primary()).join(&rel_path)
+                            mods_base(&game_path, entry_target).join(&rel_path)
                         } else {
-                            disabled_base(&game_path, cfg.primary()).join(format!("{}{}", rel_path, cfg.primary().disabled_suffix()))
+                            disabled_base(&game_path, entry_target).join(format!("{}{}", rel_path, entry_target.disabled_suffix()))
                         }
                     }
                     engine::ModUnit::Directory { entry_marker, .. } => {
                         if enabled {
-                            mods_base(&game_path, cfg.primary()).join(&rel_path).join(entry_marker)
+                            mods_base(&game_path, entry_target).join(&rel_path).join(entry_marker)
                         } else {
-                            disabled_base(&game_path, cfg.primary()).join(&rel_path).join(entry_marker)
+                            disabled_base(&game_path, entry_target).join(&rel_path).join(entry_marker)
                         }
                     }
                 };
@@ -192,7 +194,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
 
     let mut reconcile_ops: Vec<(String, String, bool, Option<String>)> = Vec::new();
 
-    for ((rel_path, enabled), sha256) in untracked.iter().zip(sha256s.iter()) {
+    for ((rel_path, enabled, _), sha256) in untracked.iter().zip(sha256s.iter()) {
         let Some(sha) = sha256 else { continue };
         let Some(uid) = sha256_to_uid.get(sha.as_str()) else { continue };
         let parts: Vec<&str> = rel_path.split('/').collect();
@@ -218,7 +220,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
     let mut by_uid: HashMap<String, InstalledMod> =
         state.mods.iter().map(|m| (m.uid.clone(), m.clone())).collect();
 
-    for ((rel_path, enabled), sha256) in untracked.iter().zip(sha256s.iter()) {
+    for ((rel_path, enabled, location_tag), sha256) in untracked.iter().zip(sha256s.iter()) {
         // Already reconciled to an existing tracked entry above
         if sha256.as_deref().is_some_and(|s| sha256_to_uid.contains_key(s)) {
             continue;
@@ -229,7 +231,8 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
         let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
 
-        let stem = match &cfg.primary().unit {
+        let entry_target = cfg.target_for(location_tag.as_deref());
+        let stem = match &entry_target.unit {
             engine::ModUnit::File { .. } => filename
                 .strip_suffix(".pak")
                 .or_else(|| filename.strip_suffix(".pak.disabled"))
@@ -293,6 +296,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
             file_id,
             sha256: sha256.clone(),
             folder_id,
+            location: location_tag.clone(),
             ..InstalledMod::default()
         });
     }

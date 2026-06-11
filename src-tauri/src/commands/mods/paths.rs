@@ -49,14 +49,26 @@ pub async fn find_untracked_paks(
     game_path: &str,
     known: &HashSet<String>,
     cfg: &ModEngineConfig,
-) -> Vec<(String, bool)> {
-    if engine_backup_dir(game_path, cfg.primary()).exists() {
-        return vec![];
-    }
+) -> Vec<(String, bool, Option<String>)> {
     let mut out = Vec::new();
-    let target = cfg.primary();
-    scan_active(&mods_dir(game_path, target), "", known, target, &mut out).await;
-    scan_disabled(&disabled_dir(game_path, target), "", known, target, &mut out).await;
+    for (i, target) in cfg.targets.iter().enumerate() {
+        if engine_backup_dir(game_path, target).exists() {
+            continue;
+        }
+        let tag = if i == 0 { "" } else { target.tag };
+        let tag_prefix = format!("{}:", tag);
+        let target_known: HashSet<String> = known
+            .iter()
+            .filter_map(|k| k.strip_prefix(&tag_prefix).map(|s| s.to_string()))
+            .collect();
+        let location_tag: Option<String> = if i == 0 { None } else { Some(target.tag.to_string()) };
+        let mut target_out: Vec<(String, bool)> = Vec::new();
+        scan_active(&mods_dir(game_path, target), "", &target_known, target, &mut target_out).await;
+        scan_disabled(&disabled_dir(game_path, target), "", &target_known, target, &mut target_out).await;
+        for (path, enabled) in target_out {
+            out.push((path, enabled, location_tag.clone()));
+        }
+    }
     out
 }
 
