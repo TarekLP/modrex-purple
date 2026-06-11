@@ -338,7 +338,7 @@ pub async fn install_mod(
 
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let downloaded = download_file(&app, &download_url, &file_type).await?;
-    let (tmp, zip_orig) = match resolve_archive_download(downloaded, cfg) {
+    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
             if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
                 v["modId"] = serde_json::json!(remote_id);
@@ -352,9 +352,10 @@ pub async fn install_mod(
         }
         result => result?,
     };
+    let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
-        let sha256 = match &cfg.primary().unit {
+        let sha256 = match &target.unit {
             engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
             engine::ModUnit::Directory { entry_marker, .. } => {
                 compute_sha256(&tmp.join(entry_marker)).await?
@@ -378,7 +379,7 @@ pub async fn install_mod(
         });
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &cfg.primary().unit {
+            .unwrap_or_else(|| match &target.unit {
                 engine::ModUnit::File { .. } => pak_filename(&mod_name),
                 engine::ModUnit::Directory { .. } => tmp
                     .file_name()
@@ -416,7 +417,7 @@ pub async fn install_mod(
             &tmp,
             effective_folder_id,
             cfg,
-            cfg.primary(),
+            target,
         )?;
 
         let _ = http_client()
@@ -429,7 +430,7 @@ pub async fn install_mod(
     }
     .await;
 
-    match &cfg.primary().unit {
+    match &target.unit {
         engine::ModUnit::File { .. } => { let _ = tokio::fs::remove_file(&tmp).await; }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
@@ -457,7 +458,7 @@ pub async fn install_file(
 ) -> Result<(), String> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let downloaded = download_file(&app, &download_url, &file_type).await?;
-    let (tmp, zip_orig) = match resolve_archive_download(downloaded, cfg) {
+    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
             if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
                 v["modId"] = serde_json::json!(mod_id);
@@ -471,9 +472,10 @@ pub async fn install_file(
         }
         result => result?,
     };
+    let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
-        let sha256 = match &cfg.primary().unit {
+        let sha256 = match &target.unit {
             engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
             engine::ModUnit::Directory { entry_marker, .. } => {
                 compute_sha256(&tmp.join(entry_marker)).await?
@@ -497,7 +499,7 @@ pub async fn install_file(
         };
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &cfg.primary().unit {
+            .unwrap_or_else(|| match &target.unit {
                 engine::ModUnit::File { .. } => {
                     if file_type == "main" { pak_filename(&mod_name) } else { pak_filename(&format!("{}_{}", mod_name, file_id)) }
                 }
@@ -527,7 +529,7 @@ pub async fn install_file(
             &tmp,
             effective_folder_id,
             cfg,
-            cfg.primary(),
+            target,
         )?;
 
         let _ = http_client()
@@ -540,7 +542,7 @@ pub async fn install_file(
     }
     .await;
 
-    match &cfg.primary().unit {
+    match &target.unit {
         engine::ModUnit::File { .. } => { let _ = tokio::fs::remove_file(&tmp).await; }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
@@ -567,8 +569,10 @@ pub async fn install_from_zip_entry(
     game_path: String,
     folder_id: Option<String>,
     game_id: Option<String>,
+    location_tag: Option<String>,
 ) -> Result<(), String> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let target = cfg.target_for(location_tag.as_deref());
     let zip = PathBuf::from(&zip_path);
 
     // entry_stem / entry_filename are the last path component of entry_name.
@@ -584,7 +588,7 @@ pub async fn install_from_zip_entry(
 
     // For File mods: ext is a temp .pak file.
     // For Directory mods: ext is {tmp_parent}/{dir_name} (two-level, consistent with resolve_archive_download).
-    let (ext, tmp_parent) = match &cfg.primary().unit {
+    let (ext, tmp_parent) = match &target.unit {
         engine::ModUnit::File { .. } => {
             let p = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
             (p, None)
@@ -599,11 +603,11 @@ pub async fn install_from_zip_entry(
     let uid = format!("{}_{}", file_id, entry_stem);
 
     let result = async {
-        match &cfg.primary().unit {
+        match &target.unit {
             engine::ModUnit::File { .. } => extract_entry(&zip, &entry_name, &ext)?,
             engine::ModUnit::Directory { .. } => extract_dir_entry(&zip, &entry_name, &ext)?,
         }
-        let sha256 = match &cfg.primary().unit {
+        let sha256 = match &target.unit {
             engine::ModUnit::File { .. } => compute_sha256(&ext).await?,
             engine::ModUnit::Directory { entry_marker, .. } => {
                 compute_sha256(&ext.join(entry_marker)).await?
@@ -638,7 +642,7 @@ pub async fn install_from_zip_entry(
             &ext,
             effective_folder_id,
             cfg,
-            cfg.primary(),
+            target,
         )?;
 
         let _ = http_client()

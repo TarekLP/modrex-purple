@@ -387,9 +387,15 @@ fn extract_dir_tar<R: Read>(reader: R, dir_prefix: &str, dest: &Path) -> Result<
     Ok(())
 }
 
-pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> Result<(PathBuf, Option<PathBuf>), String> {
+/// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
+/// Returns `(extracted_path, original_archive, location_tag)` where `location_tag` is `None`
+/// for the primary target and `Some(tag)` for any secondary target (e.g. `"mod_overrides"`).
+pub fn resolve_archive_download(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+) -> Result<(PathBuf, Option<PathBuf>, Option<String>), String> {
     if detect_archive(&downloaded).is_none() {
-        return Ok((downloaded, None));
+        return Ok((downloaded, None, None));
     }
     match &cfg.primary().unit {
         ModUnit::File { .. } => {
@@ -402,39 +408,53 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 1 => {
                     let tmp = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
                     extract_entry(&downloaded, &entries[0], &tmp)?;
-                    Ok((tmp, Some(downloaded)))
+                    Ok((tmp, Some(downloaded), None))
                 }
                 _ => {
                     let zip_path = downloaded.to_string_lossy().to_string();
-                    let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries });
+                    let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries, "targetTag": serde_json::Value::Null });
                     Err(format!("ZIP_MULTI_PAK:{}", payload))
                 }
             }
         }
-        ModUnit::Directory { entry_marker, .. } => {
-            let dirs = list_mod_dir_entries(&downloaded, entry_marker)?;
-            match dirs.len() {
-                0 => {
-                    let _ = std::fs::remove_file(&downloaded);
-                    Err(format!("This mod is packaged as an archive with no {} found inside.", entry_marker))
+        ModUnit::Directory { .. } => {
+            // Try each Directory target's entry_marker in order; first non-empty match wins.
+            let mut found: Option<(Vec<String>, usize)> = None;
+            for (i, target) in cfg.targets.iter().enumerate() {
+                if let ModUnit::Directory { entry_marker, .. } = &target.unit {
+                    if let Ok(dirs) = list_mod_dir_entries(&downloaded, entry_marker) {
+                        if !dirs.is_empty() {
+                            found = Some((dirs, i));
+                            break;
+                        }
+                    }
                 }
-                1 => {
-                    let dir_name = Path::new(&dirs[0])
-                        .file_name()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("mod")
-                        .to_string();
-                    // Two-level temp: {uuid_dir}/{dir_name} so tmp.file_name() == dir_name.
-                    let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
-                    let tmp = tmp_parent.join(&dir_name);
-                    extract_dir_entry(&downloaded, &dirs[0], &tmp)?;
-                    Ok((tmp, Some(downloaded)))
+            }
+            let (dirs, target_idx) = found.ok_or_else(|| {
+                let _ = std::fs::remove_file(&downloaded);
+                if let ModUnit::Directory { entry_marker, .. } = &cfg.primary().unit {
+                    format!("This mod is packaged as an archive with no {} found inside.", entry_marker)
+                } else {
+                    "No valid mod directory found in archive.".to_string()
                 }
-                _ => {
-                    let zip_path = downloaded.to_string_lossy().to_string();
-                    let payload = serde_json::json!({ "zipPath": zip_path, "entries": dirs });
-                    Err(format!("ZIP_MULTI_PAK:{}", payload))
-                }
+            })?;
+            let location_tag: Option<String> =
+                if target_idx == 0 { None } else { Some(cfg.targets[target_idx].tag.to_string()) };
+            if dirs.len() == 1 {
+                let dir_name = Path::new(&dirs[0])
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("mod")
+                    .to_string();
+                // Two-level temp: {uuid_dir}/{dir_name} so tmp.file_name() == dir_name.
+                let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+                let tmp = tmp_parent.join(&dir_name);
+                extract_dir_entry(&downloaded, &dirs[0], &tmp)?;
+                Ok((tmp, Some(downloaded), location_tag))
+            } else {
+                let zip_path = downloaded.to_string_lossy().to_string();
+                let payload = serde_json::json!({ "zipPath": zip_path, "entries": dirs, "targetTag": location_tag });
+                Err(format!("ZIP_MULTI_PAK:{}", payload))
             }
         }
     }
