@@ -40,7 +40,9 @@ export default function App() {
     const [gamePathReady, setGamePathReady] = useState(false)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
     const [folders, setFolders] = useState<ModFolder[]>([])
-    const [installedReady, setInstalledReady] = useState(false)
+    // Games whose installed list has been fetched at least once this session.
+    // Empty set = startup splash; per-game membership gates the "no mods" empty state.
+    const [readyGames, setReadyGames] = useState<ReadonlySet<GameId>>(new Set())
     const [modsHidden, setModsHidden] = useState(false)
     const [restoreError, setRestoreError] = useState<string | null>(null)
     const [update, setUpdate] = useState<{
@@ -115,7 +117,7 @@ export default function App() {
         setInstalled(result.mods)
         setFolders(result.folders)
         setModsHidden(result.modsHidden)
-        setInstalledReady(true)
+        setReadyGames((prev) => (prev.has(game) ? prev : new Set(prev).add(game)))
     }, [activeGame])
 
     async function handleRestoreMods() {
@@ -229,7 +231,7 @@ export default function App() {
     return (
         <TooltipProvider delayDuration={400}>
             <div className="flex flex-col h-screen bg-surface text-text">
-                {!installedReady && (
+                {readyGames.size === 0 && (
                     <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-4 z-50">
                         <img src={appIcon} alt="Modrex" className="w-16 h-16 opacity-90" />
                         <span
@@ -307,7 +309,7 @@ export default function App() {
                                         gamePath={gamePath}
                                         installed={installed}
                                         folders={folders}
-                                        installedReady={installedReady}
+                                        installedReady={readyGames.has(activeGame)}
                                         onRefreshInstalled={refreshInstalled}
                                         onOpenDetail={openDetailFromInstalled}
                                     />
