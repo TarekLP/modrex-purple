@@ -43,6 +43,27 @@ use std::path::PathBuf;
 use tauri::AppHandle;
 use uuid::Uuid;
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+fn first_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
+        let ft = entry.file_type().ok()?;
+        if ft.is_file() { return Some(entry.path()); }
+        if ft.is_dir() {
+            if let Some(p) = first_file_in_dir(&entry.path()) { return Some(p); }
+        }
+    }
+    None
+}
+
+fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let main_xml = dir.join("main.xml");
+    if main_xml.exists() { return Some(main_xml); }
+    first_file_in_dir(dir)
+}
+
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -169,12 +190,20 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
                             disabled_base(&game_path, entry_target).join(format!("{}{}", rel_path, entry_target.disabled_suffix()))
                         }
                     }
-                    engine::ModUnit::Directory { entry_marker, .. } => {
-                        if enabled {
-                            mods_base(&game_path, entry_target).join(&rel_path).join(entry_marker)
+                    engine::ModUnit::Directory { entry_markers, .. } => {
+                        let mod_dir = if enabled {
+                            mods_base(&game_path, entry_target).join(&rel_path)
                         } else {
-                            disabled_base(&game_path, entry_target).join(&rel_path).join(entry_marker)
+                            disabled_base(&game_path, entry_target).join(&rel_path)
+                        };
+                        if entry_markers.is_empty() {
+                            let Some(p) = hashable_file_for_mod_dir(&mod_dir) else { return None };
+                            return compute_sha256(&p).await.ok();
                         }
+                        entry_markers.iter()
+                            .map(|m| mod_dir.join(m))
+                            .find(|p| p.exists())
+                            .unwrap_or_else(|| mod_dir.join(entry_markers[0]))
                     }
                 };
                 compute_sha256(&path).await.ok()
@@ -361,8 +390,17 @@ pub async fn install_mod(
     let result = async {
         let sha256 = match &target.unit {
             engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_marker, .. } => {
-                compute_sha256(&tmp.join(entry_marker)).await?
+            engine::ModUnit::Directory { entry_markers, .. } => {
+                let hash_path = if entry_markers.is_empty() {
+                    hashable_file_for_mod_dir(&tmp)
+                        .ok_or_else(|| "mod directory is empty".to_string())?
+                } else {
+                    entry_markers.iter()
+                        .map(|m| tmp.join(m))
+                        .find(|p| p.exists())
+                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
+                };
+                compute_sha256(&hash_path).await?
             }
         };
         let uid = file_id.to_string();
@@ -481,8 +519,17 @@ pub async fn install_file(
     let result = async {
         let sha256 = match &target.unit {
             engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
-            engine::ModUnit::Directory { entry_marker, .. } => {
-                compute_sha256(&tmp.join(entry_marker)).await?
+            engine::ModUnit::Directory { entry_markers, .. } => {
+                let hash_path = if entry_markers.is_empty() {
+                    hashable_file_for_mod_dir(&tmp)
+                        .ok_or_else(|| "mod directory is empty".to_string())?
+                } else {
+                    entry_markers.iter()
+                        .map(|m| tmp.join(m))
+                        .find(|p| p.exists())
+                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
+                };
+                compute_sha256(&hash_path).await?
             }
         };
         let uid = file_id.to_string();
@@ -613,8 +660,17 @@ pub async fn install_from_zip_entry(
         }
         let sha256 = match &target.unit {
             engine::ModUnit::File { .. } => compute_sha256(&ext).await?,
-            engine::ModUnit::Directory { entry_marker, .. } => {
-                compute_sha256(&ext.join(entry_marker)).await?
+            engine::ModUnit::Directory { entry_markers, .. } => {
+                let hash_path = if entry_markers.is_empty() {
+                    hashable_file_for_mod_dir(&ext)
+                        .ok_or_else(|| "mod directory is empty".to_string())?
+                } else {
+                    entry_markers.iter()
+                        .map(|m| ext.join(m))
+                        .find(|p| p.exists())
+                        .unwrap_or_else(|| ext.join(entry_markers[0]))
+                };
+                compute_sha256(&hash_path).await?
             }
         };
         let sp = get_state_path(&game_path, cfg);

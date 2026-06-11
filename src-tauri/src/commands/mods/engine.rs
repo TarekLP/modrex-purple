@@ -7,7 +7,7 @@ pub enum ModUnit {
         priority_prefix: bool,
     },
     Directory {
-        entry_marker: &'static str,
+        entry_markers: &'static [&'static str],
         priority_prefix: bool,
     },
 }
@@ -75,14 +75,14 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
     targets: &[
         ScanTarget {
             tag: "mods",
-            unit: ModUnit::Directory { entry_marker: "mod.txt", priority_prefix: false },
+            unit: ModUnit::Directory { entry_markers: &["mod.txt", "main.xml"], priority_prefix: false },
             mods_subpath: &["mods"],
             disabled_subpath: &["mods", "disabled"],
             backup_subpath: &["mods.bak"],
         },
         ScanTarget {
             tag: "mod_overrides",
-            unit: ModUnit::Directory { entry_marker: "main.xml", priority_prefix: false },
+            unit: ModUnit::Directory { entry_markers: &[], priority_prefix: false },
             mods_subpath: &["assets", "mod_overrides"],
             disabled_subpath: &["assets", "mod_overrides", "disabled"],
             backup_subpath: &["assets", "mod_overrides.bak"],
@@ -97,7 +97,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     targets: &[ScanTarget {
         tag: "mods",
         unit: ModUnit::Directory {
-            entry_marker: "mod.txt",
+            entry_markers: &["mod.txt"],
             priority_prefix: false,
         },
         mods_subpath: &["mods"],

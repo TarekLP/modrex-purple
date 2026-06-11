@@ -102,9 +102,14 @@ async fn scan_active(
                     out.push((rel, true));
                 }
             }
-            ModUnit::Directory { entry_marker, .. } => {
+            ModUnit::Directory { entry_markers, .. } => {
                 if ft.is_dir() {
-                    if entry.path().join(entry_marker).exists() {
+                    let is_mod = if entry_markers.is_empty() {
+                        true
+                    } else {
+                        entry_markers.iter().any(|m| entry.path().join(m).exists())
+                    };
+                    if is_mod {
                         if !known.contains(&rel) {
                             out.push((rel, true));
                         }
@@ -151,9 +156,14 @@ async fn scan_disabled(
                     }
                 }
             }
-            ModUnit::Directory { entry_marker, .. } => {
+            ModUnit::Directory { entry_markers, .. } => {
                 if ft.is_dir() {
-                    if entry.path().join(entry_marker).exists() {
+                    let is_mod = if entry_markers.is_empty() {
+                        true
+                    } else {
+                        entry_markers.iter().any(|m| entry.path().join(m).exists())
+                    };
+                    if is_mod {
                         if !known.contains(&sub) {
                             out.push((sub, false));
                         }
