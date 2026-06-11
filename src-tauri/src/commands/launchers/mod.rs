@@ -326,9 +326,22 @@ pub fn stop_game(game_id: Option<String>) {
         .output();
 }
 
+/// Returns the URL only if it is safe to hand to the OS shell: an `http`, `https`, or
+/// `mailto` URL containing no characters that could break out of the Windows `cmd /c start`
+/// invocation. Links come from untrusted mod authors, so this gates every external open.
+fn sanitize_external_url(url: &str) -> Option<&str> {
+    if url.contains(|c| matches!(c, '"' | '\n' | '\r')) {
+        return None;
+    }
+    let scheme = reqwest::Url::parse(url).ok()?.scheme().to_string();
+    matches!(scheme.as_str(), "http" | "https" | "mailto").then_some(url)
+}
+
 #[tauri::command]
 pub fn shell_open_external(url: String) {
-    open_url(&url);
+    if let Some(safe) = sanitize_external_url(&url) {
+        open_url(safe);
+    }
 }
 
 #[tauri::command]

@@ -124,3 +124,29 @@ fn identify_launcher_steam_takes_precedence() {
     std::fs::create_dir(dir.path().join(".egstore")).unwrap();
     assert_eq!(identify_launcher_for_path(dir.path().to_str().unwrap()), "steam");
 }
+
+// ── sanitize_external_url ─────────────────────────────────────────────────
+
+#[test]
+fn sanitize_url_allows_web_and_mailto() {
+    assert!(sanitize_external_url("http://example.com/a?b=1&c=2").is_some());
+    assert!(sanitize_external_url("https://modworkshop.net/mod/123").is_some());
+    assert!(sanitize_external_url("mailto:author@example.com").is_some());
+}
+
+#[test]
+fn sanitize_url_rejects_file_and_unc() {
+    assert!(sanitize_external_url("file:///C:/Windows/System32/calc.exe").is_none());
+    assert!(sanitize_external_url(r"\\attacker\share\evil.exe").is_none());
+}
+
+#[test]
+fn sanitize_url_rejects_dangerous_schemes() {
+    assert!(sanitize_external_url("vbscript:msgbox(1)").is_none());
+    assert!(sanitize_external_url("javascript:alert(1)").is_none());
+}
+
+#[test]
+fn sanitize_url_rejects_cmd_breakout_chars() {
+    assert!(sanitize_external_url("http://x/\" & calc.exe & \"").is_none());
+}

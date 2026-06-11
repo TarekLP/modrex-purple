@@ -161,7 +161,7 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         ),
         li: ({ children }) => <li className="mb-0.5">{children}</li>,
         a: ({ href, children }) => {
-            if (!href || href.startsWith('javascript:')) return <>{children}</>
+            if (!href || !/^(https?|mailto):/i.test(href)) return <>{children}</>
             return (
                 <a
                     onClick={(e) => {
