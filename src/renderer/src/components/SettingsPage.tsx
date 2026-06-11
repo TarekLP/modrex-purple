@@ -3,6 +3,8 @@ import { FolderOpen, RefreshCw, ScrollText } from 'lucide-react'
 import { t } from '../i18n'
 import { Select } from './Select'
 import { api } from '../api'
+import type { GameSettings } from '../api'
+import { getSettingsCache, setSettingsCache, patchSettingsCache } from '../settingsCache'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import SteamIcon from '../../../../assets/icons/steam.svg?react'
@@ -24,40 +26,60 @@ interface Props {
     onGamePathChange: () => Promise<void>
 }
 
+function effectiveLauncher(gs: GameSettings, installed: string[]): string {
+    const saved = gs.launcher ?? installed[0] ?? 'steam'
+    return installed.length > 0 && !installed.includes(saved) ? installed[0] : saved
+}
+
 export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathChange }: Props) {
-    const [settings, setSettings] = useState<{
-        gamePath?: string
-        launcher?: string
-        launchOptions?: string
-    } | null>(null)
+    // The component remounts per game (key={activeGame} in App.tsx), so cache reads
+    // in the initializers always belong to the right game. Warm cache = instant
+    // correct values; the effect below revalidates in the background.
+    const [settings, setSettings] = useState<GameSettings | null>(
+        () => getSettingsCache(activeGame)?.settings ?? null
+    )
     const [picking, setPicking] = useState(false)
     const [pathError, setPathError] = useState<string | null>(null)
     const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate'>('idle')
-    const [launcher, setLauncher] = useState('steam')
-    const [installedLaunchers, setInstalledLaunchers] = useState<string[]>([])
-    const [launchOptions, setLaunchOptions] = useState('')
+    const [launcher, setLauncher] = useState(() => {
+        const cached = getSettingsCache(activeGame)
+        return cached ? effectiveLauncher(cached.settings, cached.installedLaunchers) : 'steam'
+    })
+    const [installedLaunchers, setInstalledLaunchers] = useState<string[]>(
+        () => getSettingsCache(activeGame)?.installedLaunchers ?? []
+    )
+    const [launchOptions, setLaunchOptions] = useState(
+        () => getSettingsCache(activeGame)?.settings.launchOptions ?? ''
+    )
     const launchOptionsLoaded = useRef(false)
 
     useEffect(() => {
         launchOptionsLoaded.current = false
+        let cancelled = false
         Promise.all([api.getGameSettings(activeGame), api.getInstalledLaunchers(activeGame)]).then(
             ([gs, installed]) => {
+                setSettingsCache(activeGame, { settings: gs, installedLaunchers: installed })
+                if (cancelled) return
                 setInstalledLaunchers(installed)
                 setSettings(gs)
-                const saved = gs.launcher ?? installed[0] ?? 'steam'
-                const effective =
-                    installed.length > 0 && !installed.includes(saved) ? installed[0] : saved
+                const effective = effectiveLauncher(gs, installed)
                 setLauncher(effective)
                 if (effective !== gs.launcher) api.setLauncher(effective, activeGame)
                 setLaunchOptions(gs.launchOptions ?? '')
                 launchOptionsLoaded.current = true
             }
         )
+        return () => {
+            cancelled = true
+        }
     }, [activeGame])
 
     useEffect(() => {
         if (!launchOptionsLoaded.current) return
-        const timer = setTimeout(() => api.setLaunchOptions(launchOptions, activeGame), 500)
+        const timer = setTimeout(() => {
+            api.setLaunchOptions(launchOptions, activeGame)
+            patchSettingsCache(activeGame, { launchOptions })
+        }, 500)
         return () => clearTimeout(timer)
     }, [launchOptions, activeGame])
 
@@ -72,6 +94,7 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
             try {
                 await api.setGamePath(picked, activeGame)
                 setSettings((s) => ({ ...s, gamePath: picked }))
+                patchSettingsCache(activeGame, { gamePath: picked })
                 await onGamePathChange()
             } catch {
                 setPathError(t('settings.gamePath.invalid', { game: GAMES[activeGame].name }))
@@ -94,6 +117,7 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
 
     async function handleLauncherChange(value: string) {
         setLauncher(value)
+        patchSettingsCache(activeGame, { launcher: value })
         await api.setLauncher(value, activeGame)
     }
 
@@ -142,7 +166,9 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
                     )}
                 </section>
 
-                <section className="max-w-xl flex flex-col gap-2 mt-6">
+                <section
+                    className={`max-w-xl flex flex-col gap-2 mt-6 ${settings === null ? 'opacity-50 pointer-events-none' : ''}`}
+                >
                     <h2 className="text-sm font-semibold">{t('settings.launcher.title')}</h2>
                     <p className="text-xs text-text-subtle">{t('settings.launcher.description')}</p>
                     <div className="mt-1">
@@ -192,37 +218,35 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
                     </div>
                 </section>
 
-                {settings !== null && (
-                    <section className="max-w-xl flex flex-col gap-2 mt-6">
-                        <h2 className="text-sm font-semibold">
-                            {t('settings.launchOptions.title')}
-                        </h2>
-                        {activeGame === 'pd3' &&
-                            (launcher === 'xbox' ? (
-                                <p className="text-xs text-text-subtle">
-                                    {t('settings.launchOptions.xboxNotePre')}{' '}
-                                    <span className="font-mono text-text">-fileopenlog</span>{' '}
-                                    {t('settings.launchOptions.xboxNotePost')}
-                                </p>
-                            ) : (
-                                <p className="text-xs text-text-subtle">
-                                    {t('settings.launchOptions.descriptionPre')}{' '}
-                                    <span className="font-mono text-text">-fileopenlog</span>{' '}
-                                    {t('settings.launchOptions.descriptionPost')}
-                                </p>
-                            ))}
-                        <input
-                            type="text"
-                            value={launchOptions}
-                            onChange={(e) => setLaunchOptions(e.target.value)}
-                            placeholder={
-                                activeGame === 'pd3' ? t('settings.launchOptions.placeholder') : ''
-                            }
-                            disabled={launcher === 'xbox'}
-                            className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
-                        />
-                    </section>
-                )}
+                <section
+                    className={`max-w-xl flex flex-col gap-2 mt-6 ${settings === null ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                    <h2 className="text-sm font-semibold">{t('settings.launchOptions.title')}</h2>
+                    {activeGame === 'pd3' &&
+                        (launcher === 'xbox' ? (
+                            <p className="text-xs text-text-subtle">
+                                {t('settings.launchOptions.xboxNotePre')}{' '}
+                                <span className="font-mono text-text">-fileopenlog</span>{' '}
+                                {t('settings.launchOptions.xboxNotePost')}
+                            </p>
+                        ) : (
+                            <p className="text-xs text-text-subtle">
+                                {t('settings.launchOptions.descriptionPre')}{' '}
+                                <span className="font-mono text-text">-fileopenlog</span>{' '}
+                                {t('settings.launchOptions.descriptionPost')}
+                            </p>
+                        ))}
+                    <input
+                        type="text"
+                        value={launchOptions}
+                        onChange={(e) => setLaunchOptions(e.target.value)}
+                        placeholder={
+                            activeGame === 'pd3' ? t('settings.launchOptions.placeholder') : ''
+                        }
+                        disabled={launcher === 'xbox'}
+                        className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+                    />
+                </section>
             </div>
         </div>
     )

@@ -20,7 +20,7 @@ type Settings = {
     dismissedDepsWarnings?: number[]
 }
 
-type GameSettings = {
+export type GameSettings = {
     gamePath?: string
     launcher?: string
     launchOptions?: string
