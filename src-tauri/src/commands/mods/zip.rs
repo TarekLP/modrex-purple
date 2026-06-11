@@ -43,62 +43,85 @@ pub fn is_zip(path: &Path) -> bool {
     detect_archive(path) == Some(ArchiveFormat::Zip)
 }
 
-pub fn list_pak_entries(path: &Path) -> Result<Vec<String>, String> {
+/// One archive member: `name` is normalized to forward slashes; `is_dir` flags directory
+/// entries. The pak/dir listing operations are pure functions over a `Vec` of these.
+struct ArchiveEntry {
+    name: String,
+    is_dir: bool,
+}
+
+/// Enumerates every member of an archive, dispatching on the detected format. This is the
+/// single per-format read path; listing helpers operate on its output.
+fn list_entries(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
     match detect_archive(path) {
-        Some(ArchiveFormat::Zip) => list_pak_entries_zip(path),
-        Some(ArchiveFormat::SevenZip) => list_pak_entries_7z(path),
-        Some(ArchiveFormat::TarGz) => list_pak_entries_tar(flate2::read::GzDecoder::new(
+        Some(ArchiveFormat::Zip) => list_entries_zip(path),
+        Some(ArchiveFormat::SevenZip) => list_entries_7z(path),
+        Some(ArchiveFormat::TarGz) => list_entries_tar(flate2::read::GzDecoder::new(
             File::open(path).map_err(|e| e.to_string())?,
         )),
-        Some(ArchiveFormat::TarXz) => list_pak_entries_tar(xz2::read::XzDecoder::new(
+        Some(ArchiveFormat::TarXz) => list_entries_tar(xz2::read::XzDecoder::new(
             File::open(path).map_err(|e| e.to_string())?,
         )),
-        Some(ArchiveFormat::Rar) => list_pak_entries_rar(path),
+        Some(ArchiveFormat::Rar) => list_entries_rar(path),
         None => Err("Not a supported archive format".to_string()),
     }
 }
 
-fn list_pak_entries_zip(path: &Path) -> Result<Vec<String>, String> {
+fn list_entries_zip(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
     let file = File::open(path).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
-    let mut entries = Vec::new();
+    let mut out = Vec::with_capacity(archive.len());
     for i in 0..archive.len() {
         let entry = archive.by_index(i).map_err(|e| e.to_string())?;
-        if !entry.is_dir() && entry.name().ends_with(".pak") {
-            entries.push(entry.name().replace('\\', "/"));
-        }
+        out.push(ArchiveEntry { name: entry.name().replace('\\', "/"), is_dir: entry.is_dir() });
     }
-    Ok(entries)
+    Ok(out)
 }
 
-fn list_pak_entries_7z(path: &Path) -> Result<Vec<String>, String> {
+fn list_entries_7z(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
     let file = File::open(path).map_err(|e| e.to_string())?;
-    let mut entries = Vec::new();
-    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, _reader, _dest| {
-        if !entry.is_directory() && entry.name().ends_with(".pak") {
-            entries.push(entry.name().replace('\\', "/")); // 7z archives may store paths with backslashes
-        }
-        Ok(true) // Ok(false) stops the loop; true continues to next entry
+    let mut out = Vec::new();
+    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dest| {
+        out.push(ArchiveEntry { name: entry.name().replace('\\', "/"), is_dir: entry.is_directory() });
+        // Drain so the stream stays aligned for the next entry in solid archives.
+        let _ = std::io::copy(reader, &mut std::io::sink());
+        Ok(true)
     })
     .map_err(|e| e.to_string())?;
-    Ok(entries)
+    Ok(out)
 }
 
-fn list_pak_entries_tar<R: Read>(reader: R) -> Result<Vec<String>, String> {
+fn list_entries_tar<R: Read>(reader: R) -> Result<Vec<ArchiveEntry>, String> {
     let mut archive = tar::Archive::new(reader);
-    let mut entries = Vec::new();
+    let mut out = Vec::new();
     for entry in archive.entries().map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
-        if entry.header().entry_type().is_dir() {
-            continue;
-        }
-        let path = entry.path().map_err(|e| e.to_string())?;
-        let name = path.to_string_lossy().replace('\\', "/");
-        if name.ends_with(".pak") {
-            entries.push(name);
-        }
+        let is_dir = entry.header().entry_type().is_dir();
+        let name = entry.path().map_err(|e| e.to_string())?.to_string_lossy().replace('\\', "/");
+        out.push(ArchiveEntry { name, is_dir });
     }
-    Ok(entries)
+    Ok(out)
+}
+
+fn list_entries_rar(path: &Path) -> Result<Vec<ArchiveEntry>, String> {
+    let archive = unrar::Archive::new(path).open_for_listing().map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for entry in archive {
+        let entry = entry.map_err(|e| e.to_string())?;
+        out.push(ArchiveEntry {
+            name: entry.filename.to_string_lossy().replace('\\', "/"),
+            is_dir: entry.is_directory(),
+        });
+    }
+    Ok(out)
+}
+
+pub fn list_pak_entries(path: &Path) -> Result<Vec<String>, String> {
+    Ok(list_entries(path)?
+        .into_iter()
+        .filter(|e| !e.is_dir && e.name.ends_with(".pak"))
+        .map(|e| e.name)
+        .collect())
 }
 
 pub fn extract_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
@@ -206,100 +229,25 @@ pub async fn compute_sha256(path: &Path) -> Result<String, String> {
 /// any of `entry_markers` as a child entry. When `entry_markers` is empty, returns all
 /// first-level directory names in the archive (used for mod_overrides asset-replacement mods).
 pub fn list_mod_dir_entries(path: &Path, entry_markers: &[&str]) -> Result<Vec<String>, String> {
+    let entries = list_entries(path)?;
+    let mut dirs: HashSet<String> = HashSet::new();
     if entry_markers.is_empty() {
-        return match detect_archive(path) {
-            Some(ArchiveFormat::Zip) => list_top_dirs_zip(path),
-            Some(ArchiveFormat::SevenZip) => list_top_dirs_7z(path),
-            Some(ArchiveFormat::TarGz) => list_top_dirs_tar(
-                flate2::read::GzDecoder::new(File::open(path).map_err(|e| e.to_string())?),
-            ),
-            Some(ArchiveFormat::TarXz) => list_top_dirs_tar(
-                xz2::read::XzDecoder::new(File::open(path).map_err(|e| e.to_string())?),
-            ),
-            Some(ArchiveFormat::Rar) => list_top_dirs_rar(path),
-            None => Err("Not a supported archive format".to_string()),
-        };
-    }
-    let Some(fmt) = detect_archive(path) else {
-        return Err("Not a supported archive format".to_string());
-    };
-    let mut all_dirs: HashSet<String> = HashSet::new();
-    for marker in entry_markers {
-        let dirs = match fmt {
-            ArchiveFormat::Zip => list_mod_dirs_zip(path, marker),
-            ArchiveFormat::SevenZip => list_mod_dirs_7z(path, marker),
-            ArchiveFormat::TarGz => list_mod_dirs_tar(
-                flate2::read::GzDecoder::new(File::open(path).map_err(|e| e.to_string())?),
-                marker,
-            ),
-            ArchiveFormat::TarXz => list_mod_dirs_tar(
-                xz2::read::XzDecoder::new(File::open(path).map_err(|e| e.to_string())?),
-                marker,
-            ),
-            ArchiveFormat::Rar => list_mod_dirs_rar(path, marker),
-        };
-        if let Ok(d) = dirs { all_dirs.extend(d); }
-    }
-    let mut result: Vec<String> = all_dirs.into_iter().collect();
-    result.sort();
-    Ok(result)
-}
-
-fn list_mod_dirs_zip(path: &Path, entry_marker: &str) -> Result<Vec<String>, String> {
-    let file = File::open(path).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
-    let mut dirs: HashSet<String> = HashSet::new();
-    let marker_suffix = format!("/{}", entry_marker);
-    for i in 0..archive.len() {
-        let entry = archive.by_index(i).map_err(|e| e.to_string())?;
-        let name = entry.name().replace('\\', "/");
-        if let Some(pos) = name.rfind(&marker_suffix) {
-            let dir = &name[..pos];
-            if !dir.is_empty() {
-                dirs.insert(dir.to_string());
+        for e in entries.iter().filter(|e| !e.is_dir) {
+            if let Some(slash) = e.name.find('/') {
+                if slash > 0 {
+                    dirs.insert(e.name[..slash].to_string());
+                }
             }
         }
-    }
-    let mut result: Vec<String> = dirs.into_iter().collect();
-    result.sort();
-    Ok(result)
-}
-
-fn list_mod_dirs_7z(path: &Path, entry_marker: &str) -> Result<Vec<String>, String> {
-    let file = File::open(path).map_err(|e| e.to_string())?;
-    let mut dirs: HashSet<String> = HashSet::new();
-    let marker_suffix = format!("/{}", entry_marker);
-    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dest| {
-        let name = entry.name().replace('\\', "/");
-        if let Some(pos) = name.rfind(&marker_suffix) {
-            let dir = &name[..pos];
-            if !dir.is_empty() {
-                dirs.insert(dir.to_string());
-            }
-        }
-        let _ = std::io::copy(reader, &mut std::io::sink());
-        Ok(true)
-    })
-    .map_err(|e| e.to_string())?;
-    let mut result: Vec<String> = dirs.into_iter().collect();
-    result.sort();
-    Ok(result)
-}
-
-fn list_mod_dirs_tar<R: Read>(reader: R, entry_marker: &str) -> Result<Vec<String>, String> {
-    let mut archive = tar::Archive::new(reader);
-    let mut dirs: HashSet<String> = HashSet::new();
-    let marker_suffix = format!("/{}", entry_marker);
-    for entry in archive.entries().map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if entry.header().entry_type().is_dir() {
-            continue;
-        }
-        let name = entry.path().map_err(|e| e.to_string())?.to_string_lossy().replace('\\', "/");
-        if let Some(pos) = name.rfind(&marker_suffix) {
-            let dir = &name[..pos];
-            if !dir.is_empty() {
-                dirs.insert(dir.to_string());
+    } else {
+        for marker in entry_markers {
+            let marker_suffix = format!("/{}", marker);
+            for e in &entries {
+                if let Some(pos) = e.name.rfind(&marker_suffix) {
+                    if pos > 0 {
+                        dirs.insert(e.name[..pos].to_string());
+                    }
+                }
             }
         }
     }
@@ -517,23 +465,6 @@ pub fn resolve_archive_download(
     }
 }
 
-fn list_pak_entries_rar(path: &Path) -> Result<Vec<String>, String> {
-    let archive = unrar::Archive::new(path)
-        .open_for_listing()
-        .map_err(|e| e.to_string())?;
-    let mut entries = Vec::new();
-    for entry in archive {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if !entry.is_directory() {
-            let name = entry.filename.to_string_lossy().replace('\\', "/");
-            if name.ends_with(".pak") {
-                entries.push(name);
-            }
-        }
-    }
-    Ok(entries)
-}
-
 fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
     let normalized = entry_name.replace('\\', "/");
     let tmp_dir = std::env::temp_dir().join(format!("rar-{}", Uuid::new_v4()));
@@ -568,95 +499,6 @@ fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resu
     result
 }
 
-fn list_mod_dirs_rar(path: &Path, entry_marker: &str) -> Result<Vec<String>, String> {
-    let archive = unrar::Archive::new(path)
-        .open_for_listing()
-        .map_err(|e| e.to_string())?;
-    let mut dirs: HashSet<String> = HashSet::new();
-    let marker_suffix = format!("/{}", entry_marker);
-    for entry in archive {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let name = entry.filename.to_string_lossy().replace('\\', "/");
-        if let Some(pos) = name.rfind(&marker_suffix) {
-            let dir = &name[..pos];
-            if !dir.is_empty() {
-                dirs.insert(dir.to_string());
-            }
-        }
-    }
-    let mut result: Vec<String> = dirs.into_iter().collect();
-    result.sort();
-    Ok(result)
-}
-
-fn list_top_dirs_from_paths(file_paths: &[String]) -> Vec<String> {
-    let mut dirs: HashSet<String> = HashSet::new();
-    for path in file_paths {
-        if let Some(slash) = path.find('/') {
-            let dir = &path[..slash];
-            if !dir.is_empty() {
-                dirs.insert(dir.to_string());
-            }
-        }
-    }
-    let mut result: Vec<String> = dirs.into_iter().collect();
-    result.sort();
-    result
-}
-
-fn list_top_dirs_zip(path: &Path) -> Result<Vec<String>, String> {
-    let file = File::open(path).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
-    let mut paths = Vec::new();
-    for i in 0..archive.len() {
-        let entry = archive.by_index(i).map_err(|e| e.to_string())?;
-        if !entry.is_dir() {
-            paths.push(entry.name().replace('\\', "/"));
-        }
-    }
-    Ok(list_top_dirs_from_paths(&paths))
-}
-
-fn list_top_dirs_7z(path: &Path) -> Result<Vec<String>, String> {
-    let file = File::open(path).map_err(|e| e.to_string())?;
-    let mut paths = Vec::new();
-    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dest| {
-        if !entry.is_directory() {
-            paths.push(entry.name().replace('\\', "/"));
-        }
-        let _ = std::io::copy(reader, &mut std::io::sink());
-        Ok(true)
-    })
-    .map_err(|e| e.to_string())?;
-    Ok(list_top_dirs_from_paths(&paths))
-}
-
-fn list_top_dirs_tar<R: Read>(reader: R) -> Result<Vec<String>, String> {
-    let mut archive = tar::Archive::new(reader);
-    let mut paths = Vec::new();
-    for entry in archive.entries().map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if !entry.header().entry_type().is_dir() {
-            let name = entry.path().map_err(|e| e.to_string())?.to_string_lossy().replace('\\', "/");
-            paths.push(name);
-        }
-    }
-    Ok(list_top_dirs_from_paths(&paths))
-}
-
-fn list_top_dirs_rar(path: &Path) -> Result<Vec<String>, String> {
-    let archive = unrar::Archive::new(path)
-        .open_for_listing()
-        .map_err(|e| e.to_string())?;
-    let mut paths = Vec::new();
-    for entry in archive {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if !entry.is_directory() {
-            paths.push(entry.filename.to_string_lossy().replace('\\', "/"));
-        }
-    }
-    Ok(list_top_dirs_from_paths(&paths))
-}
 
 fn rar_copy_dir(src: &Path, dst: &Path) -> Result<(), String> {
     for entry in std::fs::read_dir(src).map_err(|e| e.to_string())? {
