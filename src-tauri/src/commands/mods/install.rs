@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 use chrono::Utc;
-use super::engine::{ModEngineConfig, ModUnit};
+use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming::apply_priority_prefix;
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_state};
@@ -14,13 +14,14 @@ pub fn install_mod_from_path(
     source: &Path,
     folder_id: Option<String>,
     cfg: &ModEngineConfig,
+    target: &ScanTarget,
 ) -> Result<(), String> {
     let state = read_state(state_path);
     let folder_rel = get_folder_path(&state.folders, folder_id.as_deref());
 
     let dest_dir = match &folder_rel {
-        Some(rel) => mods_base(game_path, cfg).join(rel),
-        None => mods_base(game_path, cfg),
+        Some(rel) => mods_base(game_path, target).join(rel),
+        None => mods_base(game_path, target),
     };
     fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
 
@@ -41,7 +42,7 @@ pub fn install_mod_from_path(
         .max()
         .unwrap_or(0);
     let priority = existing.as_ref().and_then(|e| e.priority).unwrap_or(max_mod.max(max_folder) + 1);
-    let priority_prefix_enabled = match &cfg.primary().unit {
+    let priority_prefix_enabled = match &target.unit {
         ModUnit::File { priority_prefix, .. } | ModUnit::Directory { priority_prefix, .. } => *priority_prefix,
     };
     let filename = if priority_prefix_enabled {
@@ -50,8 +51,8 @@ pub fn install_mod_from_path(
         mod_data.filename.clone()
     };
 
-    let dest = active_mod_path(game_path, &filename, folder_rel.as_deref(), cfg);
-    match &cfg.primary().unit {
+    let dest = active_mod_path(game_path, &filename, folder_rel.as_deref(), target);
+    match &target.unit {
         ModUnit::File { .. } => {
             fs::copy(source, &dest).map_err(|e| e.to_string())?;
         }
@@ -63,13 +64,13 @@ pub fn install_mod_from_path(
     if let Some(ref ex) = existing {
         let ex_rel = get_folder_path(&state.folders, ex.folder_id.as_deref());
         let old = if ex.enabled {
-            active_mod_path(game_path, &ex.filename, ex_rel.as_deref(), cfg)
+            active_mod_path(game_path, &ex.filename, ex_rel.as_deref(), target)
         } else {
-            disabled_mod_path(game_path, &ex.filename, ex_rel.as_deref(), cfg)
+            disabled_mod_path(game_path, &ex.filename, ex_rel.as_deref(), target)
         };
-        let new_active = active_mod_path(game_path, &filename, folder_rel.as_deref(), cfg);
+        let new_active = active_mod_path(game_path, &filename, folder_rel.as_deref(), target);
         if old != new_active && old.exists() {
-            match &cfg.primary().unit {
+            match &target.unit {
                 ModUnit::File { .. } => {
                     if let Err(e) = fs::remove_file(&old) {
                         log::warn!("install: remove old pak {old:?}: {e}");
@@ -93,11 +94,13 @@ pub fn install_mod_from_path(
         })
         .collect();
 
+    let location = if std::ptr::eq(target, cfg.primary()) { None } else { Some(target.tag.to_string()) };
     new_mods.push(InstalledMod {
         filename,
         priority: Some(priority),
         folder_id,
         enabled: true,
+        location,
         installed_at: Utc::now().to_rfc3339(),
         ..mod_data
     });
@@ -111,15 +114,16 @@ pub fn install_mod_from_path(
 pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
     let mut state = read_state(state_path);
     let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else { return };
+    let target = cfg.target_for(m.location.as_deref());
     let folder_id = m.folder_id.clone();
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let path = if m.enabled {
-        active_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
+        active_mod_path(game_path, &m.filename, rel.as_deref(), target)
     } else {
-        disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
+        disabled_mod_path(game_path, &m.filename, rel.as_deref(), target)
     };
     if path.exists() {
-        match &cfg.primary().unit {
+        match &target.unit {
             ModUnit::File { .. } => {
                 if let Err(e) = fs::remove_file(&path) {
                     log::warn!("uninstall: remove {path:?}: {e}");
@@ -153,7 +157,7 @@ fn prune_empty_folders(
     let parent_id = state.folders.iter().find(|f| f.id == fid).and_then(|f| f.parent_id.clone());
     state.folders.retain(|f| f.id != fid);
     if let Some(rel_path) = rel {
-        let _ = fs::remove_dir(mods_base(game_path, cfg).join(rel_path));
+        let _ = fs::remove_dir(mods_base(game_path, cfg.primary()).join(rel_path));
     }
     prune_empty_folders(game_path, state, parent_id, cfg);
 }
@@ -161,14 +165,15 @@ fn prune_empty_folders(
 pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
     let mut state = read_state(state_path);
     let Some(m) = state.mods.iter().find(|m| m.uid == uid && !m.enabled).cloned() else { return };
+    let target = cfg.target_for(m.location.as_deref());
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     if let Some(r) = &rel {
-        if let Err(e) = fs::create_dir_all(mods_base(game_path, cfg).join(r)) {
+        if let Err(e) = fs::create_dir_all(mods_base(game_path, target).join(r)) {
             log::warn!("enable_mod: create_dir_all: {e}");
         }
     }
-    let from = disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg);
-    let to = active_mod_path(game_path, &m.filename, rel.as_deref(), cfg);
+    let from = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    let to = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     if from.exists() {
         if let Err(e) = fs::rename(&from, &to) {
             log::warn!("enable_mod: rename {from:?} -> {to:?}: {e}");
@@ -185,16 +190,17 @@ pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEng
 pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
     let mut state = read_state(state_path);
     let Some(m) = state.mods.iter().find(|m| m.uid == uid && m.enabled).cloned() else { return };
+    let target = cfg.target_for(m.location.as_deref());
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let dis_dir = match &rel {
-        Some(r) => disabled_base(game_path, cfg).join(r),
-        None => disabled_base(game_path, cfg),
+        Some(r) => disabled_base(game_path, target).join(r),
+        None => disabled_base(game_path, target),
     };
     if let Err(e) = fs::create_dir_all(&dis_dir) {
         log::warn!("disable_mod: create_dir_all {dis_dir:?}: {e}");
     }
-    let from = active_mod_path(game_path, &m.filename, rel.as_deref(), cfg);
-    let to = disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg);
+    let from = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    let to = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
     if from.exists() {
         if let Err(e) = fs::rename(&from, &to) {
             log::warn!("disable_mod: rename {from:?} -> {to:?}: {e}");

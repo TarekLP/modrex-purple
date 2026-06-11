@@ -25,15 +25,16 @@ pub fn reorder_mods_in_folder_op(
         let priority = total - pos as i64;
         let new_filename = apply_priority_prefix(&m.filename, priority);
         if new_filename != m.filename {
+            let target = cfg.target_for(m.location.as_deref());
             let old = if m.enabled {
-                active_mod_path(game_path, &m.filename, folder_rel.as_deref(), cfg)
+                active_mod_path(game_path, &m.filename, folder_rel.as_deref(), target)
             } else {
-                disabled_mod_path(game_path, &m.filename, folder_rel.as_deref(), cfg)
+                disabled_mod_path(game_path, &m.filename, folder_rel.as_deref(), target)
             };
             let new = if m.enabled {
-                active_mod_path(game_path, &new_filename, folder_rel.as_deref(), cfg)
+                active_mod_path(game_path, &new_filename, folder_rel.as_deref(), target)
             } else {
-                disabled_mod_path(game_path, &new_filename, folder_rel.as_deref(), cfg)
+                disabled_mod_path(game_path, &new_filename, folder_rel.as_deref(), target)
             };
             if old.exists() {
                 if let Err(e) = fs::rename(&old, &new) {
@@ -74,14 +75,14 @@ pub fn move_mod_to_folder_op(
     let total = target_mods.len() as i64;
 
     if let Some(r) = &tgt_rel {
-        if let Err(e) = fs::create_dir_all(mods_base(game_path, cfg).join(r)) {
+        if let Err(e) = fs::create_dir_all(mods_base(game_path, cfg.primary()).join(r)) {
             log::warn!("move_to_folder: create_dir_all active: {e}");
         }
     }
     if !moving.enabled {
         let dis = match &tgt_rel {
-            Some(r) => disabled_base(game_path, cfg).join(r),
-            None => disabled_base(game_path, cfg),
+            Some(r) => disabled_base(game_path, cfg.primary()).join(r),
+            None => disabled_base(game_path, cfg.primary()),
         };
         if let Err(e) = fs::create_dir_all(&dis) {
             log::warn!("move_to_folder: create_dir_all disabled: {e}");
@@ -95,15 +96,16 @@ pub fn move_mod_to_folder_op(
         let cur_rel = if m.uid == uid { src_rel.clone() } else { tgt_rel.clone() };
 
         if new_filename != m.filename || (m.uid == uid && src_rel != tgt_rel) {
+            let target = cfg.target_for(m.location.as_deref());
             let old = if m.enabled {
-                active_mod_path(game_path, &m.filename, cur_rel.as_deref(), cfg)
+                active_mod_path(game_path, &m.filename, cur_rel.as_deref(), target)
             } else {
-                disabled_mod_path(game_path, &m.filename, cur_rel.as_deref(), cfg)
+                disabled_mod_path(game_path, &m.filename, cur_rel.as_deref(), target)
             };
             let new = if m.enabled {
-                active_mod_path(game_path, &new_filename, tgt_rel.as_deref(), cfg)
+                active_mod_path(game_path, &new_filename, tgt_rel.as_deref(), target)
             } else {
-                disabled_mod_path(game_path, &new_filename, tgt_rel.as_deref(), cfg)
+                disabled_mod_path(game_path, &new_filename, tgt_rel.as_deref(), target)
             };
             if old.exists() {
                 if let Err(e) = fs::rename(&old, &new) {
@@ -130,12 +132,12 @@ pub fn reorder_children_op(
     let mut state = read_state(state_path);
     let parent_rel = get_folder_path(&state.folders, parent_id);
     let mods_dir = match &parent_rel {
-        Some(r) => mods_base(game_path, cfg).join(r),
-        None => mods_base(game_path, cfg),
+        Some(r) => mods_base(game_path, cfg.primary()).join(r),
+        None => mods_base(game_path, cfg.primary()),
     };
     let dis_dir = match &parent_rel {
-        Some(r) => disabled_base(game_path, cfg).join(r),
-        None => disabled_base(game_path, cfg),
+        Some(r) => disabled_base(game_path, cfg.primary()).join(r),
+        None => disabled_base(game_path, cfg.primary()),
     };
     let total = items.len() as i64;
 
@@ -156,7 +158,7 @@ pub fn reorder_children_op(
         })
         .collect();
 
-    struct ModRename { old: String, new: String, rel: Option<String>, enabled: bool }
+    struct ModRename { old: String, new: String, rel: Option<String>, enabled: bool, location: Option<String> }
     let mod_renames: Vec<ModRename> = items
         .iter()
         .enumerate()
@@ -169,7 +171,7 @@ pub fn reorder_children_op(
                 return None;
             }
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            Some(ModRename { old: m.filename.clone(), new, rel, enabled: m.enabled })
+            Some(ModRename { old: m.filename.clone(), new, rel, enabled: m.enabled, location: m.location.clone() })
         })
         .collect();
 
@@ -205,15 +207,16 @@ pub fn reorder_children_op(
     }
 
     for r in &mod_renames {
+        let target = cfg.target_for(r.location.as_deref());
         let old_path = if r.enabled {
-            active_mod_path(game_path, &r.old, r.rel.as_deref(), cfg)
+            active_mod_path(game_path, &r.old, r.rel.as_deref(), target)
         } else {
-            disabled_mod_path(game_path, &r.old, r.rel.as_deref(), cfg)
+            disabled_mod_path(game_path, &r.old, r.rel.as_deref(), target)
         };
         let new_path = if r.enabled {
-            active_mod_path(game_path, &r.new, r.rel.as_deref(), cfg)
+            active_mod_path(game_path, &r.new, r.rel.as_deref(), target)
         } else {
-            disabled_mod_path(game_path, &r.new, r.rel.as_deref(), cfg)
+            disabled_mod_path(game_path, &r.new, r.rel.as_deref(), target)
         };
         if old_path.exists() {
             if let Err(e) = fs::rename(&old_path, &new_path) {

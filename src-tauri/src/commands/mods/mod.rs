@@ -162,16 +162,16 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
                 let path = match &cfg.primary().unit {
                     engine::ModUnit::File { .. } => {
                         if enabled {
-                            mods_base(&game_path, cfg).join(&rel_path)
+                            mods_base(&game_path, cfg.primary()).join(&rel_path)
                         } else {
-                            disabled_base(&game_path, cfg).join(format!("{}{}", rel_path, cfg.primary().disabled_suffix()))
+                            disabled_base(&game_path, cfg.primary()).join(format!("{}{}", rel_path, cfg.primary().disabled_suffix()))
                         }
                     }
                     engine::ModUnit::Directory { entry_marker, .. } => {
                         if enabled {
-                            mods_base(&game_path, cfg).join(&rel_path).join(entry_marker)
+                            mods_base(&game_path, cfg.primary()).join(&rel_path).join(entry_marker)
                         } else {
-                            disabled_base(&game_path, cfg).join(&rel_path).join(entry_marker)
+                            disabled_base(&game_path, cfg.primary()).join(&rel_path).join(entry_marker)
                         }
                     }
                 };
@@ -416,6 +416,7 @@ pub async fn install_mod(
             &tmp,
             effective_folder_id,
             cfg,
+            cfg.primary(),
         )?;
 
         let _ = http_client()
@@ -526,6 +527,7 @@ pub async fn install_file(
             &tmp,
             effective_folder_id,
             cfg,
+            cfg.primary(),
         )?;
 
         let _ = http_client()
@@ -636,6 +638,7 @@ pub async fn install_from_zip_entry(
             &ext,
             effective_folder_id,
             cfg,
+            cfg.primary(),
         )?;
 
         let _ = http_client()
@@ -733,7 +736,7 @@ pub fn open_mods_folder(app: AppHandle, game_id: Option<String>) {
     let settings = read_settings(&app);
     let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else { return };
     let cfg = engine_for_game(gid);
-    let dir = mods_base(&game_path, cfg);
+    let dir = mods_base(&game_path, cfg.primary());
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(&dir).spawn();
     #[cfg(target_os = "linux")]

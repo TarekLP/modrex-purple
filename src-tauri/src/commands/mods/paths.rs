@@ -5,12 +5,12 @@ use super::engine::{
     ModEngineConfig, ModUnit, ScanTarget,
 };
 
-pub fn mods_base(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
-    mods_dir(game_path, cfg.primary())
+pub fn mods_base(game_path: &str, target: &ScanTarget) -> PathBuf {
+    mods_dir(game_path, target)
 }
 
-pub fn disabled_base(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
-    disabled_dir(game_path, cfg.primary())
+pub fn disabled_base(game_path: &str, target: &ScanTarget) -> PathBuf {
+    disabled_dir(game_path, target)
 }
 
 pub fn get_state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
@@ -21,11 +21,11 @@ pub fn active_mod_path(
     game_path: &str,
     filename: &str,
     folder_rel: Option<&str>,
-    cfg: &ModEngineConfig,
+    target: &ScanTarget,
 ) -> PathBuf {
     match folder_rel {
-        Some(rel) => mods_base(game_path, cfg).join(rel).join(filename),
-        None => mods_base(game_path, cfg).join(filename),
+        Some(rel) => mods_dir(game_path, target).join(rel).join(filename),
+        None => mods_dir(game_path, target).join(filename),
     }
 }
 
@@ -33,13 +33,13 @@ pub fn disabled_mod_path(
     game_path: &str,
     filename: &str,
     folder_rel: Option<&str>,
-    cfg: &ModEngineConfig,
+    target: &ScanTarget,
 ) -> PathBuf {
     let base = match folder_rel {
-        Some(rel) => disabled_base(game_path, cfg).join(rel),
-        None => disabled_base(game_path, cfg),
+        Some(rel) => disabled_dir(game_path, target).join(rel),
+        None => disabled_dir(game_path, target),
     };
-    match &cfg.primary().unit {
+    match &target.unit {
         ModUnit::File { disabled_suffix, .. } => base.join(format!("{}{}", filename, disabled_suffix)),
         ModUnit::Directory { .. } => base.join(filename),
     }

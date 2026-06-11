@@ -565,10 +565,11 @@ pub fn mark_archive_files(
             continue;
         }
         let rel = get_folder_path(folders, m.folder_id.as_deref());
+        let target = cfg.target_for(m.location.as_deref());
         let path = if m.enabled {
-            active_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
+            active_mod_path(game_path, &m.filename, rel.as_deref(), target)
         } else {
-            disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
+            disabled_mod_path(game_path, &m.filename, rel.as_deref(), target)
         };
         m.archive_broken = Some(detect_archive(&path).is_some());
         any_checked = true;

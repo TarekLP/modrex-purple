@@ -155,11 +155,11 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
     let state = read_state(state_path);
 
     // Migrate legacy disabled paths: disabled/foo.pak becomes disabled/foo.pak.disabled
-    let dis_dir = disabled_base(game_path, cfg);
+    let dis_dir = disabled_base(game_path, cfg.primary());
     let disabled_mods: Vec<InstalledMod> = state.mods.iter().filter(|m| !m.enabled).cloned().collect();
     for m in &disabled_mods {
         let folder_rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-        let new_path = disabled_mod_path(game_path, &m.filename, folder_rel.as_deref(), cfg);
+        let new_path = disabled_mod_path(game_path, &m.filename, folder_rel.as_deref(), cfg.target_for(m.location.as_deref()));
         let legacy = dis_dir.join(&m.filename);
         if !new_path.exists() && legacy.exists() {
             if let Some(rel) = &folder_rel {
@@ -178,8 +178,9 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         .iter()
         .map(|m| {
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            active_mod_path(game_path, &m.filename, rel.as_deref(), cfg).exists()
-                || disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg).exists()
+            let target = cfg.target_for(m.location.as_deref());
+            active_mod_path(game_path, &m.filename, rel.as_deref(), target).exists()
+                || disabled_mod_path(game_path, &m.filename, rel.as_deref(), target).exists()
         })
         .collect();
 
@@ -199,7 +200,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         .zip(state.mods.iter())
         .any(|(r, o)| r.missing != o.missing);
 
-    let mods_base_path = mods_base(game_path, cfg);
+    let mods_base_path = mods_base(game_path, cfg.primary());
     // Phantom: no mods, no child folders, and active directory absent.
     // Ignores the disabled directory so an empty leftover disabled/ subdir doesn't prevent cleanup.
     let phantom_ids: HashSet<String> = state

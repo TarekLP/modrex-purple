@@ -30,8 +30,8 @@ pub fn create_folder_op(
 
     let parent_rel = get_folder_path(&state.folders, parent_id.as_deref());
     let dir = match &parent_rel {
-        Some(r) => mods_base(game_path, cfg).join(r).join(&disk_name),
-        None => mods_base(game_path, cfg).join(&disk_name),
+        Some(r) => mods_base(game_path, cfg.primary()).join(r).join(&disk_name),
+        None => mods_base(game_path, cfg.primary()).join(&disk_name),
     };
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
@@ -58,8 +58,8 @@ pub fn move_folder_op(
         cur = state.folders.iter().find(|f| &f.id == cid).and_then(|f| f.parent_id.clone());
     }
 
-    let mods_b = mods_base(game_path, cfg);
-    let dis_b = disabled_base(game_path, cfg);
+    let mods_b = mods_base(game_path, cfg.primary());
+    let dis_b = disabled_base(game_path, cfg.primary());
     let old_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
 
     let max_f = state.folders.iter().filter(|f| f.parent_id == target_parent_id).map(|f| f.priority).max().unwrap_or(0);
@@ -124,8 +124,8 @@ pub fn rename_folder_op(
 
     if new_disk_name != folder.disk_name {
         let parent_rel = get_folder_path(&state.folders, folder.parent_id.as_deref());
-        let mods_b = mods_base(game_path, cfg);
-        let dis_b = disabled_base(game_path, cfg);
+        let mods_b = mods_base(game_path, cfg.primary());
+        let dis_b = disabled_base(game_path, cfg.primary());
 
         let (old_a, new_a) = match &parent_rel {
             Some(r) => (mods_b.join(r).join(&folder.disk_name), mods_b.join(r).join(&new_disk_name)),
@@ -170,8 +170,8 @@ pub fn delete_folder_op(
     let folder_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
     let target_parent_rel = get_folder_path(&state.folders, target_parent_id.as_deref());
 
-    let mods_b = mods_base(game_path, cfg);
-    let dis_b = disabled_base(game_path, cfg);
+    let mods_b = mods_base(game_path, cfg.primary());
+    let dis_b = disabled_base(game_path, cfg.primary());
 
     if let Some(r) = &target_parent_rel {
         if let Err(e) = fs::create_dir_all(mods_b.join(r)) {
@@ -189,15 +189,16 @@ pub fn delete_folder_op(
         if m.folder_id.as_deref() != Some(folder_id) { continue; }
         max_p += 1;
         let new_filename = apply_priority_prefix(&m.filename, max_p);
+        let target = cfg.target_for(m.location.as_deref());
         let old = if m.enabled {
-            active_mod_path(game_path, &m.filename, Some(&folder_rel), cfg)
+            active_mod_path(game_path, &m.filename, Some(&folder_rel), target)
         } else {
-            disabled_mod_path(game_path, &m.filename, Some(&folder_rel), cfg)
+            disabled_mod_path(game_path, &m.filename, Some(&folder_rel), target)
         };
         let new = if m.enabled {
-            active_mod_path(game_path, &new_filename, target_parent_rel.as_deref(), cfg)
+            active_mod_path(game_path, &new_filename, target_parent_rel.as_deref(), target)
         } else {
-            disabled_mod_path(game_path, &new_filename, target_parent_rel.as_deref(), cfg)
+            disabled_mod_path(game_path, &new_filename, target_parent_rel.as_deref(), target)
         };
         if old.exists() {
             if let Err(e) = fs::rename(&old, &new) {
