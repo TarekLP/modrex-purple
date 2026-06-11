@@ -12,6 +12,7 @@ export interface ZipMultiPakPayload {
     fileId: number
     fileType: string
     modVersion: string
+    targetTag?: string
 }
 
 export function parseZipMultiPak(error: string): ZipMultiPakPayload | null {
@@ -157,7 +158,7 @@ export function ZipPickerModal({
 
         const folderIdMap = new Map<string, string | null>([['', folderId ?? null]])
 
-        if (isStructured) {
+        if (isStructured && !payload.targetTag) {
             const normalizedToInstall = toInstall.map((e) => e.slice(prefix.length))
             for (const dir of getRequiredDirs(normalizedToInstall)) {
                 const lastSlash = dir.lastIndexOf('/')
@@ -195,7 +196,8 @@ export function ZipPickerModal({
                     payload.modVersion,
                     gamePath,
                     folderIdMap.get(dir) ?? null,
-                    gameId
+                    gameId,
+                    payload.targetTag
                 )
                 await onRefreshInstalled()
             } catch (e) {

@@ -131,6 +131,9 @@ export function useDragDrop({
         const targetMod = installed.find((m) => m.uid === uid)
         if (!srcMod || !targetMod) return
 
+        // Secondary-target mods (e.g. mod_overrides) can only reorder within their own scope.
+        if (srcMod.location && (srcMod.folderId ?? null) !== (targetMod.folderId ?? null)) return
+
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
         const isTop = e.clientY - rect.top < rect.height / 2
 
@@ -157,6 +160,8 @@ export function useDragDrop({
         if (!dragItem) return
         e.preventDefault()
         if (dragItem.kind === 'mod') {
+            const srcMod = installed.find((m) => m.uid === dragItem.uid)
+            if (srcMod?.location) return
             setDropTarget({ kind: 'into-folder', folderId: folder.id })
         } else {
             // folder dragged over folder header: bottom half = nest inside, top half = reorder before
@@ -245,7 +250,7 @@ export function useDragDrop({
                 gamePath,
                 activeGame
             )
-        } else {
+        } else if (!srcMod.location) {
             const targetScopeMods = installed
                 .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== srcMod.id)
                 .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
@@ -300,7 +305,7 @@ export function useDragDrop({
                 gamePath,
                 activeGame
             )
-        } else {
+        } else if (!srcMod.location) {
             const targetScopeMods = installed
                 .filter((m) => (m.folderId ?? null) === targetFolderId && m.id !== srcMod.id)
                 .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
@@ -327,6 +332,7 @@ export function useDragDrop({
         setDropTarget(null)
         const srcMod = installed.find((m) => m.uid === srcRepUid)!
         if ((srcMod.folderId ?? null) === folderId) return
+        if (srcMod.location) return
         const srcGroupMods = installed.filter(
             (m) => (m.folderId ?? null) === (srcMod.folderId ?? null) && m.id === srcMod.id
         )
@@ -339,6 +345,8 @@ export function useDragDrop({
 
     function onEmptyFolderDragOver(e: DragEvent, folderId: string) {
         if (!dragItem || dragItem.kind !== 'mod') return
+        const srcMod = installed.find((m) => m.uid === dragItem.uid)
+        if (srcMod?.location) return
         e.preventDefault()
         setDropTarget({ kind: 'into-folder', folderId })
     }
