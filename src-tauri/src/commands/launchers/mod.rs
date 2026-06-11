@@ -174,32 +174,34 @@ pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option
 }
 
 fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
-    let mods_dir = mods_base(game_path, cfg.primary());
-    let mods_bak = backup_dir(game_path, cfg.primary());
+    for target in cfg.targets {
+        let mods_dir = mods_base(game_path, target);
+        let mods_bak = backup_dir(game_path, target);
 
-    if !mods_bak.exists() {
-        return Ok(());
-    }
-
-    if cfg.primary().is_directory_unit() {
-        let _ = fs::create_dir_all(&mods_dir);
-        if let Ok(entries) = fs::read_dir(&mods_bak) {
-            for entry in entries.flatten() {
-                let name = entry.file_name();
-                let _ = fs::rename(mods_bak.join(&name), mods_dir.join(&name));
-            }
+        if !mods_bak.exists() {
+            continue;
         }
-        // remove_dir no-ops when non-empty, so any entry that failed to rename is never deleted.
-        fs::remove_dir(&mods_bak).ok();
-    } else if !mods_dir.exists() {
-        fs::rename(&mods_bak, &mods_dir).map_err(|e| {
-            format!(
-                "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
-                e.kind()
-            )
-        })?;
-    } else {
-        fs::remove_dir_all(&mods_bak).ok();
+
+        if target.is_directory_unit() {
+            let _ = fs::create_dir_all(&mods_dir);
+            if let Ok(entries) = fs::read_dir(&mods_bak) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    let _ = fs::rename(mods_bak.join(&name), mods_dir.join(&name));
+                }
+            }
+            // remove_dir no-ops when non-empty, so any entry that failed to rename is never deleted.
+            fs::remove_dir(&mods_bak).ok();
+        } else if !mods_dir.exists() {
+            fs::rename(&mods_bak, &mods_dir).map_err(|e| {
+                format!(
+                    "Could not restore mods folder. You may need to manually rename the backup folder. ({})",
+                    e.kind()
+                )
+            })?;
+        } else {
+            fs::remove_dir_all(&mods_bak).ok();
+        }
     }
     Ok(())
 }
@@ -223,11 +225,15 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
     let Some(ref game_path) = gs.game_path else { return Ok(()) };
 
     let cfg = engine_for_game(game_id);
-    let mods_dir = mods_base(game_path, cfg.primary());
-    let mods_bak = backup_dir(game_path, cfg.primary());
+    for (i, target) in cfg.targets.iter().enumerate() {
+        let mods_dir = mods_base(game_path, target);
+        let mods_bak = backup_dir(game_path, target);
 
-    if !mods_bak.exists() {
-        if cfg.primary().is_directory_unit() {
+        if mods_bak.exists() {
+            continue;
+        }
+
+        if target.is_directory_unit() {
             if mods_dir.exists() {
                 fs::create_dir(&mods_bak).map_err(|e| {
                     format!(
@@ -240,7 +246,7 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
                         if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
                             continue;
                         }
-                        if entry.file_name().to_string_lossy() == "base" {
+                        if i == 0 && entry.file_name().to_string_lossy() == "base" {
                             continue; // BLT recreates base/ if missing, showing a "base mod missing" dialog
                         }
                         let _ = fs::rename(
