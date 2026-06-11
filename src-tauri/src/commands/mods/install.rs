@@ -16,6 +16,8 @@ pub fn install_mod_from_path(
     cfg: &ModEngineConfig,
     target: &ScanTarget,
 ) -> Result<(), String> {
+    // BeardLib (mod_overrides) scans one level deep — nested dirs are never loaded.
+    let folder_id = if std::ptr::eq(target, cfg.primary()) { folder_id } else { None };
     let state = read_state(state_path);
     let folder_rel = get_folder_path(&state.folders, folder_id.as_deref());
 

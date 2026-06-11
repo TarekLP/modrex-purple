@@ -156,7 +156,9 @@ export function ZipPickerModal({
         setError(null)
         const toInstall = payload.entries.filter((e) => selected.has(e))
 
-        const folderIdMap = new Map<string, string | null>([['', folderId ?? null]])
+        const folderIdMap = new Map<string, string | null>([
+            ['', payload.targetTag ? null : (folderId ?? null)],
+        ])
 
         if (isStructured && !payload.targetTag) {
             const normalizedToInstall = toInstall.map((e) => e.slice(prefix.length))

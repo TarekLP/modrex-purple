@@ -59,6 +59,7 @@ pub fn move_mod_to_folder_op(
 ) {
     let mut state = read_state(state_path);
     let Some(moving) = state.mods.iter().find(|m| m.uid == uid).cloned() else { return };
+    if moving.location.is_some() { return; }
 
     let src_rel = get_folder_path(&state.folders, moving.folder_id.as_deref());
     let tgt_rel = get_folder_path(&state.folders, target_folder_id.as_deref());
