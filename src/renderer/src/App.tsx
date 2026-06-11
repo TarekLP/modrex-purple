@@ -1,4 +1,12 @@
-import { useState, useEffect, useLayoutEffect, useCallback, memo, useRef } from 'react'
+import {
+    useState,
+    useEffect,
+    useLayoutEffect,
+    useCallback,
+    memo,
+    useRef,
+    startTransition,
+} from 'react'
 import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId, Mod } from '../../shared/types'
@@ -17,6 +25,7 @@ import { Dialog } from './components/Dialog'
 import { TooltipProvider } from './components/Tooltip'
 
 const InstalledPageMemo = memo(InstalledPage)
+const BrowsePageMemo = memo(BrowsePage)
 
 // Warm the settings cache as soon as a game becomes active, so SettingsPage can
 // render once with final values instead of showing provisional state that flips.
@@ -96,35 +105,46 @@ export default function App() {
     }
 
     function handleGameChange(g: GameId) {
-        setActiveGame(g)
-        // Restore the last-known path for this game so the UI never flashes "not found"
-        // while refreshGamePath re-validates in the background.
-        const cachedPath = gamePathCache.current[g]
-        setGamePath(cachedPath !== undefined ? cachedPath : null)
-        setGamePathReady(cachedPath !== undefined)
-        // Restore last-known installed state so the installed page never flashes empty
-        // while refreshInstalled re-validates in the background.
-        const cachedInstalled = installedCache.current[g]
-        if (cachedInstalled) {
-            setInstalled(cachedInstalled.mods)
-            setFolders(cachedInstalled.folders)
-            setModsHidden(cachedInstalled.modsHidden)
-        } else {
-            setInstalled([])
-            setFolders([])
-            setModsHidden(false)
-        }
         localStorage.setItem('modrex:active-game', g)
+        const cachedPath = gamePathCache.current[g]
+        const cachedInstalled = installedCache.current[g]
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
             saved === 'browse' || saved === 'installed' || saved === 'settings' ? saved : 'browse'
-        setView(dest)
+        // The switch commit renders three pages' worth of tree at once — as a
+        // transition it stays interruptible, so rapid switching can't pile up
+        // janky frames (a newer switch cancels the in-progress render).
+        startTransition(() => {
+            setActiveGame(g)
+            // Restore the last-known path for this game so the UI never flashes
+            // "not found" while refreshGamePath re-validates in the background.
+            setGamePath(cachedPath !== undefined ? cachedPath : null)
+            setGamePathReady(cachedPath !== undefined)
+            // Restore last-known installed state so the installed page never
+            // flashes empty while refreshInstalled re-validates in the background.
+            if (cachedInstalled) {
+                setInstalled(cachedInstalled.mods)
+                setFolders(cachedInstalled.folders)
+                setModsHidden(cachedInstalled.modsHidden)
+            } else {
+                setInstalled([])
+                setFolders([])
+                setModsHidden(false)
+            }
+            setView(dest)
+        })
     }
 
     const refreshInstalled = useCallback(async () => {
         const game = activeGame
         const result = await api.getInstalled(game)
         if (activeGameRef.current !== game) return
+        // Unchanged result (the common case for focus refreshes) — skip the state
+        // fan-out entirely: the fresh array refs would otherwise re-render the full
+        // installed list and the browse grid for nothing. A cache hit implies this
+        // game is already in readyGames.
+        const prev = installedCache.current[game]
+        if (prev && JSON.stringify(prev) === JSON.stringify(result)) return
         installedCache.current[game] = result
         setInstalled(result.mods)
         setFolders(result.folders)
@@ -244,11 +264,18 @@ export default function App() {
         }
     }
 
-    function handleSidebarChange(v: 'browse' | 'installed' | 'settings') {
+    const handleSidebarChange = useCallback((v: 'browse' | 'installed' | 'settings') => {
         localStorage.setItem('modrex:active-view', v)
         setDetailStack([])
         setView(v)
-    }
+    }, [])
+
+    const openDetailFromBrowse = useCallback(
+        (modId: number, initialMod?: Mod) => openDetail(modId, 'browse', initialMod),
+        [openDetail]
+    )
+
+    const goToSettings = useCallback(() => handleSidebarChange('settings'), [handleSidebarChange])
 
     const sidebarView = view === 'detail' ? prevView : (view as 'browse' | 'installed' | 'settings')
 
@@ -310,24 +337,29 @@ export default function App() {
                                 activeGame={activeGame}
                                 onShowWelcome={handleShowWelcome}
                             />
-                            <main className="flex-1 overflow-hidden">
-                                {view === 'browse' && (
-                                    <div className="h-full">
-                                        <BrowsePage
-                                            key={activeGame}
-                                            activeGame={activeGame}
-                                            gamePath={gamePath}
-                                            gamePathReady={gamePathReady}
-                                            installed={installed}
-                                            onRefreshInstalled={refreshInstalled}
-                                            onOpenDetail={(id, initialMod) =>
-                                                openDetail(id, 'browse', initialMod)
-                                            }
-                                            onGoToSettings={() => handleSidebarChange('settings')}
-                                        />
-                                    </div>
-                                )}
-                                <div className={`h-full ${view === 'installed' ? '' : 'hidden'}`}>
+                            {/* Pages are stacked absolute panes toggled with visibility, not
+                                display:none — un-hiding a display:none subtree re-layouts it
+                                from scratch and re-decodes every image, which made tab switches
+                                stutter. A visibility flip is paint-only. */}
+                            <main className="relative flex-1 overflow-hidden">
+                                <div
+                                    className={`absolute inset-0 ${view === 'browse' ? '' : 'invisible pointer-events-none'}`}
+                                >
+                                    <BrowsePageMemo
+                                        key={activeGame}
+                                        activeGame={activeGame}
+                                        isActive={view === 'browse'}
+                                        gamePath={gamePath}
+                                        gamePathReady={gamePathReady}
+                                        installed={installed}
+                                        onRefreshInstalled={refreshInstalled}
+                                        onOpenDetail={openDetailFromBrowse}
+                                        onGoToSettings={goToSettings}
+                                    />
+                                </div>
+                                <div
+                                    className={`absolute inset-0 ${view === 'installed' ? '' : 'invisible pointer-events-none'}`}
+                                >
                                     <InstalledPageMemo
                                         activeGame={activeGame}
                                         gamePath={gamePath}
@@ -338,7 +370,9 @@ export default function App() {
                                         onOpenDetail={openDetailFromInstalled}
                                     />
                                 </div>
-                                <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>
+                                <div
+                                    className={`absolute inset-0 ${view === 'settings' ? '' : 'invisible pointer-events-none'}`}
+                                >
                                     <SettingsPage
                                         key={activeGame}
                                         activeGame={activeGame}
@@ -350,7 +384,7 @@ export default function App() {
                                 {detailStack.map(({ modId, initialMod }, i) => (
                                     <div
                                         key={modId}
-                                        className={`h-full ${view === 'detail' && i === detailStack.length - 1 ? '' : 'hidden'}`}
+                                        className={`absolute inset-0 ${view === 'detail' && i === detailStack.length - 1 ? '' : 'invisible pointer-events-none'}`}
                                     >
                                         <ModDetailPage
                                             modId={modId}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, startTransition } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, memo, startTransition } from 'react'
 import { Search, X } from 'lucide-react'
 import type {
     Mod,
@@ -32,6 +32,7 @@ import { api } from '../api'
 
 interface Props {
     activeGame: GameId
+    isActive: boolean
     gamePath: string | null
     gamePathReady: boolean
     installed: InstalledMod[]
@@ -65,6 +66,102 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'name', label: t('browse.sort.name') },
 ]
 
+// Memo boundary for the card grid. The grid is the expensive part of BrowsePage
+// (24 cards × tooltips/toggles/images), so it must only re-render when its data
+// actually changes — not on isActive flips, search keystrokes, or modal/error
+// state. All handler props must stay useCallback-stable in BrowsePage or the
+// boundary is defeated. GridCard keeps the per-card closures inside its own memo
+// so a grid re-render (e.g. download progress) only re-renders the affected card.
+interface CardHandlers {
+    onOpen: (modId: number, initialMod?: Mod) => void
+    onPrefetch: (modId: number) => void
+    onInstall: (modId: number) => void
+    onUninstall: (modId: number) => void
+    onEnable: (modId: number) => void
+    onDisable: (modId: number) => void
+}
+
+interface GridCardProps extends CardHandlers {
+    mod: Mod
+    installed: InstalledMod | undefined
+    installedCount: number | undefined
+    gamePath: string | null
+    loading: boolean
+    progress: { downloaded: number; total: number } | null
+}
+
+const GridCard = memo(function GridCard(p: GridCardProps) {
+    return (
+        <ModCard
+            mod={p.mod}
+            installed={p.installed}
+            installedCount={p.installedCount}
+            gamePath={p.gamePath}
+            loading={p.loading}
+            progress={p.progress}
+            showMeta
+            onOpen={() => p.onOpen(p.mod.id, p.mod)}
+            onPrefetch={() => p.onPrefetch(p.mod.id)}
+            onInstall={() => p.onInstall(p.mod.id)}
+            onUninstall={() => p.onUninstall(p.mod.id)}
+            onEnable={() => p.onEnable(p.mod.id)}
+            onDisable={() => p.onDisable(p.mod.id)}
+        />
+    )
+})
+
+interface ModGridProps extends CardHandlers {
+    loadingMods: boolean
+    result: Paginated<Mod> | null
+    installedByModId: Map<number, InstalledMod[]>
+    gamePath: string | null
+    loadingMod: number | null
+    downloadProgress: { downloaded: number; total: number } | null
+}
+
+const ModGrid = memo(function ModGrid({
+    loadingMods,
+    result,
+    installedByModId,
+    gamePath,
+    loadingMod,
+    downloadProgress,
+    ...handlers
+}: ModGridProps) {
+    if (loadingMods || !result) {
+        return (
+            <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
+                {Array.from({ length: 24 }, (_, i) => (
+                    <SkeletonCard key={i} />
+                ))}
+            </div>
+        )
+    }
+    if (result.data.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-full text-text-subtle text-sm">
+                {t('browse.noMods')}
+            </div>
+        )
+    }
+    return (
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
+            {result.data.map((mod) => (
+                <GridCard
+                    key={mod.id}
+                    mod={mod}
+                    installed={installedByModId.get(mod.id)?.[0]}
+                    installedCount={installedByModId.get(mod.id)?.length || undefined}
+                    gamePath={gamePath}
+                    loading={loadingMod === mod.id}
+                    progress={loadingMod === mod.id ? downloadProgress : null}
+                    {...handlers}
+                />
+            ))}
+        </div>
+    )
+})
+
 function getSavedSort(game: GameId): SortOption {
     const saved = localStorage.getItem(`modrex:${GAMES[game].storageKey}:browse-sort`)
     return SORT_OPTIONS.some((o) => o.value === saved) ? (saved as SortOption) : 'bumped_at'
@@ -72,6 +169,7 @@ function getSavedSort(game: GameId): SortOption {
 
 export function BrowsePage({
     activeGame,
+    isActive,
     gamePath,
     gamePathReady,
     installed,
@@ -160,8 +258,18 @@ export function BrowsePage({
         })
     }, [workshopId]) // stable per mount — BrowsePage remounts on game change via key={activeGame}
 
+    // Fetches only while the page is visible. Re-runs on activation (isActive
+    // false → true) so stale cache entries get a background refresh — fresh ones
+    // early-return inside fetchMods. Scroll resets only on a filter change, not
+    // on activation, so the position survives tab switches.
+    const lastFiltersRef = useRef('')
     useEffect(() => {
-        if (scrollRef.current) scrollRef.current.scrollTop = 0
+        if (!isActive) return
+        const filters = JSON.stringify([page, query, categoryId, sort])
+        if (filters !== lastFiltersRef.current) {
+            lastFiltersRef.current = filters
+            if (scrollRef.current) scrollRef.current.scrollTop = 0
+        }
         if (debounceRef.current) clearTimeout(debounceRef.current)
         debounceRef.current = setTimeout(
             () => {
@@ -172,7 +280,7 @@ export function BrowsePage({
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current)
         }
-    }, [fetchMods, page, query, categoryId, sort])
+    }, [isActive, fetchMods, page, query, categoryId, sort])
 
     function handleQueryChange(val: string) {
         setQuery(val)
@@ -190,120 +298,136 @@ export function BrowsePage({
         setPage(1)
     }
 
-    function handlePrefetch(modId: number) {
+    const handlePrefetch = useCallback((modId: number) => {
         if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
         prefetchTimerRef.current = setTimeout(() => {
             getCachedMod(modId).catch(() => {})
             getCachedModFiles(modId).catch(() => {})
             getCachedModLinks(modId).catch(() => {})
         }, 150)
-    }
+    }, [])
 
-    async function handleInstall(modId: number) {
-        if (!gamePath) return
-        setError(null)
-        setLoadingMod(modId)
-        try {
-            const fullMod = await getCachedMod(modId)
-            if (fullMod.disable_mod_managers) {
-                setError(t('common.modManagerDisabled'))
-                return
+    const doInstall = useCallback(
+        async (modId: number, fullMod: Mod) => {
+            if (!gamePath) return
+            if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
+                const allDeps = [
+                    ...(fullMod.dependencies ?? []),
+                    ...(fullMod.instructs_template?.dependencies ?? []),
+                ]
+                const missingRequired = allDeps.filter(
+                    (d) =>
+                        !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
+                )
+                if (missingRequired.length > 0) {
+                    const s = await api.getSettings()
+                    if (!s.dismissedDepsWarnings?.includes(modId)) {
+                        setLoadingMod(null)
+                        setDepsWarning({ modId, allDeps })
+                        return
+                    }
+                }
             }
-            let checkType: string | undefined
-            let checkUrl: string | undefined
-            if (fullMod.download === null) {
-                const files = await getCachedModFiles(modId)
-                if (files.length > 1) {
-                    setLoadingMod(null)
-                    setFileSelect({ mod: fullMod, files })
+            await api.installMod(modId, gamePath, activeGame)
+            await onRefreshInstalled()
+        },
+        [gamePath, installed, activeGame, onRefreshInstalled]
+    )
+
+    const handleInstall = useCallback(
+        async (modId: number) => {
+            if (!gamePath) return
+            setError(null)
+            setLoadingMod(modId)
+            try {
+                const fullMod = await getCachedMod(modId)
+                if (fullMod.disable_mod_managers) {
+                    setError(t('common.modManagerDisabled'))
                     return
                 }
-                checkType = files[0]?.type
-                checkUrl = files[0]?.download_url
-            } else {
-                checkType = fullMod.download.type
-                checkUrl = fullMod.download.download_url ?? undefined
-            }
-            if (isUnsupportedFormat(checkType, checkUrl)) {
+                let checkType: string | undefined
+                let checkUrl: string | undefined
+                if (fullMod.download === null) {
+                    const files = await getCachedModFiles(modId)
+                    if (files.length > 1) {
+                        setLoadingMod(null)
+                        setFileSelect({ mod: fullMod, files })
+                        return
+                    }
+                    checkType = files[0]?.type
+                    checkUrl = files[0]?.download_url
+                } else {
+                    checkType = fullMod.download.type
+                    checkUrl = fullMod.download.download_url ?? undefined
+                }
+                if (isUnsupportedFormat(checkType, checkUrl)) {
+                    setLoadingMod(null)
+                    setFormatWarning({ modId, mod: fullMod })
+                    return
+                }
+                await doInstall(modId, fullMod)
+            } catch (e) {
+                const errStr = String(e)
+                const zipData = parseZipMultiPak(errStr)
+                if (zipData) {
+                    setZipPickerData(zipData)
+                } else {
+                    setError(errStr)
+                }
+            } finally {
                 setLoadingMod(null)
-                setFormatWarning({ modId, mod: fullMod })
-                return
             }
-            await doInstall(modId, fullMod)
-        } catch (e) {
-            const errStr = String(e)
-            const zipData = parseZipMultiPak(errStr)
-            if (zipData) {
-                setZipPickerData(zipData)
-            } else {
-                setError(errStr)
+        },
+        [gamePath, doInstall]
+    )
+
+    const handleUninstall = useCallback(
+        async (modId: number) => {
+            if (!gamePath) return
+            const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+            if (uids.length === 0) return
+            setLoadingMod(modId)
+            try {
+                for (const uid of uids) await api.uninstallMod(uid, gamePath, activeGame)
+                await onRefreshInstalled()
+            } finally {
+                setLoadingMod(null)
             }
-        } finally {
-            setLoadingMod(null)
-        }
-    }
+        },
+        [gamePath, installed, activeGame, onRefreshInstalled]
+    )
 
-    async function doInstall(modId: number, fullMod: Mod) {
-        if (!gamePath) return
-        if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
-            const allDeps = [
-                ...(fullMod.dependencies ?? []),
-                ...(fullMod.instructs_template?.dependencies ?? []),
-            ]
-            const missingRequired = allDeps.filter(
-                (d) => !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
-            )
-            if (missingRequired.length > 0) {
-                const s = await api.getSettings()
-                if (!s.dismissedDepsWarnings?.includes(modId)) {
-                    setLoadingMod(null)
-                    setDepsWarning({ modId, allDeps })
-                    return
-                }
+    const handleEnable = useCallback(
+        async (modId: number) => {
+            if (!gamePath) return
+            const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+            if (uids.length === 0) return
+            setLoadingMod(modId)
+            try {
+                for (const uid of uids) await api.enableMod(uid, gamePath, activeGame)
+                await onRefreshInstalled()
+            } finally {
+                setLoadingMod(null)
             }
-        }
-        await api.installMod(modId, gamePath, activeGame)
-        await onRefreshInstalled()
-    }
+        },
+        [gamePath, installed, activeGame, onRefreshInstalled]
+    )
 
-    async function handleUninstall(modId: number) {
-        if (!gamePath) return
-        const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
-        if (uids.length === 0) return
-        setLoadingMod(modId)
-        try {
-            for (const uid of uids) await api.uninstallMod(uid, gamePath, activeGame)
-            await onRefreshInstalled()
-        } finally {
-            setLoadingMod(null)
-        }
-    }
-
-    async function handleEnable(modId: number) {
-        if (!gamePath) return
-        const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
-        if (uids.length === 0) return
-        setLoadingMod(modId)
-        try {
-            for (const uid of uids) await api.enableMod(uid, gamePath, activeGame)
-            await onRefreshInstalled()
-        } finally {
-            setLoadingMod(null)
-        }
-    }
-
-    async function handleDisable(modId: number) {
-        if (!gamePath) return
-        const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
-        if (uids.length === 0) return
-        setLoadingMod(modId)
-        try {
-            for (const uid of uids) await api.disableMod(uid, gamePath, activeGame)
-            await onRefreshInstalled()
-        } finally {
-            setLoadingMod(null)
-        }
-    }
+    const handleDisable = useCallback(
+        async (modId: number) => {
+            if (!gamePath) return
+            const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+            if (uids.length === 0) return
+            setLoadingMod(modId)
+            try {
+                for (const uid of uids) await api.disableMod(uid, gamePath, activeGame)
+                await onRefreshInstalled()
+            } finally {
+                setLoadingMod(null)
+            }
+        },
+        [gamePath, installed, activeGame, onRefreshInstalled]
+    )
 
     const installedByModId = useMemo(() => {
         const map = new Map<number, InstalledMod[]>()
@@ -437,38 +561,20 @@ export function BrowsePage({
             )}
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
-                {loadingMods || !result ? (
-                    <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-                        {Array.from({ length: 24 }, (_, i) => (
-                            <SkeletonCard key={i} />
-                        ))}
-                    </div>
-                ) : result.data.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                        {t('browse.noMods')}
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-                        {result.data.map((mod) => (
-                            <ModCard
-                                key={mod.id}
-                                mod={mod}
-                                installed={installedByModId.get(mod.id)?.[0]}
-                                installedCount={installedByModId.get(mod.id)?.length || undefined}
-                                gamePath={gamePath}
-                                loading={loadingMod === mod.id}
-                                progress={loadingMod === mod.id ? downloadProgress : null}
-                                showMeta
-                                onOpen={() => onOpenDetail(mod.id, mod)}
-                                onPrefetch={() => handlePrefetch(mod.id)}
-                                onInstall={() => handleInstall(mod.id)}
-                                onUninstall={() => handleUninstall(mod.id)}
-                                onEnable={() => handleEnable(mod.id)}
-                                onDisable={() => handleDisable(mod.id)}
-                            />
-                        ))}
-                    </div>
-                )}
+                <ModGrid
+                    loadingMods={loadingMods}
+                    result={result}
+                    installedByModId={installedByModId}
+                    gamePath={gamePath}
+                    loadingMod={loadingMod}
+                    downloadProgress={downloadProgress}
+                    onOpen={onOpenDetail}
+                    onPrefetch={handlePrefetch}
+                    onInstall={handleInstall}
+                    onUninstall={handleUninstall}
+                    onEnable={handleEnable}
+                    onDisable={handleDisable}
+                />
             </div>
 
             {result && result.meta.last_page > 1 && (
