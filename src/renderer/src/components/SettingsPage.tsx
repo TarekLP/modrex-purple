@@ -122,7 +122,7 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
     }
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col animate-page-in">
             <div className="px-6 py-4 border-b border-border shrink-0">
                 <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
                 <p className="text-xs text-text-subtle mt-0.5">{GAMES[activeGame].name}</p>

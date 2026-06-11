@@ -173,6 +173,8 @@ t('browse.modCount', { total: 42 })
 
 All colors are semantic tokens in `src/renderer/src/index.css` via Tailwind v4's `@theme` block — never use hardcoded Tailwind color classes like `zinc-*` or `red-*`. Token names: `surface`, `surface-raised`, `surface-hover`, `surface-active`, `surface-light`, `border`, `text`, `text-muted`, `text-subtle`, `accent`, `accent-bright`, `danger`, `danger-hover`, `danger-text`, `success`, `success-text`, `warning`.
 
+`animate-page-in` (defined via `@utility` in `index.css`) is a 120 ms fade/rise mount transition applied to the root div of pages keyed by `activeGame` (`BrowsePage`, `SettingsPage`) so a game switch reads as a deliberate context change; it respects `prefers-reduced-motion`. Apply it to any new page that remounts per game.
+
 `createDragImage` in `useDragDrop.ts` builds DOM nodes outside React's render tree — use CSS custom properties in inline styles (`var(--color-surface-raised)` etc.), not Tailwind classes.
 
 **Radix UI primitives** in use — always prefer these over hand-rolled equivalents:
