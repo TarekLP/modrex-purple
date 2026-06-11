@@ -330,7 +330,7 @@ pub fn stop_game(game_id: Option<String>) {
 /// `mailto` URL containing no characters that could break out of the Windows `cmd /c start`
 /// invocation. Links come from untrusted mod authors, so this gates every external open.
 fn sanitize_external_url(url: &str) -> Option<&str> {
-    if url.contains(|c| matches!(c, '"' | '\n' | '\r')) {
+    if url.contains(['"', '\n', '\r']) {
         return None;
     }
     let scheme = reqwest::Url::parse(url).ok()?.scheme().to_string();
