@@ -1,7 +1,8 @@
 use super::*;
-use std::fs::File;
+use std::collections::HashSet;
+use std::fs::{self, File};
 use std::io::Write;
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, TempDir};
 
 fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
     let f = NamedTempFile::new().unwrap();
@@ -361,4 +362,160 @@ fn read_state_missing_parent_id_defaults_to_none() {
     write!(f, "{}", json).unwrap();
     let state = read_state(f.path());
     assert_eq!(state.folders[0].parent_id, None);
+}
+
+// ── InstalledMod.location field ───────────────────────────────────────────
+
+#[test]
+fn read_state_location_field_round_trips() {
+    let json = r#"{
+        "folders": [],
+        "mods": [{
+            "uid": "99",
+            "id": 1,
+            "name": "BeardLib Mod",
+            "version": "1.0",
+            "filename": "some_mod",
+            "enabled": true,
+            "installedAt": "2024-01-01T00:00:00Z",
+            "location": "mod_overrides"
+        }]
+    }"#;
+    let mut f = NamedTempFile::new().unwrap();
+    write!(f, "{}", json).unwrap();
+    let state = read_state(f.path());
+    assert_eq!(state.mods[0].location.as_deref(), Some("mod_overrides"));
+}
+
+#[test]
+fn read_state_missing_location_is_none() {
+    let json = r#"{
+        "folders": [],
+        "mods": [{
+            "uid": "42",
+            "id": 100,
+            "name": "Test Mod",
+            "version": "1.0",
+            "filename": "001_Test_Mod.pak",
+            "enabled": true,
+            "installedAt": "2024-01-01T00:00:00Z"
+        }]
+    }"#;
+    let mut f = NamedTempFile::new().unwrap();
+    write!(f, "{}", json).unwrap();
+    let state = read_state(f.path());
+    assert_eq!(state.mods[0].location, None);
+}
+
+// ── PD2 multi-target engine ───────────────────────────────────────────────
+
+#[test]
+fn pd2_engine_has_two_targets() {
+    let cfg = engine_for_game("pd2");
+    assert_eq!(cfg.targets.len(), 2);
+    assert_eq!(cfg.targets[0].tag, "mods");
+    assert_eq!(cfg.targets[1].tag, "mod_overrides");
+}
+
+#[test]
+fn target_for_none_returns_primary() {
+    let cfg = engine_for_game("pd2");
+    assert_eq!(cfg.target_for(None).tag, "mods");
+}
+
+#[test]
+fn target_for_secondary_tag_routes_correctly() {
+    let cfg = engine_for_game("pd2");
+    assert_eq!(cfg.target_for(Some("mod_overrides")).tag, "mod_overrides");
+}
+
+#[test]
+fn target_for_unknown_tag_falls_back_to_primary() {
+    let cfg = engine_for_game("pd2");
+    assert_eq!(cfg.target_for(Some("nonexistent")).tag, "mods");
+}
+
+// ── find_untracked_paks multi-target ─────────────────────────────────────
+
+fn make_dir_mod(parent: &std::path::Path, name: &str, marker: &str) {
+    let dir = parent.join(name);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join(marker), b"").unwrap();
+}
+
+#[tokio::test]
+async fn find_untracked_paks_primary_has_no_location() {
+    let tmp = TempDir::new().unwrap();
+    let mods_dir = tmp.path().join("mods");
+    fs::create_dir_all(&mods_dir).unwrap();
+    make_dir_mod(&mods_dir, "my_blt_mod", "mod.txt");
+
+    let cfg = engine_for_game("pd2");
+    let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
+
+    assert_eq!(results.len(), 1);
+    let (rel, enabled, location) = &results[0];
+    assert_eq!(rel, "my_blt_mod");
+    assert!(*enabled);
+    assert_eq!(*location, None);
+}
+
+#[tokio::test]
+async fn find_untracked_paks_secondary_has_location_tag() {
+    let tmp = TempDir::new().unwrap();
+    let mo_dir = tmp.path().join("assets").join("mod_overrides");
+    fs::create_dir_all(&mo_dir).unwrap();
+    make_dir_mod(&mo_dir, "my_beardlib_mod", "main.xml");
+
+    let cfg = engine_for_game("pd2");
+    let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
+
+    assert_eq!(results.len(), 1);
+    let (rel, enabled, location) = &results[0];
+    assert_eq!(rel, "my_beardlib_mod");
+    assert!(*enabled);
+    assert_eq!(location.as_deref(), Some("mod_overrides"));
+}
+
+#[tokio::test]
+async fn find_untracked_paks_known_filter_isolates_by_target() {
+    let tmp = TempDir::new().unwrap();
+    let mods_dir = tmp.path().join("mods");
+    let mo_dir = tmp.path().join("assets").join("mod_overrides");
+    fs::create_dir_all(&mods_dir).unwrap();
+    fs::create_dir_all(&mo_dir).unwrap();
+    make_dir_mod(&mods_dir, "shared_name", "mod.txt");
+    make_dir_mod(&mo_dir, "shared_name", "main.xml");
+
+    let cfg = engine_for_game("pd2");
+    // Mark the primary-target entry as known; secondary entry must still be reported.
+    let known: HashSet<String> = [":shared_name".to_string()].into();
+    let results = find_untracked_paks(tmp.path().to_str().unwrap(), &known, cfg).await;
+
+    assert_eq!(results.len(), 1);
+    let (rel, _, location) = &results[0];
+    assert_eq!(rel, "shared_name");
+    assert_eq!(location.as_deref(), Some("mod_overrides"));
+}
+
+#[tokio::test]
+async fn find_untracked_paks_skips_target_when_backup_exists() {
+    let tmp = TempDir::new().unwrap();
+    let mods_dir = tmp.path().join("mods");
+    let mods_bak = tmp.path().join("mods.bak");
+    let mo_dir = tmp.path().join("assets").join("mod_overrides");
+    fs::create_dir_all(&mods_dir).unwrap();
+    fs::create_dir_all(&mods_bak).unwrap();
+    fs::create_dir_all(&mo_dir).unwrap();
+    make_dir_mod(&mods_dir, "blt_mod", "mod.txt");
+    make_dir_mod(&mo_dir, "beardlib_mod", "main.xml");
+
+    let cfg = engine_for_game("pd2");
+    let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
+
+    // Primary skipped (backup exists), only secondary returned.
+    assert_eq!(results.len(), 1);
+    let (rel, _, location) = &results[0];
+    assert_eq!(rel, "beardlib_mod");
+    assert_eq!(location.as_deref(), Some("mod_overrides"));
 }
