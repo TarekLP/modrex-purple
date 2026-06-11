@@ -12,6 +12,7 @@ import { SettingsPage } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { api } from './api'
+import { TooltipProvider } from './components/Tooltip'
 
 const InstalledPageMemo = memo(InstalledPage)
 
@@ -220,179 +221,183 @@ export default function App() {
     const sidebarView = view === 'detail' ? prevView : (view as 'browse' | 'installed' | 'settings')
 
     return (
-        <div className="flex flex-col h-screen bg-surface text-text">
-            {!installedReady && (
-                <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-4 z-50">
-                    <img src={appIcon} alt="Modrex" className="w-16 h-16 opacity-90" />
-                    <span
-                        style={{
-                            fontFamily: "'Bebas Neue', sans-serif",
-                            fontSize: '2.5rem',
-                            letterSpacing: '0.05em',
-                            lineHeight: 1,
-                        }}
-                    >
-                        <span style={{ color: 'var(--color-text)' }}>MOD</span>
-                        <span style={{ color: 'var(--color-accent)' }}>REX</span>
-                    </span>
-                    <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
-                </div>
-            )}
-            {view === 'welcome' ? (
-                <WelcomeScreen onSelectGame={handleGameChange} />
-            ) : (
-                <>
-                    <TopBar
-                        gamePath={gamePath}
-                        activeGame={activeGame}
-                        onRefreshInstalled={refreshInstalled}
-                        update={
-                            update && update.phase !== 'available'
-                                ? { phase: update.phase, percent: update.percent }
-                                : null
-                        }
-                        onDismissUpdate={() => setUpdate(null)}
-                    />
-                    {modsHidden && (
-                        <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
-                            <span>{t('app.modsHidden')}</span>
-                            <div className="flex items-center gap-3 shrink-0">
-                                {restoreError && (
-                                    <span className="text-danger-text">{restoreError}</span>
-                                )}
-                                <button
-                                    onClick={handleRestoreMods}
-                                    className="px-3 py-1 rounded bg-warning/20 hover:bg-warning/30 transition-colors"
-                                >
-                                    {t('app.restoreMods')}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    <div className="flex flex-1 overflow-hidden">
-                        <Sidebar
-                            view={sidebarView as 'browse' | 'installed' | 'settings'}
-                            onViewChange={handleSidebarChange}
+        <TooltipProvider delayDuration={400}>
+            <div className="flex flex-col h-screen bg-surface text-text">
+                {!installedReady && (
+                    <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-4 z-50">
+                        <img src={appIcon} alt="Modrex" className="w-16 h-16 opacity-90" />
+                        <span
+                            style={{
+                                fontFamily: "'Bebas Neue', sans-serif",
+                                fontSize: '2.5rem',
+                                letterSpacing: '0.05em',
+                                lineHeight: 1,
+                            }}
+                        >
+                            <span style={{ color: 'var(--color-text)' }}>MOD</span>
+                            <span style={{ color: 'var(--color-accent)' }}>REX</span>
+                        </span>
+                        <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
+                    </div>
+                )}
+                {view === 'welcome' ? (
+                    <WelcomeScreen onSelectGame={handleGameChange} />
+                ) : (
+                    <>
+                        <TopBar
+                            gamePath={gamePath}
                             activeGame={activeGame}
-                            onShowWelcome={handleShowWelcome}
+                            onRefreshInstalled={refreshInstalled}
+                            update={
+                                update && update.phase !== 'available'
+                                    ? { phase: update.phase, percent: update.percent }
+                                    : null
+                            }
+                            onDismissUpdate={() => setUpdate(null)}
                         />
-                        <main className="flex-1 overflow-hidden">
-                            {view === 'browse' && (
-                                <div className="h-full">
-                                    <BrowsePage
+                        {modsHidden && (
+                            <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
+                                <span>{t('app.modsHidden')}</span>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    {restoreError && (
+                                        <span className="text-danger-text">{restoreError}</span>
+                                    )}
+                                    <button
+                                        onClick={handleRestoreMods}
+                                        className="px-3 py-1 rounded bg-warning/20 hover:bg-warning/30 transition-colors"
+                                    >
+                                        {t('app.restoreMods')}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        <div className="flex flex-1 overflow-hidden">
+                            <Sidebar
+                                view={sidebarView as 'browse' | 'installed' | 'settings'}
+                                onViewChange={handleSidebarChange}
+                                activeGame={activeGame}
+                                onShowWelcome={handleShowWelcome}
+                            />
+                            <main className="flex-1 overflow-hidden">
+                                {view === 'browse' && (
+                                    <div className="h-full">
+                                        <BrowsePage
+                                            key={activeGame}
+                                            activeGame={activeGame}
+                                            gamePath={gamePath}
+                                            installed={installed}
+                                            onRefreshInstalled={refreshInstalled}
+                                            onOpenDetail={(id, initialMod) =>
+                                                openDetail(id, 'browse', initialMod)
+                                            }
+                                            onGoToSettings={() => handleSidebarChange('settings')}
+                                        />
+                                    </div>
+                                )}
+                                <div className={`h-full ${view === 'installed' ? '' : 'hidden'}`}>
+                                    <InstalledPageMemo
+                                        activeGame={activeGame}
+                                        gamePath={gamePath}
+                                        installed={installed}
+                                        folders={folders}
+                                        installedReady={installedReady}
+                                        onRefreshInstalled={refreshInstalled}
+                                        onOpenDetail={openDetailFromInstalled}
+                                    />
+                                </div>
+                                <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>
+                                    <SettingsPage
                                         key={activeGame}
                                         activeGame={activeGame}
                                         gamePath={gamePath}
-                                        installed={installed}
-                                        onRefreshInstalled={refreshInstalled}
-                                        onOpenDetail={(id, initialMod) =>
-                                            openDetail(id, 'browse', initialMod)
-                                        }
-                                        onGoToSettings={() => handleSidebarChange('settings')}
+                                        onGamePathChange={refreshGamePath}
                                     />
                                 </div>
-                            )}
-                            <div className={`h-full ${view === 'installed' ? '' : 'hidden'}`}>
-                                <InstalledPageMemo
-                                    activeGame={activeGame}
-                                    gamePath={gamePath}
-                                    installed={installed}
-                                    folders={folders}
-                                    installedReady={installedReady}
-                                    onRefreshInstalled={refreshInstalled}
-                                    onOpenDetail={openDetailFromInstalled}
-                                />
-                            </div>
-                            <div className={`h-full ${view === 'settings' ? '' : 'hidden'}`}>
-                                <SettingsPage
-                                    key={activeGame}
-                                    activeGame={activeGame}
-                                    gamePath={gamePath}
-                                    onGamePathChange={refreshGamePath}
-                                />
-                            </div>
-                            {detailStack.map(({ modId, initialMod }, i) => (
-                                <div
-                                    key={modId}
-                                    className={`h-full ${view === 'detail' && i === detailStack.length - 1 ? '' : 'hidden'}`}
-                                >
-                                    <ModDetailPage
-                                        modId={modId}
-                                        initialMod={initialMod}
-                                        isActive={view === 'detail' && i === detailStack.length - 1}
-                                        gamePath={gamePath}
-                                        installed={installed}
-                                        activeGame={activeGame}
-                                        onBack={closeDetail}
-                                        onRefreshInstalled={refreshInstalled}
-                                        onOpenDetail={pushDetail}
-                                    />
-                                </div>
-                            ))}
-                        </main>
-                    </div>
-                </>
-            )}
-
-            {showUpdateModal && update && update.phase === 'available' && (
-                <div
-                    className="absolute inset-0 bg-black/60 flex items-center justify-center z-50"
-                    onClick={(e) => e.target === e.currentTarget && setShowUpdateModal(false)}
-                >
-                    <div className="bg-surface-raised border border-border rounded-xl w-full max-w-lg mx-6 flex flex-col overflow-hidden max-h-[80vh]">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-                            <h2 className="text-sm font-semibold">
-                                {t('app.updateNotesTitle', { version: update.version })}
-                            </h2>
-                            <button
-                                onClick={() => setShowUpdateModal(false)}
-                                className="text-text-subtle hover:text-text transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
+                                {detailStack.map(({ modId, initialMod }, i) => (
+                                    <div
+                                        key={modId}
+                                        className={`h-full ${view === 'detail' && i === detailStack.length - 1 ? '' : 'hidden'}`}
+                                    >
+                                        <ModDetailPage
+                                            modId={modId}
+                                            initialMod={initialMod}
+                                            isActive={
+                                                view === 'detail' && i === detailStack.length - 1
+                                            }
+                                            gamePath={gamePath}
+                                            installed={installed}
+                                            activeGame={activeGame}
+                                            onBack={closeDetail}
+                                            onRefreshInstalled={refreshInstalled}
+                                            onOpenDetail={pushDetail}
+                                        />
+                                    </div>
+                                ))}
+                            </main>
                         </div>
-                        {update.body && (
-                            <div className="overflow-y-auto px-5 py-4 flex-1">
-                                <MarkdownContent text={update.body} />
-                            </div>
-                        )}
-                        <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
-                            <button
-                                onClick={() => api.openExternal(update.releaseUrl)}
-                                className="flex items-center gap-1.5 text-xs text-text-subtle hover:text-text transition-colors"
-                            >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                {t('app.updateViewOnGithub')}
-                            </button>
-                            <div className="flex items-center gap-2">
+                    </>
+                )}
+
+                {showUpdateModal && update && update.phase === 'available' && (
+                    <div
+                        className="absolute inset-0 bg-black/60 flex items-center justify-center z-50"
+                        onClick={(e) => e.target === e.currentTarget && setShowUpdateModal(false)}
+                    >
+                        <div className="bg-surface-raised border border-border rounded-xl w-full max-w-lg mx-6 flex flex-col overflow-hidden max-h-[80vh]">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+                                <h2 className="text-sm font-semibold">
+                                    {t('app.updateNotesTitle', { version: update.version })}
+                                </h2>
                                 <button
                                     onClick={() => setShowUpdateModal(false)}
-                                    className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
+                                    className="text-text-subtle hover:text-text transition-colors"
                                 >
-                                    {t('app.updateLater')}
+                                    <X className="w-4 h-4" />
                                 </button>
-                                {update.strategy !== 'browser' ? (
+                            </div>
+                            {update.body && (
+                                <div className="overflow-y-auto px-5 py-4 flex-1">
+                                    <MarkdownContent text={update.body} />
+                                </div>
+                            )}
+                            <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
+                                <button
+                                    onClick={() => api.openExternal(update.releaseUrl)}
+                                    className="flex items-center gap-1.5 text-xs text-text-subtle hover:text-text transition-colors"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    {t('app.updateViewOnGithub')}
+                                </button>
+                                <div className="flex items-center gap-2">
                                     <button
-                                        onClick={handleUpdate}
-                                        className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
+                                        onClick={() => setShowUpdateModal(false)}
+                                        className="text-xs px-3 py-1 rounded bg-surface-hover hover:bg-surface-active transition-colors"
                                     >
-                                        <Download className="w-3.5 h-3.5" />
-                                        {t('app.updateAction')}
+                                        {t('app.updateLater')}
                                     </button>
-                                ) : (
-                                    <button
-                                        onClick={() => api.openExternal(update.releaseUrl)}
-                                        className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
-                                    >
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                        {t('app.updateDownload')}
-                                    </button>
-                                )}
+                                    {update.strategy !== 'browser' ? (
+                                        <button
+                                            onClick={handleUpdate}
+                                            className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
+                                        >
+                                            <Download className="w-3.5 h-3.5" />
+                                            {t('app.updateAction')}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => api.openExternal(update.releaseUrl)}
+                                            className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                            {t('app.updateDownload')}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )}
+            </div>
+        </TooltipProvider>
     )
 }
