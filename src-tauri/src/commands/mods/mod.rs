@@ -31,7 +31,7 @@ pub(crate) use self::zip::{extract_dir_entry, extract_entry, mark_archive_files,
 #[cfg(test)]
 pub(crate) use self::naming::{apply_priority_prefix, make_uid};
 #[cfg(test)]
-pub(crate) use self::zip::{detect_archive, is_zip, list_pak_entries, ArchiveFormat};
+pub(crate) use self::zip::{detect_archive, is_zip, list_pak_entries, safe_dest, ArchiveFormat};
 
 use crate::commands::api::{api_get, http_client, user_agent};
 use crate::commands::download::download_file;

@@ -519,3 +519,54 @@ async fn find_untracked_paks_skips_target_when_backup_exists() {
     assert_eq!(rel, "beardlib_mod");
     assert_eq!(location.as_deref(), Some("mod_overrides"));
 }
+
+// ── safe_dest (Zip-Slip guard) ────────────────────────────────────────────
+
+#[test]
+fn safe_dest_allows_normal_nested_path() {
+    let dest = std::path::Path::new("/tmp/out");
+    assert_eq!(
+        safe_dest(dest, "sub/file.pak"),
+        Some(std::path::PathBuf::from("/tmp/out/sub/file.pak"))
+    );
+}
+
+#[test]
+fn safe_dest_allows_current_dir_segments() {
+    let dest = std::path::Path::new("/tmp/out");
+    assert_eq!(
+        safe_dest(dest, "./file.pak"),
+        Some(std::path::PathBuf::from("/tmp/out/./file.pak"))
+    );
+}
+
+#[test]
+fn safe_dest_rejects_parent_traversal() {
+    let dest = std::path::Path::new("/tmp/out");
+    assert_eq!(safe_dest(dest, "../escape.pak"), None);
+    assert_eq!(safe_dest(dest, "sub/../../escape.pak"), None);
+}
+
+#[test]
+fn safe_dest_rejects_absolute_path() {
+    let dest = std::path::Path::new("/tmp/out");
+    assert_eq!(safe_dest(dest, "/etc/passwd"), None);
+}
+
+// ── extract_dir_entry Zip-Slip behavior ───────────────────────────────────
+
+#[test]
+fn extract_dir_entry_drops_traversal_entries() {
+    // An archive whose mod directory smuggles a `../` entry must not write outside dest.
+    let zip = make_zip(&[
+        ("mymod/main.xml", b"safe"),
+        ("mymod/../escape.pak", b"malicious"),
+    ]);
+    let out = TempDir::new().unwrap();
+    let dest = out.path().join("extracted");
+    extract_dir_entry(zip.path(), "mymod", &dest).unwrap();
+
+    assert_eq!(fs::read(dest.join("main.xml")).unwrap(), b"safe");
+    // The traversal target (sibling of dest) must never be created.
+    assert!(!out.path().join("escape.pak").exists());
+}

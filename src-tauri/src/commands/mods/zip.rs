@@ -296,6 +296,20 @@ fn list_mod_dirs_tar<R: Read>(reader: R, entry_marker: &str) -> Result<Vec<Strin
     Ok(result)
 }
 
+/// Joins an archive-internal (`/`-separated) path onto `dest`, returning `None` if it would
+/// escape `dest` via an absolute path, drive/UNC prefix, or `..` component. Archive entries
+/// are attacker-controlled, so directory extractors must route writes through this (Zip-Slip).
+pub(crate) fn safe_dest(dest: &Path, relative: &str) -> Option<PathBuf> {
+    use std::path::Component;
+    for comp in Path::new(relative).components() {
+        match comp {
+            Component::Normal(_) | Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
+        }
+    }
+    Some(dest.join(relative))
+}
+
 /// Extracts all entries under `dir_prefix/` from the archive into `dest/`.
 pub fn extract_dir_entry(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
     match detect_archive(archive_path) {
@@ -328,11 +342,11 @@ fn extract_dir_zip(zip_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(),
             Some(r) if !r.is_empty() => r.to_string(),
             _ => continue,
         };
+        let Some(dest_path) = safe_dest(dest, &relative) else { continue };
         if entry.is_dir() {
-            std::fs::create_dir_all(dest.join(&relative)).map_err(|e| e.to_string())?;
+            std::fs::create_dir_all(&dest_path).map_err(|e| e.to_string())?;
             continue;
         }
-        let dest_path = dest.join(&relative);
         if let Some(parent) = dest_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
@@ -358,12 +372,15 @@ fn extract_dir_7z(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<
                 return Ok(true);
             }
         };
+        let Some(dest_path) = safe_dest(&dest, &relative) else {
+            let _ = std::io::copy(reader, &mut std::io::sink());
+            return Ok(true);
+        };
         if entry.is_directory() {
-            let _ = std::fs::create_dir_all(dest.join(&relative));
+            let _ = std::fs::create_dir_all(&dest_path);
             let _ = std::io::copy(reader, &mut std::io::sink());
             return Ok(true);
         }
-        let dest_path = dest.join(&relative);
         if let Some(parent) = dest_path.parent() {
             if let Err(e) = std::fs::create_dir_all(parent) {
                 *write_err.borrow_mut() = Some(e.to_string());
@@ -397,11 +414,11 @@ fn extract_dir_tar<R: Read>(reader: R, dir_prefix: &str, dest: &Path) -> Result<
             Some(r) if !r.is_empty() => r.to_string(),
             _ => continue,
         };
+        let Some(dest_path) = safe_dest(dest, &relative) else { continue };
         if entry.header().entry_type().is_dir() {
-            std::fs::create_dir_all(dest.join(&relative)).map_err(|e| e.to_string())?;
+            std::fs::create_dir_all(&dest_path).map_err(|e| e.to_string())?;
             continue;
         }
-        let dest_path = dest.join(&relative);
         if let Some(parent) = dest_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
@@ -519,6 +536,11 @@ fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resu
                 Some(header) => {
                     let name = header.entry().filename.to_string_lossy().replace('\\', "/");
                     if name == normalized {
+                        // extract_with_base writes to tmp_dir joined with the internal name —
+                        // reject traversal so it can't escape tmp_dir.
+                        if safe_dest(&tmp_dir, &name).is_none() {
+                            return Err("archive entry escapes extraction directory".to_string());
+                        }
                         let entry_filename = header.entry().filename.clone();
                         header.extract_with_base(&tmp_dir).map_err(|e| e.to_string())?;
                         let extracted = tmp_dir.join(&entry_filename);
@@ -653,7 +675,12 @@ fn extract_dir_rar(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result
                 None => break,
                 Some(header) => {
                     let name = header.entry().filename.to_string_lossy().replace('\\', "/");
-                    if !header.entry().is_directory() && name.starts_with(&prefix) {
+                    // extract_with_base writes to tmp_dir joined with the internal name; skip
+                    // any entry whose path would escape tmp_dir (Zip-Slip via `..`).
+                    if !header.entry().is_directory()
+                        && name.starts_with(&prefix)
+                        && safe_dest(&tmp_dir, &name).is_some()
+                    {
                         archive = header.extract_with_base(&tmp_dir).map_err(|e| e.to_string())?;
                     } else {
                         archive = header.skip().map_err(|e| e.to_string())?;
