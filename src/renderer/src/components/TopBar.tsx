@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
 import { Dialog } from './Dialog'
 import { Tooltip } from './Tooltip'
@@ -36,6 +36,23 @@ export function TopBar({
     const missedWhileLaunching = useRef(0)
     const launchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+    // Kept in sync with activeGame so in-flight poll results from a switched-away
+    // game can be discarded. All running/launching state belongs to the previous
+    // game after a switch — reset before paint so it never bleeds through.
+    const activeGameRef = useRef(activeGame)
+    useLayoutEffect(() => {
+        activeGameRef.current = activeGame
+        setGameRunning(false)
+        setLaunching(null)
+        wasRunning.current = false
+        pendingRestore.current = false
+        missedWhileLaunching.current = 0
+        if (launchTimeoutRef.current) {
+            clearTimeout(launchTimeoutRef.current)
+            launchTimeoutRef.current = null
+        }
+    }, [activeGame])
+
     function startLaunching(mode: 'modded' | 'vanilla') {
         setLaunching(mode)
         missedWhileLaunching.current = 0
@@ -45,7 +62,9 @@ export function TopBar({
 
     useEffect(() => {
         const check = async () => {
-            const running = await api.isGameRunning(activeGame)
+            const game = activeGame
+            const running = await api.isGameRunning(game)
+            if (activeGameRef.current !== game) return
             if (!running && wasRunning.current) {
                 if (pendingRestore.current) {
                     try {
