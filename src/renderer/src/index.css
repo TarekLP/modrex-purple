@@ -2,11 +2,11 @@
 
 @theme {
     --color-surface: #131313;
-    --color-surface-raised: #1c1c1c;
+    --color-surface-raised: #1e1b1a;
     --color-surface-hover: #262626;
     --color-surface-active: #333333;
     --color-surface-light: #464646;
-    --color-border: #262626;
+    --color-border: #2e2e2e;
     --color-text: #f4f4f3;
     --color-text-muted: #8e8e96;
     --color-text-subtle: #71717a;
@@ -41,4 +41,10 @@ input[type='checkbox']:not(:disabled) {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--color-text-subtle);
+}
+
+:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 3px;
 }
