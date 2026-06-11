@@ -41,7 +41,7 @@ pub fn install_mod_from_path(
         .max()
         .unwrap_or(0);
     let priority = existing.as_ref().and_then(|e| e.priority).unwrap_or(max_mod.max(max_folder) + 1);
-    let priority_prefix_enabled = match &cfg.unit {
+    let priority_prefix_enabled = match &cfg.primary().unit {
         ModUnit::File { priority_prefix, .. } | ModUnit::Directory { priority_prefix, .. } => *priority_prefix,
     };
     let filename = if priority_prefix_enabled {
@@ -51,7 +51,7 @@ pub fn install_mod_from_path(
     };
 
     let dest = active_mod_path(game_path, &filename, folder_rel.as_deref(), cfg);
-    match &cfg.unit {
+    match &cfg.primary().unit {
         ModUnit::File { .. } => {
             fs::copy(source, &dest).map_err(|e| e.to_string())?;
         }
@@ -69,7 +69,7 @@ pub fn install_mod_from_path(
         };
         let new_active = active_mod_path(game_path, &filename, folder_rel.as_deref(), cfg);
         if old != new_active && old.exists() {
-            match &cfg.unit {
+            match &cfg.primary().unit {
                 ModUnit::File { .. } => {
                     if let Err(e) = fs::remove_file(&old) {
                         log::warn!("install: remove old pak {old:?}: {e}");
@@ -119,7 +119,7 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
         disabled_mod_path(game_path, &m.filename, rel.as_deref(), cfg)
     };
     if path.exists() {
-        match &cfg.unit {
+        match &cfg.primary().unit {
             ModUnit::File { .. } => {
                 if let Err(e) = fs::remove_file(&path) {
                     log::warn!("uninstall: remove {path:?}: {e}");

@@ -391,7 +391,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
     if detect_archive(&downloaded).is_none() {
         return Ok((downloaded, None));
     }
-    match &cfg.unit {
+    match &cfg.primary().unit {
         ModUnit::File { .. } => {
             let entries = list_pak_entries(&downloaded)?;
             match entries.len() {

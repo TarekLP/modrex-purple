@@ -2,15 +2,15 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use super::engine::{
     backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
-    ModEngineConfig, ModUnit,
+    ModEngineConfig, ModUnit, ScanTarget,
 };
 
 pub fn mods_base(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
-    mods_dir(game_path, cfg)
+    mods_dir(game_path, cfg.primary())
 }
 
 pub fn disabled_base(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
-    disabled_dir(game_path, cfg)
+    disabled_dir(game_path, cfg.primary())
 }
 
 pub fn get_state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
@@ -39,7 +39,7 @@ pub fn disabled_mod_path(
         Some(rel) => disabled_base(game_path, cfg).join(rel),
         None => disabled_base(game_path, cfg),
     };
-    match &cfg.unit {
+    match &cfg.primary().unit {
         ModUnit::File { disabled_suffix, .. } => base.join(format!("{}{}", filename, disabled_suffix)),
         ModUnit::Directory { .. } => base.join(filename),
     }
@@ -50,12 +50,13 @@ pub async fn find_untracked_paks(
     known: &HashSet<String>,
     cfg: &ModEngineConfig,
 ) -> Vec<(String, bool)> {
-    if engine_backup_dir(game_path, cfg).exists() {
+    if engine_backup_dir(game_path, cfg.primary()).exists() {
         return vec![];
     }
     let mut out = Vec::new();
-    scan_active(&mods_base(game_path, cfg), "", known, cfg, &mut out).await;
-    scan_disabled(&disabled_base(game_path, cfg), "", known, cfg, &mut out).await;
+    let target = cfg.primary();
+    scan_active(&mods_dir(game_path, target), "", known, target, &mut out).await;
+    scan_disabled(&disabled_dir(game_path, target), "", known, target, &mut out).await;
     out
 }
 
@@ -63,7 +64,7 @@ async fn scan_active(
     dir: &Path,
     prefix: &str,
     known: &HashSet<String>,
-    cfg: &ModEngineConfig,
+    target: &ScanTarget,
     out: &mut Vec<(String, bool)>,
 ) {
     let mut rd = match tokio::fs::read_dir(dir).await {
@@ -81,7 +82,7 @@ async fn scan_active(
             Err(_) => continue,
         };
         let rel = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
-        match &cfg.unit {
+        match &target.unit {
             ModUnit::File { .. } => {
                 if ft.is_dir() {
                     subdirs.push((entry.path(), rel));
@@ -103,7 +104,7 @@ async fn scan_active(
         }
     }
     for (path, sub) in subdirs {
-        Box::pin(scan_active(&path, &sub, known, cfg, out)).await;
+        Box::pin(scan_active(&path, &sub, known, target, out)).await;
     }
 }
 
@@ -111,7 +112,7 @@ async fn scan_disabled(
     dir: &Path,
     prefix: &str,
     known: &HashSet<String>,
-    cfg: &ModEngineConfig,
+    target: &ScanTarget,
     out: &mut Vec<(String, bool)>,
 ) {
     let mut rd = match tokio::fs::read_dir(dir).await {
@@ -126,7 +127,7 @@ async fn scan_disabled(
             Err(_) => continue,
         };
         let sub = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
-        match &cfg.unit {
+        match &target.unit {
             ModUnit::File { .. } => {
                 if ft.is_dir() {
                     subdirs.push((entry.path(), sub));
@@ -152,6 +153,6 @@ async fn scan_disabled(
         }
     }
     for (path, sub) in subdirs {
-        Box::pin(scan_disabled(&path, &sub, known, cfg, out)).await;
+        Box::pin(scan_disabled(&path, &sub, known, target, out)).await;
     }
 }

@@ -175,13 +175,13 @@ pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option
 
 fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
     let mods_dir = mods_base(game_path, cfg);
-    let mods_bak = backup_dir(game_path, cfg);
+    let mods_bak = backup_dir(game_path, cfg.primary());
 
     if !mods_bak.exists() {
         return Ok(());
     }
 
-    if cfg.is_directory_unit() {
+    if cfg.primary().is_directory_unit() {
         let _ = fs::create_dir_all(&mods_dir);
         if let Ok(entries) = fs::read_dir(&mods_bak) {
             for entry in entries.flatten() {
@@ -224,10 +224,10 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
 
     let cfg = engine_for_game(game_id);
     let mods_dir = mods_base(game_path, cfg);
-    let mods_bak = backup_dir(game_path, cfg);
+    let mods_bak = backup_dir(game_path, cfg.primary());
 
     if !mods_bak.exists() {
-        if cfg.is_directory_unit() {
+        if cfg.primary().is_directory_unit() {
             if mods_dir.exists() {
                 fs::create_dir(&mods_bak).map_err(|e| {
                     format!(

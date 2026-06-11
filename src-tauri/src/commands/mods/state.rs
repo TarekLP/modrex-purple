@@ -136,9 +136,9 @@ fn compact_folder_priorities(
 }
 
 pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig) -> ModsState {
-    let bak = backup_dir(game_path, cfg);
+    let bak = backup_dir(game_path, cfg.primary());
     if bak.exists() {
-        if cfg.is_directory_unit() {
+        if cfg.primary().is_directory_unit() {
             // BLT: state file stays in mods/ because only user mod dirs were moved to backup.
             return read_state(state_path);
         }

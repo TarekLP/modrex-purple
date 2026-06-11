@@ -55,7 +55,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
     };
 
     let state_path = get_state_path(&game_path, cfg);
-    let mods_hidden = backup_dir(&game_path, cfg).exists();
+    let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let mut state = reconcile_state(&game_path, &state_path, cfg);
 
@@ -159,12 +159,12 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
             let rel_path = rel_path.clone();
             let enabled = *enabled;
             async move {
-                let path = match &cfg.unit {
+                let path = match &cfg.primary().unit {
                     engine::ModUnit::File { .. } => {
                         if enabled {
                             mods_base(&game_path, cfg).join(&rel_path)
                         } else {
-                            disabled_base(&game_path, cfg).join(format!("{}{}", rel_path, cfg.disabled_suffix()))
+                            disabled_base(&game_path, cfg).join(format!("{}{}", rel_path, cfg.primary().disabled_suffix()))
                         }
                     }
                     engine::ModUnit::Directory { entry_marker, .. } => {
@@ -229,7 +229,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
         let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
 
-        let stem = match &cfg.unit {
+        let stem = match &cfg.primary().unit {
             engine::ModUnit::File { .. } => filename
                 .strip_suffix(".pak")
                 .or_else(|| filename.strip_suffix(".pak.disabled"))
@@ -354,7 +354,7 @@ pub async fn install_mod(
     };
 
     let result = async {
-        let sha256 = match &cfg.unit {
+        let sha256 = match &cfg.primary().unit {
             engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
             engine::ModUnit::Directory { entry_marker, .. } => {
                 compute_sha256(&tmp.join(entry_marker)).await?
@@ -378,7 +378,7 @@ pub async fn install_mod(
         });
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &cfg.unit {
+            .unwrap_or_else(|| match &cfg.primary().unit {
                 engine::ModUnit::File { .. } => pak_filename(&mod_name),
                 engine::ModUnit::Directory { .. } => tmp
                     .file_name()
@@ -428,7 +428,7 @@ pub async fn install_mod(
     }
     .await;
 
-    match &cfg.unit {
+    match &cfg.primary().unit {
         engine::ModUnit::File { .. } => { let _ = tokio::fs::remove_file(&tmp).await; }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
@@ -472,7 +472,7 @@ pub async fn install_file(
     };
 
     let result = async {
-        let sha256 = match &cfg.unit {
+        let sha256 = match &cfg.primary().unit {
             engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
             engine::ModUnit::Directory { entry_marker, .. } => {
                 compute_sha256(&tmp.join(entry_marker)).await?
@@ -496,7 +496,7 @@ pub async fn install_file(
         };
         let filename = saved.mods.iter().find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
-            .unwrap_or_else(|| match &cfg.unit {
+            .unwrap_or_else(|| match &cfg.primary().unit {
                 engine::ModUnit::File { .. } => {
                     if file_type == "main" { pak_filename(&mod_name) } else { pak_filename(&format!("{}_{}", mod_name, file_id)) }
                 }
@@ -538,7 +538,7 @@ pub async fn install_file(
     }
     .await;
 
-    match &cfg.unit {
+    match &cfg.primary().unit {
         engine::ModUnit::File { .. } => { let _ = tokio::fs::remove_file(&tmp).await; }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
@@ -582,7 +582,7 @@ pub async fn install_from_zip_entry(
 
     // For File mods: ext is a temp .pak file.
     // For Directory mods: ext is {tmp_parent}/{dir_name} (two-level, consistent with resolve_archive_download).
-    let (ext, tmp_parent) = match &cfg.unit {
+    let (ext, tmp_parent) = match &cfg.primary().unit {
         engine::ModUnit::File { .. } => {
             let p = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
             (p, None)
@@ -597,11 +597,11 @@ pub async fn install_from_zip_entry(
     let uid = format!("{}_{}", file_id, entry_stem);
 
     let result = async {
-        match &cfg.unit {
+        match &cfg.primary().unit {
             engine::ModUnit::File { .. } => extract_entry(&zip, &entry_name, &ext)?,
             engine::ModUnit::Directory { .. } => extract_dir_entry(&zip, &entry_name, &ext)?,
         }
-        let sha256 = match &cfg.unit {
+        let sha256 = match &cfg.primary().unit {
             engine::ModUnit::File { .. } => compute_sha256(&ext).await?,
             engine::ModUnit::Directory { entry_marker, .. } => {
                 compute_sha256(&ext.join(entry_marker)).await?
