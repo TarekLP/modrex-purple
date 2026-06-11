@@ -64,84 +64,52 @@ fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf
     first_file_in_dir(dir)
 }
 
-// ── Tauri commands ────────────────────────────────────────────────────────────
+// ── get_installed identification pipeline ──────────────────────────────────────
 
-#[tauri::command]
-pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<InstalledResponse, String> {
-    let game_id = game_id.as_deref().unwrap_or("pd3");
-    let cfg = engine_for_game(game_id);
-    let settings = read_settings(&app);
-    let Some(game_path) = game_settings(&settings, game_id).and_then(|gs| gs.game_path.clone()) else {
-        return Ok(InstalledResponse { mods: vec![], folders: vec![], mods_hidden: false });
-    };
-
-    let state_path = get_state_path(&game_path, cfg);
-    let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
-
-    let mut state = reconcile_state(&game_path, &state_path, cfg);
-
-    // Upgrade negative-id entries whose SHA256 is now in the index (added after initial install).
-    for m in &mut state.mods {
+/// Upgrades negative-id (unidentified) entries whose SHA256 is now present in the index —
+/// e.g. the mod was added to the index after it was first installed locally.
+fn upgrade_negative_ids_by_sha(app: &AppHandle, mods: &mut [InstalledMod], game_name: &str) {
+    for m in mods {
         if m.id >= 0 { continue; }
         let Some(ref sha) = m.sha256 else { continue };
-        let Some(hit) = mod_index::lookup_sha256(&app, sha, cfg.index_game_name) else { continue };
+        let Some(hit) = mod_index::lookup_sha256(app, sha, game_name) else { continue };
         m.id = hit.mod_remote_id;
         m.name = hit.mod_name;
         m.version = hit.version;
         m.file_id = Some(hit.file_remote_id);
     }
+}
 
-    // Re-identify remaining negative-id entries whose name ends in " <number>" (a file id
-    // suffix appended during fallback identification). If the base name matches a
-    // positively-identified tracked mod, assign that mod's id so all pak files from the
-    // same mod are grouped together in the UI.
-    {
-        let name_to_id: std::collections::HashMap<String, i64> = state
-            .mods
-            .iter()
-            .filter(|m| m.id > 0)
-            .map(|m| (m.name.to_lowercase(), m.id))
-            .collect();
-        for m in &mut state.mods {
-            if m.id >= 0 { continue; }
-            if let Some(pos) = m.name.rfind(' ') {
-                let suffix = &m.name[pos + 1..];
-                if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
-                    let base = m.name[..pos].to_lowercase();
-                    if let Some(&matched_id) = name_to_id.get(&base) {
-                        m.id = matched_id;
-                    }
+/// Re-groups negative-id entries whose name ends in " <number>" (a file-id suffix left by
+/// fallback identification): when the base name matches a positively-identified tracked mod,
+/// adopt that mod's id so all pak files from one mod group together in the UI.
+fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
+    let name_to_id: HashMap<String, i64> = mods
+        .iter()
+        .filter(|m| m.id > 0)
+        .map(|m| (m.name.to_lowercase(), m.id))
+        .collect();
+    for m in mods.iter_mut() {
+        if m.id >= 0 { continue; }
+        if let Some(pos) = m.name.rfind(' ') {
+            let suffix = &m.name[pos + 1..];
+            if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
+                let base = m.name[..pos].to_lowercase();
+                if let Some(&matched_id) = name_to_id.get(&base) {
+                    m.id = matched_id;
                 }
             }
         }
     }
+}
 
-    if mods_hidden {
-        return Ok(InstalledResponse { mods: state.mods, folders: state.folders, mods_hidden: true });
-    }
-
-    let known: HashSet<String> = state
-        .mods
-        .iter()
-        .map(|m| {
-            let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            let rel_path = match rel {
-                Some(r) => format!("{}/{}", r, m.filename),
-                None => m.filename.clone(),
-            };
-            format!("{}:{}", m.location.as_deref().unwrap_or(""), rel_path)
-        })
-        .collect();
-
-    let untracked = find_untracked_paks(&game_path, &known, cfg).await;
-    if untracked.is_empty() {
-        let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
-        if any_checked {
-            save_state(&state_path, &ModsState { folders: state.folders.clone(), mods: mods.clone() });
-        }
-        return Ok(InstalledResponse { mods, folders: state.folders, mods_hidden: false });
-    }
-
+/// Creates app folders for every directory segment in the untracked paths that does not yet
+/// exist, pushing them onto `state.folders`. Returns the folder-path-to-id map used to place
+/// reconciled and newly identified mods.
+fn ensure_untracked_folders(
+    state: &mut ModsState,
+    untracked: &[(String, bool, Option<String>)],
+) -> HashMap<String, String> {
     let mut folder_path_to_id: HashMap<String, String> = state
         .folders
         .iter()
@@ -151,7 +119,7 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
     let mut max_p = state.folders.iter().map(|f| f.priority).max().unwrap_or(0)
         .max(state.mods.iter().filter(|m| m.folder_id.is_none()).filter_map(|m| m.priority).max().unwrap_or(0));
 
-    for (rel_path, _, _) in &untracked {
+    for (rel_path, _, _) in untracked {
         let parts: Vec<&str> = rel_path.split('/').collect();
         if parts.len() <= 1 { continue; }
         let segs = &parts[..parts.len() - 1];
@@ -173,11 +141,20 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
             state.folders.push(new_folder);
         }
     }
+    folder_path_to_id
+}
 
+/// Hashes each untracked entry (the pak file, or a mod directory's marker/representative file)
+/// so it can be matched against the index. The returned vec is index-aligned with `untracked`.
+async fn hash_untracked(
+    game_path: &str,
+    untracked: &[(String, bool, Option<String>)],
+    cfg: &ModEngineConfig,
+) -> Vec<Option<String>> {
     let sha_futures: Vec<_> = untracked
         .iter()
         .map(|(rel_path, enabled, location_tag)| {
-            let game_path = game_path.clone();
+            let game_path = game_path.to_string();
             let rel_path = rel_path.clone();
             let enabled = *enabled;
             let entry_target = cfg.target_for(location_tag.as_deref());
@@ -210,11 +187,20 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
             }
         })
         .collect();
-    let sha256s: Vec<Option<String>> = futures::future::join_all(sha_futures).await;
+    futures::future::join_all(sha_futures).await
+}
 
-    // Phase 1 — reconcile untracked files against already-tracked mods by SHA256.
-    // If a newly-found file's hash matches a tracked mod, update its filename/enabled
-    // rather than creating a duplicate entry.
+/// Reconciles untracked entries that hash-match an existing tracked mod (Phase 1, mutating
+/// `state.mods` in place), then identifies the rest via the index with name/number/hash
+/// fallbacks (Phase 2). Returns the full mod list: tracked entries plus newly identified ones.
+fn identify_untracked(
+    app: &AppHandle,
+    state: &mut ModsState,
+    untracked: &[(String, bool, Option<String>)],
+    sha256s: &[Option<String>],
+    folder_path_to_id: &HashMap<String, String>,
+    cfg: &ModEngineConfig,
+) -> Vec<InstalledMod> {
     let sha256_to_uid: HashMap<String, String> = state
         .mods
         .iter()
@@ -222,7 +208,6 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         .collect();
 
     let mut reconcile_ops: Vec<(String, String, bool, Option<String>)> = Vec::new();
-
     for ((rel_path, enabled, _), sha256) in untracked.iter().zip(sha256s.iter()) {
         let Some(sha) = sha256 else { continue };
         let Some(uid) = sha256_to_uid.get(sha.as_str()) else { continue };
@@ -232,7 +217,6 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
         reconcile_ops.push((uid.clone(), filename, *enabled, folder_id));
     }
-
     for (uid, filename, enabled, folder_id) in reconcile_ops {
         if let Some(m) = state.mods.iter_mut().find(|m| m.uid == uid) {
             m.filename = filename;
@@ -242,15 +226,11 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         }
     }
 
-    // Phase 2 — identify remaining untracked files via mod-index, then fallback.
     let now = Utc::now().to_rfc3339();
-
-    // Build by_uid before the loop so uid collision detection can check against it.
     let mut by_uid: HashMap<String, InstalledMod> =
         state.mods.iter().map(|m| (m.uid.clone(), m.clone())).collect();
 
     for ((rel_path, enabled, location_tag), sha256) in untracked.iter().zip(sha256s.iter()) {
-        // Already reconciled to an existing tracked entry above
         if sha256.as_deref().is_some_and(|s| sha256_to_uid.contains_key(s)) {
             continue;
         }
@@ -278,11 +258,11 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
 
         let gname = cfg.index_game_name;
         let (id, name, file_id, version) = if let Some(sha) = sha256 {
-            if let Some(hit) = mod_index::lookup_sha256(&app, sha, gname) {
+            if let Some(hit) = mod_index::lookup_sha256(app, sha, gname) {
                 (hit.mod_remote_id, hit.mod_name, Some(hit.file_remote_id), hit.version)
-            } else if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped_name, gname) {
+            } else if let Some(remote_id) = mod_index::lookup_by_name(app, &stripped_name, gname) {
                 (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
-            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(&app, b, gname)) {
+            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(app, b, gname)) {
                 (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
             } else if let Ok(num_id) = stripped.parse::<i64>() {
                 (num_id, stripped.to_string(), None, "unknown".to_string())
@@ -290,9 +270,9 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
                 (hash_filename(&filename), stripped_name.trim().to_string(), None, "unknown".to_string())
             }
         } else {
-            if let Some(remote_id) = mod_index::lookup_by_name(&app, &stripped_name, gname) {
+            if let Some(remote_id) = mod_index::lookup_by_name(app, &stripped_name, gname) {
                 (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
-            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(&app, b, gname)) {
+            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(app, b, gname)) {
                 (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
             } else if let Ok(num_id) = stripped.parse::<i64>() {
                 (num_id, stripped.to_string(), None, "unknown".to_string())
@@ -330,8 +310,58 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
         });
     }
 
+    by_uid.into_values().collect()
+}
+
+// ── Tauri commands ────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<InstalledResponse, String> {
+    let game_id = game_id.as_deref().unwrap_or("pd3");
+    let cfg = engine_for_game(game_id);
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, game_id).and_then(|gs| gs.game_path.clone()) else {
+        return Ok(InstalledResponse { mods: vec![], folders: vec![], mods_hidden: false });
+    };
+
+    let state_path = get_state_path(&game_path, cfg);
+    let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
+
+    let mut state = reconcile_state(&game_path, &state_path, cfg);
+    upgrade_negative_ids_by_sha(&app, &mut state.mods, cfg.index_game_name);
+    regroup_negative_ids_by_name_suffix(&mut state.mods);
+
+    if mods_hidden {
+        return Ok(InstalledResponse { mods: state.mods, folders: state.folders, mods_hidden: true });
+    }
+
+    let known: HashSet<String> = state
+        .mods
+        .iter()
+        .map(|m| {
+            let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
+            let rel_path = match rel {
+                Some(r) => format!("{}/{}", r, m.filename),
+                None => m.filename.clone(),
+            };
+            format!("{}:{}", m.location.as_deref().unwrap_or(""), rel_path)
+        })
+        .collect();
+
+    let untracked = find_untracked_paks(&game_path, &known, cfg).await;
+    if untracked.is_empty() {
+        let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
+        if any_checked {
+            save_state(&state_path, &ModsState { folders: state.folders.clone(), mods: mods.clone() });
+        }
+        return Ok(InstalledResponse { mods, folders: state.folders, mods_hidden: false });
+    }
+
+    let folder_path_to_id = ensure_untracked_folders(&mut state, &untracked);
+    let sha256s = hash_untracked(&game_path, &untracked, cfg).await;
+    let mods = identify_untracked(&app, &mut state, &untracked, &sha256s, &folder_path_to_id, cfg);
+
     let folders = state.folders;
-    let mods: Vec<InstalledMod> = by_uid.into_values().collect();
     let (mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
     save_state(&state_path, &ModsState { folders: folders.clone(), mods: mods.clone() });
     Ok(InstalledResponse { mods, folders, mods_hidden: false })
