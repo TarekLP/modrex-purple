@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import * as Tabs from '@radix-ui/react-tabs'
 import {
     ArrowLeft,
     Trash2,
@@ -87,7 +88,6 @@ export function ModDetailPage({
     const [loading, setLoading] = useState(() => !getModCacheEntry(modId) && !initialMod)
     const [filesLoading, setFilesLoading] = useState(() => !getFilesCacheEntry(modId))
     const [error, setError] = useState<string | null>(null)
-    const [tab, setTab] = useState<Tab>('description')
     const [actionLoading, setActionLoading] = useState(false)
     const [installError, setInstallError] = useState<string | null>(null)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
@@ -538,27 +538,29 @@ export function ModDetailPage({
                         </div>
                     </div>
 
-                    <div className="flex border-b border-border px-6">
-                        {tabs.map((tabItem) => (
-                            <button
-                                key={tabItem.id}
-                                onClick={() => setTab(tabItem.id)}
-                                className={`text-xs px-4 py-3 border-b-2 transition-colors ${
-                                    tab === tabItem.id
-                                        ? 'border-accent text-accent'
-                                        : 'border-transparent text-text-subtle hover:text-text-muted'
-                                }`}
-                            >
-                                {tabItem.label}
-                            </button>
-                        ))}
-                    </div>
+                    <Tabs.Root defaultValue="description">
+                        <Tabs.List className="flex border-b border-border px-6">
+                            {tabs.map((tabItem) => (
+                                <Tabs.Trigger
+                                    key={tabItem.id}
+                                    value={tabItem.id}
+                                    className="text-xs px-4 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none"
+                                >
+                                    {tabItem.label}
+                                </Tabs.Trigger>
+                            ))}
+                        </Tabs.List>
 
-                    <div className="px-6 py-5">
-                        {tab === 'description' && <DescriptionTab mod={mod} />}
-                        {tab === 'changelog' && <ChangelogTab mod={mod} />}
-                        {tab === 'images' && <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />}
-                        {tab === 'downloads' && (
+                        <Tabs.Content value="description" className="px-6 py-5 focus:outline-none">
+                            <DescriptionTab mod={mod} />
+                        </Tabs.Content>
+                        <Tabs.Content value="changelog" className="px-6 py-5 focus:outline-none">
+                            <ChangelogTab mod={mod} />
+                        </Tabs.Content>
+                        <Tabs.Content value="images" className="px-6 py-5 focus:outline-none">
+                            <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />
+                        </Tabs.Content>
+                        <Tabs.Content value="downloads" className="px-6 py-5 focus:outline-none">
                             <DownloadsTab
                                 files={files}
                                 links={links}
@@ -570,8 +572,8 @@ export function ModDetailPage({
                                 activeGame={activeGame}
                                 onRefreshInstalled={onRefreshInstalled}
                             />
-                        )}
-                        {tab === 'deps' && (
+                        </Tabs.Content>
+                        <Tabs.Content value="deps" className="px-6 py-5 focus:outline-none">
                             <DepsTab
                                 mod={mod}
                                 deps={allDeps}
@@ -581,8 +583,8 @@ export function ModDetailPage({
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
-                        )}
-                    </div>
+                        </Tabs.Content>
+                    </Tabs.Root>
                 </div>
             )}
 
