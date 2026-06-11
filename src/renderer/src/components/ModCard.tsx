@@ -2,6 +2,7 @@ import { Download, Heart, Eye, Clock, Trash2, RotateCcw } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
+import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
 
 function formatCount(n: number): string {
@@ -148,14 +149,15 @@ export function ModCard({
                                     {t('common.fileMissing')}
                                 </span>
                                 {installed.id >= 0 && (
-                                    <button
-                                        disabled={!canAct}
-                                        onClick={onReinstall}
-                                        title={t('common.reinstall')}
-                                        className="p-1.5 rounded bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        <RotateCcw className="w-3.5 h-3.5" />
-                                    </button>
+                                    <Tooltip content={t('common.reinstall')}>
+                                        <button
+                                            disabled={!canAct}
+                                            onClick={onReinstall}
+                                            className="p-1.5 rounded bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5" />
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </>
                         )}
@@ -178,14 +180,15 @@ export function ModCard({
                             onChange={(v) => (v ? onEnable() : onDisable())}
                             disabled={!canAct || !!installed.missing}
                         />
-                        <button
-                            disabled={!canAct}
-                            onClick={onUninstall}
-                            title={t('common.remove')}
-                            className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
-                        >
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <Tooltip content={t('common.remove')}>
+                            <button
+                                disabled={!canAct}
+                                onClick={onUninstall}
+                                className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                        </Tooltip>
                     </div>
                 )}
             </div>

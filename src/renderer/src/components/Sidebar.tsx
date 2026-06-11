@@ -6,6 +6,7 @@ import { t } from '../i18n'
 import type { StringKey } from '../i18n'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
+import { Tooltip } from './Tooltip'
 
 type NavView = 'browse' | 'installed' | 'settings'
 
@@ -33,80 +34,94 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
         >
             {/* Game switcher */}
             <div className="p-2 border-b border-border shrink-0">
-                <button
-                    onClick={onShowWelcome}
-                    title={`${GAMES[activeGame].name} — ${t('sidebar.changeGame')}`}
-                    className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs hover:bg-surface-hover text-text hover:text-text transition-colors"
+                <Tooltip
+                    content={`${GAMES[activeGame].name} — ${t('sidebar.changeGame')}`}
+                    side="right"
                 >
-                    <ArrowLeftRight className="w-3.5 h-3.5 shrink-0 text-text-subtle" />
-                    <span
-                        className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                    <button
+                        onClick={onShowWelcome}
+                        className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs hover:bg-surface-hover text-text hover:text-text transition-colors"
                     >
-                        {GAMES[activeGame].name}
-                    </span>
-                </button>
+                        <ArrowLeftRight className="w-3.5 h-3.5 shrink-0 text-text-subtle" />
+                        <span
+                            className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                        >
+                            {GAMES[activeGame].name}
+                        </span>
+                    </button>
+                </Tooltip>
             </div>
 
             <nav className="flex flex-col gap-1 p-2 flex-1">
                 {navItems.map((item) => {
                     const Icon = item.icon
                     return (
-                        <button
+                        <Tooltip
                             key={item.id}
-                            onClick={() => onViewChange(item.id)}
-                            title={collapsed ? t(item.labelKey) : undefined}
-                            className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
-                                view === item.id
-                                    ? 'bg-surface-active text-text'
-                                    : 'text-text-muted hover:bg-surface-hover hover:text-text'
-                            }`}
+                            content={t(item.labelKey)}
+                            disabled={!collapsed}
+                            side="right"
                         >
-                            <Icon className="w-4 h-4 shrink-0" />
-                            <span
-                                className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                            <button
+                                onClick={() => onViewChange(item.id)}
+                                className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
+                                    view === item.id
+                                        ? 'bg-surface-active text-text'
+                                        : 'text-text-muted hover:bg-surface-hover hover:text-text'
+                                }`}
                             >
-                                {t(item.labelKey)}
-                            </span>
-                        </button>
+                                <Icon className="w-4 h-4 shrink-0" />
+                                <span
+                                    className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                                >
+                                    {t(item.labelKey)}
+                                </span>
+                            </button>
+                        </Tooltip>
                     )
                 })}
             </nav>
 
             <div className="p-2">
-                <button
-                    onClick={() => api.openExternal('https://modrex.net/docs/getting-started/')}
-                    title={t('sidebar.docsTitle')}
-                    className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
-                >
-                    <CircleHelp className="w-4 h-4 shrink-0" />
-                    <span
-                        className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                <Tooltip content={t('sidebar.docsTitle')} side="right">
+                    <button
+                        onClick={() => api.openExternal('https://modrex.net/docs/getting-started/')}
+                        className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
                     >
-                        {t('sidebar.docs')}
-                    </span>
-                </button>
+                        <CircleHelp className="w-4 h-4 shrink-0" />
+                        <span
+                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                        >
+                            {t('sidebar.docs')}
+                        </span>
+                    </button>
+                </Tooltip>
             </div>
 
             <div className="p-2 border-t border-border">
-                <button
-                    onClick={() =>
-                        setCollapsed((c) => {
-                            localStorage.setItem('modrex:sidebar-collapsed', String(!c))
-                            return !c
-                        })
-                    }
-                    title={collapsed ? t('sidebar.expandTitle') : t('sidebar.collapseTitle')}
-                    className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
+                <Tooltip
+                    content={collapsed ? t('sidebar.expandTitle') : t('sidebar.collapseTitle')}
+                    side="right"
                 >
-                    <ChevronLeft
-                        className={`w-4 h-4 shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
-                    />
-                    <span
-                        className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                    <button
+                        onClick={() =>
+                            setCollapsed((c) => {
+                                localStorage.setItem('modrex:sidebar-collapsed', String(!c))
+                                return !c
+                            })
+                        }
+                        className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
                     >
-                        {t('sidebar.collapse')}
-                    </span>
-                </button>
+                        <ChevronLeft
+                            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
+                        />
+                        <span
+                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                        >
+                            {t('sidebar.collapse')}
+                        </span>
+                    </button>
+                </Tooltip>
             </div>
         </aside>
     )

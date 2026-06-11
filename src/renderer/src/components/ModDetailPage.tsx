@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { t } from '../i18n'
 import { Toggle } from './Toggle'
+import { Tooltip } from './Tooltip'
 import type {
     GameId,
     Mod,
@@ -343,14 +344,15 @@ export function ModDetailPage({
                                 onChange={(v) => (v ? handleEnable() : handleDisable())}
                                 disabled={!canAct}
                             />
-                            <button
-                                disabled={!canAct}
-                                onClick={handleUninstall}
-                                title={t('common.remove')}
-                                className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
-                            >
-                                <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <Tooltip content={t('common.remove')}>
+                                <button
+                                    disabled={!canAct}
+                                    onClick={handleUninstall}
+                                    className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </Tooltip>
                         </>
                     )}
                     {mod && installedFiles.length === 0 && (
@@ -923,24 +925,26 @@ function DownloadsTab({
                                               : `${t('common.install')}${file.type ? ` ${file.type.toUpperCase()}` : ''} (${formatBytes(file.size)})`}
                                     </button>
                                     {isInstalled && (
-                                        <button
-                                            disabled={!gamePath || isUninstalling}
-                                            onClick={() => handleUninstallFile(file)}
-                                            title={t('common.remove')}
-                                            className="p-2 rounded-lg bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
+                                        <Tooltip content={t('common.remove')}>
+                                            <button
+                                                disabled={!gamePath || isUninstalling}
+                                                onClick={() => handleUninstallFile(file)}
+                                                className="p-2 rounded-lg bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </Tooltip>
                                     )}
-                                    <button
-                                        onClick={() =>
-                                            api.openExternal(file.url ?? file.download_url)
-                                        }
-                                        title={t('detail.downloads.external')}
-                                        className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
-                                    >
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                    </button>
+                                    <Tooltip content={t('detail.downloads.external')}>
+                                        <button
+                                            onClick={() =>
+                                                api.openExternal(file.url ?? file.download_url)
+                                            }
+                                            className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                        </button>
+                                    </Tooltip>
                                 </>
                             )}
                         </div>
@@ -1187,16 +1191,17 @@ function DepRow({
                     {installing ? t('common.installing') : t('common.install')}
                 </button>
             )}
-            <button
-                onClick={(e) => {
-                    e.stopPropagation()
-                    api.openExternal(`https://modworkshop.net/mod/${mod.id}`)
-                }}
-                title={t('detail.deps.openOnSite')}
-                className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
-            >
-                <ExternalLink className="w-3.5 h-3.5" />
-            </button>
+            <Tooltip content={t('detail.deps.openOnSite')}>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        api.openExternal(`https://modworkshop.net/mod/${mod.id}`)
+                    }}
+                    className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
+                >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+            </Tooltip>
         </div>
     )
 }

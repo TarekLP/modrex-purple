@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
 import { Dialog } from './Dialog'
+import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
 import type { GameId } from '../../../shared/types'
@@ -166,13 +167,14 @@ export function TopBar({
                                     <RefreshCw className="w-3.5 h-3.5" />
                                     {t('app.updateInstall')}
                                 </button>
-                                <button
-                                    onClick={onDismissUpdate}
-                                    className="p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
-                                    title={t('common.dismiss')}
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                </button>
+                                <Tooltip content={t('common.dismiss')}>
+                                    <button
+                                        onClick={onDismissUpdate}
+                                        className="p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </Tooltip>
                                 <div className="w-px h-4 bg-border mx-1" />
                             </>
                         )}

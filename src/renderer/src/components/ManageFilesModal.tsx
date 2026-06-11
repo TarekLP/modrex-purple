@@ -3,6 +3,7 @@ import { X, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
 import { Dialog } from './Dialog'
+import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { useInstalledContext } from './InstalledContext'
 
@@ -148,14 +149,15 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                         disabled={!!loadingMod}
                                         onChange={() => handleToggleGroup(groupMods)}
                                     />
-                                    <button
-                                        onClick={() => handleRemoveGroup(groupMods)}
-                                        disabled={!!loadingMod}
-                                        title={t('common.remove')}
-                                        className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
+                                    <Tooltip content={t('common.remove')}>
+                                        <button
+                                            onClick={() => handleRemoveGroup(groupMods)}
+                                            disabled={!!loadingMod}
+                                            className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             </div>
 
@@ -210,14 +212,15 @@ function FileRow({
             </span>
             <div className="flex items-center gap-2 shrink-0">
                 <Toggle checked={mod.enabled} disabled={!!loadingMod} onChange={onToggle} />
-                <button
-                    onClick={onRemove}
-                    disabled={!!loadingMod}
-                    title={t('common.remove')}
-                    className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                    <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <Tooltip content={t('common.remove')}>
+                    <button
+                        onClick={onRemove}
+                        disabled={!!loadingMod}
+                        className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                </Tooltip>
             </div>
         </div>
     )

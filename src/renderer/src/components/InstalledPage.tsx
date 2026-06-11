@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { X, Search, LayoutGrid, List, FolderOpen, FolderPlus, RefreshCw } from 'lucide-react'
 import { t } from '../i18n'
+import { Tooltip } from './Tooltip'
 import { ZipPickerModal } from './ZipPickerModal'
 import { UpdatesModal } from './UpdatesModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
@@ -215,24 +216,26 @@ export function InstalledPage({
                         <div className="flex items-center gap-2">
                             <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
                             {gamePath && (
-                                <button
-                                    onClick={() => api.openModsFolder(activeGame)}
-                                    title={t('installed.openFolder')}
-                                    className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
-                                >
-                                    <FolderOpen className="w-3.5 h-3.5" />
-                                </button>
+                                <Tooltip content={t('installed.openFolder')}>
+                                    <button
+                                        onClick={() => api.openModsFolder(activeGame)}
+                                        className="p-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
+                                    >
+                                        <FolderOpen className="w-3.5 h-3.5" />
+                                    </button>
+                                </Tooltip>
                             )}
-                            <button
-                                onClick={handleRefresh}
-                                disabled={refreshing}
-                                title={t('installed.refresh')}
-                                className="p-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed text-text-subtle hover:text-text transition-colors"
-                            >
-                                <RefreshCw
-                                    className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
-                                />
-                            </button>
+                            <Tooltip content={t('installed.refresh')}>
+                                <button
+                                    onClick={handleRefresh}
+                                    disabled={refreshing}
+                                    className="p-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed text-text-subtle hover:text-text transition-colors"
+                                >
+                                    <RefreshCw
+                                        className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                                    />
+                                </button>
+                            </Tooltip>
                         </div>
                         <div className="flex items-center gap-3">
                             {installed.length > 0 && (
@@ -253,7 +256,6 @@ export function InstalledPage({
                             {gamePath && (
                                 <button
                                     onClick={() => folderActions.startCreateFolder(null)}
-                                    title={t('installed.newFolder')}
                                     className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text transition-colors"
                                 >
                                     <FolderPlus className="w-3.5 h-3.5" />
@@ -261,20 +263,22 @@ export function InstalledPage({
                                 </button>
                             )}
                             <div className="flex items-center gap-1 bg-surface-hover rounded p-0.5">
-                                <button
-                                    onClick={() => setView('grid')}
-                                    title={t('installed.gridView')}
-                                    className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
-                                >
-                                    <LayoutGrid className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                    onClick={() => setView('list')}
-                                    title={t('installed.listView')}
-                                    className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
-                                >
-                                    <List className="w-3.5 h-3.5" />
-                                </button>
+                                <Tooltip content={t('installed.gridView')}>
+                                    <button
+                                        onClick={() => setView('grid')}
+                                        className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                                    >
+                                        <LayoutGrid className="w-3.5 h-3.5" />
+                                    </button>
+                                </Tooltip>
+                                <Tooltip content={t('installed.listView')}>
+                                    <button
+                                        onClick={() => setView('list')}
+                                        className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                                    >
+                                        <List className="w-3.5 h-3.5" />
+                                    </button>
+                                </Tooltip>
                             </div>
                         </div>
                     </div>

@@ -1,6 +1,7 @@
 import { FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check } from 'lucide-react'
 import { InstalledModItem } from './InstalledModItem'
 import { t } from '../i18n'
+import { Tooltip } from './Tooltip'
 import type { ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
 import { computeChildren, groupChildren, getAllModsInFolder } from '../hooks/installedUtils'
@@ -160,17 +161,18 @@ export function FolderSection({ folder }: Props) {
                         >
                             {folder.displayName}
                         </span>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                startRename(folder)
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            title={t('installed.folder.rename')}
-                            className="p-0.5 text-text-subtle hover:text-text transition-colors shrink-0 opacity-0 group-hover:opacity-100"
-                        >
-                            <Pencil className="w-3 h-3" />
-                        </button>
+                        <Tooltip content={t('installed.folder.rename')}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    startRename(folder)
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="p-0.5 text-text-subtle hover:text-text transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                            >
+                                <Pencil className="w-3 h-3" />
+                            </button>
+                        </Tooltip>
                     </div>
                 )}
 
@@ -200,31 +202,33 @@ export function FolderSection({ folder }: Props) {
                 )}
 
                 {!isRenaming && gamePath && (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            startCreateFolder(folder.id)
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        title={t('installed.folder.newSubfolder')}
-                        className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
-                    >
-                        <FolderPlus className="w-3.5 h-3.5" />
-                    </button>
+                    <Tooltip content={t('installed.folder.newSubfolder')}>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                startCreateFolder(folder.id)
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
+                        >
+                            <FolderPlus className="w-3.5 h-3.5" />
+                        </button>
+                    </Tooltip>
                 )}
 
                 {!isRenaming && (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteFolder(folder.id)
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        title={t('installed.folder.delete')}
-                        className="p-1.5 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
-                    >
-                        <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <Tooltip content={t('installed.folder.delete')}>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteFolder(folder.id)
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                    </Tooltip>
                 )}
             </div>
 
