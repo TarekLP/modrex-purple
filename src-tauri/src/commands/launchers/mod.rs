@@ -290,14 +290,38 @@ pub fn is_game_running(game_id: Option<String>) -> bool {
     let process_name = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_name;
     #[cfg(target_os = "windows")]
     {
+        use std::io::Read;
         use std::os::windows::process::CommandExt;
         let filter = format!("IMAGENAME eq {}.exe", process_name);
-        std::process::Command::new("tasklist")
+        // tasklist hangs indefinitely when the WMI service is wedged, and sync
+        // commands run on the main thread — bound the wait or the UI freezes.
+        let Ok(mut child) = std::process::Command::new("tasklist")
             .args(["/FI", &filter, "/NH"])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).contains(process_name))
-            .unwrap_or(false)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+        else {
+            return false;
+        };
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => {
+                    let mut out = String::new();
+                    if let Some(mut stdout) = child.stdout.take() {
+                        let _ = stdout.read_to_string(&mut out);
+                    }
+                    return out.contains(process_name);
+                }
+                Ok(None) if std::time::Instant::now() >= deadline => {
+                    let _ = child.kill();
+                    return false;
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+                Err(_) => return false,
+            }
+        }
     }
     #[cfg(not(target_os = "windows"))]
     {
