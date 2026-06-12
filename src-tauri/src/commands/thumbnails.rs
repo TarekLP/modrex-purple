@@ -30,41 +30,54 @@ fn cache_path(app: &AppHandle, filename: &str) -> Result<PathBuf, String> {
     Ok(dir.join("thumbnails").join(filename))
 }
 
+async fn fetch_image(app: &AppHandle, file: &str) -> Result<Vec<u8>, String> {
+    let url = format!("{}/{}", THUMBNAIL_BASE_URL, file);
+    let resp = client()
+        .get(&url)
+        .header("User-Agent", format!("modrex/{}", app.package_info().version))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("status {} for {}", resp.status(), url));
+    }
+    resp.bytes().await.map(|b| b.to_vec()).map_err(|e| e.to_string())
+}
+
+/// Downloads the pre-generated small variant (`thumbnail_{file}`, ~10–20× smaller
+/// than the original, which can be multiple MB) and returns the cache filename
+/// for the renderer to build its `thumb://` URL from. Old images without a
+/// variant (`has_thumb: false`) fall back to the original.
 #[tauri::command]
 pub async fn get_thumbnail(app: AppHandle, filename: String) -> Result<String, String> {
-    let path = cache_path(&app, &filename)?;
+    let cache_name = format!("thumbnail_{filename}");
+    let path = cache_path(&app, &cache_name)?;
 
     if path.exists() {
-        return Ok(path.to_string_lossy().into_owned());
+        return Ok(cache_name);
     }
 
     let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
 
     // Re-check: a concurrent call may have downloaded it while we waited
     if path.exists() {
-        return Ok(path.to_string_lossy().into_owned());
+        return Ok(cache_name);
     }
 
     tokio::fs::create_dir_all(path.parent().expect("cache path has parent"))
         .await
         .map_err(|e| e.to_string())?;
 
-    let url = format!("{}/{}", THUMBNAIL_BASE_URL, filename);
-    let bytes = client()
-        .get(&url)
-        .header("User-Agent", format!("modrex/{}", app.package_info().version))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?
-        .bytes()
-        .await
-        .map_err(|e| e.to_string())?;
+    let bytes = match fetch_image(&app, &cache_name).await {
+        Ok(b) => b,
+        Err(_) => fetch_image(&app, &filename).await?,
+    };
 
     let tmp = path.with_extension("tmp");
     tokio::fs::write(&tmp, &bytes).await.map_err(|e| e.to_string())?;
     tokio::fs::rename(&tmp, &path).await.map_err(|e| e.to_string())?;
 
-    Ok(path.to_string_lossy().into_owned())
+    Ok(cache_name)
 }
 
 /// Returns the bare filename when the raw URI path is a single safe path
