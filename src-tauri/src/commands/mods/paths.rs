@@ -68,12 +68,16 @@ pub async fn find_untracked_paks(
         } else {
             Some(target.tag.to_string())
         };
+        // mods/base is the BLT loader's basemod, not a user mod — tracking it
+        // would let the user disable their mod loader from the installed list.
+        let skip_base = i == 0 && matches!(target.unit, ModUnit::Directory { .. });
         let mut target_out: Vec<(String, bool)> = Vec::new();
         scan_active(
             &mods_dir(game_path, target),
             "",
             &target_known,
             target,
+            skip_base,
             &mut target_out,
         )
         .await;
@@ -97,6 +101,7 @@ async fn scan_active(
     prefix: &str,
     known: &HashSet<String>,
     target: &ScanTarget,
+    skip_base: bool,
     out: &mut Vec<(String, bool)>,
 ) {
     let mut rd = match tokio::fs::read_dir(dir).await {
@@ -106,7 +111,7 @@ async fn scan_active(
     let mut subdirs = Vec::new();
     while let Ok(Some(entry)) = rd.next_entry().await {
         let name = entry.file_name().to_string_lossy().into_owned();
-        if prefix.is_empty() && name == "disabled" {
+        if prefix.is_empty() && (name == "disabled" || (skip_base && name == "base")) {
             continue;
         }
         let ft = match entry.file_type().await {
@@ -145,7 +150,7 @@ async fn scan_active(
         }
     }
     for (path, sub) in subdirs {
-        Box::pin(scan_active(&path, &sub, known, target, out)).await;
+        Box::pin(scan_active(&path, &sub, known, target, skip_base, out)).await;
     }
 }
 

@@ -531,6 +531,36 @@ async fn find_untracked_paks_skips_target_when_backup_exists() {
     assert_eq!(location.as_deref(), Some("mod_overrides"));
 }
 
+#[tokio::test]
+async fn find_untracked_paks_skips_blt_basemod() {
+    let tmp = TempDir::new().unwrap();
+    let mods_dir = tmp.path().join("mods");
+    fs::create_dir_all(&mods_dir).unwrap();
+    make_dir_mod(&mods_dir, "base", "mod.txt");
+    make_dir_mod(&mods_dir, "my_blt_mod", "mod.txt");
+
+    let cfg = engine_for_game("pd2");
+    let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].0, "my_blt_mod");
+}
+
+#[tokio::test]
+async fn find_untracked_paks_keeps_base_in_secondary_target() {
+    let tmp = TempDir::new().unwrap();
+    let mo_dir = tmp.path().join("assets").join("mod_overrides");
+    fs::create_dir_all(mo_dir.join("base")).unwrap();
+
+    let cfg = engine_for_game("pd2");
+    let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
+
+    assert_eq!(results.len(), 1);
+    let (rel, _, location) = &results[0];
+    assert_eq!(rel, "base");
+    assert_eq!(location.as_deref(), Some("mod_overrides"));
+}
+
 // ── safe_dest (Zip-Slip guard) ────────────────────────────────────────────
 
 #[test]
