@@ -40,6 +40,8 @@ function warmSettingsCache(game: GameId) {
 
 export type View = 'browse' | 'installed' | 'detail' | 'settings' | 'welcome'
 
+const DETECT_RETRY_MS = 5 * 60 * 1000
+
 function getInitialView(): View {
     if (!localStorage.getItem('modrex:active-game')) return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
@@ -85,6 +87,11 @@ export default function App() {
     // Per-session cache: last resolved path for each game. undefined = not yet loaded.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
 
+    // When detection failed for a game, when it failed. Re-detecting a missing
+    // game runs a full launcher scan (Steam VDF walk, Epic manifests, Xbox drive
+    // scan) — don't repeat it on every switch/focus, only after the TTL.
+    const failedDetectAt = useRef<Partial<Record<GameId, number>>>({})
+
     // Per-session cache: last resolved installed state for each game. undefined = not yet loaded.
     const installedCache = useRef<
         Partial<Record<GameId, { mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }>>
@@ -92,8 +99,18 @@ export default function App() {
 
     const refreshGamePath = useCallback(async () => {
         const game = activeGame
+        if (gamePathCache.current[game] === null) {
+            const failedAt = failedDetectAt.current[game]
+            if (failedAt !== undefined && Date.now() - failedAt < DETECT_RETRY_MS) {
+                setGamePath(null)
+                setGamePathReady(true)
+                return
+            }
+        }
         const path = await api.findGamePath(game)
         if (activeGameRef.current !== game) return
+        if (path === null) failedDetectAt.current[game] = Date.now()
+        else delete failedDetectAt.current[game]
         gamePathCache.current[game] = path
         setGamePath(path)
         setGamePathReady(true)
@@ -173,6 +190,13 @@ export default function App() {
         }
         await refreshInstalled()
     }, [refreshGamePath, refreshInstalled])
+
+    // Manual path pick must bypass the failed-detection throttle — the user just
+    // gave us a valid path, so the "not found" verdict is stale by definition.
+    const handleGamePathSet = useCallback(async () => {
+        delete failedDetectAt.current[activeGameRef.current]
+        await refreshAll()
+    }, [refreshAll])
 
     useEffect(() => {
         refreshAll()
@@ -378,7 +402,7 @@ export default function App() {
                                         activeGame={activeGame}
                                         gamePath={gamePath}
                                         gamePathReady={gamePathReady}
-                                        onGamePathChange={refreshAll}
+                                        onGamePathChange={handleGamePathSet}
                                     />
                                 </div>
                                 {detailStack.map(({ modId, initialMod }, i) => (
