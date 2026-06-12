@@ -52,7 +52,7 @@ export function Select({ value, onChange, options, placeholder, disabled }: Prop
                     sideOffset={4}
                     className="z-50 min-w-[var(--radix-select-trigger-width)] bg-surface-raised border border-border rounded shadow-lg overflow-hidden"
                 >
-                    <RadixSelect.Viewport>
+                    <RadixSelect.Viewport style={{ maxHeight: '240px' }}>
                         {options.map((o) => (
                             <RadixSelect.Item
                                 key={o.value}

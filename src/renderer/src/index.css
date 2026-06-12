@@ -42,6 +42,16 @@ input[type='checkbox']:not(:disabled) {
     background: var(--color-text-subtle);
 }
 
+/* Radix Select injects scrollbar-width:none and ::-webkit-scrollbar{display:none} on
+   [data-radix-select-viewport]. scrollbar-width:none beats the webkit rule in Chromium,
+   so both must be overridden. auto defers to our ::-webkit-scrollbar styling above. */
+[data-radix-select-viewport] {
+    scrollbar-width: auto !important;
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+    display: block !important;
+}
+
 :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
