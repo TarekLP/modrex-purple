@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { X, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, Trash2, ChevronDown, ChevronRight, Search } from 'lucide-react'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
 import { Dialog } from './Dialog'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
+import { displayFilename } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 
 interface Props {
@@ -25,6 +26,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     const { handleApplyEnabled, handleUninstall, loadingMod, folders, installed } =
         useInstalledContext()
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+    const [query, setQuery] = useState('')
     // Draft layer: pending enabled-state edits keyed by uid. Only deviations from
     // the on-disk state are stored, so a background refresh never wipes user edits.
     const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map())
@@ -98,6 +100,26 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         }))
         .sort((a, b) => a.priority - b.priority)
 
+    const q = query.trim().toLowerCase()
+    const matchesQuery = (mod: InstalledMod) =>
+        displayFilename(mod.filename).toLowerCase().includes(q) ||
+        mod.filename.toLowerCase().includes(q)
+    const visibleRootMods = q ? rootMods.filter(matchesQuery) : rootMods
+    const visibleGroups = q
+        ? folderGroups
+              .map((g) => {
+                  const folderName = g.folder?.displayName ?? g.path ?? ''
+                  // A matching folder name keeps the whole group visible
+                  return folderName.toLowerCase().includes(q)
+                      ? g
+                      : { ...g, mods: g.mods.filter(matchesQuery) }
+              })
+              .filter((g) => g.mods.length > 0)
+        : folderGroups
+    const visibleMods = [...visibleRootMods, ...visibleGroups.flatMap((g) => g.mods)]
+    const visibleEnabledCount = visibleMods.filter(isEnabled).length
+    const allVisibleEnabled = visibleMods.length > 0 && visibleEnabledCount === visibleMods.length
+
     return (
         <Dialog
             open={true}
@@ -123,8 +145,52 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 </button>
             </div>
 
+            <div className="flex items-center gap-2 px-3 pt-3 shrink-0">
+                <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-subtle pointer-events-none" />
+                    <input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder={t('installed.manageFiles.searchPlaceholder')}
+                        className={`w-full text-xs pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : 'pr-3'}`}
+                    />
+                    {query && (
+                        <button
+                            onClick={() => setQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-text-muted">
+                        {t('installed.manageFiles.all')}
+                    </span>
+                    <Tooltip
+                        content={
+                            allVisibleEnabled
+                                ? t('installed.manageFiles.disableAll')
+                                : t('installed.manageFiles.enableAll')
+                        }
+                    >
+                        <Toggle
+                            checked={allVisibleEnabled}
+                            indeterminate={visibleEnabledCount > 0 && !allVisibleEnabled}
+                            disabled={!!loadingMod || visibleMods.length === 0}
+                            onChange={() => setEnabled(visibleMods, !allVisibleEnabled)}
+                        />
+                    </Tooltip>
+                </div>
+            </div>
+
             <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-1">
-                {rootMods.map((mod) => (
+                {q && visibleMods.length === 0 && (
+                    <div className="flex items-center justify-center py-8 text-text-subtle text-sm">
+                        {t('installed.manageFiles.noMatches', { query: query.trim() })}
+                    </div>
+                )}
+                {visibleRootMods.map((mod) => (
                     <FileRow
                         key={mod.uid}
                         mod={mod}
@@ -135,9 +201,11 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     />
                 ))}
 
-                {folderGroups.map(({ folderId, folder, path, mods: groupMods }) => {
-                    const isCollapsed = collapsed.has(folderId)
-                    const allEnabled = groupMods.every(isEnabled)
+                {visibleGroups.map(({ folderId, folder, path, mods: groupMods }) => {
+                    // While searching, collapsed folders stay open so matches are visible
+                    const isCollapsed = !q && collapsed.has(folderId)
+                    const enabledCount = groupMods.filter(isEnabled).length
+                    const allEnabled = enabledCount === groupMods.length
                     return (
                         <div key={folderId}>
                             <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors">
@@ -155,7 +223,9 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                     {folder?.displayName ?? path ?? folderId}
                                 </span>
                                 <span className="text-xs text-text-muted shrink-0">
-                                    {groupMods.length}
+                                    {enabledCount === groupMods.length
+                                        ? groupMods.length
+                                        : `${enabledCount}/${groupMods.length}`}
                                 </span>
                                 <div
                                     className="flex items-center gap-2 shrink-0"
@@ -163,6 +233,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                 >
                                     <Toggle
                                         checked={allEnabled}
+                                        indeterminate={enabledCount > 0 && !allEnabled}
                                         disabled={!!loadingMod}
                                         onChange={() => setEnabled(groupMods, !allEnabled)}
                                     />
@@ -237,7 +308,7 @@ function FileRow({
                 className={`text-xs flex-1 min-w-0 truncate ${loadingMod === mod.uid ? 'text-text-muted' : 'text-text'}`}
                 title={mod.filename}
             >
-                {mod.filename}
+                {displayFilename(mod.filename)}
             </span>
             <div className="flex items-center gap-2 shrink-0">
                 <Toggle checked={enabled} disabled={!!loadingMod} onChange={onToggle} />

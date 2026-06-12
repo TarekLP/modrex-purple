@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import {
+    displayFilename,
     syntheticMod,
     getAllModsInFolder,
     filterInstalled,
@@ -41,6 +42,32 @@ function makeFolder(id: string, overrides: Partial<ModFolder> = {}): ModFolder {
         ...overrides,
     }
 }
+
+describe('displayFilename', () => {
+    it('strips the priority prefix and .pak extension', () => {
+        expect(displayFilename('001_zDarkMatter_AG-9.pak')).toBe('zDarkMatter_AG-9')
+    })
+
+    it('strips only the extension when there is no prefix', () => {
+        expect(displayFilename('CoolMod.pak')).toBe('CoolMod')
+    })
+
+    it('strips the extension case-insensitively', () => {
+        expect(displayFilename('059_Skins.PAK')).toBe('Skins')
+    })
+
+    it('leaves directory-unit names (no extension) intact apart from the prefix', () => {
+        expect(displayFilename('SuperBLT Mod')).toBe('SuperBLT Mod')
+    })
+
+    it('does not strip digits that are part of the name', () => {
+        expect(displayFilename('AG9_Skin.pak')).toBe('AG9_Skin')
+    })
+
+    it('falls back to the raw name when stripping empties it', () => {
+        expect(displayFilename('001_.pak')).toBe('001_.pak')
+    })
+})
 
 describe('syntheticMod', () => {
     it('maps id, name, and version from the installed mod', () => {

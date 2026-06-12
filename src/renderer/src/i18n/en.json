@@ -106,7 +106,12 @@
         "manageFiles": {
             "enabledCount": "{count} enabled",
             "apply": "Apply ({count})",
-            "applying": "Applying…"
+            "applying": "Applying…",
+            "searchPlaceholder": "Search files…",
+            "all": "All",
+            "enableAll": "Enable all",
+            "disableAll": "Disable all",
+            "noMatches": "No files match \"{query}\""
         },
         "updatesModal": {
             "title": "Available updates ({count})",

@@ -8,6 +8,13 @@ export type ChildGroup =
     | { type: 'folder'; folder: ModFolder }
     | { type: 'root-group'; groups: InstalledMod[][] }
 
+// Filenames on disk carry a NNN_ priority prefix and .pak extension — disk-level
+// noise for display purposes. Falls back to the raw name if stripping empties it.
+export function displayFilename(filename: string): string {
+    const stripped = filename.replace(/^\d+_/, '').replace(/\.pak$/i, '')
+    return stripped || filename
+}
+
 export function syntheticMod(ins: InstalledMod): Mod {
     return {
         id: ins.id,
