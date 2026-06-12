@@ -61,6 +61,9 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     const [query, setQuery] = useState('')
     const [installingEntry, setInstallingEntry] = useState<string | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
+    // File ids the SHA256 index knows for this mod — may include archives with
+    // zero files still installed; set after the index merge so ghosts recompute
+    const [indexFileIds, setIndexFileIds] = useState<number[]>([])
 
     const rawById = new Map(installed.map((m) => [m.uid, m]))
 
@@ -80,6 +83,34 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         }
         for (const [fileId, paths] of byFileId) mergeArchiveEntries(activeGame, fileId, paths)
     }, [mods, installed, folders, activeGame])
+
+    // The SHA256 index knows every pak a mod's archives ship — merge it in so
+    // files deleted before Modrex ever saw the archive still show up as ghosts.
+    const modId = mods[0].id
+    useEffect(() => {
+        if (modId < 0) return
+        let cancelled = false
+        api.getIndexModFiles(modId, activeGame)
+            .then((rows) => {
+                if (cancelled || rows.length === 0) return
+                const byFileId = new Map<number, string[]>()
+                for (const r of rows) {
+                    const arr = byFileId.get(r.fileRemoteId) ?? []
+                    arr.push(r.entryName)
+                    byFileId.set(r.fileRemoteId, arr)
+                }
+                for (const [fileId, entries] of byFileId) {
+                    mergeArchiveEntries(activeGame, fileId, entries)
+                }
+                setIndexFileIds([...byFileId.keys()])
+            })
+            .catch(() => {
+                // index lookup is best-effort; ghosts fall back to local knowledge
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [modId, activeGame])
 
     function toggleCollapse(folderId: string) {
         setCollapsed((prev) => {
@@ -216,7 +247,12 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     // Each ghost lands in the folder where its archive-directory siblings live.
     const fileIds =
         mods[0].id >= 0
-            ? [...new Set(mods.map((m) => m.fileId).filter((id): id is number => id != null))]
+            ? [
+                  ...new Set([
+                      ...mods.map((m) => m.fileId).filter((id): id is number => id != null),
+                      ...indexFileIds,
+                  ]),
+              ]
             : []
     const installedNames = new Set(mods.map((m) => stripPriorityPrefix(m.filename)))
     const ghostFiles: GhostFile[] = []
