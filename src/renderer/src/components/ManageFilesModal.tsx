@@ -1,11 +1,15 @@
-import { useState } from 'react'
-import { X, Trash2, ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { X, Trash2, ChevronDown, ChevronRight, Search, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
 import { Dialog } from './Dialog'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
-import { displayFilename } from '../hooks/installedUtils'
+import { api } from '../api'
+import { displayFilename, entryFilename, stripPriorityPrefix } from '../hooks/installedUtils'
+import { getCachedModFiles } from '../modCache'
+import { getArchiveEntries, mergeArchiveEntries, setArchiveEntries } from '../archiveEntriesCache'
+import { parseZipMultiPak } from './ZipPickerModal'
 import { useInstalledContext } from './InstalledContext'
 
 interface Props {
@@ -22,13 +26,60 @@ function getFolderPath(folders: ModFolder[], folderId: string | null): string | 
     return parent ? `${parent}/${folder.diskName}` : folder.diskName
 }
 
+function entryDir(entry: string): string {
+    const i = entry.lastIndexOf('/')
+    return i === -1 ? '' : entry.slice(0, i)
+}
+
+function getFolderDisplayPath(folders: ModFolder[], folderId: string | null): string | null {
+    if (!folderId) return null
+    const folder = folders.find((f) => f.id === folderId)
+    if (!folder) return null
+    const parent = getFolderDisplayPath(folders, folder.parentId)
+    return parent ? `${parent}/${folder.displayName}` : folder.displayName
+}
+
+interface GhostFile {
+    entry: string
+    fileId: number
+    folderId: string | null
+}
+
 export function ManageFilesModal({ mods, modName, onClose }: Props) {
-    const { handleEnable, handleDisable, handleUninstall, loadingMod, folders, installed } =
-        useInstalledContext()
+    const {
+        handleEnable,
+        handleDisable,
+        handleUninstall,
+        loadingMod,
+        gamePath,
+        activeGame,
+        folders,
+        installed,
+        onRefreshInstalled,
+    } = useInstalledContext()
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
     const [query, setQuery] = useState('')
+    const [installingEntry, setInstallingEntry] = useState<string | null>(null)
+    const [installError, setInstallError] = useState<string | null>(null)
 
     const rawById = new Map(installed.map((m) => [m.uid, m]))
+
+    // Seed the cache from what's installed right now, so deletions show up as
+    // installable rows even for mods installed before the cache existed.
+    useEffect(() => {
+        if (mods[0].id < 0) return
+        const byId = new Map(installed.map((m) => [m.uid, m]))
+        const byFileId = new Map<number, string[]>()
+        for (const m of mods) {
+            if (m.fileId == null) continue
+            const dir = getFolderDisplayPath(folders, byId.get(m.uid)?.folderId ?? null)
+            const name = stripPriorityPrefix(m.filename)
+            const paths = byFileId.get(m.fileId) ?? []
+            paths.push(dir ? `${dir}/${name}` : name)
+            byFileId.set(m.fileId, paths)
+        }
+        for (const [fileId, paths] of byFileId) mergeArchiveEntries(activeGame, fileId, paths)
+    }, [mods, installed, folders, activeGame])
 
     function toggleCollapse(folderId: string) {
         setCollapsed((prev) => {
@@ -56,6 +107,66 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         if (loadingMod) return
         await handleUninstall(targets)
         if (mods.length <= targets.length) onClose()
+    }
+
+    // Re-downloads the archive and extracts only the given entry.
+    async function handleInstallEntry(ghost: GhostFile) {
+        if (!gamePath || loadingMod || installingEntry) return
+        setInstallError(null)
+        setInstallingEntry(ghost.entry)
+        try {
+            const files = await getCachedModFiles(mods[0].id)
+            const file = files.find((f) => f.id === ghost.fileId)
+            if (!file?.download_url) {
+                setInstallError(t('installed.manageFiles.fileUnavailable'))
+                return
+            }
+            try {
+                await api.installModFile(
+                    mods[0].id,
+                    modName,
+                    file.id,
+                    file.download_url,
+                    file.type ?? '',
+                    mods[0].version,
+                    gamePath,
+                    activeGame
+                )
+            } catch (e) {
+                const zip = parseZipMultiPak(String(e))
+                if (!zip) throw e
+                // The archive is authoritative — heal the cache and resolve the
+                // real entry path (cached ghosts may carry a reconstructed one).
+                setArchiveEntries(activeGame, zip.fileId, zip.entries)
+                const realEntry = zip.entries.find(
+                    (en) => entryFilename(en) === entryFilename(ghost.entry)
+                )
+                if (!realEntry) {
+                    await api.deleteTempFile(zip.zipPath)
+                    setInstallError(t('installed.manageFiles.fileUnavailable'))
+                    return
+                }
+                await api.installFromZipEntry(
+                    zip.zipPath,
+                    realEntry,
+                    zip.modId,
+                    zip.modName,
+                    zip.fileId,
+                    zip.fileType,
+                    zip.modVersion,
+                    gamePath,
+                    ghost.folderId,
+                    activeGame,
+                    zip.targetTag
+                )
+                await api.deleteTempFile(zip.zipPath)
+            }
+            await onRefreshInstalled()
+        } catch (e) {
+            setInstallError(String(e))
+        } finally {
+            setInstallingEntry(null)
+        }
     }
 
     const groupMap = new Map<string | null, InstalledMod[]>()
@@ -99,6 +210,76 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         : folderGroups
     const visibleMods = [...visibleRootMods, ...visibleGroups.flatMap((g) => g.mods)]
     const anyVisibleEnabled = visibleMods.some((m) => m.enabled)
+
+    // Archive entries no longer installed — shown as rows with an install action.
+    // Installed filenames carry the NNN_ disk prefix; archive entry names don't.
+    // Each ghost lands in the folder where its archive-directory siblings live.
+    const fileIds =
+        mods[0].id >= 0
+            ? [...new Set(mods.map((m) => m.fileId).filter((id): id is number => id != null))]
+            : []
+    const installedNames = new Set(mods.map((m) => stripPriorityPrefix(m.filename)))
+    const ghostFiles: GhostFile[] = []
+    for (const fileId of fileIds) {
+        const entries = getArchiveEntries(activeGame, fileId)
+        if (!entries) continue
+        const dirFolder = new Map<string, string | null>()
+        for (const entry of entries) {
+            const m = mods.find((x) => stripPriorityPrefix(x.filename) === entryFilename(entry))
+            if (m) dirFolder.set(entryDir(entry), rawById.get(m.uid)?.folderId ?? null)
+        }
+        for (const entry of entries) {
+            if (installedNames.has(entryFilename(entry))) continue
+            ghostFiles.push({ entry, fileId, folderId: dirFolder.get(entryDir(entry)) ?? null })
+        }
+    }
+    const matchesGhost = (g: GhostFile) =>
+        displayFilename(entryFilename(g.entry)).toLowerCase().includes(q) ||
+        entryFilename(g.entry).toLowerCase().includes(q)
+    const visibleGhosts = q ? ghostFiles.filter(matchesGhost) : ghostFiles
+    const visibleGroupIds = new Set(visibleGroups.map((g) => g.folderId))
+    const rootGhosts = visibleGhosts.filter(
+        (g) => g.folderId === null || !visibleGroupIds.has(g.folderId)
+    )
+
+    // A deleted file keeps its slot in the list: each ghost sorts by a priority
+    // interpolated from its archive-sequence neighbours that are still installed.
+    const ghostKeys = new Map<string, number>()
+    for (const fileId of fileIds) {
+        const seq = getArchiveEntries(activeGame, fileId) ?? []
+        const prios = seq.map((e) => {
+            const m = mods.find((x) => stripPriorityPrefix(x.filename) === entryFilename(e))
+            return m ? (m.priority ?? 0) : null
+        })
+        for (let i = 0; i < seq.length; i++) {
+            if (prios[i] !== null) continue
+            const prev =
+                prios
+                    .slice(0, i)
+                    .reverse()
+                    .find((p) => p !== null) ?? null
+            const next = prios.slice(i + 1).find((p) => p !== null) ?? null
+            const key =
+                prev !== null && next !== null
+                    ? (prev + next) / 2
+                    : prev !== null
+                      ? prev + 0.5
+                      : next !== null
+                        ? next - 0.5
+                        : Number.MAX_SAFE_INTEGER
+            ghostKeys.set(entryFilename(seq[i]).toLowerCase(), key)
+        }
+    }
+    type Row = { kind: 'file'; mod: InstalledMod } | { kind: 'ghost'; ghost: GhostFile }
+    const rowKey = (r: Row) =>
+        r.kind === 'file'
+            ? (r.mod.priority ?? 0)
+            : (ghostKeys.get(entryFilename(r.ghost.entry).toLowerCase()) ?? Number.MAX_SAFE_INTEGER)
+    const mergeRows = (ms: InstalledMod[], ghosts: GhostFile[]): Row[] =>
+        [
+            ...ms.map((mod): Row => ({ kind: 'file', mod })),
+            ...ghosts.map((ghost): Row => ({ kind: 'ghost', ghost })),
+        ].sort((a, b) => rowKey(a) - rowKey(b))
 
     return (
         <Dialog
@@ -154,20 +335,35 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             </div>
 
             <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-1">
-                {q && visibleMods.length === 0 && (
+                {installError && (
+                    <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
+                        {installError}
+                    </div>
+                )}
+                {q && visibleMods.length === 0 && visibleGhosts.length === 0 && (
                     <div className="flex items-center justify-center py-8 text-text-subtle text-sm">
                         {t('installed.manageFiles.noMatches', { query: query.trim() })}
                     </div>
                 )}
-                {visibleRootMods.map((mod) => (
-                    <FileRow
-                        key={mod.uid}
-                        mod={mod}
-                        loadingMod={loadingMod}
-                        onToggle={() => handleToggleMod(mod)}
-                        onRemove={() => handleRemove([mod])}
-                    />
-                ))}
+                {mergeRows(visibleRootMods, rootGhosts).map((row) =>
+                    row.kind === 'file' ? (
+                        <FileRow
+                            key={row.mod.uid}
+                            mod={row.mod}
+                            loadingMod={loadingMod}
+                            onToggle={() => handleToggleMod(row.mod)}
+                            onRemove={() => handleRemove([row.mod])}
+                        />
+                    ) : (
+                        <GhostRow
+                            key={row.ghost.entry}
+                            name={entryFilename(row.ghost.entry)}
+                            installing={installingEntry === row.ghost.entry}
+                            disabled={!!loadingMod || installingEntry !== null || !gamePath}
+                            onInstall={() => handleInstallEntry(row.ghost)}
+                        />
+                    )
+                )}
 
                 {visibleGroups.map(({ folderId, folder, path, mods: groupMods }) => {
                     // While searching, collapsed folders stay open so matches are visible
@@ -216,15 +412,32 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
 
                             {!isCollapsed && (
                                 <div className="ml-4 flex flex-col gap-0.5">
-                                    {groupMods.map((mod) => (
-                                        <FileRow
-                                            key={mod.uid}
-                                            mod={mod}
-                                            loadingMod={loadingMod}
-                                            onToggle={() => handleToggleMod(mod)}
-                                            onRemove={() => handleRemove([mod])}
-                                        />
-                                    ))}
+                                    {mergeRows(
+                                        groupMods,
+                                        visibleGhosts.filter((g) => g.folderId === folderId)
+                                    ).map((row) =>
+                                        row.kind === 'file' ? (
+                                            <FileRow
+                                                key={row.mod.uid}
+                                                mod={row.mod}
+                                                loadingMod={loadingMod}
+                                                onToggle={() => handleToggleMod(row.mod)}
+                                                onRemove={() => handleRemove([row.mod])}
+                                            />
+                                        ) : (
+                                            <GhostRow
+                                                key={row.ghost.entry}
+                                                name={entryFilename(row.ghost.entry)}
+                                                installing={installingEntry === row.ghost.entry}
+                                                disabled={
+                                                    !!loadingMod ||
+                                                    installingEntry !== null ||
+                                                    !gamePath
+                                                }
+                                                onInstall={() => handleInstallEntry(row.ghost)}
+                                            />
+                                        )
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -241,6 +454,41 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 </button>
             </div>
         </Dialog>
+    )
+}
+
+function GhostRow({
+    name,
+    installing,
+    disabled,
+    onInstall,
+}: {
+    name: string
+    installing: boolean
+    disabled: boolean
+    onInstall: () => void
+}) {
+    return (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors">
+            <span className="text-xs flex-1 min-w-0 truncate text-text-subtle" title={name}>
+                {displayFilename(name)}
+            </span>
+            <div className="flex items-center gap-2 shrink-0">
+                {installing ? (
+                    <span className="text-xs text-text-muted">{t('common.installing')}</span>
+                ) : (
+                    <Tooltip content={t('common.install')}>
+                        <button
+                            onClick={onInstall}
+                            disabled={disabled}
+                            className="p-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <Download className="w-3.5 h-3.5" />
+                        </button>
+                    </Tooltip>
+                )}
+            </div>
+        </div>
     )
 }
 

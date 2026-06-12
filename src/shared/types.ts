@@ -138,6 +138,12 @@ export interface InstalledMod {
     location?: string // scan target tag; absent = primary target
 }
 
+// One row of the SHA256 index's files table — a pak shipped by a mod's archive
+export interface IndexModFile {
+    fileRemoteId: number
+    entryName: string // path inside the archive, forward slashes
+}
+
 export interface ModsState {
     folders: ModFolder[]
     mods: InstalledMod[]

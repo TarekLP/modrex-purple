@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import {
     displayFilename,
+    entryFilename,
+    stripPriorityPrefix,
     syntheticMod,
     getAllModsInFolder,
     filterInstalled,
@@ -42,6 +44,26 @@ function makeFolder(id: string, overrides: Partial<ModFolder> = {}): ModFolder {
         ...overrides,
     }
 }
+
+describe('stripPriorityPrefix', () => {
+    it('strips the NNN_ prefix and keeps the extension', () => {
+        expect(stripPriorityPrefix('001_zDarkMatter_AG-9.pak')).toBe('zDarkMatter_AG-9.pak')
+    })
+
+    it('leaves unprefixed names intact', () => {
+        expect(stripPriorityPrefix('zDarkMatter_AG-9.pak')).toBe('zDarkMatter_AG-9.pak')
+    })
+})
+
+describe('entryFilename', () => {
+    it('returns the last path component', () => {
+        expect(entryFilename('DarkMatterSkins/zDarkMatter_AG-9.pak')).toBe('zDarkMatter_AG-9.pak')
+    })
+
+    it('returns the entry itself when there is no directory', () => {
+        expect(entryFilename('mod.pak')).toBe('mod.pak')
+    })
+})
 
 describe('displayFilename', () => {
     it('strips the priority prefix and .pak extension', () => {

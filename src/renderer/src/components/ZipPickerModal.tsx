@@ -1,8 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { X, Folder } from 'lucide-react'
+import type { GameId, InstalledMod } from '../../../shared/types'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
+import { setArchiveEntries } from '../archiveEntriesCache'
+import { entryFilename, stripPriorityPrefix } from '../hooks/installedUtils'
 
 export interface ZipMultiPakPayload {
     zipPath: string
@@ -73,9 +76,16 @@ function getRequiredDirs(normalizedEntries: string[]): string[] {
     })
 }
 
+function entryStem(entry: string): string {
+    const name = entryFilename(entry)
+    const dot = name.lastIndexOf('.')
+    return dot > 0 ? name.slice(0, dot) : name
+}
+
 interface Props {
     payload: ZipMultiPakPayload
     gamePath: string
+    installedFiles: InstalledMod[]
     folderId?: string | null
     gameId?: string
     onRefreshInstalled: () => Promise<void>
@@ -85,12 +95,37 @@ interface Props {
 export function ZipPickerModal({
     payload,
     gamePath,
+    installedFiles,
     folderId,
     gameId,
     onRefreshInstalled,
     onClose,
 }: Props) {
-    const [selected, setSelected] = useState<Set<string>>(() => new Set(payload.entries))
+    // Entries already installed from this archive (uid is {fileId}_{stem}; the
+    // prefix-stripped filename match covers entries whose uid was reassigned by
+    // SHA256 reconciliation — installed filenames carry the NNN_ disk prefix).
+    const installedEntries = useMemo(() => {
+        const set = new Set<string>()
+        for (const entry of payload.entries) {
+            const uid = `${payload.fileId}_${entryStem(entry)}`
+            const filename = entryFilename(entry)
+            const isInstalled = installedFiles.some(
+                (m) =>
+                    !m.missing &&
+                    (m.uid === uid ||
+                        (m.fileId === payload.fileId &&
+                            stripPriorityPrefix(m.filename) === filename))
+            )
+            if (isInstalled) set.add(entry)
+        }
+        return set
+    }, [payload, installedFiles])
+
+    const selectable = payload.entries.filter((e) => !installedEntries.has(e))
+
+    const [selected, setSelected] = useState<Set<string>>(
+        () => new Set(payload.entries.filter((e) => !installedEntries.has(e)))
+    )
     const [installingEntry, setInstallingEntry] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
@@ -119,6 +154,10 @@ export function ZipPickerModal({
     )
 
     useEffect(() => {
+        setArchiveEntries((gameId ?? 'pd3') as GameId, payload.fileId, payload.entries)
+    }, [payload, gameId])
+
+    useEffect(() => {
         return api.onDownloadProgress(({ downloaded, total }) => {
             setDownloadProgress({ downloaded, total })
             if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
@@ -136,17 +175,16 @@ export function ZipPickerModal({
     }
 
     function toggleAll() {
-        setSelected((prev) =>
-            prev.size === payload.entries.length ? new Set() : new Set(payload.entries)
-        )
+        setSelected((prev) => (prev.size === selectable.length ? new Set() : new Set(selectable)))
     }
 
     function toggleGroup(entries: string[]) {
+        const groupSelectable = entries.filter((e) => !installedEntries.has(e))
         setSelected((prev) => {
-            const allSelected = entries.every((e) => prev.has(e))
+            const allSelected = groupSelectable.every((e) => prev.has(e))
             const next = new Set(prev)
-            if (allSelected) entries.forEach((e) => next.delete(e))
-            else entries.forEach((e) => next.add(e))
+            if (allSelected) groupSelectable.forEach((e) => next.delete(e))
+            else groupSelectable.forEach((e) => next.add(e))
             return next
         })
     }
@@ -216,35 +254,42 @@ export function ZipPickerModal({
 
     function renderEntry(entry: string, indented = false) {
         const isInstalling = installingEntry === entry
+        const isInstalled = installedEntries.has(entry)
         const name = entry.slice(prefix.length).split('/').pop() ?? entry
         return (
             <div
                 key={entry}
-                onClick={() => !isBusy && toggle(entry)}
-                className={`flex items-center gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
-                    selected.has(entry)
-                        ? 'bg-accent/5 border-accent/40'
-                        : 'bg-surface-hover border-border'
-                } ${isBusy ? 'cursor-not-allowed opacity-60' : 'hover:bg-surface-active'} ${
+                onClick={() => !isInstalled && !isBusy && toggle(entry)}
+                className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+                    isInstalled
+                        ? 'bg-surface-hover border-border opacity-60'
+                        : selected.has(entry)
+                          ? 'bg-accent/5 border-accent/40 cursor-pointer'
+                          : 'bg-surface-hover border-border cursor-pointer'
+                } ${isBusy ? 'cursor-not-allowed opacity-60' : isInstalled ? '' : 'hover:bg-surface-active'} ${
                     indented ? 'ml-4' : ''
                 }`}
             >
                 <input
                     type="checkbox"
-                    checked={selected.has(entry)}
+                    checked={isInstalled || selected.has(entry)}
                     onChange={() => toggle(entry)}
-                    disabled={isBusy}
+                    disabled={isInstalled || isBusy}
                     onClick={(e) => e.stopPropagation()}
                     className="accent-accent w-4 h-4 shrink-0"
                 />
                 <span className="text-sm font-medium truncate flex-1">{name}</span>
-                {isInstalling && (
+                {isInstalling ? (
                     <span className="text-xs text-text-muted shrink-0">
                         {downloadProgress && downloadProgress.total > 0
                             ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
                             : t('common.installing')}
                     </span>
-                )}
+                ) : isInstalled ? (
+                    <span className="text-xs text-success-text shrink-0">
+                        {t('common.installed')}
+                    </span>
+                ) : null}
             </div>
         )
     }
@@ -295,26 +340,26 @@ export function ZipPickerModal({
                 )}
 
                 <div
-                    onClick={() => !isBusy && toggleAll()}
+                    onClick={() => !isBusy && selectable.length > 0 && toggleAll()}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-hover cursor-pointer hover:bg-surface-active transition-colors"
                 >
                     <input
                         type="checkbox"
-                        checked={selected.size === payload.entries.length}
+                        checked={selectable.length > 0 && selected.size === selectable.length}
                         ref={(el) => {
                             if (el)
                                 el.indeterminate =
-                                    selected.size > 0 && selected.size < payload.entries.length
+                                    selected.size > 0 && selected.size < selectable.length
                         }}
                         onChange={toggleAll}
-                        disabled={isBusy}
+                        disabled={isBusy || selectable.length === 0}
                         onClick={(e) => e.stopPropagation()}
                         className="accent-accent w-4 h-4 shrink-0"
                     />
                     <span className="text-xs font-medium text-text-muted">
-                        {selected.size === payload.entries.length
+                        {selectable.length > 0 && selected.size === selectable.length
                             ? t('zipPicker.deselectAll')
-                            : t('zipPicker.selectAll', { count: payload.entries.length })}
+                            : t('zipPicker.selectAll', { count: selectable.length })}
                     </span>
                 </div>
 
@@ -323,12 +368,21 @@ export function ZipPickerModal({
                         {rootEntries.map((entry) => renderEntry(entry))}
                         {subdirSections.map(([dir, dirEntries]) => {
                             const dirName = dir.split('/').pop() ?? dir
-                            const allInGroup = dirEntries.every((e) => selected.has(e))
-                            const someInGroup = dirEntries.some((e) => selected.has(e))
+                            const groupSelectable = dirEntries.filter(
+                                (e) => !installedEntries.has(e)
+                            )
+                            const allInGroup =
+                                groupSelectable.length > 0 &&
+                                groupSelectable.every((e) => selected.has(e))
+                            const someInGroup = groupSelectable.some((e) => selected.has(e))
                             return (
                                 <div key={dir} className="flex flex-col gap-1.5">
                                     <div
-                                        onClick={() => !isBusy && toggleGroup(dirEntries)}
+                                        onClick={() =>
+                                            !isBusy &&
+                                            groupSelectable.length > 0 &&
+                                            toggleGroup(dirEntries)
+                                        }
                                         className="flex items-center gap-2 px-3 py-1.5 cursor-pointer select-none"
                                     >
                                         <input
@@ -339,7 +393,7 @@ export function ZipPickerModal({
                                                     el.indeterminate = !allInGroup && someInGroup
                                             }}
                                             onChange={() => toggleGroup(dirEntries)}
-                                            disabled={isBusy}
+                                            disabled={isBusy || groupSelectable.length === 0}
                                             onClick={(e) => e.stopPropagation()}
                                             className="accent-accent w-4 h-4 shrink-0"
                                         />

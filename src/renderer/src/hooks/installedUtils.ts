@@ -8,10 +8,21 @@ export type ChildGroup =
     | { type: 'folder'; folder: ModFolder }
     | { type: 'root-group'; groups: InstalledMod[][] }
 
+// Filenames on disk carry a NNN_ priority prefix; archive entry names don't.
+// Strip it when comparing the two.
+export function stripPriorityPrefix(filename: string): string {
+    return filename.replace(/^\d+_/, '')
+}
+
+// Last path component of an archive entry path.
+export function entryFilename(entry: string): string {
+    return entry.split('/').pop() ?? entry
+}
+
 // Filenames on disk carry a NNN_ priority prefix and .pak extension — disk-level
 // noise for display purposes. Falls back to the raw name if stripping empties it.
 export function displayFilename(filename: string): string {
-    const stripped = filename.replace(/^\d+_/, '').replace(/\.pak$/i, '')
+    const stripped = stripPriorityPrefix(filename).replace(/\.pak$/i, '')
     return stripped || filename
 }
 

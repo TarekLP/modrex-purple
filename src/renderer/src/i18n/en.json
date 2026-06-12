@@ -107,7 +107,8 @@
             "searchPlaceholder": "Search files…",
             "enableAll": "Enable all",
             "disableAll": "Disable all",
-            "noMatches": "No files match \"{query}\""
+            "noMatches": "No files match \"{query}\"",
+            "fileUnavailable": "This file is no longer available on modworkshop."
         },
         "updatesModal": {
             "title": "Available updates ({count})",

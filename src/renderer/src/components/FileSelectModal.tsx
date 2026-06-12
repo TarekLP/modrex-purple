@@ -308,6 +308,7 @@ export function FileSelectModal({
                 <ZipPickerModal
                     payload={zipPayload}
                     gamePath={gamePath}
+                    installedFiles={installedFiles}
                     gameId={gameId}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => {

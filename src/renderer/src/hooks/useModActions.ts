@@ -79,7 +79,6 @@ export function useModActions(
         if (!gamePath || mods[0].id < 0) return
 
         const missingMods = mods.filter((m) => m.missing)
-        if (missingMods.length === 0) return
 
         setLoadingMod(mods[0].uid)
         setReinstallProgress(null)

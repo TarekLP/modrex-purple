@@ -85,6 +85,8 @@ pub fn run() {
             commands::updater::install_update,
             // thumbnails
             commands::thumbnails::get_thumbnail,
+            // mod index
+            commands::mod_index::get_index_mod_files,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

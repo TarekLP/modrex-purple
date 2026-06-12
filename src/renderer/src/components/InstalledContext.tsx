@@ -15,7 +15,10 @@ export interface InstalledContextValue {
     renderMods: InstalledMod[]
     folders: ModFolder[]
     installed: InstalledMod[]
+    onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number) => void
+    manageFilesKey: string | null
+    setManageFilesKey: (key: string | null) => void
     loadingMod: string | null
     reinstallProgress: { downloaded: number; total: number } | null
     reinstallError: string | null

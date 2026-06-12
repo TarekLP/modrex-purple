@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { t } from '../i18n'
 import type { InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
@@ -30,12 +29,16 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         handleDragEnd,
         handleGapDragOver,
         onModDropDirect,
+        manageFilesKey,
+        setManageFilesKey,
     } = useInstalledContext()
-    const [showManageFiles, setShowManageFiles] = useState(false)
 
     const ins = mods[0]
     const id = ins.id
     const repUid = ins.uid
+    // Stable across file deletions (repUid is not — the rep file can be the one deleted)
+    const groupKey = id >= 0 ? `id:${id}` : `uid:${repUid}`
+    const showManageFiles = manageFilesKey === groupKey
     const apiMod = modData.get(id)
     const isBusy = mods.some((m) => loadingMod === m.uid)
     const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
@@ -85,7 +88,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 </div>
                 {mods.length > 1 && (
                     <button
-                        onClick={() => setShowManageFiles(true)}
+                        onClick={() => setManageFilesKey(groupKey)}
                         className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle hover:text-text hover:border-accent/60 transition-colors"
                     >
                         {t('installed.fileCount', { count: mods.length })}
@@ -95,7 +98,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     <ManageFilesModal
                         mods={mods}
                         modName={mod.name}
-                        onClose={() => setShowManageFiles(false)}
+                        onClose={() => setManageFilesKey(null)}
                     />
                 )}
                 <ModListRow
@@ -134,7 +137,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             )}
             {mods.length > 1 && (
                 <button
-                    onClick={() => setShowManageFiles(true)}
+                    onClick={() => setManageFilesKey(groupKey)}
                     className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle hover:text-text hover:border-accent/60 transition-colors"
                 >
                     {t('installed.fileCount', { count: mods.length })}
@@ -144,7 +147,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 <ManageFilesModal
                     mods={mods}
                     modName={mod.name}
-                    onClose={() => setShowManageFiles(false)}
+                    onClose={() => setManageFilesKey(null)}
                 />
             )}
             <ModCard

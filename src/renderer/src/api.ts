@@ -10,6 +10,7 @@ import type {
     ModFolder,
     TopLevelItem,
     ListModsParams,
+    IndexModFile,
 } from '../../shared/types'
 
 type Settings = {
@@ -126,6 +127,9 @@ export const api = {
     },
     deleteTempFile(path: string): Promise<void> {
         return invoke('delete_temp_file', { path })
+    },
+    getIndexModFiles(modId: number, gameId?: string): Promise<IndexModFile[]> {
+        return invoke('get_index_mod_files', { modId, gameId })
     },
     installFromZipEntry(
         zipPath: string,

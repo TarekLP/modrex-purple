@@ -52,6 +52,9 @@ export function InstalledPage({
     const { modData, failedIds, updatable } = useModData(installed)
     const [showUpdates, setShowUpdates] = useState(false)
     const [filterQuery, setFilterQuery] = useState('')
+    // Which group's ManageFilesModal is open. Lives here (not in InstalledModItem)
+    // because items remount when their uid-derived keys shift after a deletion.
+    const [manageFilesKey, setManageFilesKey] = useState<string | null>(null)
 
     const {
         loadingMod,
@@ -172,7 +175,10 @@ export function InstalledPage({
         renderMods,
         folders,
         installed,
+        onRefreshInstalled,
         onOpenDetail,
+        manageFilesKey,
+        setManageFilesKey,
         loadingMod,
         reinstallProgress,
         reinstallError,
@@ -206,6 +212,7 @@ export function InstalledPage({
                     <ZipPickerModal
                         payload={zipPickerData}
                         gamePath={gamePath}
+                        installedFiles={installed}
                         gameId={activeGame}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={clearZipPickerData}

@@ -479,6 +479,7 @@ export function BrowsePage({
                 <ZipPickerModal
                     payload={zipPickerData}
                     gamePath={gamePath}
+                    installedFiles={installed}
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}

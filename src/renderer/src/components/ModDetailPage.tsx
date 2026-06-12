@@ -284,6 +284,7 @@ export function ModDetailPage({
                 <ZipPickerModal
                     payload={zipPickerData}
                     gamePath={gamePath}
+                    installedFiles={installedFiles}
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}
@@ -823,6 +824,7 @@ function DownloadsTab({
                 <ZipPickerModal
                     payload={zipPickerData}
                     gamePath={gamePath}
+                    installedFiles={installedFiles}
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}

@@ -13,6 +13,13 @@ pub struct IndexMatch {
     pub version: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexModFile {
+    pub file_remote_id: i64,
+    pub entry_name: String,
+}
+
 pub fn index_path(app: &AppHandle) -> PathBuf {
     app.path()
         .app_data_dir()
@@ -111,6 +118,55 @@ fn query_by_name(conn: &rusqlite::Connection, name: &str, game_name: &str) -> Op
         .filter_map(|r| r.ok())
         .collect();
     if rows.len() == 1 { Some(rows[0]) } else { None }
+}
+
+fn query_mod_files(
+    conn: &rusqlite::Connection,
+    mod_remote_id: i64,
+    game_name: &str,
+) -> Vec<IndexModFile> {
+    let mut stmt = match conn.prepare(
+        "SELECT f.remote_id, f.entry_name
+         FROM files f
+         JOIN mods m ON m.id = f.mod_id
+         JOIN sources s ON s.id = m.source_id
+         JOIN games g ON g.id = s.game_id
+         WHERE m.remote_id = ?1 AND g.name = ?2 AND f.entry_name != ''
+         ORDER BY f.id",
+    ) {
+        Ok(s) => s,
+        // index.db predating the entry_name column (1-hour TTL transition)
+        Err(_) => return Vec::new(),
+    };
+    stmt.query_map(rusqlite::params![mod_remote_id, game_name], |row| {
+        Ok(IndexModFile {
+            file_remote_id: row.get(0)?,
+            entry_name: row.get(1)?,
+        })
+    })
+    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+    .unwrap_or_default()
+}
+
+pub fn lookup_mod_files(app: &AppHandle, mod_remote_id: i64, game_name: &str) -> Vec<IndexModFile> {
+    let path = index_path(app);
+    if !path.exists() {
+        return Vec::new();
+    }
+    match open_conn(&path) {
+        Some(conn) => query_mod_files(&conn, mod_remote_id, game_name),
+        None => Vec::new(),
+    }
+}
+
+#[tauri::command]
+pub fn get_index_mod_files(
+    app: AppHandle,
+    mod_id: i64,
+    game_id: Option<String>,
+) -> Vec<IndexModFile> {
+    let cfg = crate::commands::mods::engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    lookup_mod_files(&app, mod_id, cfg.index_game_name)
 }
 
 pub fn lookup_sha256(app: &AppHandle, sha256: &str, game_name: &str) -> Option<IndexMatch> {
