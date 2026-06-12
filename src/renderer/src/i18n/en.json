@@ -104,11 +104,9 @@
         },
         "fileCount": "{count} files",
         "manageFiles": {
-            "enabledCount": "{count} enabled",
             "apply": "Apply ({count})",
             "applying": "Applying…",
             "searchPlaceholder": "Search files…",
-            "all": "All",
             "enableAll": "Enable all",
             "disableAll": "Disable all",
             "noMatches": "No files match \"{query}\""

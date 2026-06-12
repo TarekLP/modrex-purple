@@ -65,16 +65,10 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         setOverrides(new Map())
     }
 
-    async function handleRemoveMod(mod: InstalledMod) {
+    async function handleRemove(targets: InstalledMod[]) {
         if (loadingMod) return
-        await handleUninstall([mod])
-        if (mods.length <= 1) onClose()
-    }
-
-    async function handleRemoveGroup(groupMods: InstalledMod[]) {
-        if (loadingMod) return
-        await handleUninstall(groupMods)
-        if (mods.length <= groupMods.length) onClose()
+        await handleUninstall(targets)
+        if (mods.length <= targets.length) onClose()
     }
 
     const groupMap = new Map<string | null, InstalledMod[]>()
@@ -126,15 +120,13 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             onOpenChange={(open) => !open && onClose()}
             title={modName}
             className="w-[32rem] max-h-[70vh] text-text"
+            onOpenAutoFocus={(e) => e.preventDefault()}
         >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
                 <div className="min-w-0">
                     <h2 className="text-sm font-semibold truncate">{modName}</h2>
                     <p className="text-xs text-text-muted mt-0.5">
-                        {t('installed.fileCount', { count: mods.length })} ·{' '}
-                        {t('installed.manageFiles.enabledCount', {
-                            count: mods.filter(isEnabled).length,
-                        })}
+                        {t('installed.fileCount', { count: mods.length })}
                     </p>
                 </div>
                 <button
@@ -163,25 +155,20 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                         </button>
                     )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-text-muted">
-                        {t('installed.manageFiles.all')}
-                    </span>
-                    <Tooltip
-                        content={
-                            allVisibleEnabled
-                                ? t('installed.manageFiles.disableAll')
-                                : t('installed.manageFiles.enableAll')
-                        }
-                    >
-                        <Toggle
-                            checked={allVisibleEnabled}
-                            indeterminate={visibleEnabledCount > 0 && !allVisibleEnabled}
-                            disabled={!!loadingMod || visibleMods.length === 0}
-                            onChange={() => setEnabled(visibleMods, !allVisibleEnabled)}
-                        />
-                    </Tooltip>
-                </div>
+                <Tooltip
+                    content={
+                        allVisibleEnabled
+                            ? t('installed.manageFiles.disableAll')
+                            : t('installed.manageFiles.enableAll')
+                    }
+                >
+                    <Toggle
+                        checked={allVisibleEnabled}
+                        indeterminate={visibleEnabledCount > 0 && !allVisibleEnabled}
+                        disabled={!!loadingMod || visibleMods.length === 0}
+                        onChange={() => setEnabled(visibleMods, !allVisibleEnabled)}
+                    />
+                </Tooltip>
             </div>
 
             <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-1">
@@ -197,7 +184,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                         enabled={isEnabled(mod)}
                         loadingMod={loadingMod}
                         onToggle={() => setEnabled([mod], !isEnabled(mod))}
-                        onRemove={() => handleRemoveMod(mod)}
+                        onRemove={() => handleRemove([mod])}
                     />
                 ))}
 
@@ -206,6 +193,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     const isCollapsed = !q && collapsed.has(folderId)
                     const enabledCount = groupMods.filter(isEnabled).length
                     const allEnabled = enabledCount === groupMods.length
+                    const folderName = folder?.displayName ?? path ?? folderId
                     return (
                         <div key={folderId}>
                             <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors">
@@ -220,12 +208,10 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                     )}
                                 </button>
                                 <span className="text-sm font-medium truncate flex-1 min-w-0">
-                                    {folder?.displayName ?? path ?? folderId}
+                                    {folderName}
                                 </span>
                                 <span className="text-xs text-text-muted shrink-0">
-                                    {enabledCount === groupMods.length
-                                        ? groupMods.length
-                                        : `${enabledCount}/${groupMods.length}`}
+                                    {groupMods.length}
                                 </span>
                                 <div
                                     className="flex items-center gap-2 shrink-0"
@@ -239,7 +225,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                     />
                                     <Tooltip content={t('common.remove')}>
                                         <button
-                                            onClick={() => handleRemoveGroup(groupMods)}
+                                            onClick={() => handleRemove(groupMods)}
                                             disabled={!!loadingMod}
                                             className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                         >
@@ -258,7 +244,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                             enabled={isEnabled(mod)}
                                             loadingMod={loadingMod}
                                             onToggle={() => setEnabled([mod], !isEnabled(mod))}
-                                            onRemove={() => handleRemoveMod(mod)}
+                                            onRemove={() => handleRemove([mod])}
                                         />
                                     ))}
                                 </div>
