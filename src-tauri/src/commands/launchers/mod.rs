@@ -40,7 +40,10 @@ fn detect_game(game: &'static GameDef) -> Option<DetectedGame> {
             continue;
         }
         if let Some(path) = launcher.find_game(game) {
-            return Some(DetectedGame { launcher: launcher.id().to_string(), game_path: path });
+            return Some(DetectedGame {
+                launcher: launcher.id().to_string(),
+                game_path: path,
+            });
         }
     }
     None
@@ -84,7 +87,9 @@ fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts:
         launcher.launch(game, game_path, opts);
     } else {
         let exe = Path::new(game_path).join(game.executable);
-        let args: Vec<&str> = opts.map(|o| o.split_whitespace().collect()).unwrap_or_default();
+        let args: Vec<&str> = opts
+            .map(|o| o.split_whitespace().collect())
+            .unwrap_or_default();
         if let Err(e) = std::process::Command::new(&exe).args(&args).spawn() {
             log::warn!("launch_game: spawn {exe:?}: {e}");
         }
@@ -210,19 +215,32 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
 pub fn launch_game(app: AppHandle, game_id: Option<String>) {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
-    let Some(gs) = game_settings(&s, game_id) else { return };
-    let Some(ref game_path) = gs.game_path else { return };
+    let Some(gs) = game_settings(&s, game_id) else {
+        return;
+    };
+    let Some(ref game_path) = gs.game_path else {
+        return;
+    };
     let cfg = engine_for_game(game_id);
     let _ = do_restore(game_path, cfg);
-    launch_with(gs.launcher.as_deref().unwrap_or("steam"), game_def_for_id(game_id), game_path, gs.launch_options.as_deref());
+    launch_with(
+        gs.launcher.as_deref().unwrap_or("steam"),
+        game_def_for_id(game_id),
+        game_path,
+        gs.launch_options.as_deref(),
+    );
 }
 
 #[tauri::command]
 pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
-    let Some(gs) = game_settings(&s, game_id) else { return Ok(()) };
-    let Some(ref game_path) = gs.game_path else { return Ok(()) };
+    let Some(gs) = game_settings(&s, game_id) else {
+        return Ok(());
+    };
+    let Some(ref game_path) = gs.game_path else {
+        return Ok(());
+    };
 
     let cfg = engine_for_game(game_id);
     for (i, target) in cfg.targets.iter().enumerate() {
@@ -279,75 +297,64 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
 pub fn restore_mods(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
-    let Some(gs) = game_settings(&s, game_id) else { return Ok(()) };
-    let Some(ref game_path) = gs.game_path else { return Ok(()) };
+    let Some(gs) = game_settings(&s, game_id) else {
+        return Ok(());
+    };
+    let Some(ref game_path) = gs.game_path else {
+        return Ok(());
+    };
     let cfg = engine_for_game(game_id);
     do_restore(game_path, cfg)
+}
+
+// Native process enumeration (NtQuerySystemInformation / /proc) — never spawns
+// tasklist/pgrep, so a wedged WMI service or missing procps can't hang the UI.
+fn refresh_process_list() -> sysinfo::System {
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::All,
+        true,
+        sysinfo::ProcessRefreshKind::nothing().with_cmd(sysinfo::UpdateKind::Always),
+    );
+    sys
+}
+
+// The on-disk name may carry `.exe` (Windows, Proton) and Linux /proc truncates
+// names to 15 chars, so prefix-match the name; the command-line fallback keeps
+// the old `pgrep -f` behavior for games launched through Proton/Wine wrappers.
+fn matches_process(name: &str, cmd: &[String], process_name: &str) -> bool {
+    name.starts_with(process_name) || cmd.iter().any(|c| c.contains(process_name))
+}
+
+fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
+    let cmd: Vec<String> = p
+        .cmd()
+        .iter()
+        .map(|c| c.to_string_lossy().into_owned())
+        .collect();
+    matches_process(&p.name().to_string_lossy(), &cmd, process_name)
 }
 
 #[tauri::command]
 pub fn is_game_running(game_id: Option<String>) -> bool {
     let process_name = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_name;
-    #[cfg(target_os = "windows")]
-    {
-        use std::io::Read;
-        use std::os::windows::process::CommandExt;
-        let filter = format!("IMAGENAME eq {}.exe", process_name);
-        // tasklist hangs indefinitely when the WMI service is wedged, and sync
-        // commands run on the main thread — bound the wait or the UI freezes.
-        let Ok(mut child) = std::process::Command::new("tasklist")
-            .args(["/FI", &filter, "/NH"])
-            .creation_flags(0x08000000) // CREATE_NO_WINDOW
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-        else {
-            return false;
-        };
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
-        loop {
-            match child.try_wait() {
-                Ok(Some(_)) => {
-                    let mut out = String::new();
-                    if let Some(mut stdout) = child.stdout.take() {
-                        let _ = stdout.read_to_string(&mut out);
-                    }
-                    return out.contains(process_name);
-                }
-                Ok(None) if std::time::Instant::now() >= deadline => {
-                    let _ = child.kill();
-                    return false;
-                }
-                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
-                Err(_) => return false,
-            }
-        }
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        std::process::Command::new("pgrep")
-            .args(["-f", process_name])
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
-    }
+    let sys = refresh_process_list();
+    sys.processes()
+        .values()
+        .any(|p| process_matches(p, process_name))
 }
 
 #[tauri::command]
 pub fn stop_game(game_id: Option<String>) {
     let process_name = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_name;
-    #[cfg(target_os = "windows")]
+    let sys = refresh_process_list();
+    for p in sys
+        .processes()
+        .values()
+        .filter(|p| process_matches(p, process_name))
     {
-        use std::os::windows::process::CommandExt;
-        let _ = std::process::Command::new("taskkill")
-            .args(["/F", "/IM", &format!("{}.exe", process_name)])
-            .creation_flags(0x08000000) // CREATE_NO_WINDOW
-            .output();
+        p.kill();
     }
-    #[cfg(not(target_os = "windows"))]
-    let _ = std::process::Command::new("pkill")
-        .args(["-f", process_name])
-        .output();
 }
 
 /// Returns the URL only if it is safe to hand to the OS shell: an `http`, `https`, or
@@ -376,7 +383,9 @@ pub fn shell_open_path(path: String) {
 #[tauri::command]
 pub fn open_log_file(app: AppHandle) {
     use tauri::Manager;
-    let Ok(log_dir) = app.path().app_log_dir() else { return };
+    let Ok(log_dir) = app.path().app_log_dir() else {
+        return;
+    };
     let log_file = log_dir.join(format!("{}.log", app.package_info().name));
     if let Ok(content) = std::fs::read_to_string(&log_file) {
         let snapshot = std::env::temp_dir().join("modrex_log.txt");

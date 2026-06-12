@@ -61,7 +61,10 @@ fn sha256_pd2_hash_returns_pd2_match() {
 #[test]
 fn by_name_exact_unique_match_returns_id() {
     let conn = setup_db();
-    assert_eq!(query_by_name(&conn, "CSA-39 Assault Rifle", "PAYDAY 3"), Some(100));
+    assert_eq!(
+        query_by_name(&conn, "CSA-39 Assault Rifle", "PAYDAY 3"),
+        Some(100)
+    );
 }
 
 #[test]
@@ -93,7 +96,10 @@ fn by_name_wrong_game_returns_none() {
 #[test]
 fn by_name_pd2_mod_matches_in_pd2() {
     let conn = setup_db();
-    assert_eq!(query_by_name(&conn, "Better Crosshair", "PAYDAY 2"), Some(300));
+    assert_eq!(
+        query_by_name(&conn, "Better Crosshair", "PAYDAY 2"),
+        Some(300)
+    );
 }
 
 // ── query_mod_files ───────────────────────────────────────────────────────
@@ -105,7 +111,10 @@ fn mod_files_returns_named_entries_in_id_order() {
     assert_eq!(result.len(), 2);
     assert_eq!(result[0].file_remote_id, 600);
     assert_eq!(result[0].entry_name, "DarkMatterSkins/zDarkMatter_AG-9.pak");
-    assert_eq!(result[1].entry_name, "DarkMatterSkins/zDarkMatter_Bison.pak");
+    assert_eq!(
+        result[1].entry_name,
+        "DarkMatterSkins/zDarkMatter_Bison.pak"
+    );
 }
 
 #[test]

@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::path::Path;
 use super::engine::{backup_dir, ModEngineConfig};
 use super::naming::{apply_priority_prefix, make_uid, strip_priority_prefix};
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::types::{InstalledMod, ModFolder, ModsState};
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::path::Path;
 
 pub fn get_folder_path(folders: &[ModFolder], folder_id: Option<&str>) -> Option<String> {
     let folder_id = folder_id?;
@@ -28,7 +28,11 @@ pub fn read_state(state_path: &Path) -> ModsState {
 
     let folders = parsed["folders"]
         .as_array()
-        .map(|arr| arr.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                .collect()
+        })
         .unwrap_or_default();
 
     let mods = parsed["mods"]
@@ -55,7 +59,10 @@ pub fn save_state(state_path: &Path, state: &ModsState) {
             log::warn!("save_state: create_dir_all {parent:?}: {e}");
         }
     }
-    if let Err(e) = fs::write(state_path, serde_json::to_string_pretty(state).unwrap_or_default()) {
+    if let Err(e) = fs::write(
+        state_path,
+        serde_json::to_string_pretty(state).unwrap_or_default(),
+    ) {
         log::warn!("save_state: write {state_path:?}: {e}");
     }
 }
@@ -103,7 +110,10 @@ fn compact_folder_priorities(
                     mods_base.join(r).join(&old_disk_name),
                     mods_base.join(r).join(&new_disk_name),
                 ),
-                None => (mods_base.join(&old_disk_name), mods_base.join(&new_disk_name)),
+                None => (
+                    mods_base.join(&old_disk_name),
+                    mods_base.join(&new_disk_name),
+                ),
             };
 
             if old_active.exists() {
@@ -156,10 +166,16 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
 
     // Migrate legacy disabled paths: disabled/foo.pak becomes disabled/foo.pak.disabled
     let dis_dir = disabled_base(game_path, cfg.primary());
-    let disabled_mods: Vec<InstalledMod> = state.mods.iter().filter(|m| !m.enabled).cloned().collect();
+    let disabled_mods: Vec<InstalledMod> =
+        state.mods.iter().filter(|m| !m.enabled).cloned().collect();
     for m in &disabled_mods {
         let folder_rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-        let new_path = disabled_mod_path(game_path, &m.filename, folder_rel.as_deref(), cfg.target_for(m.location.as_deref()));
+        let new_path = disabled_mod_path(
+            game_path,
+            &m.filename,
+            folder_rel.as_deref(),
+            cfg.target_for(m.location.as_deref()),
+        );
         let legacy = dis_dir.join(&m.filename);
         if !new_path.exists() && legacy.exists() {
             if let Some(rel) = &folder_rel {
@@ -207,8 +223,14 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         .folders
         .iter()
         .filter(|f| {
-            let has_mods = state.mods.iter().any(|m| m.folder_id.as_deref() == Some(f.id.as_str()));
-            let has_children = state.folders.iter().any(|cf| cf.parent_id.as_deref() == Some(f.id.as_str()));
+            let has_mods = state
+                .mods
+                .iter()
+                .any(|m| m.folder_id.as_deref() == Some(f.id.as_str()));
+            let has_children = state
+                .folders
+                .iter()
+                .any(|cf| cf.parent_id.as_deref() == Some(f.id.as_str()));
             if has_mods || has_children {
                 return false;
             }
@@ -228,7 +250,12 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
                 let _ = fs::remove_dir(dis_dir.join(&rel));
             }
         }
-        state.folders.iter().filter(|f| !phantom_ids.contains(&f.id)).cloned().collect()
+        state
+            .folders
+            .iter()
+            .filter(|f| !phantom_ids.contains(&f.id))
+            .cloned()
+            .collect()
     };
 
     // Compact folder priorities to sequential (1, 2, 3, ...) — repairs gaps caused by prior bugs
@@ -238,7 +265,10 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
     if state_changed || !phantom_ids.is_empty() || any_compacted {
         save_state(
             state_path,
-            &ModsState { folders: final_folders.clone(), mods: reconciled.clone() },
+            &ModsState {
+                folders: final_folders.clone(),
+                mods: reconciled.clone(),
+            },
         );
     }
 
@@ -267,10 +297,19 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
             .collect();
         save_state(
             state_path,
-            &ModsState { folders: final_folders.clone(), mods: migrated.clone() },
+            &ModsState {
+                folders: final_folders.clone(),
+                mods: migrated.clone(),
+            },
         );
-        return ModsState { folders: final_folders, mods: migrated };
+        return ModsState {
+            folders: final_folders,
+            mods: migrated,
+        };
     }
 
-    ModsState { folders: final_folders, mods: reconciled }
+    ModsState {
+        folders: final_folders,
+        mods: reconciled,
+    }
 }

@@ -30,7 +30,9 @@ pub async fn download_file(app: &AppHandle, url: &str, ext: &str) -> Result<Path
     let total = res.content_length().unwrap_or(0);
     let mut downloaded: u64 = 0;
     let mut stream = res.bytes_stream();
-    let mut file = tokio::fs::File::create(&dest).await.map_err(|e| e.to_string())?;
+    let mut file = tokio::fs::File::create(&dest)
+        .await
+        .map_err(|e| e.to_string())?;
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| e.to_string())?;

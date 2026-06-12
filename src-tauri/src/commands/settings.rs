@@ -28,7 +28,10 @@ pub struct Settings {
 }
 
 fn settings_path(app: &AppHandle) -> PathBuf {
-    app.path().app_data_dir().expect("no app data dir").join("settings.json")
+    app.path()
+        .app_data_dir()
+        .expect("no app data dir")
+        .join("settings.json")
 }
 
 pub fn migrate_settings(mut s: Settings) -> Settings {
@@ -66,7 +69,10 @@ pub fn write_settings(app: &AppHandle, settings: &Settings) {
             log::warn!("write_settings: create_dir_all {parent:?}: {e}");
         }
     }
-    if let Err(e) = std::fs::write(&path, serde_json::to_string_pretty(settings).unwrap_or_default()) {
+    if let Err(e) = std::fs::write(
+        &path,
+        serde_json::to_string_pretty(settings).unwrap_or_default(),
+    ) {
         log::warn!("write_settings: write {path:?}: {e}");
     }
 }
@@ -85,7 +91,9 @@ pub fn migrate_from_electron(app: &AppHandle) {
     }
     #[cfg(target_os = "windows")]
     {
-        let Ok(appdata) = std::env::var("APPDATA") else { return };
+        let Ok(appdata) = std::env::var("APPDATA") else {
+            return;
+        };
         let old_dir = PathBuf::from(appdata).join("PD3 Mod Manager");
         let new_dir = new_settings.parent().unwrap();
         let _ = std::fs::create_dir_all(new_dir);
@@ -100,7 +108,9 @@ pub fn migrate_from_electron(app: &AppHandle) {
     }
     #[cfg(target_os = "linux")]
     {
-        let Ok(home) = std::env::var("HOME") else { return };
+        let Ok(home) = std::env::var("HOME") else {
+            return;
+        };
         let old_dir = PathBuf::from(home).join(".config").join("pd3-mod-manager");
         let new_dir = new_settings.parent().unwrap();
         let _ = std::fs::create_dir_all(new_dir);
@@ -133,14 +143,22 @@ pub fn get_settings(app: AppHandle) -> Value {
 #[tauri::command]
 pub fn get_game_settings(app: AppHandle, game_id: String) -> GameSettings {
     let s = read_settings(&app);
-    s.games.as_ref().and_then(|g| g.get(&game_id)).cloned().unwrap_or_default()
+    s.games
+        .as_ref()
+        .and_then(|g| g.get(&game_id))
+        .cloned()
+        .unwrap_or_default()
 }
 
 #[tauri::command]
 pub fn set_game_path(app: AppHandle, game_id: Option<String>, game_path: Option<String>) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let mut s = read_settings(&app);
-    s.games.get_or_insert_with(HashMap::new).entry(game_id).or_default().game_path = game_path;
+    s.games
+        .get_or_insert_with(HashMap::new)
+        .entry(game_id)
+        .or_default()
+        .game_path = game_path;
     write_settings(&app, &s);
 }
 
@@ -148,7 +166,11 @@ pub fn set_game_path(app: AppHandle, game_id: Option<String>, game_path: Option<
 pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let mut s = read_settings(&app);
-    s.games.get_or_insert_with(HashMap::new).entry(game_id).or_default().launcher = Some(launcher);
+    s.games
+        .get_or_insert_with(HashMap::new)
+        .entry(game_id)
+        .or_default()
+        .launcher = Some(launcher);
     write_settings(&app, &s);
 }
 
@@ -156,7 +178,11 @@ pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
 pub fn set_launch_options(app: AppHandle, game_id: Option<String>, launch_options: String) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let mut s = read_settings(&app);
-    s.games.get_or_insert_with(HashMap::new).entry(game_id).or_default().launch_options = Some(launch_options);
+    s.games
+        .get_or_insert_with(HashMap::new)
+        .entry(game_id)
+        .or_default()
+        .launch_options = Some(launch_options);
     write_settings(&app, &s);
 }
 

@@ -23,7 +23,9 @@ impl Launcher for Epic {
     }
 
     fn launch(&self, game: &GameDef, _game_path: &str, _opts: Option<&str>) {
-        let Some(def) = game.epic.as_ref() else { return };
+        let Some(def) = game.epic.as_ref() else {
+            return;
+        };
         if let Some((_, app_name)) = epic_find_game(def.display_name) {
             super::open_url(&format!(
                 "com.epicgames.launcher://apps/{}?action=launch&silent=true",
@@ -44,12 +46,18 @@ fn epic_manifest_dir() -> PathBuf {
 
 fn epic_find_game(display_name: &str) -> Option<(String, String)> {
     let manifest_dir = epic_manifest_dir();
-    if !manifest_dir.exists() { return None; }
+    if !manifest_dir.exists() {
+        return None;
+    }
     for entry in fs::read_dir(&manifest_dir).ok()?.flatten() {
         let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("item") { continue; }
+        if path.extension().and_then(|e| e.to_str()) != Some("item") {
+            continue;
+        }
         let content = fs::read_to_string(&path).unwrap_or_default();
-        if content.trim().is_empty() { continue; }
+        if content.trim().is_empty() {
+            continue;
+        }
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
             if v["DisplayName"].as_str() == Some(display_name) {
                 let location = v["InstallLocation"].as_str()?.to_string();

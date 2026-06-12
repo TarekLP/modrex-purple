@@ -1,5 +1,5 @@
-use super::*;
 use super::steam::steam_libraries;
+use super::*;
 use tempfile::TempDir;
 
 // ── steam_libraries ───────────────────────────────────────────────────────
@@ -94,27 +94,39 @@ fn steam_libraries_no_path_key() {
 fn identify_launcher_steam() {
     let dir = TempDir::new().unwrap();
     std::fs::write(dir.path().join("steam_appid.txt"), "1272080").unwrap();
-    assert_eq!(identify_launcher_for_path(dir.path().to_str().unwrap()), "steam");
+    assert_eq!(
+        identify_launcher_for_path(dir.path().to_str().unwrap()),
+        "steam"
+    );
 }
 
 #[test]
 fn identify_launcher_epic() {
     let dir = TempDir::new().unwrap();
     std::fs::create_dir(dir.path().join(".egstore")).unwrap();
-    assert_eq!(identify_launcher_for_path(dir.path().to_str().unwrap()), "epic");
+    assert_eq!(
+        identify_launcher_for_path(dir.path().to_str().unwrap()),
+        "epic"
+    );
 }
 
 #[test]
 fn identify_launcher_xbox() {
     let dir = TempDir::new().unwrap();
     std::fs::write(dir.path().join("MicrosoftGame.config"), "").unwrap();
-    assert_eq!(identify_launcher_for_path(dir.path().to_str().unwrap()), "xbox");
+    assert_eq!(
+        identify_launcher_for_path(dir.path().to_str().unwrap()),
+        "xbox"
+    );
 }
 
 #[test]
 fn identify_launcher_manual_when_no_marker() {
     let dir = TempDir::new().unwrap();
-    assert_eq!(identify_launcher_for_path(dir.path().to_str().unwrap()), "manual");
+    assert_eq!(
+        identify_launcher_for_path(dir.path().to_str().unwrap()),
+        "manual"
+    );
 }
 
 #[test]
@@ -122,7 +134,10 @@ fn identify_launcher_steam_takes_precedence() {
     let dir = TempDir::new().unwrap();
     std::fs::write(dir.path().join("steam_appid.txt"), "1272080").unwrap();
     std::fs::create_dir(dir.path().join(".egstore")).unwrap();
-    assert_eq!(identify_launcher_for_path(dir.path().to_str().unwrap()), "steam");
+    assert_eq!(
+        identify_launcher_for_path(dir.path().to_str().unwrap()),
+        "steam"
+    );
 }
 
 // ── sanitize_external_url ─────────────────────────────────────────────────
@@ -149,4 +164,35 @@ fn sanitize_url_rejects_dangerous_schemes() {
 #[test]
 fn sanitize_url_rejects_cmd_breakout_chars() {
     assert!(sanitize_external_url("http://x/\" & calc.exe & \"").is_none());
+}
+
+#[test]
+fn matches_process_windows_exe_name() {
+    assert!(matches_process("PAYDAY3Client.exe", &[], "PAYDAY3Client"));
+}
+
+#[test]
+fn matches_process_linux_truncated_comm() {
+    // /proc comm is truncated to 15 chars for Proton-run Windows binaries
+    assert!(matches_process("PAYDAY3Client.e", &[], "PAYDAY3Client"));
+}
+
+#[test]
+fn matches_process_native_linux_name() {
+    assert!(matches_process("payday2_release", &[], "payday2_release"));
+}
+
+#[test]
+fn matches_process_proton_wrapper_cmdline() {
+    let cmd = vec![
+        String::from(r"Z:\games\PAYDAY3\PAYDAY3Client.exe"),
+        String::from("-fileopenlog"),
+    ];
+    assert!(matches_process("wine64-preloader", &cmd, "PAYDAY3Client"));
+}
+
+#[test]
+fn matches_process_rejects_unrelated() {
+    let cmd = vec![String::from("/usr/bin/steam")];
+    assert!(!matches_process("steam", &cmd, "PAYDAY3Client"));
 }

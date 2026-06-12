@@ -1,9 +1,9 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
 use super::engine::{
     backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
     ModEngineConfig, ModUnit, ScanTarget,
 };
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 pub fn mods_base(game_path: &str, target: &ScanTarget) -> PathBuf {
     mods_dir(game_path, target)
@@ -40,7 +40,9 @@ pub fn disabled_mod_path(
         None => disabled_dir(game_path, target),
     };
     match &target.unit {
-        ModUnit::File { disabled_suffix, .. } => base.join(format!("{}{}", filename, disabled_suffix)),
+        ModUnit::File {
+            disabled_suffix, ..
+        } => base.join(format!("{}{}", filename, disabled_suffix)),
         ModUnit::Directory { .. } => base.join(filename),
     }
 }
@@ -61,10 +63,28 @@ pub async fn find_untracked_paks(
             .iter()
             .filter_map(|k| k.strip_prefix(&tag_prefix).map(|s| s.to_string()))
             .collect();
-        let location_tag: Option<String> = if i == 0 { None } else { Some(target.tag.to_string()) };
+        let location_tag: Option<String> = if i == 0 {
+            None
+        } else {
+            Some(target.tag.to_string())
+        };
         let mut target_out: Vec<(String, bool)> = Vec::new();
-        scan_active(&mods_dir(game_path, target), "", &target_known, target, &mut target_out).await;
-        scan_disabled(&disabled_dir(game_path, target), "", &target_known, target, &mut target_out).await;
+        scan_active(
+            &mods_dir(game_path, target),
+            "",
+            &target_known,
+            target,
+            &mut target_out,
+        )
+        .await;
+        scan_disabled(
+            &disabled_dir(game_path, target),
+            "",
+            &target_known,
+            target,
+            &mut target_out,
+        )
+        .await;
         for (path, enabled) in target_out {
             out.push((path, enabled, location_tag.clone()));
         }
@@ -93,7 +113,11 @@ async fn scan_active(
             Ok(t) => t,
             Err(_) => continue,
         };
-        let rel = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
+        let rel = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{}/{}", prefix, name)
+        };
         match &target.unit {
             ModUnit::File { .. } => {
                 if ft.is_dir() {
@@ -143,14 +167,22 @@ async fn scan_disabled(
             Ok(t) => t,
             Err(_) => continue,
         };
-        let sub = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
+        let sub = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{}/{}", prefix, name)
+        };
         match &target.unit {
             ModUnit::File { .. } => {
                 if ft.is_dir() {
                     subdirs.push((entry.path(), sub));
                 } else if name.ends_with(".pak.disabled") {
                     let pak = name.trim_end_matches(".disabled").to_string();
-                    let rel = if prefix.is_empty() { pak.clone() } else { format!("{}/{}", prefix, pak) };
+                    let rel = if prefix.is_empty() {
+                        pak.clone()
+                    } else {
+                        format!("{}/{}", prefix, pak)
+                    };
                     if !known.contains(&rel) {
                         out.push((rel, false));
                     }

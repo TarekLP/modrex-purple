@@ -21,7 +21,12 @@ struct TokenBucket {
 
 impl TokenBucket {
     fn new(max: f64, per_second: f64) -> Self {
-        Self { tokens: max, max, refill_per_ms: per_second / 1000.0, last_refill: Instant::now() }
+        Self {
+            tokens: max,
+            max,
+            refill_per_ms: per_second / 1000.0,
+            last_refill: Instant::now(),
+        }
     }
 
     fn consume(&mut self) -> Duration {
@@ -52,14 +57,23 @@ fn semaphore() -> &'static Semaphore {
 }
 
 pub(crate) fn http_client() -> &'static Client {
-    HTTP_CLIENT.get_or_init(|| Client::builder().pool_max_idle_per_host(4).build().expect("failed to build HTTP client"))
+    HTTP_CLIENT.get_or_init(|| {
+        Client::builder()
+            .pool_max_idle_per_host(4)
+            .build()
+            .expect("failed to build HTTP client")
+    })
 }
 
 pub(crate) fn user_agent(app: &AppHandle) -> String {
     format!("modrex/{}", app.package_info().version)
 }
 
-pub(crate) async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, String)>) -> Result<Value, String> {
+pub(crate) async fn api_get(
+    app: &AppHandle,
+    path: &str,
+    params: Vec<(&str, String)>,
+) -> Result<Value, String> {
     let mut url = reqwest::Url::parse(&format!("{}{}", BASE, path)).map_err(|e| e.to_string())?;
     {
         let mut pairs = url.query_pairs_mut();
@@ -72,7 +86,10 @@ pub(crate) async fn api_get(app: &AppHandle, path: &str, params: Vec<(&str, Stri
 
     for attempt in 0u64..3 {
         // Bucket refills during backoff sleep, so this is usually instant on retry.
-        let wait = rate_limiter().lock().unwrap_or_else(|e| e.into_inner()).consume();
+        let wait = rate_limiter()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .consume();
         if !wait.is_zero() {
             tokio::time::sleep(wait).await;
         }
@@ -127,14 +144,28 @@ pub struct ListModsParams {
 }
 
 #[tauri::command]
-pub async fn list_mods(app: AppHandle, game_id: u32, params: Option<ListModsParams>) -> Result<Value, String> {
+pub async fn list_mods(
+    app: AppHandle,
+    game_id: u32,
+    params: Option<ListModsParams>,
+) -> Result<Value, String> {
     let mut query: Vec<(&str, String)> = vec![];
     if let Some(p) = &params {
-        if let Some(v) = &p.query { query.push(("query", v.clone())); }
-        if let Some(v) = p.limit { query.push(("limit", v.to_string())); }
-        if let Some(v) = &p.sort { query.push(("sort", v.clone())); }
-        if let Some(v) = p.category_id { query.push(("category_id", v.to_string())); }
-        if let Some(v) = p.page { query.push(("page", v.to_string())); }
+        if let Some(v) = &p.query {
+            query.push(("query", v.clone()));
+        }
+        if let Some(v) = p.limit {
+            query.push(("limit", v.to_string()));
+        }
+        if let Some(v) = &p.sort {
+            query.push(("sort", v.clone()));
+        }
+        if let Some(v) = p.category_id {
+            query.push(("category_id", v.to_string()));
+        }
+        if let Some(v) = p.page {
+            query.push(("page", v.to_string()));
+        }
     }
     api_get(&app, &format!("/games/{}/mods", game_id), query).await
 }

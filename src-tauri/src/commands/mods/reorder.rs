@@ -1,10 +1,10 @@
-use std::fs;
-use std::path::Path;
 use super::engine::ModEngineConfig;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_state};
 use super::types::{InstalledMod, TopLevelItem};
+use std::fs;
+use std::path::Path;
 
 pub fn reorder_mods_in_folder_op(
     game_path: &str,
@@ -21,7 +21,9 @@ pub fn reorder_mods_in_folder_op(
         if m.folder_id.as_deref() != folder_id {
             continue;
         }
-        let Some(pos) = ordered_uids.iter().position(|u| u == &m.uid) else { continue };
+        let Some(pos) = ordered_uids.iter().position(|u| u == &m.uid) else {
+            continue;
+        };
         let priority = total - pos as i64;
         let new_filename = apply_priority_prefix(&m.filename, priority);
         if new_filename != m.filename {
@@ -58,8 +60,12 @@ pub fn move_mod_to_folder_op(
     cfg: &ModEngineConfig,
 ) {
     let mut state = read_state(state_path);
-    let Some(moving) = state.mods.iter().find(|m| m.uid == uid).cloned() else { return };
-    if moving.location.is_some() { return; }
+    let Some(moving) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
+        return;
+    };
+    if moving.location.is_some() {
+        return;
+    }
 
     let src_rel = get_folder_path(&state.folders, moving.folder_id.as_deref());
     let tgt_rel = get_folder_path(&state.folders, target_folder_id.as_deref());
@@ -91,10 +97,16 @@ pub fn move_mod_to_folder_op(
     }
 
     for m in state.mods.iter_mut() {
-        let Some(p) = target_mods.iter().position(|tm| tm.uid == m.uid) else { continue };
+        let Some(p) = target_mods.iter().position(|tm| tm.uid == m.uid) else {
+            continue;
+        };
         let priority = total - p as i64;
         let new_filename = apply_priority_prefix(&m.filename, priority);
-        let cur_rel = if m.uid == uid { src_rel.clone() } else { tgt_rel.clone() };
+        let cur_rel = if m.uid == uid {
+            src_rel.clone()
+        } else {
+            tgt_rel.clone()
+        };
 
         if new_filename != m.filename || (m.uid == uid && src_rel != tgt_rel) {
             let target = cfg.target_for(m.location.as_deref());
@@ -142,29 +154,47 @@ pub fn reorder_children_op(
     };
     let total = items.len() as i64;
 
-    struct FolderRename { id: String, old: String, new: String }
+    struct FolderRename {
+        id: String,
+        old: String,
+        new: String,
+    }
     let folder_renames: Vec<FolderRename> = items
         .iter()
         .enumerate()
         .filter_map(|(pos, item)| {
-            let TopLevelItem::Folder { id } = item else { return None };
+            let TopLevelItem::Folder { id } = item else {
+                return None;
+            };
             let f = state.folders.iter().find(|f| &f.id == id)?;
             let priority = total - pos as i64;
             let new = apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority);
             if new != f.disk_name {
-                Some(FolderRename { id: id.clone(), old: f.disk_name.clone(), new })
+                Some(FolderRename {
+                    id: id.clone(),
+                    old: f.disk_name.clone(),
+                    new,
+                })
             } else {
                 None
             }
         })
         .collect();
 
-    struct ModRename { old: String, new: String, rel: Option<String>, enabled: bool, location: Option<String> }
+    struct ModRename {
+        old: String,
+        new: String,
+        rel: Option<String>,
+        enabled: bool,
+        location: Option<String>,
+    }
     let mod_renames: Vec<ModRename> = items
         .iter()
         .enumerate()
         .filter_map(|(pos, item)| {
-            let TopLevelItem::Mod { id } = item else { return None };
+            let TopLevelItem::Mod { id } = item else {
+                return None;
+            };
             let m = state.mods.iter().find(|m| &m.uid == id)?;
             let priority = total - pos as i64;
             let new = apply_priority_prefix(&m.filename, priority);
@@ -172,7 +202,13 @@ pub fn reorder_children_op(
                 return None;
             }
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
-            Some(ModRename { old: m.filename.clone(), new, rel, enabled: m.enabled, location: m.location.clone() })
+            Some(ModRename {
+                old: m.filename.clone(),
+                new,
+                rel,
+                enabled: m.enabled,
+                location: m.location.clone(),
+            })
         })
         .collect();
 
@@ -231,7 +267,8 @@ pub fn reorder_children_op(
         match item {
             TopLevelItem::Folder { id } => {
                 if let Some(f) = state.folders.iter_mut().find(|f| &f.id == id) {
-                    f.disk_name = apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority);
+                    f.disk_name =
+                        apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority);
                     f.priority = priority;
                 }
             }

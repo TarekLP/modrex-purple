@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-const INDEX_URL: &str = "https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db";
+const INDEX_URL: &str =
+    "https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db";
 const MAX_AGE_SECS: u64 = 3600;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -117,7 +118,11 @@ fn query_by_name(conn: &rusqlite::Connection, name: &str, game_name: &str) -> Op
         .ok()?
         .filter_map(|r| r.ok())
         .collect();
-    if rows.len() == 1 { Some(rows[0]) } else { None }
+    if rows.len() == 1 {
+        Some(rows[0])
+    } else {
+        None
+    }
 }
 
 fn query_mod_files(
@@ -171,14 +176,18 @@ pub fn get_index_mod_files(
 
 pub fn lookup_sha256(app: &AppHandle, sha256: &str, game_name: &str) -> Option<IndexMatch> {
     let path = index_path(app);
-    if !path.exists() { return None; }
+    if !path.exists() {
+        return None;
+    }
     let conn = open_conn(&path)?;
     query_sha256(&conn, sha256, game_name)
 }
 
 pub fn lookup_by_name(app: &AppHandle, name: &str, game_name: &str) -> Option<i64> {
     let path = index_path(app);
-    if !path.exists() { return None; }
+    if !path.exists() {
+        return None;
+    }
     let conn = open_conn(&path)?;
     query_by_name(&conn, name, game_name)
 }

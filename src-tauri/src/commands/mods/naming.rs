@@ -37,7 +37,11 @@ pub fn hash_filename(filename: &str) -> i64 {
     for c in filename.chars() {
         h = 31i32.wrapping_mul(h).wrapping_add(c as u32 as i32);
     }
-    if h == 0 { -1 } else { -(h.unsigned_abs() as i64) }
+    if h == 0 {
+        -1
+    } else {
+        -(h.unsigned_abs() as i64)
+    }
 }
 
 pub fn make_uid(file_id: Option<i64>, filename: &str) -> String {

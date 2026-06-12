@@ -27,7 +27,9 @@ impl ScanTarget {
 
     pub fn disabled_suffix(&self) -> &'static str {
         match &self.unit {
-            ModUnit::File { disabled_suffix, .. } => disabled_suffix,
+            ModUnit::File {
+                disabled_suffix, ..
+            } => disabled_suffix,
             ModUnit::Directory { .. } => "",
         }
     }
@@ -47,7 +49,10 @@ impl ModEngineConfig {
 
     pub fn target_for(&self, tag: Option<&str>) -> &ScanTarget {
         let Some(t) = tag else { return self.primary() };
-        self.targets.iter().find(|s| s.tag == t).unwrap_or_else(|| self.primary())
+        self.targets
+            .iter()
+            .find(|s| s.tag == t)
+            .unwrap_or_else(|| self.primary())
     }
 }
 
@@ -75,14 +80,20 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
     targets: &[
         ScanTarget {
             tag: "mods",
-            unit: ModUnit::Directory { entry_markers: &["mod.txt", "main.xml"], priority_prefix: false },
+            unit: ModUnit::Directory {
+                entry_markers: &["mod.txt", "main.xml"],
+                priority_prefix: false,
+            },
             mods_subpath: &["mods"],
             disabled_subpath: &["mods", "disabled"],
             backup_subpath: &["mods.bak"],
         },
         ScanTarget {
             tag: "mod_overrides",
-            unit: ModUnit::Directory { entry_markers: &[], priority_prefix: false },
+            unit: ModUnit::Directory {
+                entry_markers: &[],
+                priority_prefix: false,
+            },
             mods_subpath: &["assets", "mod_overrides"],
             disabled_subpath: &["assets", "mod_overrides", "disabled"],
             backup_subpath: &["assets", "mod_overrides.bak"],
@@ -115,15 +126,24 @@ pub fn engine_for_game(game_id: &str) -> &'static ModEngineConfig {
 }
 
 pub fn mods_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target.mods_subpath.iter().fold(PathBuf::from(game_path), |p, s| p.join(s))
+    target
+        .mods_subpath
+        .iter()
+        .fold(PathBuf::from(game_path), |p, s| p.join(s))
 }
 
 pub fn disabled_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target.disabled_subpath.iter().fold(PathBuf::from(game_path), |p, s| p.join(s))
+    target
+        .disabled_subpath
+        .iter()
+        .fold(PathBuf::from(game_path), |p, s| p.join(s))
 }
 
 pub fn backup_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target.backup_subpath.iter().fold(PathBuf::from(game_path), |p, s| p.join(s))
+    target
+        .backup_subpath
+        .iter()
+        .fold(PathBuf::from(game_path), |p, s| p.join(s))
 }
 
 pub fn state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {

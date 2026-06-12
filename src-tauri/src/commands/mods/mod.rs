@@ -23,9 +23,13 @@ pub(crate) use self::folders::{
 pub(crate) use self::install::{disable_mod_op, enable_mod_op, uninstall_mod_op};
 pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
 pub(crate) use self::paths::disabled_base;
-pub(crate) use self::reorder::{move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op};
+pub(crate) use self::reorder::{
+    move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,
+};
 pub(crate) use self::state::save_state;
-pub(crate) use self::zip::{extract_dir_entry, extract_entry, mark_archive_files, resolve_archive_download};
+pub(crate) use self::zip::{
+    extract_dir_entry, extract_entry, mark_archive_files, resolve_archive_download,
+};
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
 #[cfg(test)]
@@ -50,9 +54,13 @@ fn first_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
         let ft = entry.file_type().ok()?;
-        if ft.is_file() { return Some(entry.path()); }
+        if ft.is_file() {
+            return Some(entry.path());
+        }
         if ft.is_dir() {
-            if let Some(p) = first_file_in_dir(&entry.path()) { return Some(p); }
+            if let Some(p) = first_file_in_dir(&entry.path()) {
+                return Some(p);
+            }
         }
     }
     None
@@ -60,7 +68,9 @@ fn first_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
 
 fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     let main_xml = dir.join("main.xml");
-    if main_xml.exists() { return Some(main_xml); }
+    if main_xml.exists() {
+        return Some(main_xml);
+    }
     first_file_in_dir(dir)
 }
 
@@ -70,9 +80,13 @@ fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf
 /// e.g. the mod was added to the index after it was first installed locally.
 fn upgrade_negative_ids_by_sha(app: &AppHandle, mods: &mut [InstalledMod], game_name: &str) {
     for m in mods {
-        if m.id >= 0 { continue; }
+        if m.id >= 0 {
+            continue;
+        }
         let Some(ref sha) = m.sha256 else { continue };
-        let Some(hit) = mod_index::lookup_sha256(app, sha, game_name) else { continue };
+        let Some(hit) = mod_index::lookup_sha256(app, sha, game_name) else {
+            continue;
+        };
         m.id = hit.mod_remote_id;
         m.name = hit.mod_name;
         m.version = hit.version;
@@ -90,7 +104,9 @@ fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
         .map(|m| (m.name.to_lowercase(), m.id))
         .collect();
     for m in mods.iter_mut() {
-        if m.id >= 0 { continue; }
+        if m.id >= 0 {
+            continue;
+        }
         if let Some(pos) = m.name.rfind(' ') {
             let suffix = &m.name[pos + 1..];
             if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
@@ -116,23 +132,54 @@ fn ensure_untracked_folders(
         .filter_map(|f| get_folder_path(&state.folders, Some(&f.id)).map(|p| (p, f.id.clone())))
         .collect();
 
-    let mut max_p = state.folders.iter().map(|f| f.priority).max().unwrap_or(0)
-        .max(state.mods.iter().filter(|m| m.folder_id.is_none()).filter_map(|m| m.priority).max().unwrap_or(0));
+    let mut max_p = state
+        .folders
+        .iter()
+        .map(|f| f.priority)
+        .max()
+        .unwrap_or(0)
+        .max(
+            state
+                .mods
+                .iter()
+                .filter(|m| m.folder_id.is_none())
+                .filter_map(|m| m.priority)
+                .max()
+                .unwrap_or(0),
+        );
 
     for (rel_path, _, _) in untracked {
         let parts: Vec<&str> = rel_path.split('/').collect();
-        if parts.len() <= 1 { continue; }
+        if parts.len() <= 1 {
+            continue;
+        }
         let segs = &parts[..parts.len() - 1];
         let mut prefix = String::new();
         for (i, &seg) in segs.iter().enumerate() {
-            prefix = if i == 0 { seg.to_string() } else { format!("{}/{}", prefix, seg) };
-            if folder_path_to_id.contains_key(&prefix) { continue; }
-            let parent_path = if i == 0 { None } else { Some(segs[..i].join("/")) };
-            let parent_id = parent_path.as_deref().and_then(|p| folder_path_to_id.get(p)).cloned();
+            prefix = if i == 0 {
+                seg.to_string()
+            } else {
+                format!("{}/{}", prefix, seg)
+            };
+            if folder_path_to_id.contains_key(&prefix) {
+                continue;
+            }
+            let parent_path = if i == 0 {
+                None
+            } else {
+                Some(segs[..i].join("/"))
+            };
+            let parent_id = parent_path
+                .as_deref()
+                .and_then(|p| folder_path_to_id.get(p))
+                .cloned();
             max_p += 1;
             let new_folder = ModFolder {
                 id: Uuid::new_v4().to_string(),
-                display_name: strip_priority_prefix(seg).replace('_', " ").trim().to_string(),
+                display_name: strip_priority_prefix(seg)
+                    .replace('_', " ")
+                    .trim()
+                    .to_string(),
                 disk_name: seg.to_string(),
                 priority: max_p,
                 parent_id,
@@ -164,7 +211,11 @@ async fn hash_untracked(
                         if enabled {
                             mods_base(&game_path, entry_target).join(&rel_path)
                         } else {
-                            disabled_base(&game_path, entry_target).join(format!("{}{}", rel_path, entry_target.disabled_suffix()))
+                            disabled_base(&game_path, entry_target).join(format!(
+                                "{}{}",
+                                rel_path,
+                                entry_target.disabled_suffix()
+                            ))
                         }
                     }
                     engine::ModUnit::Directory { entry_markers, .. } => {
@@ -174,10 +225,13 @@ async fn hash_untracked(
                             disabled_base(&game_path, entry_target).join(&rel_path)
                         };
                         if entry_markers.is_empty() {
-                            let Some(p) = hashable_file_for_mod_dir(&mod_dir) else { return None };
+                            let Some(p) = hashable_file_for_mod_dir(&mod_dir) else {
+                                return None;
+                            };
                             return compute_sha256(&p).await.ok();
                         }
-                        entry_markers.iter()
+                        entry_markers
+                            .iter()
                             .map(|m| mod_dir.join(m))
                             .find(|p| p.exists())
                             .unwrap_or_else(|| mod_dir.join(entry_markers[0]))
@@ -210,11 +264,19 @@ fn identify_untracked(
     let mut reconcile_ops: Vec<(String, String, bool, Option<String>)> = Vec::new();
     for ((rel_path, enabled, _), sha256) in untracked.iter().zip(sha256s.iter()) {
         let Some(sha) = sha256 else { continue };
-        let Some(uid) = sha256_to_uid.get(sha.as_str()) else { continue };
+        let Some(uid) = sha256_to_uid.get(sha.as_str()) else {
+            continue;
+        };
         let parts: Vec<&str> = rel_path.split('/').collect();
         let filename = parts.last().unwrap_or(&"").to_string();
-        let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
-        let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
+        let folder_path = if parts.len() > 1 {
+            Some(parts[..parts.len() - 1].join("/"))
+        } else {
+            None
+        };
+        let folder_id = folder_path
+            .as_deref()
+            .and_then(|fp| folder_path_to_id.get(fp).cloned());
         reconcile_ops.push((uid.clone(), filename, *enabled, folder_id));
     }
     for (uid, filename, enabled, folder_id) in reconcile_ops {
@@ -227,18 +289,30 @@ fn identify_untracked(
     }
 
     let now = Utc::now().to_rfc3339();
-    let mut by_uid: HashMap<String, InstalledMod> =
-        state.mods.iter().map(|m| (m.uid.clone(), m.clone())).collect();
+    let mut by_uid: HashMap<String, InstalledMod> = state
+        .mods
+        .iter()
+        .map(|m| (m.uid.clone(), m.clone()))
+        .collect();
 
     for ((rel_path, enabled, location_tag), sha256) in untracked.iter().zip(sha256s.iter()) {
-        if sha256.as_deref().is_some_and(|s| sha256_to_uid.contains_key(s)) {
+        if sha256
+            .as_deref()
+            .is_some_and(|s| sha256_to_uid.contains_key(s))
+        {
             continue;
         }
 
         let parts: Vec<&str> = rel_path.split('/').collect();
         let filename = parts.last().unwrap_or(&"").to_string();
-        let folder_path = if parts.len() > 1 { Some(parts[..parts.len() - 1].join("/")) } else { None };
-        let folder_id = folder_path.as_deref().and_then(|fp| folder_path_to_id.get(fp).cloned());
+        let folder_path = if parts.len() > 1 {
+            Some(parts[..parts.len() - 1].join("/"))
+        } else {
+            None
+        };
+        let folder_id = folder_path
+            .as_deref()
+            .and_then(|fp| folder_path_to_id.get(fp).cloned());
 
         let entry_target = cfg.target_for(location_tag.as_deref());
         let stem = match &entry_target.unit {
@@ -259,25 +333,66 @@ fn identify_untracked(
         let gname = cfg.index_game_name;
         let (id, name, file_id, version) = if let Some(sha) = sha256 {
             if let Some(hit) = mod_index::lookup_sha256(app, sha, gname) {
-                (hit.mod_remote_id, hit.mod_name, Some(hit.file_remote_id), hit.version)
+                (
+                    hit.mod_remote_id,
+                    hit.mod_name,
+                    Some(hit.file_remote_id),
+                    hit.version,
+                )
             } else if let Some(remote_id) = mod_index::lookup_by_name(app, &stripped_name, gname) {
-                (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
-            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(app, b, gname)) {
-                (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
+                (
+                    remote_id,
+                    stripped_name.trim().to_string(),
+                    None,
+                    "unknown".to_string(),
+                )
+            } else if let Some(remote_id) = stripped_base
+                .as_deref()
+                .and_then(|b| mod_index::lookup_by_name(app, b, gname))
+            {
+                (
+                    remote_id,
+                    stripped_name.trim().to_string(),
+                    None,
+                    "unknown".to_string(),
+                )
             } else if let Ok(num_id) = stripped.parse::<i64>() {
                 (num_id, stripped.to_string(), None, "unknown".to_string())
             } else {
-                (hash_filename(&filename), stripped_name.trim().to_string(), None, "unknown".to_string())
+                (
+                    hash_filename(&filename),
+                    stripped_name.trim().to_string(),
+                    None,
+                    "unknown".to_string(),
+                )
             }
         } else {
             if let Some(remote_id) = mod_index::lookup_by_name(app, &stripped_name, gname) {
-                (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
-            } else if let Some(remote_id) = stripped_base.as_deref().and_then(|b| mod_index::lookup_by_name(app, b, gname)) {
-                (remote_id, stripped_name.trim().to_string(), None, "unknown".to_string())
+                (
+                    remote_id,
+                    stripped_name.trim().to_string(),
+                    None,
+                    "unknown".to_string(),
+                )
+            } else if let Some(remote_id) = stripped_base
+                .as_deref()
+                .and_then(|b| mod_index::lookup_by_name(app, b, gname))
+            {
+                (
+                    remote_id,
+                    stripped_name.trim().to_string(),
+                    None,
+                    "unknown".to_string(),
+                )
             } else if let Ok(num_id) = stripped.parse::<i64>() {
                 (num_id, stripped.to_string(), None, "unknown".to_string())
             } else {
-                (hash_filename(&filename), stripped_name.trim().to_string(), None, "unknown".to_string())
+                (
+                    hash_filename(&filename),
+                    stripped_name.trim().to_string(),
+                    None,
+                    "unknown".to_string(),
+                )
             }
         };
 
@@ -316,12 +431,20 @@ fn identify_untracked(
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<InstalledResponse, String> {
+pub async fn get_installed(
+    app: AppHandle,
+    game_id: Option<String>,
+) -> Result<InstalledResponse, String> {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let cfg = engine_for_game(game_id);
     let settings = read_settings(&app);
-    let Some(game_path) = game_settings(&settings, game_id).and_then(|gs| gs.game_path.clone()) else {
-        return Ok(InstalledResponse { mods: vec![], folders: vec![], mods_hidden: false });
+    let Some(game_path) = game_settings(&settings, game_id).and_then(|gs| gs.game_path.clone())
+    else {
+        return Ok(InstalledResponse {
+            mods: vec![],
+            folders: vec![],
+            mods_hidden: false,
+        });
     };
 
     let state_path = get_state_path(&game_path, cfg);
@@ -332,7 +455,11 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     if mods_hidden {
-        return Ok(InstalledResponse { mods: state.mods, folders: state.folders, mods_hidden: true });
+        return Ok(InstalledResponse {
+            mods: state.mods,
+            folders: state.folders,
+            mods_hidden: true,
+        });
     }
 
     let known: HashSet<String> = state
@@ -352,19 +479,46 @@ pub async fn get_installed(app: AppHandle, game_id: Option<String>) -> Result<In
     if untracked.is_empty() {
         let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
         if any_checked {
-            save_state(&state_path, &ModsState { folders: state.folders.clone(), mods: mods.clone() });
+            save_state(
+                &state_path,
+                &ModsState {
+                    folders: state.folders.clone(),
+                    mods: mods.clone(),
+                },
+            );
         }
-        return Ok(InstalledResponse { mods, folders: state.folders, mods_hidden: false });
+        return Ok(InstalledResponse {
+            mods,
+            folders: state.folders,
+            mods_hidden: false,
+        });
     }
 
     let folder_path_to_id = ensure_untracked_folders(&mut state, &untracked);
     let sha256s = hash_untracked(&game_path, &untracked, cfg).await;
-    let mods = identify_untracked(&app, &mut state, &untracked, &sha256s, &folder_path_to_id, cfg);
+    let mods = identify_untracked(
+        &app,
+        &mut state,
+        &untracked,
+        &sha256s,
+        &folder_path_to_id,
+        cfg,
+    );
 
     let folders = state.folders;
     let (mods, _) = mark_archive_files(&game_path, &folders, mods, cfg);
-    save_state(&state_path, &ModsState { folders: folders.clone(), mods: mods.clone() });
-    Ok(InstalledResponse { mods, folders, mods_hidden: false })
+    save_state(
+        &state_path,
+        &ModsState {
+            folders: folders.clone(),
+            mods: mods.clone(),
+        },
+    );
+    Ok(InstalledResponse {
+        mods,
+        folders,
+        mods_hidden: false,
+    })
 }
 
 #[tauri::command]
@@ -385,14 +539,20 @@ pub async fn install_mod(
         let dl = &mod_val["download"];
         (
             dl["id"].as_i64().unwrap_or(0),
-            dl["download_url"].as_str().ok_or("no download_url")?.to_string(),
+            dl["download_url"]
+                .as_str()
+                .ok_or("no download_url")?
+                .to_string(),
             dl["type"].as_str().unwrap_or("pak").to_string(),
         )
     } else if mod_val["has_download"].as_bool().unwrap_or(false) {
         let f = api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?;
         (
             f["id"].as_i64().unwrap_or(0),
-            f["download_url"].as_str().ok_or("no download_url")?.to_string(),
+            f["download_url"]
+                .as_str()
+                .ok_or("no download_url")?
+                .to_string(),
             f["type"].as_str().unwrap_or("pak").to_string(),
         )
     } else {
@@ -403,7 +563,9 @@ pub async fn install_mod(
     let downloaded = download_file(&app, &download_url, &file_type).await?;
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
-            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
+            if let Ok(mut v) =
+                serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..])
+            {
                 v["modId"] = serde_json::json!(remote_id);
                 v["modName"] = serde_json::json!(&mod_name);
                 v["fileId"] = serde_json::json!(file_id);
@@ -425,7 +587,8 @@ pub async fn install_mod(
                     hashable_file_for_mod_dir(&tmp)
                         .ok_or_else(|| "mod directory is empty".to_string())?
                 } else {
-                    entry_markers.iter()
+                    entry_markers
+                        .iter()
                         .map(|m| tmp.join(m))
                         .find(|p| p.exists())
                         .unwrap_or_else(|| tmp.join(entry_markers[0]))
@@ -437,10 +600,16 @@ pub async fn install_mod(
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
-            if remote_id <= 0 { return None; }
+            if remote_id <= 0 {
+                return None;
+            }
             let same: Vec<_> = saved.mods.iter().filter(|m| m.id == remote_id).collect();
             // Only inherit for single-entry mods; multi-pak entries span different folders.
-            if same.len() == 1 { same.into_iter().next() } else { None }
+            if same.len() == 1 {
+                same.into_iter().next()
+            } else {
+                None
+            }
         });
         // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
         let effective_folder_id = folder_id.or_else(|| {
@@ -449,7 +618,10 @@ pub async fn install_mod(
             }
             existing_entry.and_then(|e| e.folder_id.clone())
         });
-        let filename = saved.mods.iter().find(|m| m.uid == uid)
+        let filename = saved
+            .mods
+            .iter()
+            .find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
             .unwrap_or_else(|| match &target.unit {
                 engine::ModUnit::File { .. } => pak_filename(&mod_name),
@@ -493,7 +665,10 @@ pub async fn install_mod(
         )?;
 
         let _ = http_client()
-            .post(format!("https://api.modworkshop.net/files/{}/register-download", file_id))
+            .post(format!(
+                "https://api.modworkshop.net/files/{}/register-download",
+                file_id
+            ))
             .header("User-Agent", user_agent(&app))
             .send()
             .await;
@@ -503,7 +678,9 @@ pub async fn install_mod(
     .await;
 
     match &target.unit {
-        engine::ModUnit::File { .. } => { let _ = tokio::fs::remove_file(&tmp).await; }
+        engine::ModUnit::File { .. } => {
+            let _ = tokio::fs::remove_file(&tmp).await;
+        }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
                 let _ = tokio::fs::remove_dir_all(parent).await;
@@ -532,7 +709,9 @@ pub async fn install_file(
     let downloaded = download_file(&app, &download_url, &file_type).await?;
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
-            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..]) {
+            if let Ok(mut v) =
+                serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..])
+            {
                 v["modId"] = serde_json::json!(mod_id);
                 v["modName"] = serde_json::json!(&mod_name);
                 v["fileId"] = serde_json::json!(file_id);
@@ -554,7 +733,8 @@ pub async fn install_file(
                     hashable_file_for_mod_dir(&tmp)
                         .ok_or_else(|| "mod directory is empty".to_string())?
                 } else {
-                    entry_markers.iter()
+                    entry_markers
+                        .iter()
                         .map(|m| tmp.join(m))
                         .find(|p| p.exists())
                         .unwrap_or_else(|| tmp.join(entry_markers[0]))
@@ -565,24 +745,36 @@ pub async fn install_file(
         let uid = file_id.to_string();
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
-        let existing_entry = saved.mods.iter()
-            .find(|m| m.uid == uid)
-            .or_else(|| {
-                if mod_id <= 0 { return None; }
-                let same: Vec<_> = saved.mods.iter().filter(|m| m.id == mod_id).collect();
-                if same.len() == 1 { same.into_iter().next() } else { None }
-            });
+        let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
+            if mod_id <= 0 {
+                return None;
+            }
+            let same: Vec<_> = saved.mods.iter().filter(|m| m.id == mod_id).collect();
+            if same.len() == 1 {
+                same.into_iter().next()
+            } else {
+                None
+            }
+        });
         // Never inherit folder when this mod_id already has multiple installed files.
-        let effective_folder_id = if mod_id > 0 && saved.mods.iter().filter(|m| m.id == mod_id).count() > 1 {
-            None
-        } else {
-            existing_entry.and_then(|e| e.folder_id.clone())
-        };
-        let filename = saved.mods.iter().find(|m| m.uid == uid)
+        let effective_folder_id =
+            if mod_id > 0 && saved.mods.iter().filter(|m| m.id == mod_id).count() > 1 {
+                None
+            } else {
+                existing_entry.and_then(|e| e.folder_id.clone())
+            };
+        let filename = saved
+            .mods
+            .iter()
+            .find(|m| m.uid == uid)
             .map(|m| m.filename.clone())
             .unwrap_or_else(|| match &target.unit {
                 engine::ModUnit::File { .. } => {
-                    if file_type == "main" { pak_filename(&mod_name) } else { pak_filename(&format!("{}_{}", mod_name, file_id)) }
+                    if file_type == "main" {
+                        pak_filename(&mod_name)
+                    } else {
+                        pak_filename(&format!("{}_{}", mod_name, file_id))
+                    }
                 }
                 engine::ModUnit::Directory { .. } => tmp
                     .file_name()
@@ -614,7 +806,10 @@ pub async fn install_file(
         )?;
 
         let _ = http_client()
-            .post(format!("https://api.modworkshop.net/files/{}/register-download", file_id))
+            .post(format!(
+                "https://api.modworkshop.net/files/{}/register-download",
+                file_id
+            ))
             .header("User-Agent", user_agent(&app))
             .send()
             .await;
@@ -624,7 +819,9 @@ pub async fn install_file(
     .await;
 
     match &target.unit {
-        engine::ModUnit::File { .. } => { let _ = tokio::fs::remove_file(&tmp).await; }
+        engine::ModUnit::File { .. } => {
+            let _ = tokio::fs::remove_file(&tmp).await;
+        }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
                 let _ = tokio::fs::remove_dir_all(parent).await;
@@ -695,7 +892,8 @@ pub async fn install_from_zip_entry(
                     hashable_file_for_mod_dir(&ext)
                         .ok_or_else(|| "mod directory is empty".to_string())?
                 } else {
-                    entry_markers.iter()
+                    entry_markers
+                        .iter()
                         .map(|m| ext.join(m))
                         .find(|p| p.exists())
                         .unwrap_or_else(|| ext.join(entry_markers[0]))
@@ -707,7 +905,10 @@ pub async fn install_from_zip_entry(
         let saved = read_state(&sp);
 
         // Reuse existing uid by SHA256 so a reinstall moves the entry in-place rather than duplicating.
-        let sha256_match = saved.mods.iter().find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
+        let sha256_match = saved
+            .mods
+            .iter()
+            .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
         let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
 
         // Never inherit folderId from existing entries; callers always supply the target folder.
@@ -736,7 +937,10 @@ pub async fn install_from_zip_entry(
         )?;
 
         let _ = http_client()
-            .post(format!("https://api.modworkshop.net/files/{}/register-download", file_id))
+            .post(format!(
+                "https://api.modworkshop.net/files/{}/register-download",
+                file_id
+            ))
             .header("User-Agent", user_agent(&app))
             .send()
             .await;
@@ -778,27 +982,73 @@ pub fn disable_mod(game_path: String, uid: String, game_id: Option<String>) {
 }
 
 #[tauri::command]
-pub fn reorder_in_folder(game_path: String, folder_id: Option<String>, ordered_uids: Vec<String>, game_id: Option<String>) {
+pub fn reorder_in_folder(
+    game_path: String,
+    folder_id: Option<String>,
+    ordered_uids: Vec<String>,
+    game_id: Option<String>,
+) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    reorder_mods_in_folder_op(&game_path, &get_state_path(&game_path, cfg), folder_id.as_deref(), &ordered_uids, cfg);
+    reorder_mods_in_folder_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        folder_id.as_deref(),
+        &ordered_uids,
+        cfg,
+    );
 }
 
 #[tauri::command]
-pub fn move_to_folder(game_path: String, uid: String, target_folder_id: Option<String>, target_position: usize, game_id: Option<String>) {
+pub fn move_to_folder(
+    game_path: String,
+    uid: String,
+    target_folder_id: Option<String>,
+    target_position: usize,
+    game_id: Option<String>,
+) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    move_mod_to_folder_op(&game_path, &get_state_path(&game_path, cfg), &uid, target_folder_id, target_position, cfg);
+    move_mod_to_folder_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        &uid,
+        target_folder_id,
+        target_position,
+        cfg,
+    );
 }
 
 #[tauri::command]
-pub fn reorder_children(game_path: String, parent_id: Option<String>, items: Vec<TopLevelItem>, game_id: Option<String>) {
+pub fn reorder_children(
+    game_path: String,
+    parent_id: Option<String>,
+    items: Vec<TopLevelItem>,
+    game_id: Option<String>,
+) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    reorder_children_op(&game_path, &get_state_path(&game_path, cfg), parent_id.as_deref(), &items, cfg);
+    reorder_children_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        parent_id.as_deref(),
+        &items,
+        cfg,
+    );
 }
 
 #[tauri::command]
-pub fn move_folder(game_path: String, folder_id: String, target_parent_id: Option<String>, game_id: Option<String>) {
+pub fn move_folder(
+    game_path: String,
+    folder_id: String,
+    target_parent_id: Option<String>,
+    game_id: Option<String>,
+) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    move_folder_op(&game_path, &get_state_path(&game_path, cfg), &folder_id, target_parent_id, cfg);
+    move_folder_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        &folder_id,
+        target_parent_id,
+        cfg,
+    );
 }
 
 #[tauri::command]
@@ -809,26 +1059,50 @@ pub fn create_folder(
     game_id: Option<String>,
 ) -> Result<ModFolder, String> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    create_folder_op(&game_path, &get_state_path(&game_path, cfg), &display_name, parent_id, cfg)
+    create_folder_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        &display_name,
+        parent_id,
+        cfg,
+    )
 }
 
 #[tauri::command]
-pub fn rename_folder(game_path: String, folder_id: String, display_name: String, game_id: Option<String>) {
+pub fn rename_folder(
+    game_path: String,
+    folder_id: String,
+    display_name: String,
+    game_id: Option<String>,
+) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    rename_folder_op(&game_path, &get_state_path(&game_path, cfg), &folder_id, &display_name, cfg);
+    rename_folder_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        &folder_id,
+        &display_name,
+        cfg,
+    );
 }
 
 #[tauri::command]
 pub fn delete_folder(game_path: String, folder_id: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    delete_folder_op(&game_path, &get_state_path(&game_path, cfg), &folder_id, cfg);
+    delete_folder_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        &folder_id,
+        cfg,
+    );
 }
 
 #[tauri::command]
 pub fn open_mods_folder(app: AppHandle, game_id: Option<String>) {
     let gid = game_id.as_deref().unwrap_or("pd3");
     let settings = read_settings(&app);
-    let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else { return };
+    let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else {
+        return;
+    };
     let cfg = engine_for_game(gid);
     let dir = mods_base(&game_path, cfg.primary());
     #[cfg(target_os = "windows")]

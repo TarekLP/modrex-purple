@@ -50,13 +50,22 @@ fn mixed_keeps_fresh_removes_old() {
 
 #[test]
 fn missing_dir_does_not_panic() {
-    cleanup_dir(std::path::Path::new("/nonexistent/thumbnails"), Duration::from_secs(1));
+    cleanup_dir(
+        std::path::Path::new("/nonexistent/thumbnails"),
+        Duration::from_secs(1),
+    );
 }
 
 #[test]
 fn sanitize_accepts_plain_filenames() {
-    assert_eq!(sanitize_thumb_filename("/abc123.webp"), Some("abc123.webp".into()));
-    assert_eq!(sanitize_thumb_filename("/a%20b.png"), Some("a b.png".into()));
+    assert_eq!(
+        sanitize_thumb_filename("/abc123.webp"),
+        Some("abc123.webp".into())
+    );
+    assert_eq!(
+        sanitize_thumb_filename("/a%20b.png"),
+        Some("a b.png".into())
+    );
 }
 
 #[test]

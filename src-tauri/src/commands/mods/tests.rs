@@ -92,7 +92,12 @@ fn extract_zip_entry_handles_nested_path() {
     let content = b"nested pak content";
     let zip = make_zip(&[("Real Weapon Names/weapons_default.pak", content)]);
     let dest = NamedTempFile::new().unwrap();
-    extract_entry(zip.path(), "Real Weapon Names/weapons_default.pak", dest.path()).unwrap();
+    extract_entry(
+        zip.path(),
+        "Real Weapon Names/weapons_default.pak",
+        dest.path(),
+    )
+    .unwrap();
     let written = std::fs::read(dest.path()).unwrap();
     assert_eq!(written, content);
 }
@@ -165,7 +170,10 @@ fn pak_filename_leading_trailing_stripped() {
 
 #[test]
 fn pak_filename_allowed_chars_preserved() {
-    assert_eq!(pak_filename("CSA-39_Assault.Rifle"), "CSA-39_Assault.Rifle.pak");
+    assert_eq!(
+        pak_filename("CSA-39_Assault.Rifle"),
+        "CSA-39_Assault.Rifle.pak"
+    );
 }
 
 #[test]
@@ -239,7 +247,10 @@ fn folder_path_id_not_in_list() {
 #[test]
 fn folder_path_root_folder() {
     let folders = vec![folder("a", "001_weapons", None)];
-    assert_eq!(get_folder_path(&folders, Some("a")), Some("001_weapons".to_string()));
+    assert_eq!(
+        get_folder_path(&folders, Some("a")),
+        Some("001_weapons".to_string())
+    );
 }
 
 #[test]

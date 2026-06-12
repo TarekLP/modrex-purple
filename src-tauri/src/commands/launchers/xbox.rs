@@ -53,7 +53,9 @@ impl Launcher for Xbox {
 fn find_in_drives(game_name: &str, xbox_executable: &str) -> Option<String> {
     for drive in DRIVES {
         let drive_root = PathBuf::from(format!("{}:\\", drive));
-        if !drive_root.exists() { continue; }
+        if !drive_root.exists() {
+            continue;
+        }
         let dirs = match fs::read_dir(&drive_root) {
             Ok(d) => d,
             Err(_) => continue,
@@ -81,6 +83,12 @@ fn find_via_package_manager(product_id: &str, xbox_executable: &str) -> Option<S
         .output()
         .ok()?;
     let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if path.is_empty() { return None; }
-    if Path::new(&path).join(xbox_executable).exists() { Some(path) } else { None }
+    if path.is_empty() {
+        return None;
+    }
+    if Path::new(&path).join(xbox_executable).exists() {
+        Some(path)
+    } else {
+        None
+    }
 }

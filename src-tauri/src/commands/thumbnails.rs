@@ -34,14 +34,20 @@ async fn fetch_image(app: &AppHandle, file: &str) -> Result<Vec<u8>, String> {
     let url = format!("{}/{}", THUMBNAIL_BASE_URL, file);
     let resp = client()
         .get(&url)
-        .header("User-Agent", format!("modrex/{}", app.package_info().version))
+        .header(
+            "User-Agent",
+            format!("modrex/{}", app.package_info().version),
+        )
         .send()
         .await
         .map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         return Err(format!("status {} for {}", resp.status(), url));
     }
-    resp.bytes().await.map(|b| b.to_vec()).map_err(|e| e.to_string())
+    resp.bytes()
+        .await
+        .map(|b| b.to_vec())
+        .map_err(|e| e.to_string())
 }
 
 /// Caches an image and returns the cache filename for the renderer to build its
@@ -90,8 +96,12 @@ pub async fn get_thumbnail(
     };
 
     let tmp = path.with_extension("tmp");
-    tokio::fs::write(&tmp, &bytes).await.map_err(|e| e.to_string())?;
-    tokio::fs::rename(&tmp, &path).await.map_err(|e| e.to_string())?;
+    tokio::fs::write(&tmp, &bytes)
+        .await
+        .map_err(|e| e.to_string())?;
+    tokio::fs::rename(&tmp, &path)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(cache_name)
 }
@@ -154,11 +164,17 @@ pub(crate) fn handle_thumb_protocol(
 
 pub(crate) fn cleanup_dir(dir: &Path, max_age: Duration) {
     let cutoff = SystemTime::now() - max_age;
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let Ok(meta) = entry.metadata() else { continue };
-        if !meta.is_file() { continue }
-        let Ok(modified) = meta.modified() else { continue };
+        if !meta.is_file() {
+            continue;
+        }
+        let Ok(modified) = meta.modified() else {
+            continue;
+        };
         if modified < cutoff {
             let _ = std::fs::remove_file(entry.path());
         }

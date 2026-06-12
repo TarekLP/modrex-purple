@@ -1,11 +1,11 @@
-use std::fs;
-use std::path::Path;
-use chrono::Utc;
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming::apply_priority_prefix;
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_state};
 use super::types::{InstalledMod, ModsState};
+use chrono::Utc;
+use std::fs;
+use std::path::Path;
 
 pub fn install_mod_from_path(
     game_path: &str,
@@ -17,7 +17,11 @@ pub fn install_mod_from_path(
     target: &ScanTarget,
 ) -> Result<(), String> {
     // BeardLib (mod_overrides) scans one level deep — nested dirs are never loaded.
-    let folder_id = if std::ptr::eq(target, cfg.primary()) { folder_id } else { None };
+    let folder_id = if std::ptr::eq(target, cfg.primary()) {
+        folder_id
+    } else {
+        None
+    };
     let state = read_state(state_path);
     let folder_rel = get_folder_path(&state.folders, folder_id.as_deref());
 
@@ -43,9 +47,17 @@ pub fn install_mod_from_path(
         .map(|f| f.priority)
         .max()
         .unwrap_or(0);
-    let priority = existing.as_ref().and_then(|e| e.priority).unwrap_or(max_mod.max(max_folder) + 1);
+    let priority = existing
+        .as_ref()
+        .and_then(|e| e.priority)
+        .unwrap_or(max_mod.max(max_folder) + 1);
     let priority_prefix_enabled = match &target.unit {
-        ModUnit::File { priority_prefix, .. } | ModUnit::Directory { priority_prefix, .. } => *priority_prefix,
+        ModUnit::File {
+            priority_prefix, ..
+        }
+        | ModUnit::Directory {
+            priority_prefix, ..
+        } => *priority_prefix,
     };
     let filename = if priority_prefix_enabled {
         apply_priority_prefix(&mod_data.filename, priority)
@@ -91,12 +103,15 @@ pub fn install_mod_from_path(
         .mods
         .into_iter()
         .filter(|m| {
-            m.uid != mod_data.uid
-                && existing.as_ref().map(|e| m.uid != e.uid).unwrap_or(true)
+            m.uid != mod_data.uid && existing.as_ref().map(|e| m.uid != e.uid).unwrap_or(true)
         })
         .collect();
 
-    let location = if std::ptr::eq(target, cfg.primary()) { None } else { Some(target.tag.to_string()) };
+    let location = if std::ptr::eq(target, cfg.primary()) {
+        None
+    } else {
+        Some(target.tag.to_string())
+    };
     new_mods.push(InstalledMod {
         filename,
         priority: Some(priority),
@@ -107,15 +122,20 @@ pub fn install_mod_from_path(
         ..mod_data
     });
 
-    let json = serde_json::to_string_pretty(&ModsState { folders: state.folders, mods: new_mods })
-        .map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&ModsState {
+        folders: state.folders,
+        mods: new_mods,
+    })
+    .map_err(|e| e.to_string())?;
     std::fs::write(state_path, &json).map_err(|e| format!("failed to write state: {}", e))?;
     Ok(())
 }
 
 pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
     let mut state = read_state(state_path);
-    let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else { return };
+    let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
+        return;
+    };
     let target = cfg.target_for(m.location.as_deref());
     let folder_id = m.folder_id.clone();
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
@@ -150,13 +170,23 @@ fn prune_empty_folders(
     cfg: &ModEngineConfig,
 ) {
     let Some(fid) = folder_id else { return };
-    let has_mods = state.mods.iter().any(|m| m.folder_id.as_deref() == Some(fid.as_str()));
-    let has_children = state.folders.iter().any(|f| f.parent_id.as_deref() == Some(fid.as_str()));
+    let has_mods = state
+        .mods
+        .iter()
+        .any(|m| m.folder_id.as_deref() == Some(fid.as_str()));
+    let has_children = state
+        .folders
+        .iter()
+        .any(|f| f.parent_id.as_deref() == Some(fid.as_str()));
     if has_mods || has_children {
         return;
     }
     let rel = get_folder_path(&state.folders, Some(fid.as_str()));
-    let parent_id = state.folders.iter().find(|f| f.id == fid).and_then(|f| f.parent_id.clone());
+    let parent_id = state
+        .folders
+        .iter()
+        .find(|f| f.id == fid)
+        .and_then(|f| f.parent_id.clone());
     state.folders.retain(|f| f.id != fid);
     if let Some(rel_path) = rel {
         let _ = fs::remove_dir(mods_base(game_path, cfg.primary()).join(rel_path));
@@ -166,7 +196,14 @@ fn prune_empty_folders(
 
 pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
     let mut state = read_state(state_path);
-    let Some(m) = state.mods.iter().find(|m| m.uid == uid && !m.enabled).cloned() else { return };
+    let Some(m) = state
+        .mods
+        .iter()
+        .find(|m| m.uid == uid && !m.enabled)
+        .cloned()
+    else {
+        return;
+    };
     let target = cfg.target_for(m.location.as_deref());
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     if let Some(r) = &rel {
@@ -191,7 +228,14 @@ pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEng
 
 pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
     let mut state = read_state(state_path);
-    let Some(m) = state.mods.iter().find(|m| m.uid == uid && m.enabled).cloned() else { return };
+    let Some(m) = state
+        .mods
+        .iter()
+        .find(|m| m.uid == uid && m.enabled)
+        .cloned()
+    else {
+        return;
+    };
     let target = cfg.target_for(m.location.as_deref());
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let dis_dir = match &rel {

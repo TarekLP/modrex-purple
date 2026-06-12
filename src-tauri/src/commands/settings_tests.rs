@@ -100,10 +100,13 @@ fn migration_from_legacy_flat_fields() {
 #[test]
 fn migration_skipped_when_games_already_present() {
     let mut games = HashMap::new();
-    games.insert("pd3".to_string(), GameSettings {
-        game_path: Some("new_path".to_string()),
-        ..Default::default()
-    });
+    games.insert(
+        "pd3".to_string(),
+        GameSettings {
+            game_path: Some("new_path".to_string()),
+            ..Default::default()
+        },
+    );
     let s = Settings {
         games: Some(games),
         game_path: Some("old_path".to_string()),
@@ -112,7 +115,14 @@ fn migration_skipped_when_games_already_present() {
     let migrated = migrate_settings(s);
     // Existing games map must not be overwritten by legacy flat field
     assert_eq!(
-        migrated.games.as_ref().unwrap().get("pd3").unwrap().game_path.as_deref(),
+        migrated
+            .games
+            .as_ref()
+            .unwrap()
+            .get("pd3")
+            .unwrap()
+            .game_path
+            .as_deref(),
         Some("new_path")
     );
 }

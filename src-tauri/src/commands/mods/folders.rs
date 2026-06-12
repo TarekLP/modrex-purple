@@ -1,11 +1,11 @@
-use std::fs;
-use std::path::Path;
-use uuid::Uuid;
 use super::engine::ModEngineConfig;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
 use super::state::{get_folder_path, read_state, save_state};
 use super::types::ModFolder;
+use std::fs;
+use std::path::Path;
+use uuid::Uuid;
 
 pub fn create_folder_op(
     game_path: &str,
@@ -21,9 +21,19 @@ pub fn create_folder_op(
         .chars()
         .filter(|&c| !"\\/:*?\"<>|".contains(c))
         .collect();
-    let slug = if slug.is_empty() { "folder".to_string() } else { slug };
+    let slug = if slug.is_empty() {
+        "folder".to_string()
+    } else {
+        slug
+    };
 
-    let max_folders = state.folders.iter().filter(|f| f.parent_id == parent_id).map(|f| f.priority).max().unwrap_or(0);
+    let max_folders = state
+        .folders
+        .iter()
+        .filter(|f| f.parent_id == parent_id)
+        .map(|f| f.priority)
+        .max()
+        .unwrap_or(0);
     let priority = max_folders + 1;
     let disk_name = apply_priority_prefix(&slug, priority);
     let id = Uuid::new_v4().to_string();
@@ -35,7 +45,13 @@ pub fn create_folder_op(
     };
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
-    let folder = ModFolder { id, disk_name, display_name: display_name.to_string(), priority, parent_id };
+    let folder = ModFolder {
+        id,
+        disk_name,
+        display_name: display_name.to_string(),
+        priority,
+        parent_id,
+    };
     state.folders.push(folder.clone());
     save_state(state_path, &state);
     Ok(folder)
@@ -49,23 +65,46 @@ pub fn move_folder_op(
     cfg: &ModEngineConfig,
 ) {
     let mut state = read_state(state_path);
-    let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else { return };
-    if folder.parent_id == target_parent_id { return; }
+    let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
+        return;
+    };
+    if folder.parent_id == target_parent_id {
+        return;
+    }
 
     let mut cur = target_parent_id.clone();
     while let Some(ref cid) = cur {
-        if cid == folder_id { return; }
-        cur = state.folders.iter().find(|f| &f.id == cid).and_then(|f| f.parent_id.clone());
+        if cid == folder_id {
+            return;
+        }
+        cur = state
+            .folders
+            .iter()
+            .find(|f| &f.id == cid)
+            .and_then(|f| f.parent_id.clone());
     }
 
     let mods_b = mods_base(game_path, cfg.primary());
     let dis_b = disabled_base(game_path, cfg.primary());
     let old_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
 
-    let max_f = state.folders.iter().filter(|f| f.parent_id == target_parent_id).map(|f| f.priority).max().unwrap_or(0);
-    let max_m = state.mods.iter().filter(|m| m.folder_id == target_parent_id).filter_map(|m| m.priority).max().unwrap_or(0);
+    let max_f = state
+        .folders
+        .iter()
+        .filter(|f| f.parent_id == target_parent_id)
+        .map(|f| f.priority)
+        .max()
+        .unwrap_or(0);
+    let max_m = state
+        .mods
+        .iter()
+        .filter(|m| m.folder_id == target_parent_id)
+        .filter_map(|m| m.priority)
+        .max()
+        .unwrap_or(0);
     let new_priority = max_f.max(max_m) + 1;
-    let new_disk_name = apply_priority_prefix(strip_priority_prefix(&folder.disk_name), new_priority);
+    let new_disk_name =
+        apply_priority_prefix(strip_priority_prefix(&folder.disk_name), new_priority);
 
     for f in state.folders.iter_mut() {
         if f.id == folder_id {
@@ -116,10 +155,20 @@ pub fn rename_folder_op(
     cfg: &ModEngineConfig,
 ) {
     let mut state = read_state(state_path);
-    let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else { return };
+    let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
+        return;
+    };
 
-    let slug: String = display_name.trim().chars().filter(|&c| !"\\/:*?\"<>|".contains(c)).collect();
-    let slug = if slug.is_empty() { "folder".to_string() } else { slug };
+    let slug: String = display_name
+        .trim()
+        .chars()
+        .filter(|&c| !"\\/:*?\"<>|".contains(c))
+        .collect();
+    let slug = if slug.is_empty() {
+        "folder".to_string()
+    } else {
+        slug
+    };
     let new_disk_name = apply_priority_prefix(&slug, folder.priority);
 
     if new_disk_name != folder.disk_name {
@@ -128,7 +177,10 @@ pub fn rename_folder_op(
         let dis_b = disabled_base(game_path, cfg.primary());
 
         let (old_a, new_a) = match &parent_rel {
-            Some(r) => (mods_b.join(r).join(&folder.disk_name), mods_b.join(r).join(&new_disk_name)),
+            Some(r) => (
+                mods_b.join(r).join(&folder.disk_name),
+                mods_b.join(r).join(&new_disk_name),
+            ),
             None => (mods_b.join(&folder.disk_name), mods_b.join(&new_disk_name)),
         };
         if old_a.exists() {
@@ -138,7 +190,10 @@ pub fn rename_folder_op(
         }
 
         let (old_d, new_d) = match &parent_rel {
-            Some(r) => (dis_b.join(r).join(&folder.disk_name), dis_b.join(r).join(&new_disk_name)),
+            Some(r) => (
+                dis_b.join(r).join(&folder.disk_name),
+                dis_b.join(r).join(&new_disk_name),
+            ),
             None => (dis_b.join(&folder.disk_name), dis_b.join(&new_disk_name)),
         };
         if old_d.exists() {
@@ -164,7 +219,9 @@ pub fn delete_folder_op(
     cfg: &ModEngineConfig,
 ) {
     let mut state = read_state(state_path);
-    let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else { return };
+    let Some(folder) = state.folders.iter().find(|f| f.id == folder_id).cloned() else {
+        return;
+    };
 
     let target_parent_id = folder.parent_id.clone();
     let folder_rel = get_folder_path(&state.folders, Some(folder_id)).unwrap_or_default();
@@ -180,13 +237,27 @@ pub fn delete_folder_op(
     }
 
     let mut max_p = {
-        let f = state.folders.iter().filter(|f| f.parent_id == target_parent_id && f.id != folder_id).map(|f| f.priority).max().unwrap_or(0);
-        let m = state.mods.iter().filter(|m| m.folder_id == target_parent_id).filter_map(|m| m.priority).max().unwrap_or(0);
+        let f = state
+            .folders
+            .iter()
+            .filter(|f| f.parent_id == target_parent_id && f.id != folder_id)
+            .map(|f| f.priority)
+            .max()
+            .unwrap_or(0);
+        let m = state
+            .mods
+            .iter()
+            .filter(|m| m.folder_id == target_parent_id)
+            .filter_map(|m| m.priority)
+            .max()
+            .unwrap_or(0);
         f.max(m)
     };
 
     for m in state.mods.iter_mut() {
-        if m.folder_id.as_deref() != Some(folder_id) { continue; }
+        if m.folder_id.as_deref() != Some(folder_id) {
+            continue;
+        }
         max_p += 1;
         let new_filename = apply_priority_prefix(&m.filename, max_p);
         let target = cfg.target_for(m.location.as_deref());
@@ -196,9 +267,19 @@ pub fn delete_folder_op(
             disabled_mod_path(game_path, &m.filename, Some(&folder_rel), target)
         };
         let new = if m.enabled {
-            active_mod_path(game_path, &new_filename, target_parent_rel.as_deref(), target)
+            active_mod_path(
+                game_path,
+                &new_filename,
+                target_parent_rel.as_deref(),
+                target,
+            )
         } else {
-            disabled_mod_path(game_path, &new_filename, target_parent_rel.as_deref(), target)
+            disabled_mod_path(
+                game_path,
+                &new_filename,
+                target_parent_rel.as_deref(),
+                target,
+            )
         };
         if old.exists() {
             if let Err(e) = fs::rename(&old, &new) {
@@ -218,7 +299,12 @@ pub fn delete_folder_op(
         .collect();
 
     for cf_id in &child_ids {
-        let cf = state.folders.iter().find(|f| &f.id == cf_id).cloned().unwrap();
+        let cf = state
+            .folders
+            .iter()
+            .find(|f| &f.id == cf_id)
+            .cloned()
+            .unwrap();
         max_p += 1;
         let new_disk = apply_priority_prefix(strip_priority_prefix(&cf.disk_name), max_p);
         let old_rel = get_folder_path(&state.folders, Some(cf_id)).unwrap_or_default();
