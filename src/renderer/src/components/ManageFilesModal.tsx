@@ -61,9 +61,8 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     const [query, setQuery] = useState('')
     const [installingEntry, setInstallingEntry] = useState<string | null>(null)
     const [installError, setInstallError] = useState<string | null>(null)
-    // File ids the SHA256 index knows for this mod — may include archives with
-    // zero files still installed; set after the index merge so ghosts recompute
-    const [indexFileIds, setIndexFileIds] = useState<number[]>([])
+    // Bumped when the SHA256 index lands in the cache so ghosts recompute
+    const [, setIndexSynced] = useState(0)
 
     const rawById = new Map(installed.map((m) => [m.uid, m]))
 
@@ -74,7 +73,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         const byId = new Map(installed.map((m) => [m.uid, m]))
         const byFileId = new Map<number, string[]>()
         for (const m of mods) {
-            if (m.fileId == null) continue
+            if (m.fileId == null || m.uid === String(m.fileId)) continue
             const dir = getFolderDisplayPath(folders, byId.get(m.uid)?.folderId ?? null)
             const name = stripPriorityPrefix(m.filename)
             const paths = byFileId.get(m.fileId) ?? []
@@ -86,23 +85,34 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
 
     // The SHA256 index knows every pak a mod's archives ship — merge it in so
     // files deleted before Modrex ever saw the archive still show up as ghosts.
+    // Only archives the user actually installed from count: other remote files
+    // (alternate downloads, old versions) were never theirs, and bare-file
+    // installs (uid === fileId) can't match — the app renames them on disk and
+    // the index only has the CDN blob name for them, not a real filename.
     const modId = mods[0].id
     useEffect(() => {
         if (modId < 0) return
+        const archiveFileIds = new Set(
+            mods.filter((m) => m.fileId != null && m.uid !== String(m.fileId)).map((m) => m.fileId)
+        )
+        if (archiveFileIds.size === 0) return
         let cancelled = false
         api.getIndexModFiles(modId, activeGame)
             .then((rows) => {
-                if (cancelled || rows.length === 0) return
+                if (cancelled) return
                 const byFileId = new Map<number, string[]>()
                 for (const r of rows) {
+                    if (!archiveFileIds.has(r.fileRemoteId)) continue
+                    if (!r.entryName.toLowerCase().endsWith('.pak')) continue
                     const arr = byFileId.get(r.fileRemoteId) ?? []
                     arr.push(r.entryName)
                     byFileId.set(r.fileRemoteId, arr)
                 }
+                if (byFileId.size === 0) return
                 for (const [fileId, entries] of byFileId) {
                     mergeArchiveEntries(activeGame, fileId, entries)
                 }
-                setIndexFileIds([...byFileId.keys()])
+                setIndexSynced((v) => v + 1)
             })
             .catch(() => {
                 // index lookup is best-effort; ghosts fall back to local knowledge
@@ -110,7 +120,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         return () => {
             cancelled = true
         }
-    }, [modId, activeGame])
+    }, [modId, mods, activeGame])
 
     function toggleCollapse(folderId: string) {
         setCollapsed((prev) => {
@@ -245,13 +255,17 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     // Archive entries no longer installed — shown as rows with an install action.
     // Installed filenames carry the NNN_ disk prefix; archive entry names don't.
     // Each ghost lands in the folder where its archive-directory siblings live.
+    // Bare-file installs (uid === fileId) contribute no ghosts: their only
+    // entry is the installed file itself, under an app-constructed disk name.
     const fileIds =
         mods[0].id >= 0
             ? [
-                  ...new Set([
-                      ...mods.map((m) => m.fileId).filter((id): id is number => id != null),
-                      ...indexFileIds,
-                  ]),
+                  ...new Set(
+                      mods
+                          .filter((m) => m.uid !== String(m.fileId))
+                          .map((m) => m.fileId)
+                          .filter((id): id is number => id != null)
+                  ),
               ]
             : []
     const installedNames = new Set(mods.map((m) => stripPriorityPrefix(m.filename)))
