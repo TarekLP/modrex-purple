@@ -266,8 +266,8 @@ export const api = {
     },
 
     // ── Thumbnails ─────────────────────────────────────────────────────────────
-    getThumbnail(filename: string): Promise<string> {
-        return invoke('get_thumbnail', { filename })
+    getThumbnail(filename: string, full?: boolean): Promise<string> {
+        return invoke('get_thumbnail', { filename, full })
     },
 
     // ── Updater ────────────────────────────────────────────────────────────────

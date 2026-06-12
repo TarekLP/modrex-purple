@@ -39,6 +39,7 @@ import { NonPakConfirmModal } from './NonPakConfirmModal'
 import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { isUnsupportedFormat } from '../formatCheck'
+import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
 
 type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'deps'
@@ -104,6 +105,10 @@ export function ModDetailPage({
 
     const installedFiles = installed.filter((m) => m.id === modId)
     const installedMod = installedFiles[0]
+
+    // Full-size banner via the disk cache — the CDN sends no cache headers, so a
+    // direct URL costs a download or revalidation round-trip on every page visit.
+    const bannerSrc = useThumbnail((mod?.banner ?? mod?.thumbnail)?.file, true)
 
     const fetchData = useCallback(() => {
         setError(null)
@@ -443,14 +448,17 @@ export function ModDetailPage({
 
             {!loading && !error && mod && (
                 <div className="flex-1 overflow-y-auto">
-                    {(mod.banner ?? mod.thumbnail) && (
-                        <img
-                            src={`${THUMBNAIL_BASE_URL}/${(mod.banner ?? mod.thumbnail)!.file}`}
-                            alt={mod.name}
-                            loading="lazy"
-                            className="w-full h-48 object-cover"
-                        />
-                    )}
+                    {(mod.banner ?? mod.thumbnail) &&
+                        (bannerSrc ? (
+                            <img
+                                src={bannerSrc}
+                                alt={mod.name}
+                                loading="lazy"
+                                className="w-full h-48 object-cover"
+                            />
+                        ) : (
+                            <div className="w-full h-48 bg-surface-raised" />
+                        ))}
 
                     <div className="px-6 py-5 border-b border-border">
                         <div className="flex items-start justify-between gap-4">
@@ -605,12 +613,7 @@ export function ModDetailPage({
                         <ChevronLeft className="w-6 h-6" />
                     </button>
 
-                    <img
-                        src={`${THUMBNAIL_BASE_URL}/${images[lightboxIndex].file}`}
-                        alt=""
-                        className="max-w-[calc(100%-8rem)] max-h-[calc(100%-6rem)] object-contain rounded"
-                        onClick={(e) => e.stopPropagation()}
-                    />
+                    <LightboxImage file={images[lightboxIndex].file} />
 
                     <button
                         onClick={(e) => {
@@ -636,6 +639,19 @@ export function ModDetailPage({
                 </div>
             )}
         </div>
+    )
+}
+
+function LightboxImage({ file }: { file: string }) {
+    const src = useThumbnail(file, true)
+    if (!src) return null
+    return (
+        <img
+            src={src}
+            alt=""
+            className="max-w-[calc(100%-8rem)] max-h-[calc(100%-6rem)] object-contain rounded"
+            onClick={(e) => e.stopPropagation()}
+        />
     )
 }
 
@@ -679,6 +695,16 @@ function ChangelogTab({ mod }: { mod: Mod }) {
     )
 }
 
+// Gallery previews use the small thumbnail variant; the lightbox shows full size.
+function GalleryImage({ file }: { file: string }) {
+    const src = useThumbnail(file)
+    return src ? (
+        <img src={src} alt="" loading="lazy" className="w-full h-40 object-cover" />
+    ) : (
+        <div className="w-full h-40 bg-surface-raised" />
+    )
+}
+
 function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (index: number) => void }) {
     const images = mod.images ?? []
     if (images.length === 0) {
@@ -692,12 +718,7 @@ function ImagesTab({ mod, onOpenImage }: { mod: Mod; onOpenImage: (index: number
                     onClick={() => onOpenImage(i)}
                     className="rounded-lg overflow-hidden border border-border hover:border-accent transition-colors focus:outline-none"
                 >
-                    <img
-                        src={`${THUMBNAIL_BASE_URL}/${img.file}`}
-                        alt=""
-                        loading="lazy"
-                        className="w-full h-40 object-cover"
-                    />
+                    <GalleryImage file={img.file} />
                 </button>
             ))}
         </div>
@@ -1122,9 +1143,9 @@ function DepRow({
     onOpenDetail?: (modId: number) => void
 }) {
     const [installing, setInstalling] = useState(false)
+    const thumbSrc = useThumbnail(dep.mod?.thumbnail?.file)
     const { mod } = dep
     if (!mod) return null
-    const thumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
     const isInstalled = installed.some((m) => m.id === mod.id)
 
     async function handleInstall(e: React.MouseEvent) {
@@ -1149,9 +1170,9 @@ function DepRow({
                 onOpenDetail ? 'cursor-pointer hover:border-accent/50 hover:bg-surface-raised' : ''
             }`}
         >
-            {thumbUrl ? (
+            {thumbSrc ? (
                 <img
-                    src={thumbUrl}
+                    src={thumbSrc}
                     alt={mod.name}
                     loading="lazy"
                     className="w-10 h-10 rounded object-cover shrink-0"

@@ -44,13 +44,25 @@ async fn fetch_image(app: &AppHandle, file: &str) -> Result<Vec<u8>, String> {
     resp.bytes().await.map(|b| b.to_vec()).map_err(|e| e.to_string())
 }
 
-/// Downloads the pre-generated small variant (`thumbnail_{file}`, ~10–20× smaller
-/// than the original, which can be multiple MB) and returns the cache filename
-/// for the renderer to build its `thumb://` URL from. Old images without a
-/// variant (`has_thumb: false`) fall back to the original.
+/// Caches an image and returns the cache filename for the renderer to build its
+/// `thumb://` URL from. Default: the pre-generated small variant
+/// (`thumbnail_{file}`, ~10–20× smaller than the original, which can be multiple
+/// MB), falling back to the original for old images without one
+/// (`has_thumb: false`). With `full = true`: the original, cached under
+/// `{filename}` — used by the detail page (banner, lightbox), where the CDN's
+/// missing cache headers would otherwise cost a revalidation round-trip per view.
 #[tauri::command]
-pub async fn get_thumbnail(app: AppHandle, filename: String) -> Result<String, String> {
-    let cache_name = format!("thumbnail_{filename}");
+pub async fn get_thumbnail(
+    app: AppHandle,
+    filename: String,
+    full: Option<bool>,
+) -> Result<String, String> {
+    let full = full.unwrap_or(false);
+    let cache_name = if full {
+        filename.clone()
+    } else {
+        format!("thumbnail_{filename}")
+    };
     let path = cache_path(&app, &cache_name)?;
 
     if path.exists() {
@@ -68,9 +80,13 @@ pub async fn get_thumbnail(app: AppHandle, filename: String) -> Result<String, S
         .await
         .map_err(|e| e.to_string())?;
 
-    let bytes = match fetch_image(&app, &cache_name).await {
-        Ok(b) => b,
-        Err(_) => fetch_image(&app, &filename).await?,
+    let bytes = if full {
+        fetch_image(&app, &filename).await?
+    } else {
+        match fetch_image(&app, &cache_name).await {
+            Ok(b) => b,
+            Err(_) => fetch_image(&app, &filename).await?,
+        }
     };
 
     let tmp = path.with_extension("tmp");
