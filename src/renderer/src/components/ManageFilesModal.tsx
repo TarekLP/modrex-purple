@@ -521,7 +521,7 @@ function GhostRow({
     return (
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors">
             <span className="text-xs flex-1 min-w-0 truncate text-text-subtle" title={name}>
-                {displayFilename(name)}
+                {name}
             </span>
             <div className="flex items-center gap-2 shrink-0">
                 {installing ? (
@@ -559,7 +559,7 @@ function FileRow({
                 className={`text-xs flex-1 min-w-0 truncate ${loadingMod === mod.uid ? 'text-text-muted' : 'text-text'}`}
                 title={mod.filename}
             >
-                {displayFilename(mod.filename)}
+                {mod.filename}
             </span>
             <div className="flex items-center gap-2 shrink-0">
                 <Toggle checked={mod.enabled} disabled={!!loadingMod} onChange={onToggle} />
