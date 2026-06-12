@@ -5,13 +5,14 @@ import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
-import { offsiteDepHost } from '../deps'
+import { isLoaderDep, offsiteDepHost } from '../deps'
 
 interface Props {
     modId: number
     missingRequired: ModDependency[]
     gamePath: string | null
     gameId?: string
+    onInstallLoader?: () => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
     onGotIt: (permanent: boolean) => void
@@ -21,12 +22,24 @@ export function DepsWarningModal({
     missingRequired,
     gamePath,
     gameId,
+    onInstallLoader,
     onRefreshInstalled,
     onClose,
     onGotIt,
 }: Props) {
     const [dontShowAgain, setDontShowAgain] = useState(false)
     const [installingDeps, setInstallingDeps] = useState<Record<number, boolean>>({})
+    const [installingLoader, setInstallingLoader] = useState(false)
+
+    async function handleInstallLoader() {
+        if (!onInstallLoader) return
+        setInstallingLoader(true)
+        try {
+            await onInstallLoader()
+        } finally {
+            setInstallingLoader(false)
+        }
+    }
 
     useEffect(() => {
         if (missingRequired.length === 0) onClose()
@@ -72,13 +85,25 @@ export function DepsWarningModal({
                                         {offsiteDepHost(dep.url!)}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => api.openExternal(dep.url!)}
-                                    className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0 flex items-center gap-1.5"
-                                >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                    {t('common.openLink')}
-                                </button>
+                                {isLoaderDep(dep) && gamePath && onInstallLoader ? (
+                                    <button
+                                        disabled={installingLoader}
+                                        onClick={handleInstallLoader}
+                                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                                    >
+                                        {installingLoader
+                                            ? t('common.installing')
+                                            : t('common.install')}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => api.openExternal(dep.url!)}
+                                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0 flex items-center gap-1.5"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        {t('common.openLink')}
+                                    </button>
+                                )}
                             </div>
                         ))}
                     {missingRequired

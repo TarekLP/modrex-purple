@@ -224,6 +224,9 @@ export const api = {
     checkSuperblt(gamePath: string): Promise<boolean> {
         return invoke('check_superblt', { gamePath })
     },
+    installSuperblt(gamePath: string): Promise<void> {
+        return invoke('install_superblt', { gamePath })
+    },
 
     // ── Launchers & system ─────────────────────────────────────────────────────
     isGameRunning(gameId?: string): Promise<boolean> {

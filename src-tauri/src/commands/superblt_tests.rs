@@ -44,3 +44,24 @@ fn directory_named_like_loader_does_not_count() {
 fn nonexistent_game_path_is_not_installed() {
     assert!(!check_superblt("Z:/does/not/exist".to_string()));
 }
+
+// install_superblt is download_file + this extraction; the network half is
+// covered by the shared download path, so only the loader-specific wiring
+// (entry name, overwrite of an existing DLL) is tested here.
+#[test]
+fn extracting_loader_dll_overwrites_existing() {
+    use std::io::Write;
+
+    let tmp = TempDir::new().unwrap();
+    let zip_path = tmp.path().join("sblt.zip");
+    let mut zip = ::zip::ZipWriter::new(fs::File::create(&zip_path).unwrap());
+    zip.start_file(LOADER_FILES[0], ::zip::write::SimpleFileOptions::default())
+        .unwrap();
+    zip.write_all(b"new loader").unwrap();
+    zip.finish().unwrap();
+
+    let dest = tmp.path().join(LOADER_FILES[0]);
+    fs::write(&dest, b"old loader").unwrap();
+    extract_entry(&zip_path, LOADER_FILES[0], &dest).unwrap();
+    assert_eq!(fs::read(&dest).unwrap(), b"new loader");
+}

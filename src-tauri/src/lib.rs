@@ -67,6 +67,7 @@ pub fn run() {
             commands::mods::open_mods_folder,
             // superblt
             commands::superblt::check_superblt,
+            commands::superblt::install_superblt,
             // launchers & system
             commands::launchers::auto_detect_game,
             commands::launchers::installed_launchers,

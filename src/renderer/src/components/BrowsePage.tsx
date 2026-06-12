@@ -490,6 +490,15 @@ export function BrowsePage({
                     missingRequired={missingDepsList}
                     gamePath={gamePath}
                     gameId={activeGame}
+                    onInstallLoader={async () => {
+                        if (!gamePath) return
+                        try {
+                            await api.installSuperblt(gamePath)
+                            setDepsWarning((w) => (w ? { ...w, loaderInstalled: true } : w))
+                        } catch (e) {
+                            setError(String(e))
+                        }
+                    }}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setDepsWarning(null)}
                     onGotIt={async (permanent) => {

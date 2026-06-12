@@ -217,6 +217,17 @@ export function ModDetailPage({
         }
     }
 
+    async function handleInstallLoader() {
+        if (!gamePath) return
+        setInstallError(null)
+        try {
+            await api.installSuperblt(gamePath)
+            setSuperbltInstalled(true)
+        } catch (e) {
+            setInstallError(String(e))
+        }
+    }
+
     async function handleUninstall() {
         if (!gamePath || installedFiles.length === 0) return
         setActionLoading(true)
@@ -337,6 +348,7 @@ export function ModDetailPage({
                     missingRequired={missingRequired}
                     gamePath={gamePath}
                     gameId={activeGame}
+                    onInstallLoader={handleInstallLoader}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setShowDepsWarning(false)}
                     onGotIt={async (permanent) => {
@@ -609,6 +621,7 @@ export function ModDetailPage({
                                 gamePath={gamePath}
                                 activeGame={activeGame}
                                 loaderInstalled={superbltInstalled}
+                                onInstallLoader={handleInstallLoader}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -1070,6 +1083,7 @@ function DepsTab({
     gamePath,
     activeGame,
     loaderInstalled,
+    onInstallLoader,
     onRefreshInstalled,
     onOpenDetail,
 }: {
@@ -1079,6 +1093,7 @@ function DepsTab({
     gamePath: string | null
     activeGame?: GameId
     loaderInstalled: boolean | null
+    onInstallLoader?: () => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
@@ -1118,6 +1133,7 @@ function DepsTab({
                                 gamePath={gamePath}
                                 activeGame={activeGame}
                                 loaderInstalled={loaderInstalled}
+                                onInstallLoader={onInstallLoader}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -1140,6 +1156,7 @@ function DepsTab({
                                 gamePath={gamePath}
                                 activeGame={activeGame}
                                 loaderInstalled={loaderInstalled}
+                                onInstallLoader={onInstallLoader}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -1157,6 +1174,7 @@ function DepRow({
     gamePath,
     activeGame,
     loaderInstalled,
+    onInstallLoader,
     onRefreshInstalled,
     onOpenDetail,
 }: {
@@ -1165,6 +1183,7 @@ function DepRow({
     gamePath: string | null
     activeGame?: GameId
     loaderInstalled: boolean | null
+    onInstallLoader?: () => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
@@ -1174,6 +1193,18 @@ function DepRow({
     if (!mod) {
         if (!dep.url) return null
         const status = isLoaderDep(dep) ? loaderInstalled : null
+        const canInstallLoader = status === false && !!gamePath && !!onInstallLoader
+
+        async function handleInstallLoader(e: React.MouseEvent) {
+            e.stopPropagation()
+            setInstalling(true)
+            try {
+                await onInstallLoader!()
+            } finally {
+                setInstalling(false)
+            }
+        }
+
         return (
             <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border">
                 <div className="w-10 h-10 rounded bg-surface-active shrink-0" />
@@ -1206,13 +1237,34 @@ function DepRow({
                 >
                     {dep.optional ? t('detail.deps.badgeOptional') : t('detail.deps.badgeRequired')}
                 </span>
-                <button
-                    onClick={() => api.openExternal(dep.url!)}
-                    className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0 flex items-center gap-1.5"
-                >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    {t('common.openLink')}
-                </button>
+                {canInstallLoader ? (
+                    <>
+                        <button
+                            disabled={installing}
+                            onClick={handleInstallLoader}
+                            className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 flex items-center gap-1.5"
+                        >
+                            {!installing && <Download className="w-3.5 h-3.5" />}
+                            {installing ? t('common.installing') : t('common.install')}
+                        </button>
+                        <Tooltip content={offsiteDepHost(dep.url)}>
+                            <button
+                                onClick={() => api.openExternal(dep.url!)}
+                                className="p-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-active transition-colors shrink-0"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                        </Tooltip>
+                    </>
+                ) : (
+                    <button
+                        onClick={() => api.openExternal(dep.url!)}
+                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0 flex items-center gap-1.5"
+                    >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        {t('common.openLink')}
+                    </button>
+                )}
             </div>
         )
     }
