@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { Mod, InstalledMod } from '../../../shared/types'
 import { getCachedMod, getModCacheEntry } from '../modCache'
-import { getLocalThumbnail } from '../thumbnailCache'
+import { getLocalImage } from '../thumbnailCache'
 
 const TTL_MS = 5 * 60 * 1000
 const FETCH_CONCURRENCY = 5
@@ -62,7 +62,8 @@ export function useModData(installed: InstalledMod[]): {
             }
         }
         for (const [, mod] of fromCache) {
-            if (mod.thumbnail?.file) getLocalThumbnail(mod.thumbnail.file).catch(() => {})
+            // Pre-warm the full-size variant — that's what ModCard renders.
+            if (mod.thumbnail?.file) getLocalImage(mod.thumbnail.file, true).catch(() => {})
         }
         if (fromCache.length > 0) {
             setModData((prev) => {
@@ -96,7 +97,8 @@ export function useModData(installed: InstalledMod[]): {
                 }
             })
             for (const [, mod] of updates) {
-                if (mod.thumbnail?.file) getLocalThumbnail(mod.thumbnail.file).catch(() => {})
+                // Pre-warm the full-size variant — that's what ModCard renders.
+                if (mod.thumbnail?.file) getLocalImage(mod.thumbnail.file, true).catch(() => {})
             }
             if (updates.length > 0) {
                 setModData((prev) => {

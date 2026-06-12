@@ -695,9 +695,9 @@ function ChangelogTab({ mod }: { mod: Mod }) {
     )
 }
 
-// Gallery previews use the small thumbnail variant; the lightbox shows full size.
+// Full-size: gallery tiles render wider than the 256 px small variant.
 function GalleryImage({ file }: { file: string }) {
-    const src = useThumbnail(file)
+    const src = useThumbnail(file, true)
     return src ? (
         <img src={src} alt="" loading="lazy" className="w-full h-40 object-cover" />
     ) : (

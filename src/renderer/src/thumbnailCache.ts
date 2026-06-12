@@ -23,7 +23,3 @@ export async function getLocalImage(filename: string, full = false): Promise<str
     resolved.set(key, url)
     return url
 }
-
-export function getLocalThumbnail(filename: string): Promise<string> {
-    return getLocalImage(filename)
-}

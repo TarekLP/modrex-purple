@@ -58,7 +58,9 @@ export function ModCard({
     progress = null,
     showMeta = false,
 }: Props) {
-    const thumbSrc = useThumbnail(mod.thumbnail?.file)
+    // Full-size: the small CDN variant is only 256 px wide and upscales badly
+    // at card width.
+    const thumbSrc = useThumbnail(mod.thumbnail?.file, true)
     // Fade the image in on its first real decode; cache hits (el.complete is
     // already true at mount) skip the fade so warm grids stay instant.
     const [thumbLoaded, setThumbLoaded] = useState(false)
