@@ -220,6 +220,11 @@ export const api = {
         return invoke('delete_folder', { folderId, gamePath, gameId })
     },
 
+    // ── SuperBLT ───────────────────────────────────────────────────────────────
+    checkSuperblt(gamePath: string): Promise<boolean> {
+        return invoke('check_superblt', { gamePath })
+    },
+
     // ── Launchers & system ─────────────────────────────────────────────────────
     isGameRunning(gameId?: string): Promise<boolean> {
         return gameId ? invoke('is_game_running', { gameId }) : invoke('is_game_running')

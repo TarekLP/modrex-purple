@@ -65,6 +65,8 @@ pub fn run() {
             commands::mods::rename_folder,
             commands::mods::delete_folder,
             commands::mods::open_mods_folder,
+            // superblt
+            commands::superblt::check_superblt,
             // launchers & system
             commands::launchers::auto_detect_game,
             commands::launchers::installed_launchers,
