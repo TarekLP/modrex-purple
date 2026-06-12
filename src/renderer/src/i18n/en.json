@@ -104,8 +104,6 @@
         },
         "fileCount": "{count} files",
         "manageFiles": {
-            "apply": "Apply ({count})",
-            "applying": "Applying…",
             "searchPlaceholder": "Search files…",
             "enableAll": "Enable all",
             "disableAll": "Disable all",

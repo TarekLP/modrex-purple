@@ -23,7 +23,6 @@ export interface InstalledContextValue {
     handleUninstall: (mods: InstalledMod[]) => Promise<void>
     handleEnable: (mods: InstalledMod[]) => Promise<void>
     handleDisable: (mods: InstalledMod[]) => Promise<void>
-    handleApplyEnabled: (toEnable: InstalledMod[], toDisable: InstalledMod[]) => Promise<void>
     handleReinstall: (mods: InstalledMod[]) => Promise<void>
     folderActions: FolderActions
     dragItem: DragItem | null

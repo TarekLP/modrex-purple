@@ -23,28 +23,12 @@ function getFolderPath(folders: ModFolder[], folderId: string | null): string | 
 }
 
 export function ManageFilesModal({ mods, modName, onClose }: Props) {
-    const { handleApplyEnabled, handleUninstall, loadingMod, folders, installed } =
+    const { handleEnable, handleDisable, handleUninstall, loadingMod, folders, installed } =
         useInstalledContext()
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
     const [query, setQuery] = useState('')
-    // Draft layer: pending enabled-state edits keyed by uid. Only deviations from
-    // the on-disk state are stored, so a background refresh never wipes user edits.
-    const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map())
 
     const rawById = new Map(installed.map((m) => [m.uid, m]))
-
-    const isEnabled = (mod: InstalledMod) => overrides.get(mod.uid) ?? mod.enabled
-
-    function setEnabled(targets: InstalledMod[], value: boolean) {
-        setOverrides((prev) => {
-            const next = new Map(prev)
-            for (const mod of targets) {
-                if (value === mod.enabled) next.delete(mod.uid)
-                else next.set(mod.uid, value)
-            }
-            return next
-        })
-    }
 
     function toggleCollapse(folderId: string) {
         setCollapsed((prev) => {
@@ -55,14 +39,17 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         })
     }
 
-    const pending = mods.filter((m) => overrides.has(m.uid) && overrides.get(m.uid) !== m.enabled)
+    async function handleToggleMod(mod: InstalledMod) {
+        if (loadingMod) return
+        if (mod.enabled) await handleDisable([mod])
+        else await handleEnable([mod])
+    }
 
-    async function handleApply() {
-        if (loadingMod || pending.length === 0) return
-        const toEnable = pending.filter((m) => overrides.get(m.uid) === true)
-        const toDisable = pending.filter((m) => overrides.get(m.uid) === false)
-        await handleApplyEnabled(toEnable, toDisable)
-        setOverrides(new Map())
+    async function handleToggleGroup(groupMods: InstalledMod[]) {
+        if (loadingMod) return
+        const anyEnabled = groupMods.some((m) => m.enabled)
+        if (anyEnabled) await handleDisable(groupMods)
+        else await handleEnable(groupMods)
     }
 
     async function handleRemove(targets: InstalledMod[]) {
@@ -111,7 +98,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
               .filter((g) => g.mods.length > 0)
         : folderGroups
     const visibleMods = [...visibleRootMods, ...visibleGroups.flatMap((g) => g.mods)]
-    const allVisibleEnabled = visibleMods.length > 0 && visibleMods.every(isEnabled)
+    const anyVisibleEnabled = visibleMods.some((m) => m.enabled)
 
     return (
         <Dialog
@@ -154,19 +141,16 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                         </button>
                     )}
                 </div>
-                <Tooltip
-                    content={
-                        allVisibleEnabled
-                            ? t('installed.manageFiles.disableAll')
-                            : t('installed.manageFiles.enableAll')
-                    }
-                >
-                    <Toggle
-                        checked={allVisibleEnabled}
-                        disabled={!!loadingMod || visibleMods.length === 0}
-                        onChange={() => setEnabled(visibleMods, !allVisibleEnabled)}
-                    />
-                </Tooltip>
+                <Toggle
+                    checked={anyVisibleEnabled}
+                    disabled={!!loadingMod || visibleMods.length === 0}
+                    onChange={() => handleToggleGroup(visibleMods)}
+                    title={t(
+                        anyVisibleEnabled
+                            ? 'installed.manageFiles.disableAll'
+                            : 'installed.manageFiles.enableAll'
+                    )}
+                />
             </div>
 
             <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-1">
@@ -179,9 +163,8 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     <FileRow
                         key={mod.uid}
                         mod={mod}
-                        enabled={isEnabled(mod)}
                         loadingMod={loadingMod}
-                        onToggle={() => setEnabled([mod], !isEnabled(mod))}
+                        onToggle={() => handleToggleMod(mod)}
                         onRemove={() => handleRemove([mod])}
                     />
                 ))}
@@ -189,7 +172,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 {visibleGroups.map(({ folderId, folder, path, mods: groupMods }) => {
                     // While searching, collapsed folders stay open so matches are visible
                     const isCollapsed = !q && collapsed.has(folderId)
-                    const allEnabled = groupMods.every(isEnabled)
+                    const anyEnabled = groupMods.some((m) => m.enabled)
                     const folderName = folder?.displayName ?? path ?? folderId
                     return (
                         <div key={folderId}>
@@ -215,9 +198,9 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <Toggle
-                                        checked={allEnabled}
+                                        checked={anyEnabled}
                                         disabled={!!loadingMod}
-                                        onChange={() => setEnabled(groupMods, !allEnabled)}
+                                        onChange={() => handleToggleGroup(groupMods)}
                                     />
                                     <Tooltip content={t('common.remove')}>
                                         <button
@@ -237,9 +220,8 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                         <FileRow
                                             key={mod.uid}
                                             mod={mod}
-                                            enabled={isEnabled(mod)}
                                             loadingMod={loadingMod}
-                                            onToggle={() => setEnabled([mod], !isEnabled(mod))}
+                                            onToggle={() => handleToggleMod(mod)}
                                             onRemove={() => handleRemove([mod])}
                                         />
                                     ))}
@@ -250,21 +232,12 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 })}
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+            <div className="flex justify-end px-5 py-4 border-t border-border shrink-0">
                 <button
                     onClick={onClose}
-                    className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
+                    className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
                 >
                     {t('common.close')}
-                </button>
-                <button
-                    onClick={handleApply}
-                    disabled={pending.length === 0 || !!loadingMod}
-                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                    {loadingMod
-                        ? t('installed.manageFiles.applying')
-                        : t('installed.manageFiles.apply', { count: pending.length })}
                 </button>
             </div>
         </Dialog>
@@ -273,13 +246,11 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
 
 function FileRow({
     mod,
-    enabled,
     loadingMod,
     onToggle,
     onRemove,
 }: {
     mod: InstalledMod
-    enabled: boolean
     loadingMod: string | null
     onToggle: () => void
     onRemove: () => void
@@ -293,7 +264,7 @@ function FileRow({
                 {displayFilename(mod.filename)}
             </span>
             <div className="flex items-center gap-2 shrink-0">
-                <Toggle checked={enabled} disabled={!!loadingMod} onChange={onToggle} />
+                <Toggle checked={mod.enabled} disabled={!!loadingMod} onChange={onToggle} />
                 <Tooltip content={t('common.remove')}>
                     <button
                         onClick={onRemove}
