@@ -56,19 +56,24 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
     useEffect(() => {
         launchOptionsLoaded.current = false
         let cancelled = false
-        Promise.all([api.getGameSettings(activeGame), api.getInstalledLaunchers(activeGame)]).then(
-            ([gs, installed]) => {
-                setSettingsCache(activeGame, { settings: gs, installedLaunchers: installed })
-                if (cancelled) return
-                setInstalledLaunchers(installed)
-                setSettings(gs)
-                const effective = effectiveLauncher(gs, installed)
-                setLauncher(effective)
-                if (effective !== gs.launcher) api.setLauncher(effective, activeGame)
-                setLaunchOptions(gs.launchOptions ?? '')
-                launchOptionsLoaded.current = true
-            }
-        )
+        // installed_launchers probes the registry/manifests on every call (slow)
+        // and its result only changes if the user installs a launcher mid-session
+        // — reuse the session cache and only revalidate the cheap settings read.
+        const cached = getSettingsCache(activeGame)
+        const launchers = cached
+            ? Promise.resolve(cached.installedLaunchers)
+            : api.getInstalledLaunchers(activeGame)
+        Promise.all([api.getGameSettings(activeGame), launchers]).then(([gs, installed]) => {
+            setSettingsCache(activeGame, { settings: gs, installedLaunchers: installed })
+            if (cancelled) return
+            setInstalledLaunchers(installed)
+            setSettings(gs)
+            const effective = effectiveLauncher(gs, installed)
+            setLauncher(effective)
+            if (effective !== gs.launcher) api.setLauncher(effective, activeGame)
+            setLaunchOptions(gs.launchOptions ?? '')
+            launchOptionsLoaded.current = true
+        })
         return () => {
             cancelled = true
         }
