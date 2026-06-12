@@ -1,4 +1,4 @@
-use super::cleanup_dir;
+use super::{cleanup_dir, sanitize_thumb_filename, thumb_content_type};
 use filetime::FileTime;
 use std::time::{Duration, SystemTime};
 use tempfile::tempdir;
@@ -51,4 +51,28 @@ fn mixed_keeps_fresh_removes_old() {
 #[test]
 fn missing_dir_does_not_panic() {
     cleanup_dir(std::path::Path::new("/nonexistent/thumbnails"), Duration::from_secs(1));
+}
+
+#[test]
+fn sanitize_accepts_plain_filenames() {
+    assert_eq!(sanitize_thumb_filename("/abc123.webp"), Some("abc123.webp".into()));
+    assert_eq!(sanitize_thumb_filename("/a%20b.png"), Some("a b.png".into()));
+}
+
+#[test]
+fn sanitize_rejects_traversal_and_separators() {
+    assert_eq!(sanitize_thumb_filename("/"), None);
+    assert_eq!(sanitize_thumb_filename("/../settings.json"), None);
+    assert_eq!(sanitize_thumb_filename("/%2e%2e/settings.json"), None);
+    assert_eq!(sanitize_thumb_filename("/a/b.png"), None);
+    assert_eq!(sanitize_thumb_filename("/a%2Fb.png"), None);
+    assert_eq!(sanitize_thumb_filename("/a%5Cb.png"), None);
+}
+
+#[test]
+fn content_type_by_extension() {
+    assert_eq!(thumb_content_type("a.png"), "image/png");
+    assert_eq!(thumb_content_type("a.jpg"), "image/jpeg");
+    assert_eq!(thumb_content_type("a.webp"), "image/webp");
+    assert_eq!(thumb_content_type("a.bin"), "application/octet-stream");
 }

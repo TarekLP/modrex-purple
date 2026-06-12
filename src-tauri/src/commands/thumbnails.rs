@@ -67,6 +67,62 @@ pub async fn get_thumbnail(app: AppHandle, filename: String) -> Result<String, S
     Ok(path.to_string_lossy().into_owned())
 }
 
+/// Returns the bare filename when the raw URI path is a single safe path
+/// segment; rejects anything that could escape the thumbnails directory.
+pub(crate) fn sanitize_thumb_filename(raw_path: &str) -> Option<String> {
+    let decoded = percent_encoding::percent_decode_str(raw_path.trim_start_matches('/'))
+        .decode_utf8()
+        .ok()?;
+    let name = decoded.as_ref();
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
+        return None;
+    }
+    Some(name.to_string())
+}
+
+pub(crate) fn thumb_content_type(filename: &str) -> &'static str {
+    match Path::new(filename).extension().and_then(|e| e.to_str()) {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("webp") => "image/webp",
+        Some("gif") => "image/gif",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Serves `thumb://` requests from the thumbnail disk cache. Unlike Tauri's
+/// asset protocol, responses carry an immutable Cache-Control header: CDN
+/// filenames are content-unique, so the webview can reuse cached (and decoded)
+/// images across page remounts instead of re-reading and re-decoding on every
+/// mount — without the header, every game/tab switch re-loads the whole grid.
+pub(crate) fn handle_thumb_protocol(
+    app: &AppHandle,
+    request: tauri::http::Request<Vec<u8>>,
+) -> tauri::http::Response<Vec<u8>> {
+    fn not_found() -> tauri::http::Response<Vec<u8>> {
+        tauri::http::Response::builder()
+            .status(404)
+            .body(Vec::new())
+            .expect("static response")
+    }
+
+    let Some(filename) = sanitize_thumb_filename(request.uri().path()) else {
+        return not_found();
+    };
+    let Ok(path) = cache_path(app, &filename) else {
+        return not_found();
+    };
+    match std::fs::read(&path) {
+        Ok(bytes) => tauri::http::Response::builder()
+            .status(200)
+            .header("Content-Type", thumb_content_type(&filename))
+            .header("Cache-Control", "public, max-age=31536000, immutable")
+            .body(bytes)
+            .expect("valid thumb response"),
+        Err(_) => not_found(),
+    }
+}
+
 pub(crate) fn cleanup_dir(dir: &Path, max_age: Duration) {
     let cutoff = SystemTime::now() - max_age;
     let Ok(entries) = std::fs::read_dir(dir) else { return };

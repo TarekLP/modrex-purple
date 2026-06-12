@@ -11,8 +11,11 @@ export async function getLocalThumbnail(filename: string): Promise<string> {
     const hit = resolved.get(filename)
     if (hit) return hit
 
-    const localPath = await api.getThumbnail(filename)
-    const url = convertFileSrc(localPath)
+    // Ensures the file exists in the disk cache (downloads if missing) — the
+    // thumb:// protocol serves it from there with immutable cache headers, so
+    // the webview reuses decoded images across page remounts.
+    await api.getThumbnail(filename)
+    const url = convertFileSrc(filename, 'thumb')
     resolved.set(filename, url)
     return url
 }

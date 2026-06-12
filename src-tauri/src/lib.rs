@@ -11,6 +11,9 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .manage(commands::updater::UpdaterState::new())
+        .register_uri_scheme_protocol("thumb", |ctx, request| {
+            commands::thumbnails::handle_thumb_protocol(ctx.app_handle(), request)
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
