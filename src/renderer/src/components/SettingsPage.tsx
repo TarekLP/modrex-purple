@@ -141,7 +141,9 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
             <div className="flex-1 overflow-y-auto px-6 py-6">
                 <section className="max-w-xl flex flex-col gap-2">
                     <h2 className="text-sm font-semibold">{t('settings.gamePath.title')}</h2>
-                    <p className="text-xs text-text-subtle">{t('settings.gamePath.description')}</p>
+                    <p className="text-xs text-text-subtle">
+                        {t('settings.gamePath.description', { game: GAMES[activeGame].name })}
+                    </p>
 
                     <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
                         {!gamePathReady ? (
@@ -183,7 +185,9 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
 
                 <section className="max-w-xl flex flex-col gap-2 mt-6">
                     <h2 className="text-sm font-semibold">{t('settings.launcher.title')}</h2>
-                    <p className="text-xs text-text-subtle">{t('settings.launcher.description')}</p>
+                    <p className="text-xs text-text-subtle">
+                        {t('settings.launcher.description', { game: GAMES[activeGame].name })}
+                    </p>
                     <div className="mt-1">
                         <Select
                             value={launcher}
