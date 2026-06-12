@@ -10,7 +10,10 @@ export interface ModImage {
 
 export interface ModDependency {
     id: number
-    mod_id: number
+    // null for offsite dependencies (hosted outside modworkshop, e.g. SuperBLT)
+    mod_id: number | null
+    name?: string
+    url?: string | null
     optional: boolean
     mod: Mod | null
 }

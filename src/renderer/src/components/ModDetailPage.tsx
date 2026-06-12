@@ -39,6 +39,7 @@ import { NonPakConfirmModal } from './NonPakConfirmModal'
 import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { isUnsupportedFormat } from '../formatCheck'
+import { collectDeps, isLoaderDep, missingRequiredDeps, offsiteDepHost } from '../deps'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
 
@@ -94,6 +95,7 @@ export function ModDetailPage({
     const [installError, setInstallError] = useState<string | null>(null)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
     const [showDepsWarning, setShowDepsWarning] = useState(false)
+    const [superbltInstalled, setSuperbltInstalled] = useState<boolean | null>(null)
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
@@ -183,7 +185,13 @@ export function ModDetailPage({
 
     async function doInstall() {
         if (!gamePath || !mod) return
-        if (missingRequired.length > 0) {
+        let loaderOk = superbltInstalled
+        if (hasLoaderDep) {
+            // Re-check at install time so a loader installed mid-session clears the warning.
+            loaderOk = await api.checkSuperblt(gamePath)
+            setSuperbltInstalled(loaderOk)
+        }
+        if (missingRequiredDeps(allDeps, installed, loaderOk).length > 0) {
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const s = await api.getSettings()
                 if (!s.dismissedDepsWarnings?.includes(modId)) {
@@ -244,14 +252,23 @@ export function ModDetailPage({
 
     const canAct = !!gamePath && !actionLoading && !loading
 
-    const allDeps: ModDependency[] = [
-        ...(mod?.dependencies ?? []),
-        ...(mod?.instructs_template?.dependencies ?? []),
-    ].filter((d) => d.mod !== null)
+    const allDeps: ModDependency[] = collectDeps(mod)
 
-    const missingRequired = allDeps.filter(
-        (d) => !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
-    )
+    const missingRequired = missingRequiredDeps(allDeps, installed, superbltInstalled)
+
+    // Loader deps (SuperBLT) live in the game root, invisible to the installed
+    // list — ask the backend whether a loader DLL is present.
+    const hasLoaderDep = allDeps.some(isLoaderDep)
+    useEffect(() => {
+        if (!gamePath || !hasLoaderDep) return
+        let cancelled = false
+        api.checkSuperblt(gamePath).then((v) => {
+            if (!cancelled) setSuperbltInstalled(v)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [gamePath, hasLoaderDep])
 
     const showChangelogTab = !!mod?.changelog
     const showDepsTab =
@@ -591,6 +608,7 @@ export function ModDetailPage({
                                 installed={installed}
                                 gamePath={gamePath}
                                 activeGame={activeGame}
+                                loaderInstalled={superbltInstalled}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -1051,6 +1069,7 @@ function DepsTab({
     installed,
     gamePath,
     activeGame,
+    loaderInstalled,
     onRefreshInstalled,
     onOpenDetail,
 }: {
@@ -1059,6 +1078,7 @@ function DepsTab({
     installed: InstalledMod[]
     gamePath: string | null
     activeGame?: GameId
+    loaderInstalled: boolean | null
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
@@ -1097,6 +1117,7 @@ function DepsTab({
                                 installed={installed}
                                 gamePath={gamePath}
                                 activeGame={activeGame}
+                                loaderInstalled={loaderInstalled}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -1118,6 +1139,7 @@ function DepsTab({
                                 installed={installed}
                                 gamePath={gamePath}
                                 activeGame={activeGame}
+                                loaderInstalled={loaderInstalled}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
                             />
@@ -1134,6 +1156,7 @@ function DepRow({
     installed,
     gamePath,
     activeGame,
+    loaderInstalled,
     onRefreshInstalled,
     onOpenDetail,
 }: {
@@ -1141,13 +1164,58 @@ function DepRow({
     installed: InstalledMod[]
     gamePath: string | null
     activeGame?: GameId
+    loaderInstalled: boolean | null
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
     const [installing, setInstalling] = useState(false)
     const thumbSrc = useThumbnail(dep.mod?.thumbnail?.file)
     const { mod } = dep
-    if (!mod) return null
+    if (!mod) {
+        if (!dep.url) return null
+        const status = isLoaderDep(dep) ? loaderInstalled : null
+        return (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border">
+                <div className="w-10 h-10 rounded bg-surface-active shrink-0" />
+                <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">
+                        {dep.name ?? offsiteDepHost(dep.url)}
+                    </div>
+                    <div className="text-xs text-text-subtle mt-0.5">
+                        {offsiteDepHost(dep.url)}
+                        {status !== null && (
+                            <>
+                                {' · '}
+                                <span className={status ? 'text-success-text' : 'text-danger-text'}>
+                                    {status
+                                        ? t('detail.deps.statusInstalled')
+                                        : dep.optional
+                                          ? t('detail.deps.statusNotInstalled')
+                                          : t('detail.deps.statusMissing')}
+                                </span>
+                            </>
+                        )}
+                    </div>
+                </div>
+                <span
+                    className={`text-xs px-2 py-0.5 rounded-full border shrink-0 ${
+                        dep.optional
+                            ? 'border-surface-light text-text-subtle'
+                            : 'border-accent/40 text-accent'
+                    }`}
+                >
+                    {dep.optional ? t('detail.deps.badgeOptional') : t('detail.deps.badgeRequired')}
+                </span>
+                <button
+                    onClick={() => api.openExternal(dep.url!)}
+                    className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0 flex items-center gap-1.5"
+                >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {t('common.openLink')}
+                </button>
+            </div>
+        )
+    }
     const isInstalled = installed.some((m) => m.id === mod.id)
 
     async function handleInstall(e: React.MouseEvent) {

@@ -1,0 +1,98 @@
+import { describe, it, expect } from 'vitest'
+import { collectDeps, isOffsiteDep, isLoaderDep, missingRequiredDeps, offsiteDepHost } from './deps'
+import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
+
+function dep(overrides: Partial<ModDependency>): ModDependency {
+    return { id: 1, mod_id: null, optional: false, mod: null, ...overrides }
+}
+
+function hostedMod(id: number): Mod {
+    return { id, name: `mod-${id}` } as Mod
+}
+
+const superbltDep = dep({
+    id: 10,
+    name: 'SuperBLT',
+    url: 'https://superblt.znix.xyz/',
+})
+
+const installedFive = [{ id: 5 } as InstalledMod]
+
+describe('collectDeps', () => {
+    it('merges direct and template deps', () => {
+        const mod = {
+            dependencies: [dep({ id: 1, mod: hostedMod(5) })],
+            instructs_template: { dependencies: [superbltDep] },
+        } as unknown as Mod
+        expect(collectDeps(mod).map((d) => d.id)).toEqual([1, 10])
+    })
+
+    it('drops deleted-mod deps (no mod, no url)', () => {
+        const mod = {
+            dependencies: [dep({ id: 1 })],
+        } as unknown as Mod
+        expect(collectDeps(mod)).toEqual([])
+    })
+
+    it('returns empty for null mod', () => {
+        expect(collectDeps(null)).toEqual([])
+    })
+})
+
+describe('isOffsiteDep / isLoaderDep', () => {
+    it('detects offsite deps by url with null mod', () => {
+        expect(isOffsiteDep(superbltDep)).toBe(true)
+        expect(isOffsiteDep(dep({ mod: hostedMod(5) }))).toBe(false)
+        expect(isOffsiteDep(dep({}))).toBe(false)
+    })
+
+    it('detects loader deps by blt in name or url', () => {
+        expect(isLoaderDep(superbltDep)).toBe(true)
+        expect(isLoaderDep(dep({ name: 'PDTH BLT', url: 'https://example.com/' }))).toBe(true)
+        expect(isLoaderDep(dep({ name: 'Some Tool', url: 'https://example.com/' }))).toBe(false)
+    })
+
+    it('does not treat a hosted mod named blt as a loader dep', () => {
+        expect(isLoaderDep(dep({ name: 'SuperBLT', mod: hostedMod(5) }))).toBe(false)
+    })
+})
+
+describe('missingRequiredDeps', () => {
+    it('skips optional deps', () => {
+        const deps = [
+            dep({ optional: true, mod: hostedMod(5) }),
+            { ...superbltDep, optional: true },
+        ]
+        expect(missingRequiredDeps(deps, [], false)).toEqual([])
+    })
+
+    it('reports hosted deps missing from the installed list', () => {
+        const deps = [dep({ id: 1, mod: hostedMod(5) }), dep({ id: 2, mod: hostedMod(6) })]
+        expect(missingRequiredDeps(deps, installedFive, null).map((d) => d.id)).toEqual([2])
+    })
+
+    it('reports loader deps missing only on a definitive negative', () => {
+        expect(missingRequiredDeps([superbltDep], [], false)).toEqual([superbltDep])
+        expect(missingRequiredDeps([superbltDep], [], true)).toEqual([])
+        expect(missingRequiredDeps([superbltDep], [], null)).toEqual([])
+    })
+
+    it('always surfaces unverifiable offsite deps', () => {
+        const tool = dep({ id: 3, name: 'Some Tool', url: 'https://example.com/' })
+        expect(missingRequiredDeps([tool], [], true)).toEqual([tool])
+    })
+
+    it('ignores deleted-mod deps', () => {
+        expect(missingRequiredDeps([dep({})], [], false)).toEqual([])
+    })
+})
+
+describe('offsiteDepHost', () => {
+    it('extracts the hostname', () => {
+        expect(offsiteDepHost('https://superblt.znix.xyz/')).toBe('superblt.znix.xyz')
+    })
+
+    it('falls back to the raw string for invalid urls', () => {
+        expect(offsiteDepHost('not a url')).toBe('not a url')
+    })
+})

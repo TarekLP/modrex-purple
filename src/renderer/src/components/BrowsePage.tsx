@@ -27,6 +27,7 @@ import { NonPakConfirmModal } from './NonPakConfirmModal'
 import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { isUnsupportedFormat } from '../formatCheck'
+import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
 import { t } from '../i18n'
 import { api } from '../api'
 
@@ -194,6 +195,7 @@ export function BrowsePage({
     const [depsWarning, setDepsWarning] = useState<{
         modId: number
         allDeps: ModDependency[]
+        loaderInstalled: boolean | null
     } | null>(null)
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
     const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: Mod } | null>(null)
@@ -311,19 +313,18 @@ export function BrowsePage({
         async (modId: number, fullMod: Mod) => {
             if (!gamePath) return
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
-                const allDeps = [
-                    ...(fullMod.dependencies ?? []),
-                    ...(fullMod.instructs_template?.dependencies ?? []),
-                ]
-                const missingRequired = allDeps.filter(
-                    (d) =>
-                        !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
-                )
+                const allDeps = collectDeps(fullMod)
+                // Loader deps (SuperBLT) live in the game root, invisible to the
+                // installed list — ask the backend whether a loader DLL is present.
+                const loaderInstalled = allDeps.some(isLoaderDep)
+                    ? await api.checkSuperblt(gamePath)
+                    : null
+                const missingRequired = missingRequiredDeps(allDeps, installed, loaderInstalled)
                 if (missingRequired.length > 0) {
                     const s = await api.getSettings()
                     if (!s.dismissedDepsWarnings?.includes(modId)) {
                         setLoadingMod(null)
-                        setDepsWarning({ modId, allDeps })
+                        setDepsWarning({ modId, allDeps, loaderInstalled })
                         return
                     }
                 }
@@ -440,9 +441,7 @@ export function BrowsePage({
     }, [installed])
 
     const missingDepsList = depsWarning
-        ? depsWarning.allDeps.filter(
-              (d) => !d.optional && d.mod !== null && !installed.some((m) => m.id === d.mod!.id)
-          )
+        ? missingRequiredDeps(depsWarning.allDeps, installed, depsWarning.loaderInstalled)
         : []
 
     return (
