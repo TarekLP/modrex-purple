@@ -16,6 +16,7 @@ export interface ModActions {
     handleUninstall: (mods: InstalledMod[]) => Promise<void>
     handleEnable: (mods: InstalledMod[]) => Promise<void>
     handleDisable: (mods: InstalledMod[]) => Promise<void>
+    handleApplyEnabled: (toEnable: InstalledMod[], toDisable: InstalledMod[]) => Promise<void>
     handleReinstall: (mods: InstalledMod[]) => Promise<void>
 }
 
@@ -75,6 +76,20 @@ export function useModActions(
         }
     }
 
+    async function handleApplyEnabled(toEnable: InstalledMod[], toDisable: InstalledMod[]) {
+        if (!gamePath) return
+        const first = toEnable[0] ?? toDisable[0]
+        if (!first) return
+        setLoadingMod(first.uid)
+        try {
+            for (const m of toEnable) await api.enableMod(m.uid, gamePath, activeGame)
+            for (const m of toDisable) await api.disableMod(m.uid, gamePath, activeGame)
+            await onRefreshInstalled()
+        } finally {
+            setLoadingMod(null)
+        }
+    }
+
     async function handleReinstall(mods: InstalledMod[]) {
         if (!gamePath || mods[0].id < 0) return
 
@@ -120,6 +135,7 @@ export function useModActions(
         handleUninstall,
         handleEnable,
         handleDisable,
+        handleApplyEnabled,
         handleReinstall,
     }
 }

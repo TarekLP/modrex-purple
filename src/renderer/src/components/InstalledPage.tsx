@@ -65,6 +65,7 @@ export function InstalledPage({
         handleUninstall,
         handleEnable,
         handleDisable,
+        handleApplyEnabled,
         handleReinstall,
     } = useModActions(gamePath, onRefreshInstalled, activeGame)
 
@@ -180,6 +181,7 @@ export function InstalledPage({
         handleUninstall,
         handleEnable,
         handleDisable,
+        handleApplyEnabled,
         handleReinstall,
         folderActions,
         dragItem,

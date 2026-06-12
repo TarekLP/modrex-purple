@@ -103,6 +103,11 @@
             "dropHere": "Drop mods here"
         },
         "fileCount": "{count} files",
+        "manageFiles": {
+            "enabledCount": "{count} enabled",
+            "apply": "Apply ({count})",
+            "applying": "Applying…"
+        },
         "updatesModal": {
             "title": "Available updates ({count})",
             "update": "Update",
