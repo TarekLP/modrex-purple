@@ -111,8 +111,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
               .filter((g) => g.mods.length > 0)
         : folderGroups
     const visibleMods = [...visibleRootMods, ...visibleGroups.flatMap((g) => g.mods)]
-    const visibleEnabledCount = visibleMods.filter(isEnabled).length
-    const allVisibleEnabled = visibleMods.length > 0 && visibleEnabledCount === visibleMods.length
+    const allVisibleEnabled = visibleMods.length > 0 && visibleMods.every(isEnabled)
 
     return (
         <Dialog
@@ -164,7 +163,6 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 >
                     <Toggle
                         checked={allVisibleEnabled}
-                        indeterminate={visibleEnabledCount > 0 && !allVisibleEnabled}
                         disabled={!!loadingMod || visibleMods.length === 0}
                         onChange={() => setEnabled(visibleMods, !allVisibleEnabled)}
                     />
@@ -191,8 +189,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 {visibleGroups.map(({ folderId, folder, path, mods: groupMods }) => {
                     // While searching, collapsed folders stay open so matches are visible
                     const isCollapsed = !q && collapsed.has(folderId)
-                    const enabledCount = groupMods.filter(isEnabled).length
-                    const allEnabled = enabledCount === groupMods.length
+                    const allEnabled = groupMods.every(isEnabled)
                     const folderName = folder?.displayName ?? path ?? folderId
                     return (
                         <div key={folderId}>
@@ -219,7 +216,6 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                 >
                                     <Toggle
                                         checked={allEnabled}
-                                        indeterminate={enabledCount > 0 && !allEnabled}
                                         disabled={!!loadingMod}
                                         onChange={() => setEnabled(groupMods, !allEnabled)}
                                     />
