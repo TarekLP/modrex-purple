@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Download, Heart, Eye, Clock, Trash2, RotateCcw } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
@@ -58,6 +59,9 @@ export function ModCard({
     showMeta = false,
 }: Props) {
     const thumbSrc = useThumbnail(mod.thumbnail?.file)
+    // Fade the image in on its first real decode; cache hits (el.complete is
+    // already true at mount) skip the fade so warm grids stay instant.
+    const [thumbLoaded, setThumbLoaded] = useState(false)
     const canAct = !!gamePath && !loading
 
     const progressPct =
@@ -76,7 +80,11 @@ export function ModCard({
                         src={thumbSrc}
                         alt={mod.name}
                         loading="lazy"
-                        className={`w-full h-36 object-cover${installed && !installed.enabled ? ' grayscale' : ''}`}
+                        ref={(el) => {
+                            if (el?.complete) setThumbLoaded(true)
+                        }}
+                        onLoad={() => setThumbLoaded(true)}
+                        className={`w-full h-36 object-cover transition-opacity ${thumbLoaded ? '' : 'opacity-0'}${installed && !installed.enabled ? ' grayscale' : ''}`}
                     />
                 ) : (
                     <div className="w-full h-36 bg-surface-hover flex items-center justify-center">

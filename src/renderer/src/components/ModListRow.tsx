@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Trash2, RotateCcw } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
@@ -41,6 +42,9 @@ export function ModListRow({
     onDragEnd,
 }: Props) {
     const thumbSrc = useThumbnail(mod.thumbnail?.file)
+    // Fade the image in on its first real decode; cache hits (el.complete is
+    // already true at mount) skip the fade so warm lists stay instant.
+    const [thumbLoaded, setThumbLoaded] = useState(false)
     const canAct = !!gamePath && !loading
 
     const progressPct =
@@ -66,7 +70,11 @@ export function ModListRow({
                             src={thumbSrc}
                             alt=""
                             loading="lazy"
-                            className={`w-full h-full object-cover transition-[filter] ${!installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}
+                            ref={(el) => {
+                                if (el?.complete) setThumbLoaded(true)
+                            }}
+                            onLoad={() => setThumbLoaded(true)}
+                            className={`w-full h-full object-cover transition-[filter,opacity] ${thumbLoaded ? '' : 'opacity-0'} ${!installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}
                         />
                     ) : (
                         <div className="w-full h-full" />
