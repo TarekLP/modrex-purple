@@ -80,8 +80,14 @@ export default function App() {
 
     // Kept in sync with activeGame after every commit so async callbacks can detect staleness.
     const activeGameRef = useRef<GameId>(activeGame)
+    // Guards against two concurrent get_installed Tauri commands — a second in-flight
+    // call would race the first's save_state and could overwrite positive IDs with negatives.
+    const isRefreshingInstalled = useRef(false)
     useLayoutEffect(() => {
         activeGameRef.current = activeGame
+        // A game switch invalidates any in-flight refresh for the previous game so the
+        // first refresh for the new game isn't blocked by the previous game's lock.
+        isRefreshingInstalled.current = false
     }, [activeGame])
 
     // Per-session cache: last resolved path for each game. undefined = not yet loaded.
@@ -153,20 +159,26 @@ export default function App() {
     }
 
     const refreshInstalled = useCallback(async () => {
-        const game = activeGame
-        const result = await api.getInstalled(game)
-        if (activeGameRef.current !== game) return
-        // Unchanged result (the common case for focus refreshes) — skip the state
-        // fan-out entirely: the fresh array refs would otherwise re-render the full
-        // installed list and the browse grid for nothing. A cache hit implies this
-        // game is already in readyGames.
-        const prev = installedCache.current[game]
-        if (prev && JSON.stringify(prev) === JSON.stringify(result)) return
-        installedCache.current[game] = result
-        setInstalled(result.mods)
-        setFolders(result.folders)
-        setModsHidden(result.modsHidden)
-        setReadyGames((prev) => (prev.has(game) ? prev : new Set(prev).add(game)))
+        if (isRefreshingInstalled.current) return
+        isRefreshingInstalled.current = true
+        try {
+            const game = activeGame
+            const result = await api.getInstalled(game)
+            if (activeGameRef.current !== game) return
+            // Unchanged result (the common case for focus refreshes) — skip the state
+            // fan-out entirely: the fresh array refs would otherwise re-render the full
+            // installed list and the browse grid for nothing. A cache hit implies this
+            // game is already in readyGames.
+            const prev = installedCache.current[game]
+            if (prev && JSON.stringify(prev) === JSON.stringify(result)) return
+            installedCache.current[game] = result
+            setInstalled(result.mods)
+            setFolders(result.folders)
+            setModsHidden(result.modsHidden)
+            setReadyGames((prev) => (prev.has(game) ? prev : new Set(prev).add(game)))
+        } finally {
+            isRefreshingInstalled.current = false
+        }
     }, [activeGame])
 
     async function handleRestoreMods() {
