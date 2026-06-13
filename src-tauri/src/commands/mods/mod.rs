@@ -78,7 +78,9 @@ fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf
 
 /// Upgrades negative-id (unidentified) entries whose SHA256 is now present in the index —
 /// e.g. the mod was added to the index after it was first installed locally.
-fn upgrade_negative_ids_by_sha(app: &AppHandle, mods: &mut [InstalledMod], game_name: &str) {
+/// Returns true if any entries were upgraded (caller must persist the change).
+fn upgrade_negative_ids_by_sha(app: &AppHandle, mods: &mut [InstalledMod], game_name: &str) -> bool {
+    let mut any = false;
     for m in mods {
         if m.id >= 0 {
             continue;
@@ -91,7 +93,9 @@ fn upgrade_negative_ids_by_sha(app: &AppHandle, mods: &mut [InstalledMod], game_
         m.name = hit.mod_name;
         m.version = hit.version;
         m.file_id = Some(hit.file_remote_id);
+        any = true;
     }
+    any
 }
 
 /// Re-groups negative-id entries whose name ends in " <number>" (a file-id suffix left by
@@ -451,10 +455,13 @@ pub async fn get_installed(
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let mut state = reconcile_state(&game_path, &state_path, cfg);
-    upgrade_negative_ids_by_sha(&app, &mut state.mods, cfg.index_game_name);
+    let any_upgraded = upgrade_negative_ids_by_sha(&app, &mut state.mods, cfg.index_game_name);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     if mods_hidden {
+        if any_upgraded {
+            save_state(&state_path, &state);
+        }
         return Ok(InstalledResponse {
             mods: state.mods,
             folders: state.folders,
@@ -478,7 +485,7 @@ pub async fn get_installed(
     let untracked = find_untracked_paks(&game_path, &known, cfg).await;
     if untracked.is_empty() {
         let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
-        if any_checked {
+        if any_checked || any_upgraded {
             save_state(
                 &state_path,
                 &ModsState {
