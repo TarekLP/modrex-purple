@@ -122,12 +122,10 @@ pub fn install_mod_from_path(
         ..mod_data
     });
 
-    let json = serde_json::to_string_pretty(&ModsState {
+    save_state(state_path, &ModsState {
         folders: state.folders,
         mods: new_mods,
-    })
-    .map_err(|e| e.to_string())?;
-    std::fs::write(state_path, &json).map_err(|e| format!("failed to write state: {}", e))?;
+    });
     Ok(())
 }
 

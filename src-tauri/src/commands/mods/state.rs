@@ -54,16 +54,26 @@ pub fn read_state(state_path: &Path) -> ModsState {
 }
 
 pub fn save_state(state_path: &Path, state: &ModsState) {
-    if let Some(parent) = state_path.parent() {
-        if let Err(e) = fs::create_dir_all(parent) {
-            log::warn!("save_state: create_dir_all {parent:?}: {e}");
-        }
+    let Some(parent) = state_path.parent() else {
+        return;
+    };
+    if let Err(e) = fs::create_dir_all(parent) {
+        log::warn!("save_state: create_dir_all {parent:?}: {e}");
+        return;
     }
-    if let Err(e) = fs::write(
-        state_path,
-        serde_json::to_string_pretty(state).unwrap_or_default(),
-    ) {
-        log::warn!("save_state: write {state_path:?}: {e}");
+    let mut tmp_name = state_path
+        .file_name()
+        .unwrap_or_else(|| std::ffi::OsStr::new("state"))
+        .to_os_string();
+    tmp_name.push(".tmp");
+    let tmp = state_path.with_file_name(tmp_name);
+    if let Err(e) = fs::write(&tmp, serde_json::to_string_pretty(state).unwrap_or_default()) {
+        log::warn!("save_state: write {tmp:?}: {e}");
+        return;
+    }
+    if let Err(e) = fs::rename(&tmp, state_path) {
+        log::warn!("save_state: rename {tmp:?} -> {state_path:?}: {e}");
+        let _ = fs::remove_file(&tmp);
     }
 }
 
