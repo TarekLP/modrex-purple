@@ -676,3 +676,166 @@ fn embedded_id_ignores_substring_attribute_names() {
     let d = dir_with_main_xml(r#"<AssetUpdates someid="7" id="42" provider="modworkshop"/>"#);
     assert_eq!(embedded_modworkshop_id(d.path()), Some((42, None)));
 }
+
+// ── identify_untracked (hash → embedded-id → name priority) ───────────────────
+
+fn make_index() -> rusqlite::Connection {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    conn.execute_batch(
+        "CREATE TABLE games (id INTEGER PRIMARY KEY, name TEXT);
+         CREATE TABLE sources (id INTEGER PRIMARY KEY, game_id INTEGER);
+         CREATE TABLE mods (id INTEGER PRIMARY KEY, source_id INTEGER, remote_id INTEGER, name TEXT);
+         CREATE TABLE files (id INTEGER PRIMARY KEY, mod_id INTEGER, remote_id INTEGER, sha256 TEXT, version TEXT, entry_name TEXT NOT NULL DEFAULT '');
+         INSERT INTO games VALUES (2, 'PAYDAY 2');
+         INSERT INTO sources VALUES (2, 2);",
+    )
+    .unwrap();
+    conn
+}
+
+fn make_mod_dir(game: &std::path::Path, location: Option<&str>, name: &str, marker: &str, body: &str) {
+    let base = match location {
+        Some("mod_overrides") => game.join("assets").join("mod_overrides"),
+        _ => game.join("mods"),
+    };
+    let dir = base.join(name);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join(marker), body).unwrap();
+}
+
+fn run_identify(
+    game: &std::path::Path,
+    untracked: Vec<(String, bool, Option<String>)>,
+    sha256s: Vec<Option<String>>,
+    conn: &rusqlite::Connection,
+) -> Vec<InstalledMod> {
+    let mut state = ModsState::default();
+    identify_untracked(
+        &mut state,
+        &untracked,
+        &sha256s,
+        &std::collections::HashMap::new(),
+        engine_for_game("pd2"),
+        game.to_str().unwrap(),
+        Some(conn),
+    )
+}
+
+#[test]
+fn identify_untracked_uses_embedded_id_when_hash_misses() {
+    let game = TempDir::new().unwrap();
+    make_mod_dir(
+        game.path(),
+        None,
+        "My Cool Mod",
+        "main.xml",
+        r#"<AssetUpdates id="300" version="2.0" provider="modworkshop"/>"#,
+    );
+    let conn = make_index();
+    conn.execute_batch(
+        "INSERT INTO mods VALUES (1, 2, 300, 'Cool Mod (Official Name)');
+         INSERT INTO files VALUES (1, 1, 700, 'indexsha', '2.5', 'x/main.xml');",
+    )
+    .unwrap();
+
+    let mods = run_identify(
+        game.path(),
+        vec![("My Cool Mod".to_string(), true, None)],
+        vec![Some("does-not-match".to_string())],
+        &conn,
+    );
+
+    assert_eq!(mods.len(), 1);
+    let m = &mods[0];
+    assert_eq!(m.id, 300); // identified by the embedded modworkshop id
+    assert_eq!(m.name, "Cool Mod (Official Name)"); // real name pulled from the index
+    assert_eq!(m.file_id, None); // a drifted install pins no specific file
+    assert_eq!(m.version, "2.0"); // installed version = the mod's own declaration
+}
+
+#[test]
+fn identify_untracked_hash_beats_embedded_id() {
+    let game = TempDir::new().unwrap();
+    make_mod_dir(
+        game.path(),
+        None,
+        "My Cool Mod",
+        "main.xml",
+        r#"<AssetUpdates id="300" version="2.0" provider="modworkshop"/>"#,
+    );
+    let conn = make_index();
+    conn.execute_batch(
+        "INSERT INTO mods VALUES (1, 2, 300, 'Embedded Mod');
+         INSERT INTO mods VALUES (2, 2, 999, 'Hash Match Mod');
+         INSERT INTO files VALUES (1, 2, 555, 'deadbeef', '9.0', 'x/main.xml');",
+    )
+    .unwrap();
+
+    let mods = run_identify(
+        game.path(),
+        vec![("My Cool Mod".to_string(), true, None)],
+        vec![Some("deadbeef".to_string())], // marker hash matches mod 999
+        &conn,
+    );
+
+    let m = &mods[0];
+    assert_eq!(m.id, 999); // exact hash wins over the embedded id 300
+    assert_eq!(m.name, "Hash Match Mod");
+    assert_eq!(m.file_id, Some(555));
+    assert_eq!(m.version, "9.0");
+}
+
+#[test]
+fn identify_untracked_embedded_without_version_uses_index_version() {
+    let game = TempDir::new().unwrap();
+    make_mod_dir(
+        game.path(),
+        Some("mod_overrides"),
+        "Beardlib Mod",
+        "main.xml",
+        r#"<AssetUpdates id="301" provider="modworkshop"/>"#,
+    );
+    let conn = make_index();
+    conn.execute_batch(
+        "INSERT INTO mods VALUES (1, 2, 301, 'Beardlib Mod Official');
+         INSERT INTO files VALUES (1, 1, 800, 'sha', '3.3', 'x/main.xml');",
+    )
+    .unwrap();
+
+    let mods = run_identify(
+        game.path(),
+        vec![("Beardlib Mod".to_string(), true, Some("mod_overrides".to_string()))],
+        vec![Some("nomatch".to_string())],
+        &conn,
+    );
+
+    let m = &mods[0];
+    assert_eq!(m.id, 301);
+    assert_eq!(m.version, "3.3"); // no declared version → index's current version (avoids false update)
+    assert_eq!(m.file_id, None);
+}
+
+#[test]
+fn identify_untracked_falls_back_to_name_without_embedded() {
+    let game = TempDir::new().unwrap();
+    // mod.txt mod — no main.xml, so no embedded id; resolution drops to name match.
+    make_mod_dir(game.path(), None, "SomeMod", "mod.txt", "{}");
+    let conn = make_index();
+    conn.execute_batch(
+        "INSERT INTO mods VALUES (1, 2, 555, 'SomeMod');
+         INSERT INTO files VALUES (1, 1, 900, 'othersha', '1.0', 'x/mod.txt');",
+    )
+    .unwrap();
+
+    let mods = run_identify(
+        game.path(),
+        vec![("SomeMod".to_string(), true, None)],
+        vec![Some("nomatch".to_string())],
+        &conn,
+    );
+
+    let m = &mods[0];
+    assert_eq!(m.id, 555); // matched by name
+    assert_eq!(m.file_id, None);
+    assert_eq!(m.version, "unknown");
+}

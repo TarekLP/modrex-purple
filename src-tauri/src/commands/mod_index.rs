@@ -80,7 +80,17 @@ fn open_conn(path: &std::path::Path) -> Option<rusqlite::Connection> {
     .ok()
 }
 
-fn query_sha256(conn: &rusqlite::Connection, sha256: &str, game_name: &str) -> Option<IndexMatch> {
+/// Opens the on-disk index once so a caller can run several queries against one connection
+/// instead of reopening per lookup. Returns None when the index is absent.
+pub(crate) fn open_index(app: &AppHandle) -> Option<rusqlite::Connection> {
+    let path = index_path(app);
+    if !path.exists() {
+        return None;
+    }
+    open_conn(&path)
+}
+
+pub(crate) fn query_sha256(conn: &rusqlite::Connection, sha256: &str, game_name: &str) -> Option<IndexMatch> {
     conn.query_row(
         "SELECT m.remote_id, m.name, f.remote_id, f.version
          FROM files f
@@ -105,7 +115,7 @@ fn query_sha256(conn: &rusqlite::Connection, sha256: &str, game_name: &str) -> O
 /// Resolves a modworkshop mod id to its name and current (latest indexed) file. Used to
 /// enrich mods identified by an embedded AssetUpdates id. The index is append-only, so the
 /// highest file id is the newest version.
-fn query_mod_by_id(
+pub(crate) fn query_mod_by_id(
     conn: &rusqlite::Connection,
     mod_remote_id: i64,
     game_name: &str,
@@ -132,7 +142,7 @@ fn query_mod_by_id(
     .ok()
 }
 
-fn query_by_name(conn: &rusqlite::Connection, name: &str, game_name: &str) -> Option<i64> {
+pub(crate) fn query_by_name(conn: &rusqlite::Connection, name: &str, game_name: &str) -> Option<i64> {
     let pattern = format!("%{}%", name);
     let mut stmt = conn
         .prepare(
@@ -211,24 +221,6 @@ pub fn lookup_sha256(app: &AppHandle, sha256: &str, game_name: &str) -> Option<I
     }
     let conn = open_conn(&path)?;
     query_sha256(&conn, sha256, game_name)
-}
-
-pub fn lookup_by_name(app: &AppHandle, name: &str, game_name: &str) -> Option<i64> {
-    let path = index_path(app);
-    if !path.exists() {
-        return None;
-    }
-    let conn = open_conn(&path)?;
-    query_by_name(&conn, name, game_name)
-}
-
-pub fn lookup_mod_by_id(app: &AppHandle, mod_remote_id: i64, game_name: &str) -> Option<IndexMatch> {
-    let path = index_path(app);
-    if !path.exists() {
-        return None;
-    }
-    let conn = open_conn(&path)?;
-    query_mod_by_id(&conn, mod_remote_id, game_name)
 }
 
 #[cfg(test)]

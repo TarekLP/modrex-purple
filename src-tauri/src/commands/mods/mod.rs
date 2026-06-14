@@ -309,13 +309,13 @@ async fn hash_untracked(
 /// `state.mods` in place), then identifies the rest via the index with name/number/hash
 /// fallbacks (Phase 2). Returns the full mod list: tracked entries plus newly identified ones.
 fn identify_untracked(
-    app: &AppHandle,
     state: &mut ModsState,
     untracked: &[(String, bool, Option<String>)],
     sha256s: &[Option<String>],
     folder_path_to_id: &HashMap<String, String>,
     cfg: &ModEngineConfig,
     game_path: &str,
+    index: Option<&rusqlite::Connection>,
 ) -> Vec<InstalledMod> {
     let sha256_to_uid: HashMap<String, String> = state
         .mods
@@ -409,7 +409,7 @@ fn identify_untracked(
             None
         };
         let resolve_embedded = |(mod_id, declared): (i64, Option<String>)| {
-            let hit = mod_index::lookup_mod_by_id(app, mod_id, gname);
+            let hit = index.and_then(|c| mod_index::query_mod_by_id(c, mod_id, gname));
             let name = hit
                 .as_ref()
                 .map(|h| h.mod_name.clone())
@@ -425,11 +425,12 @@ fn identify_untracked(
         };
 
         let by_name = || {
-            mod_index::lookup_by_name(app, &stripped_name, gname)
+            index
+                .and_then(|c| mod_index::query_by_name(c, &stripped_name, gname))
                 .or_else(|| {
                     stripped_base
                         .as_deref()
-                        .and_then(|b| mod_index::lookup_by_name(app, b, gname))
+                        .and_then(|b| index.and_then(|c| mod_index::query_by_name(c, b, gname)))
                 })
                 .map(|remote_id| {
                     (
@@ -457,7 +458,7 @@ fn identify_untracked(
 
         let (id, name, file_id, version) = match sha256
             .as_deref()
-            .and_then(|sha| mod_index::lookup_sha256(app, sha, gname))
+            .and_then(|sha| index.and_then(|c| mod_index::query_sha256(c, sha, gname)))
         {
             Some(hit) => (
                 hit.mod_remote_id,
@@ -574,14 +575,15 @@ pub async fn get_installed(
 
     let folder_path_to_id = ensure_untracked_folders(&mut state, &untracked);
     let sha256s = hash_untracked(&game_path, &untracked, cfg).await;
+    let index = mod_index::open_index(&app);
     let mods = identify_untracked(
-        &app,
         &mut state,
         &untracked,
         &sha256s,
         &folder_path_to_id,
         cfg,
         &game_path,
+        index.as_ref(),
     );
 
     let folders = state.folders;
