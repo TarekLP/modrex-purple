@@ -48,6 +48,8 @@ pub fn run() {
             commands::settings::set_launch_options,
             commands::settings::set_skip_fileopenlog_warning,
             commands::settings::dismiss_deps_warning,
+            commands::settings::get_analytics_consent,
+            commands::settings::set_analytics_consent,
             // mods
             commands::mods::get_installed,
             commands::mods::install_mod,
