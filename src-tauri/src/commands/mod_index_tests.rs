@@ -151,3 +151,56 @@ fn mod_files_old_schema_without_column_returns_empty() {
     ").unwrap();
     assert!(query_mod_files(&conn, 100, "PAYDAY 3").is_empty());
 }
+
+// ── query_mod_by_id ────────────────────────────────────────────────────────
+
+#[test]
+fn mod_by_id_returns_name_and_current_file() {
+    let conn = setup_db();
+    let m = query_mod_by_id(&conn, 100, "PAYDAY 3").unwrap();
+    assert_eq!(m.mod_remote_id, 100);
+    assert_eq!(m.mod_name, "CSA-39 Assault Rifle");
+    assert_eq!(m.file_remote_id, 500);
+    assert_eq!(m.version, "1.0.0");
+}
+
+#[test]
+fn mod_by_id_is_scoped_by_game() {
+    let conn = setup_db();
+    // remote_id 100 is a PD3 mod — must miss under PD2.
+    assert!(query_mod_by_id(&conn, 100, "PAYDAY 2").is_none());
+    assert_eq!(
+        query_mod_by_id(&conn, 300, "PAYDAY 2").unwrap().mod_remote_id,
+        300
+    );
+}
+
+#[test]
+fn mod_by_id_unknown_returns_none() {
+    let conn = setup_db();
+    assert!(query_mod_by_id(&conn, 999, "PAYDAY 3").is_none());
+}
+
+#[test]
+fn mod_by_id_picks_newest_file() {
+    // The index is append-only: an updated mod keeps old file rows. The newest (highest
+    // file id) must win, so update detection compares against the current version.
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    conn.execute_batch(
+        "
+        CREATE TABLE games (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE sources (id INTEGER PRIMARY KEY, game_id INTEGER);
+        CREATE TABLE mods (id INTEGER PRIMARY KEY, source_id INTEGER, remote_id INTEGER, name TEXT);
+        CREATE TABLE files (id INTEGER PRIMARY KEY, mod_id INTEGER, remote_id INTEGER, sha256 TEXT, version TEXT, entry_name TEXT NOT NULL DEFAULT '');
+        INSERT INTO games VALUES (2, 'PAYDAY 2');
+        INSERT INTO sources VALUES (2, 2);
+        INSERT INTO mods VALUES (1, 2, 39694, 'Ammo Pickup Amount in HUD');
+        INSERT INTO files VALUES (1, 1, 800, 'old', '1.0.0', 'm/mod.txt');
+        INSERT INTO files VALUES (2, 1, 900, 'new', '1.1.0', 'm/mod.txt');
+    ",
+    )
+    .unwrap();
+    let m = query_mod_by_id(&conn, 39694, "PAYDAY 2").unwrap();
+    assert_eq!(m.file_remote_id, 900);
+    assert_eq!(m.version, "1.1.0");
+}

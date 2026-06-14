@@ -315,6 +315,7 @@ fn identify_untracked(
     sha256s: &[Option<String>],
     folder_path_to_id: &HashMap<String, String>,
     cfg: &ModEngineConfig,
+    game_path: &str,
 ) -> Vec<InstalledMod> {
     let sha256_to_uid: HashMap<String, String> = state
         .mods
@@ -392,69 +393,78 @@ fn identify_untracked(
             .map(|p| stripped[..p].replace('_', " "));
 
         let gname = cfg.index_game_name;
-        let (id, name, file_id, version) = if let Some(sha) = sha256 {
-            if let Some(hit) = mod_index::lookup_sha256(app, sha, gname) {
-                (
-                    hit.mod_remote_id,
-                    hit.mod_name,
-                    Some(hit.file_remote_id),
-                    hit.version,
-                )
-            } else if let Some(remote_id) = mod_index::lookup_by_name(app, &stripped_name, gname) {
-                (
-                    remote_id,
-                    stripped_name.trim().to_string(),
-                    None,
-                    "unknown".to_string(),
-                )
-            } else if let Some(remote_id) = stripped_base
-                .as_deref()
-                .and_then(|b| mod_index::lookup_by_name(app, b, gname))
-            {
-                (
-                    remote_id,
-                    stripped_name.trim().to_string(),
-                    None,
-                    "unknown".to_string(),
-                )
-            } else if let Ok(num_id) = stripped.parse::<i64>() {
-                (num_id, stripped.to_string(), None, "unknown".to_string())
+
+        // BeardLib mods declare their modworkshop id in main.xml; this identity survives
+        // version drift, so prefer it over the fuzzy name fallback (but below an exact hash
+        // match, which also pins the precise file). Installed version comes from the mod's
+        // own declaration; the real display name is enriched from the index when present.
+        let embedded = if entry_target.is_directory_unit() {
+            let mod_dir = if *enabled {
+                mods_base(game_path, entry_target).join(rel_path)
             } else {
-                (
-                    hash_filename(&filename),
-                    stripped_name.trim().to_string(),
-                    None,
-                    "unknown".to_string(),
-                )
-            }
+                disabled_base(game_path, entry_target).join(rel_path)
+            };
+            embedded_modworkshop_id(&mod_dir)
         } else {
-            if let Some(remote_id) = mod_index::lookup_by_name(app, &stripped_name, gname) {
-                (
-                    remote_id,
-                    stripped_name.trim().to_string(),
-                    None,
-                    "unknown".to_string(),
-                )
-            } else if let Some(remote_id) = stripped_base
-                .as_deref()
-                .and_then(|b| mod_index::lookup_by_name(app, b, gname))
-            {
-                (
-                    remote_id,
-                    stripped_name.trim().to_string(),
-                    None,
-                    "unknown".to_string(),
-                )
-            } else if let Ok(num_id) = stripped.parse::<i64>() {
-                (num_id, stripped.to_string(), None, "unknown".to_string())
-            } else {
-                (
-                    hash_filename(&filename),
-                    stripped_name.trim().to_string(),
-                    None,
-                    "unknown".to_string(),
-                )
-            }
+            None
+        };
+        let resolve_embedded = |(mod_id, declared): (i64, Option<String>)| {
+            let name = mod_index::lookup_mod_by_id(app, mod_id, gname)
+                .map(|h| h.mod_name)
+                .unwrap_or_else(|| stripped_name.trim().to_string());
+            (
+                mod_id,
+                name,
+                None,
+                declared.unwrap_or_else(|| "unknown".to_string()),
+            )
+        };
+
+        let by_name = || {
+            mod_index::lookup_by_name(app, &stripped_name, gname)
+                .or_else(|| {
+                    stripped_base
+                        .as_deref()
+                        .and_then(|b| mod_index::lookup_by_name(app, b, gname))
+                })
+                .map(|remote_id| {
+                    (
+                        remote_id,
+                        stripped_name.trim().to_string(),
+                        None,
+                        "unknown".to_string(),
+                    )
+                })
+                .or_else(|| {
+                    stripped
+                        .parse::<i64>()
+                        .ok()
+                        .map(|num_id| (num_id, stripped.to_string(), None, "unknown".to_string()))
+                })
+                .unwrap_or_else(|| {
+                    (
+                        hash_filename(&filename),
+                        stripped_name.trim().to_string(),
+                        None,
+                        "unknown".to_string(),
+                    )
+                })
+        };
+
+        let (id, name, file_id, version) = match sha256
+            .as_deref()
+            .and_then(|sha| mod_index::lookup_sha256(app, sha, gname))
+        {
+            Some(hit) => (
+                hit.mod_remote_id,
+                hit.mod_name,
+                Some(hit.file_remote_id),
+                hit.version,
+            ),
+            None => match embedded {
+                Some(e) => resolve_embedded(e),
+                None => by_name(),
+            },
         };
 
         // Fall back to filename uid when file_id already exists — multi-pak ZIPs share one file_id.
@@ -567,6 +577,7 @@ pub async fn get_installed(
         &sha256s,
         &folder_path_to_id,
         cfg,
+        &game_path,
     );
 
     let folders = state.folders;

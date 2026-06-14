@@ -102,6 +102,36 @@ fn query_sha256(conn: &rusqlite::Connection, sha256: &str, game_name: &str) -> O
     .ok()
 }
 
+/// Resolves a modworkshop mod id to its name and current (latest indexed) file. Used to
+/// enrich mods identified by an embedded AssetUpdates id. The index is append-only, so the
+/// highest file id is the newest version.
+fn query_mod_by_id(
+    conn: &rusqlite::Connection,
+    mod_remote_id: i64,
+    game_name: &str,
+) -> Option<IndexMatch> {
+    conn.query_row(
+        "SELECT m.remote_id, m.name, f.remote_id, f.version
+         FROM files f
+         JOIN mods m ON m.id = f.mod_id
+         JOIN sources s ON s.id = m.source_id
+         JOIN games g ON g.id = s.game_id
+         WHERE m.remote_id = ?1 AND g.name = ?2
+         ORDER BY f.id DESC
+         LIMIT 1",
+        rusqlite::params![mod_remote_id, game_name],
+        |row| {
+            Ok(IndexMatch {
+                mod_remote_id: row.get(0)?,
+                mod_name: row.get(1)?,
+                file_remote_id: row.get(2)?,
+                version: row.get(3)?,
+            })
+        },
+    )
+    .ok()
+}
+
 fn query_by_name(conn: &rusqlite::Connection, name: &str, game_name: &str) -> Option<i64> {
     let pattern = format!("%{}%", name);
     let mut stmt = conn
@@ -190,6 +220,15 @@ pub fn lookup_by_name(app: &AppHandle, name: &str, game_name: &str) -> Option<i6
     }
     let conn = open_conn(&path)?;
     query_by_name(&conn, name, game_name)
+}
+
+pub fn lookup_mod_by_id(app: &AppHandle, mod_remote_id: i64, game_name: &str) -> Option<IndexMatch> {
+    let path = index_path(app);
+    if !path.exists() {
+        return None;
+    }
+    let conn = open_conn(&path)?;
+    query_mod_by_id(&conn, mod_remote_id, game_name)
 }
 
 #[cfg(test)]
