@@ -99,6 +99,17 @@ pub fn run() {
 
     commands::settings::migrate_from_electron(app.handle());
 
+    let games_configured = commands::settings::read_settings(app.handle())
+        .games
+        .as_ref()
+        .map(|g| g.values().filter(|gs| gs.game_path.is_some()).count())
+        .unwrap_or(0);
+    commands::analytics::track(
+        app.handle(),
+        "app_started",
+        serde_json::json!({ "games_configured": games_configured }),
+    );
+
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(commands::mod_index::ensure_index(handle));
 
