@@ -409,15 +409,19 @@ fn identify_untracked(
             None
         };
         let resolve_embedded = |(mod_id, declared): (i64, Option<String>)| {
-            let name = mod_index::lookup_mod_by_id(app, mod_id, gname)
-                .map(|h| h.mod_name)
+            let hit = mod_index::lookup_mod_by_id(app, mod_id, gname);
+            let name = hit
+                .as_ref()
+                .map(|h| h.mod_name.clone())
                 .unwrap_or_else(|| stripped_name.trim().to_string());
-            (
-                mod_id,
-                name,
-                None,
-                declared.unwrap_or_else(|| "unknown".to_string()),
-            )
+            // Installed version = the mod's own declaration, so a drifted-old install still
+            // reads as outdated against the current version. When it declares none, fall back
+            // to the index's current version so it reads up-to-date instead of nagging an
+            // endless false update (rather than the never-matching "unknown").
+            let version = declared
+                .or_else(|| hit.map(|h| h.version))
+                .unwrap_or_else(|| "unknown".to_string());
+            (mod_id, name, None, version)
         };
 
         let by_name = || {
