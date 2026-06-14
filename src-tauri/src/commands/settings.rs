@@ -220,7 +220,6 @@ pub fn set_analytics_consent(app: AppHandle, enabled: bool) {
 /// Returns the persisted anonymous analytics ID, generating and persisting one if
 /// absent. Used by the analytics sender; the ID never leaves the device unless the
 /// user has enabled analytics.
-#[allow(dead_code)] // wired up by the analytics sender in the next change
 pub(crate) fn ensure_analytics_id(app: &AppHandle) -> String {
     let mut s = read_settings(app);
     if let Some(id) = s.analytics_id.clone() {
