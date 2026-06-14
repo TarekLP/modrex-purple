@@ -74,6 +74,63 @@ fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf
     first_file_in_dir(dir)
 }
 
+/// Reads the value of an XML attribute (`name="value"` or `name='value'`) from a single
+/// element's text, matching the attribute name case-insensitively. Lightweight scanner —
+/// avoids pulling in a full XML parser for the one element we care about.
+fn xml_attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
+    let lower = tag.to_ascii_lowercase();
+    let needle = format!("{}=", name.to_ascii_lowercase());
+    let mut from = 0;
+    while let Some(rel) = lower[from..].find(&needle) {
+        let at = from + rel;
+        // Require a boundary before the name so `id=` doesn't match inside `someid=`.
+        let boundary = at == 0 || !lower.as_bytes()[at - 1].is_ascii_alphanumeric();
+        let eq = at + needle.len();
+        let bytes = tag.as_bytes();
+        if boundary && eq < bytes.len() && (bytes[eq] == b'"' || bytes[eq] == b'\'') {
+            let quote = bytes[eq] as char;
+            let start = eq + 1;
+            if let Some(end) = tag[start..].find(quote) {
+                return Some(&tag[start..start + end]);
+            }
+        }
+        from = eq;
+    }
+    None
+}
+
+/// Returns the modworkshop mod id (and declared version, if present) that a BeardLib mod
+/// embeds in `dir/main.xml` via `<AssetUpdates … provider="modworkshop" … id="N" …>`.
+/// The provider defaults to modworkshop when omitted; any other provider is ignored.
+/// This identity survives version drift, so it works even for very old installs.
+fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Option<String>)> {
+    let xml = std::fs::read_to_string(dir.join("main.xml")).ok()?;
+    let lower = xml.to_ascii_lowercase();
+    let mut from = 0;
+    while let Some(rel) = lower[from..].find("<assetupdates") {
+        let start = from + rel;
+        let Some(close) = xml[start..].find('>') else {
+            break;
+        };
+        let tag = &xml[start..start + close];
+        from = start + close + 1;
+
+        if let Some(provider) = xml_attr(tag, "provider") {
+            if !provider.eq_ignore_ascii_case("modworkshop") {
+                continue;
+            }
+        }
+        let Some(id) = xml_attr(tag, "id").and_then(|v| v.trim().parse::<i64>().ok()) else {
+            continue;
+        };
+        if id <= 0 {
+            continue;
+        }
+        return Some((id, xml_attr(tag, "version").map(str::to_string)));
+    }
+    None
+}
+
 // ── get_installed identification pipeline ──────────────────────────────────────
 
 /// Upgrades negative-id (unidentified) entries whose SHA256 is now present in the index —

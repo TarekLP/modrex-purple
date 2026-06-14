@@ -611,3 +611,68 @@ fn extract_dir_entry_drops_traversal_entries() {
     // The traversal target (sibling of dest) must never be created.
     assert!(!out.path().join("escape.pak").exists());
 }
+
+// ── embedded_modworkshop_id (BeardLib AssetUpdates) ───────────────────────────
+
+fn dir_with_main_xml(content: &str) -> TempDir {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join("main.xml"), content).unwrap();
+    tmp
+}
+
+#[test]
+fn embedded_id_reads_standard_assetupdates() {
+    let d = dir_with_main_xml(
+        r#"<mod name="x"><AssetUpdates id="19169" version="1.859" provider="modworkshop"/></mod>"#,
+    );
+    assert_eq!(
+        embedded_modworkshop_id(d.path()),
+        Some((19169, Some("1.859".to_string())))
+    );
+}
+
+#[test]
+fn embedded_id_is_attribute_order_independent() {
+    let d = dir_with_main_xml(r#"<AssetUpdates provider="modworkshop" id="51099"/>"#);
+    assert_eq!(embedded_modworkshop_id(d.path()), Some((51099, None)));
+}
+
+#[test]
+fn embedded_id_defaults_provider_to_modworkshop() {
+    let d = dir_with_main_xml(r#"<AssetUpdates id="123" version="2"/>"#);
+    assert_eq!(
+        embedded_modworkshop_id(d.path()),
+        Some((123, Some("2".to_string())))
+    );
+}
+
+#[test]
+fn embedded_id_rejects_other_providers() {
+    let d = dir_with_main_xml(r#"<AssetUpdates id="5" provider="github"/>"#);
+    assert_eq!(embedded_modworkshop_id(d.path()), None);
+}
+
+#[test]
+fn embedded_id_none_without_assetupdates() {
+    let d = dir_with_main_xml(r#"<mod name="gray_cowl" author="HedyL"></mod>"#);
+    assert_eq!(embedded_modworkshop_id(d.path()), None);
+}
+
+#[test]
+fn embedded_id_none_without_main_xml() {
+    let tmp = TempDir::new().unwrap();
+    assert_eq!(embedded_modworkshop_id(tmp.path()), None);
+}
+
+#[test]
+fn embedded_id_rejects_non_numeric_id() {
+    let d = dir_with_main_xml(r#"<AssetUpdates id="abc" provider="modworkshop"/>"#);
+    assert_eq!(embedded_modworkshop_id(d.path()), None);
+}
+
+#[test]
+fn embedded_id_ignores_substring_attribute_names() {
+    // `someid="7"` must not be mistaken for `id`.
+    let d = dir_with_main_xml(r#"<AssetUpdates someid="7" id="42" provider="modworkshop"/>"#);
+    assert_eq!(embedded_modworkshop_id(d.path()), Some((42, None)));
+}
