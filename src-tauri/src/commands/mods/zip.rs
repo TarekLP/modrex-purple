@@ -233,35 +233,142 @@ pub async fn compute_sha256(path: &Path) -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
-/// Returns the directory paths (in archive-relative notation) that directly contain
-/// any of `entry_markers` as a child entry. When `entry_markers` is empty, returns all
-/// first-level directory names in the archive (used for mod_overrides asset-replacement mods).
-pub fn list_mod_dir_entries(path: &Path, entry_markers: &[&str]) -> Result<Vec<String>, String> {
-    let entries = list_entries(path)?;
-    let mut dirs: HashSet<String> = HashSet::new();
-    if entry_markers.is_empty() {
-        for e in entries.iter().filter(|e| !e.is_dir) {
-            if let Some(slash) = e.name.find('/') {
-                if slash > 0 {
-                    dirs.insert(e.name[..slash].to_string());
-                }
+/// Every directory path present in `names` (inferred from each entry's path components, so it
+/// works whether or not the archive stores explicit directory entries). Names ending in `/`
+/// are treated as directory entries.
+fn collect_all_dirs(names: &[String]) -> std::collections::BTreeSet<String> {
+    let mut set = std::collections::BTreeSet::new();
+    for name in names {
+        let last_is_file = !name.ends_with('/');
+        let parts: Vec<&str> = name.split('/').collect();
+        let upto = if last_is_file {
+            parts.len().saturating_sub(1)
+        } else {
+            parts.len()
+        };
+        let mut acc = String::new();
+        for part in parts.iter().take(upto) {
+            if part.is_empty() {
+                continue;
             }
+            if !acc.is_empty() {
+                acc.push('/');
+            }
+            acc.push_str(part);
+            set.insert(acc.clone());
         }
-    } else {
-        for marker in entry_markers {
-            let marker_suffix = format!("/{}", marker);
-            for e in &entries {
-                if let Some(pos) = e.name.rfind(&marker_suffix) {
-                    if pos > 0 {
-                        dirs.insert(e.name[..pos].to_string());
+    }
+    set
+}
+
+/// Classifies an archive's mod directories by which scan target they install into. Each result
+/// is `(dir_path, location_tag)` where `location_tag` is `None` for the primary target and
+/// `Some(tag)` for a secondary target (e.g. `"mod_overrides"`).
+///
+/// - **Marker-bearing targets** (e.g. `mods` with `mod.txt`/`main.xml`) claim any dir that
+///   contains one of their markers, at any depth — so BeardLib/BLT mods route to `mods/`
+///   regardless of which folder the packager dropped them in.
+/// - The **marker-less (override) target** claims marker-less directories that sit at the same
+///   depth as the marker dirs (the asset-replacement mods packaged alongside the BLT mods).
+///   When the archive has no markers at all, it falls back to the top-level directories —
+///   preserving the single asset-override mod case.
+///
+/// A dir is never double-claimed; the first (lowest-index) target wins.
+pub(crate) fn classify_archive_dirs(
+    names: &[String],
+    cfg: &ModEngineConfig,
+) -> Vec<(String, Option<String>)> {
+    use std::collections::BTreeMap;
+
+    let tag_for = |idx: usize| -> Option<String> {
+        if idx == 0 {
+            None
+        } else {
+            Some(cfg.targets[idx].tag.to_string())
+        }
+    };
+
+    let mut out: BTreeMap<String, Option<String>> = BTreeMap::new();
+
+    // 1. Marker-bearing targets.
+    let mut marker_dirs: Vec<String> = Vec::new();
+    for (idx, target) in cfg.targets.iter().enumerate() {
+        if let ModUnit::Directory { entry_markers, .. } = &target.unit {
+            if entry_markers.is_empty() {
+                continue;
+            }
+            for marker in *entry_markers {
+                let suffix = format!("/{}", marker);
+                for name in names {
+                    if let Some(pos) = name.rfind(&suffix) {
+                        if pos > 0 {
+                            let dir = name[..pos].to_string();
+                            if !marker_dirs.contains(&dir) {
+                                marker_dirs.push(dir.clone());
+                            }
+                            out.entry(dir).or_insert_with(|| tag_for(idx));
+                        }
                     }
                 }
             }
         }
     }
-    let mut result: Vec<String> = dirs.into_iter().collect();
-    result.sort();
-    Ok(result)
+
+    // 2. Marker-less (override) target(s).
+    for (idx, target) in cfg.targets.iter().enumerate() {
+        let ModUnit::Directory { entry_markers, .. } = &target.unit else {
+            continue;
+        };
+        if !entry_markers.is_empty() {
+            continue;
+        }
+        let tag = tag_for(idx);
+        if marker_dirs.is_empty() {
+            // No markers anywhere: every top-level directory is an asset-override mod.
+            for name in names {
+                if let Some(slash) = name.find('/') {
+                    if slash > 0 {
+                        out.entry(name[..slash].to_string())
+                            .or_insert_with(|| tag.clone());
+                    }
+                }
+            }
+        } else {
+            // Marker-less dirs at the same depth as marker dirs are asset-override mods packaged
+            // alongside the BLT/BeardLib mods. Exclude marker dirs themselves, the internals of
+            // marker mods, wrappers (ancestors of a marker), and nested content of an override
+            // mod already chosen. `collect_all_dirs` yields parents before children, so the
+            // maximality check sees an override before any of its descendants.
+            let marker_depths: HashSet<usize> =
+                marker_dirs.iter().map(|d| d.split('/').count()).collect();
+            let mut chosen: Vec<String> = Vec::new();
+            for d in collect_all_dirs(names) {
+                if !marker_depths.contains(&d.split('/').count()) {
+                    continue;
+                }
+                if marker_dirs.contains(&d) {
+                    continue;
+                }
+                let d_prefix = format!("{}/", d);
+                if marker_dirs.iter().any(|m| m.starts_with(&d_prefix)) {
+                    continue; // d is an ancestor of a marker dir (a wrapper)
+                }
+                if marker_dirs
+                    .iter()
+                    .any(|m| d.starts_with(&format!("{}/", m)))
+                {
+                    continue; // d is internal content of a marker mod
+                }
+                if chosen.iter().any(|c| d.starts_with(&format!("{}/", c))) {
+                    continue; // d is nested under an override mod already chosen
+                }
+                chosen.push(d.clone());
+                out.entry(d).or_insert_with(|| tag.clone());
+            }
+        }
+    }
+
+    out.into_iter().collect()
 }
 
 /// Joins an archive-internal (`/`-separated) path onto `dest`, returning `None` if it would
@@ -435,41 +542,38 @@ pub fn resolve_archive_download(
             }
         }
         ModUnit::Directory { .. } => {
-            // Try each Directory target's entry_markers in order; first non-empty match wins.
-            let mut found: Option<(Vec<String>, usize)> = None;
-            for (i, target) in cfg.targets.iter().enumerate() {
-                if let ModUnit::Directory { entry_markers, .. } = &target.unit {
-                    if let Ok(dirs) = list_mod_dir_entries(&downloaded, entry_markers) {
-                        if !dirs.is_empty() {
-                            found = Some((dirs, i));
-                            break;
-                        }
-                    }
-                }
-            }
-            let (dirs, target_idx) = found.ok_or_else(|| {
-                let _ = std::fs::remove_file(&downloaded);
-                if let ModUnit::Directory { entry_markers, .. } = &cfg.primary().unit {
-                    if entry_markers.is_empty() {
-                        "This mod is packaged as an archive with no mod directory found inside."
-                            .to_string()
+            let names: Vec<String> = list_entries(&downloaded)?
+                .into_iter()
+                .map(|e| {
+                    if e.is_dir && !e.name.ends_with('/') {
+                        format!("{}/", e.name)
                     } else {
-                        format!(
-                            "This mod is packaged as an archive with no {} found inside.",
-                            entry_markers.join(" or ")
-                        )
+                        e.name
                     }
-                } else {
-                    "No valid mod directory found in archive.".to_string()
-                }
-            })?;
-            let location_tag: Option<String> = if target_idx == 0 {
-                None
-            } else {
-                Some(cfg.targets[target_idx].tag.to_string())
-            };
+                })
+                .collect();
+            let dirs = classify_archive_dirs(&names, cfg);
+            if dirs.is_empty() {
+                let _ = std::fs::remove_file(&downloaded);
+                return Err(
+                    if let ModUnit::Directory { entry_markers, .. } = &cfg.primary().unit {
+                        if entry_markers.is_empty() {
+                            "This mod is packaged as an archive with no mod directory found inside."
+                                .to_string()
+                        } else {
+                            format!(
+                                "This mod is packaged as an archive with no {} found inside.",
+                                entry_markers.join(" or ")
+                            )
+                        }
+                    } else {
+                        "No valid mod directory found in archive.".to_string()
+                    },
+                );
+            }
             if dirs.len() == 1 {
-                let dir_name = Path::new(&dirs[0])
+                let (dir, location_tag) = &dirs[0];
+                let dir_name = Path::new(dir)
                     .file_name()
                     .and_then(|s| s.to_str())
                     .unwrap_or("mod")
@@ -478,11 +582,21 @@ pub fn resolve_archive_download(
                 let tmp_parent =
                     std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
                 let tmp = tmp_parent.join(&dir_name);
-                extract_dir_entry(&downloaded, &dirs[0], &tmp)?;
-                Ok((tmp, Some(downloaded), location_tag))
+                extract_dir_entry(&downloaded, dir, &tmp)?;
+                return Ok((tmp, Some(downloaded), location_tag.clone()));
+            }
+            let zip_path = downloaded.to_string_lossy().to_string();
+            let entry_names: Vec<&String> = dirs.iter().map(|(d, _)| d).collect();
+            let distinct_tags: HashSet<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
+            if distinct_tags.len() == 1 {
+                // Single target: keep the legacy payload shape (one targetTag for all entries).
+                let payload = serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "targetTag": dirs[0].1 });
+                Err(format!("ZIP_MULTI_PAK:{}", payload))
             } else {
-                let zip_path = downloaded.to_string_lossy().to_string();
-                let payload = serde_json::json!({ "zipPath": zip_path, "entries": dirs, "targetTag": location_tag });
+                // Mixed targets (e.g. a modpack spanning mods/ and assets/mod_overrides/):
+                // tag each entry individually so the picker routes it to the right place.
+                let entry_tags: Vec<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
+                let payload = serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "entryTags": entry_tags, "targetTag": serde_json::Value::Null });
                 Err(format!("ZIP_MULTI_PAK:{}", payload))
             }
         }

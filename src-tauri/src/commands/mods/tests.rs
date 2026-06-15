@@ -446,6 +446,100 @@ fn target_for_unknown_tag_falls_back_to_primary() {
     assert_eq!(cfg.target_for(Some("nonexistent")).tag, "mods");
 }
 
+// ── classify_archive_dirs ────────────────────────────────────────────────
+
+fn classify(names: &[&str]) -> Vec<(String, Option<String>)> {
+    let owned: Vec<String> = names.iter().map(|s| s.to_string()).collect();
+    classify_archive_dirs(&owned, engine_for_game("pd2"))
+}
+
+fn tag_of<'a>(v: &'a [(String, Option<String>)], dir: &str) -> Option<&'a Option<String>> {
+    v.iter().find(|(d, _)| d == dir).map(|(_, t)| t)
+}
+
+#[test]
+fn classify_single_beardlib_mod_routes_to_primary() {
+    let dirs = classify(&["MyMod/main.xml", "MyMod/assets/x.texture"]);
+    assert_eq!(dirs, vec![("MyMod".to_string(), None)]);
+}
+
+#[test]
+fn classify_single_blt_mod_routes_to_primary() {
+    let dirs = classify(&["MyMod/mod.txt", "MyMod/lua/x.lua"]);
+    assert_eq!(dirs, vec![("MyMod".to_string(), None)]);
+}
+
+#[test]
+fn classify_single_override_mod_routes_to_overrides() {
+    let dirs = classify(&["MyOverride/guis/x.texture"]);
+    assert_eq!(
+        dirs,
+        vec![("MyOverride".to_string(), Some("mod_overrides".to_string()))]
+    );
+}
+
+#[test]
+fn classify_multiple_overrides_all_secondary() {
+    let dirs = classify(&["OverrideA/guis/a.texture", "OverrideB/units/b.unit"]);
+    assert_eq!(
+        tag_of(&dirs, "OverrideA"),
+        Some(&Some("mod_overrides".into()))
+    );
+    assert_eq!(
+        tag_of(&dirs, "OverrideB"),
+        Some(&Some("mod_overrides".into()))
+    );
+}
+
+#[test]
+fn classify_mixed_modpack_routes_each_dir_to_its_target() {
+    // RAMP-shaped: a wrapper with a "mods" folder and an "overrides" folder; the overrides
+    // folder mixes BeardLib mods (have main.xml → must go to mods/) and asset-only dirs.
+    let dirs = classify(&[
+        "Pack/mods folder/BeardlibMod/main.xml",
+        "Pack/mods folder/BltMod/mod.txt",
+        "Pack/overrides folder/BeardlibOverride/main.xml",
+        "Pack/overrides folder/AssetMod/guis/x.texture",
+        "Pack/overrides folder/AssetMod2/units/y.unit",
+    ]);
+    // Marker dirs → primary (mods), regardless of which folder they were packaged in.
+    assert_eq!(tag_of(&dirs, "Pack/mods folder/BeardlibMod"), Some(&None));
+    assert_eq!(tag_of(&dirs, "Pack/mods folder/BltMod"), Some(&None));
+    assert_eq!(
+        tag_of(&dirs, "Pack/overrides folder/BeardlibOverride"),
+        Some(&None)
+    );
+    // Marker-less sibling dirs → overrides.
+    assert_eq!(
+        tag_of(&dirs, "Pack/overrides folder/AssetMod"),
+        Some(&Some("mod_overrides".into()))
+    );
+    assert_eq!(
+        tag_of(&dirs, "Pack/overrides folder/AssetMod2"),
+        Some(&Some("mod_overrides".into()))
+    );
+}
+
+#[test]
+fn classify_excludes_wrapper_and_nested_paths() {
+    let dirs = classify(&[
+        "Pack/mods folder/BltMod/mod.txt",
+        "Pack/overrides folder/AssetMod/guis/x.texture",
+    ]);
+    // The wrapper and the destination folders (ancestors of mod dirs) are never installed.
+    assert_eq!(tag_of(&dirs, "Pack"), None);
+    assert_eq!(tag_of(&dirs, "Pack/mods folder"), None);
+    assert_eq!(tag_of(&dirs, "Pack/overrides folder"), None);
+    // Nested content under an override mod is not a separate mod.
+    assert_eq!(tag_of(&dirs, "Pack/overrides folder/AssetMod/guis"), None);
+    assert_eq!(dirs.len(), 2);
+}
+
+#[test]
+fn classify_empty_archive_is_empty() {
+    assert!(classify(&["readme.txt"]).is_empty());
+}
+
 // ── find_untracked_paks multi-target ─────────────────────────────────────
 
 fn make_dir_mod(parent: &std::path::Path, name: &str, marker: &str) {
