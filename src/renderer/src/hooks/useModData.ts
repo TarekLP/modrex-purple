@@ -120,6 +120,9 @@ export function useModData(installed: InstalledMod[]): {
             if (seenIds.has(ins.id)) return false
             seenIds.add(ins.id)
             if (ins.missing) return false
+            // No reliable installed version (name-matched / unindexed) — can't tell if it's
+            // stale, so don't nag with a false "update available".
+            if (!ins.version || ins.version === 'unknown') return false
             const mod = modData.get(ins.id)
             if (!mod) return false
             if (mod.version === ins.version) return false
