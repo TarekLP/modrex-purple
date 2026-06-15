@@ -136,7 +136,11 @@ fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Option<String>
 /// Upgrades negative-id (unidentified) entries whose SHA256 is now present in the index —
 /// e.g. the mod was added to the index after it was first installed locally.
 /// Returns true if any entries were upgraded (caller must persist the change).
-fn upgrade_negative_ids_by_sha(app: &AppHandle, mods: &mut [InstalledMod], game_name: &str) -> bool {
+fn upgrade_negative_ids_by_sha(
+    app: &AppHandle,
+    mods: &mut [InstalledMod],
+    game_name: &str,
+) -> bool {
     let mut any = false;
     for m in mods {
         if m.id >= 0 {

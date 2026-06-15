@@ -693,7 +693,13 @@ fn make_index() -> rusqlite::Connection {
     conn
 }
 
-fn make_mod_dir(game: &std::path::Path, location: Option<&str>, name: &str, marker: &str, body: &str) {
+fn make_mod_dir(
+    game: &std::path::Path,
+    location: Option<&str>,
+    name: &str,
+    marker: &str,
+    body: &str,
+) {
     let base = match location {
         Some("mod_overrides") => game.join("assets").join("mod_overrides"),
         _ => game.join("mods"),
@@ -804,7 +810,11 @@ fn identify_untracked_embedded_without_version_uses_index_version() {
 
     let mods = run_identify(
         game.path(),
-        vec![("Beardlib Mod".to_string(), true, Some("mod_overrides".to_string()))],
+        vec![(
+            "Beardlib Mod".to_string(),
+            true,
+            Some("mod_overrides".to_string()),
+        )],
         vec![Some("nomatch".to_string())],
         &conn,
     );

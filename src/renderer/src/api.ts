@@ -92,6 +92,13 @@ export const api = {
         return invoke('open_log_file')
     },
 
+    // ── Analytics ────────────────────────────────────────────────────────────────
+    // Fire-and-forget: the Rust side gates on consent and swallows errors, so callers
+    // never need to await or catch.
+    trackEvent(name: string, params?: Record<string, string | number | boolean>): Promise<void> {
+        return invoke('track_event', { name, params: params ?? {} })
+    },
+
     // ── Installed mods ─────────────────────────────────────────────────────────
     getInstalled(
         gameId = 'pd3'

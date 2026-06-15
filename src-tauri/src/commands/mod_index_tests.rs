@@ -170,7 +170,9 @@ fn mod_by_id_is_scoped_by_game() {
     // remote_id 100 is a PD3 mod — must miss under PD2.
     assert!(query_mod_by_id(&conn, 100, "PAYDAY 2").is_none());
     assert_eq!(
-        query_mod_by_id(&conn, 300, "PAYDAY 2").unwrap().mod_remote_id,
+        query_mod_by_id(&conn, 300, "PAYDAY 2")
+            .unwrap()
+            .mod_remote_id,
         300
     );
 }

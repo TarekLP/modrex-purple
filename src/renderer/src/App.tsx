@@ -20,6 +20,7 @@ import { SettingsPage } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { api } from './api'
+import { useModIdentificationTracking } from './lib/analytics/useModIdentificationTracking'
 import { getSettingsCache, setSettingsCache } from './settingsCache'
 import { Dialog } from './components/Dialog'
 import { TooltipProvider } from './components/Tooltip'
@@ -89,6 +90,9 @@ export default function App() {
         // first refresh for the new game isn't blocked by the previous game's lock.
         isRefreshingInstalled.current = false
     }, [activeGame])
+
+    // Reports index.db identification coverage when the installed set changes.
+    useModIdentificationTracking(installed, activeGame)
 
     // Per-session cache: last resolved path for each game. undefined = not yet loaded.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
