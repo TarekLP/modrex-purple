@@ -20,6 +20,7 @@ import { SettingsPage } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { api } from './api'
+import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
 import { useModIdentificationTracking } from './lib/analytics/useModIdentificationTracking'
 import { getSettingsCache, setSettingsCache } from './settingsCache'
 import { Dialog } from './components/Dialog'
@@ -93,6 +94,18 @@ export default function App() {
 
     // Reports index.db identification coverage when the installed set changes.
     useModIdentificationTracking(installed, activeGame)
+
+    // Analytics consent, owned here as the single source of truth so the first-run
+    // pop-up and the Settings toggle stay in sync. undefined = not loaded yet,
+    // null = loaded but undecided (prompt), boolean = the user's choice.
+    const [analyticsConsent, setAnalyticsConsent] = useState<boolean | null | undefined>(undefined)
+    useEffect(() => {
+        api.getAnalyticsConsent().then(setAnalyticsConsent)
+    }, [])
+    const handleAnalyticsConsent = useCallback((enabled: boolean) => {
+        setAnalyticsConsent(enabled)
+        void api.setAnalyticsConsent(enabled)
+    }, [])
 
     // Per-session cache: last resolved path for each game. undefined = not yet loaded.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
@@ -419,6 +432,8 @@ export default function App() {
                                         gamePath={gamePath}
                                         gamePathReady={gamePathReady}
                                         onGamePathChange={handleGamePathSet}
+                                        analyticsConsent={analyticsConsent ?? null}
+                                        onAnalyticsConsent={handleAnalyticsConsent}
                                     />
                                 </div>
                                 {detailStack.map(({ modId, initialMod }, i) => (
@@ -507,6 +522,11 @@ export default function App() {
                         </>
                     )}
                 </Dialog>
+
+                <TelemetryConsentDialog
+                    open={analyticsConsent === null && view !== 'welcome'}
+                    onChoice={handleAnalyticsConsent}
+                />
             </div>
         </TooltipProvider>
     )
