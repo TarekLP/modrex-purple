@@ -540,6 +540,82 @@ fn classify_empty_archive_is_empty() {
     assert!(classify(&["readme.txt"]).is_empty());
 }
 
+#[test]
+fn classify_unwraps_inner_mod_overrides_segment() {
+    // HQ-Inventory-Icons shape: an override mod re-wrapped inside its own
+    // assets/mod_overrides/<name>, sitting next to an inner BLT mod with a marker.
+    let dirs = classify(&[
+        "Pack/overrides folder/HQ/assets/mod_overrides/HQ/guis/x.texture",
+        "Pack/overrides folder/HQ/mods/HQ/mod.txt",
+    ]);
+    // The asset half installs un-nested (the dir inside the segment, not the outer wrapper).
+    assert_eq!(
+        tag_of(&dirs, "Pack/overrides folder/HQ/assets/mod_overrides/HQ"),
+        Some(&Some("mod_overrides".into()))
+    );
+    // The inner BLT mod still routes to mods/.
+    assert_eq!(
+        tag_of(&dirs, "Pack/overrides folder/HQ/mods/HQ"),
+        Some(&None)
+    );
+    // The outer wrapper is never installed directly (would double-nest).
+    assert_eq!(tag_of(&dirs, "Pack/overrides folder/HQ"), None);
+    assert_eq!(dirs.len(), 2);
+}
+
+#[test]
+fn classify_mixes_bare_and_wrapped_overrides() {
+    let dirs = classify(&[
+        "Pack/mods folder/BltMod/mod.txt",
+        "Pack/overrides folder/Bare/units/x.unit",
+        "Pack/overrides folder/Wrapped/assets/mod_overrides/Wrapped/guis/y.texture",
+    ]);
+    assert_eq!(tag_of(&dirs, "Pack/mods folder/BltMod"), Some(&None));
+    assert_eq!(
+        tag_of(&dirs, "Pack/overrides folder/Bare"),
+        Some(&Some("mod_overrides".into()))
+    );
+    assert_eq!(
+        tag_of(
+            &dirs,
+            "Pack/overrides folder/Wrapped/assets/mod_overrides/Wrapped"
+        ),
+        Some(&Some("mod_overrides".into()))
+    );
+    assert_eq!(tag_of(&dirs, "Pack/overrides folder/Wrapped"), None);
+    assert_eq!(dirs.len(), 3);
+}
+
+#[test]
+fn classify_ignores_beardlib_internal_overrides() {
+    // A BeardLib mod (has main.xml) that carries its own assets/mod_overrides internally must
+    // stay a single mods/ mod — its internals are not separate override mods.
+    let dirs = classify(&[
+        "Pack/mods folder/BeardMod/main.xml",
+        "Pack/mods folder/BeardMod/assets/mod_overrides/Internal/x.texture",
+    ]);
+    assert_eq!(dirs, vec![("Pack/mods folder/BeardMod".to_string(), None)]);
+}
+
+#[test]
+fn classify_pure_wrapped_override_pack() {
+    // No markers anywhere, override content wrapped in a destination segment.
+    let dirs = classify(&[
+        "Pack/assets/mod_overrides/Foo/guis/a.texture",
+        "Pack/assets/mod_overrides/Bar/units/b.unit",
+    ]);
+    assert_eq!(
+        tag_of(&dirs, "Pack/assets/mod_overrides/Foo"),
+        Some(&Some("mod_overrides".into()))
+    );
+    assert_eq!(
+        tag_of(&dirs, "Pack/assets/mod_overrides/Bar"),
+        Some(&Some("mod_overrides".into()))
+    );
+    assert_eq!(tag_of(&dirs, "Pack"), None);
+    assert_eq!(dirs.len(), 2);
+}
+
 // ── find_untracked_paks multi-target ─────────────────────────────────────
 
 fn make_dir_mod(parent: &std::path::Path, name: &str, marker: &str) {

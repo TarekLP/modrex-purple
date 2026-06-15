@@ -261,6 +261,26 @@ fn collect_all_dirs(names: &[String]) -> std::collections::BTreeSet<String> {
     set
 }
 
+/// If `name` routes through a literal destination segment `seg` (e.g. `assets/mod_overrides/`),
+/// returns `(mod_dir, wrapper)` where `mod_dir` is the directory immediately inside the segment
+/// (the real override mod, even when the packager nested it in extra folders) and `wrapper` is
+/// the path preceding the segment. Returns `None` when the segment is absent.
+fn override_dir_from_segment(name: &str, seg: &str) -> Option<(String, String)> {
+    let pos = if name.starts_with(seg) {
+        0
+    } else {
+        name.find(&format!("/{}", seg))? + 1
+    };
+    let after = &name[pos + seg.len()..];
+    let realname = &after[..after.find('/').unwrap_or(after.len())];
+    if realname.is_empty() {
+        return None;
+    }
+    let mod_dir = format!("{}{}{}", &name[..pos], seg, realname);
+    let wrapper = name[..pos].trim_end_matches('/').to_string();
+    Some((mod_dir, wrapper))
+}
+
 /// Classifies an archive's mod directories by which scan target they install into. Each result
 /// is `(dir_path, location_tag)` where `location_tag` is `None` for the primary target and
 /// `Some(tag)` for a secondary target (e.g. `"mod_overrides"`).
@@ -323,25 +343,47 @@ pub(crate) fn classify_archive_dirs(
             continue;
         }
         let tag = tag_for(idx);
+        // The literal in-game destination, e.g. "assets/mod_overrides/".
+        let seg = format!("{}/", target.mods_subpath.join("/"));
+        let mut chosen: Vec<String> = Vec::new();
+
+        // Pass A — explicit destination segment. Some packers nest the real mod inside its own
+        // `assets/mod_overrides/<name>/` (or wrap it in extra folders); the dir immediately inside
+        // the segment is the authoritative override mod. Skip segments that live inside a marker
+        // mod (a BeardLib mod loads its own internal overrides — they don't go in the game dir).
+        for name in names {
+            if let Some((mod_dir, wrapper)) = override_dir_from_segment(name, &seg) {
+                let inside_marker = marker_dirs
+                    .iter()
+                    .any(|m| wrapper == *m || wrapper.starts_with(&format!("{}/", m)));
+                if !inside_marker && !chosen.contains(&mod_dir) {
+                    chosen.push(mod_dir);
+                }
+            }
+        }
+
         if marker_dirs.is_empty() {
-            // No markers anywhere: every top-level directory is an asset-override mod.
-            for name in names {
-                if let Some(slash) = name.find('/') {
-                    if slash > 0 {
-                        out.entry(name[..slash].to_string())
-                            .or_insert_with(|| tag.clone());
+            // No markers and no explicit segment: every top-level directory is an override mod.
+            if chosen.is_empty() {
+                for name in names {
+                    if let Some(slash) = name.find('/') {
+                        if slash > 0 {
+                            let d = name[..slash].to_string();
+                            if !chosen.contains(&d) {
+                                chosen.push(d);
+                            }
+                        }
                     }
                 }
             }
         } else {
             // Marker-less dirs at the same depth as marker dirs are asset-override mods packaged
-            // alongside the BLT/BeardLib mods. Exclude marker dirs themselves, the internals of
-            // marker mods, wrappers (ancestors of a marker), and nested content of an override
-            // mod already chosen. `collect_all_dirs` yields parents before children, so the
-            // maximality check sees an override before any of its descendants.
+            // bare alongside the BLT/BeardLib mods. Exclude marker dirs, the internals of marker
+            // mods, wrappers (ancestors of a marker), dirs already covered by a chosen override
+            // (either direction), and dirs that themselves wrap a destination segment (pass A).
+            // `collect_all_dirs` yields parents before children.
             let marker_depths: HashSet<usize> =
                 marker_dirs.iter().map(|d| d.split('/').count()).collect();
-            let mut chosen: Vec<String> = Vec::new();
             for d in collect_all_dirs(names) {
                 if !marker_depths.contains(&d.split('/').count()) {
                     continue;
@@ -359,12 +401,23 @@ pub(crate) fn classify_archive_dirs(
                 {
                     continue; // d is internal content of a marker mod
                 }
-                if chosen.iter().any(|c| d.starts_with(&format!("{}/", c))) {
-                    continue; // d is nested under an override mod already chosen
+                if chosen.iter().any(|c| {
+                    *c == d || c.starts_with(&d_prefix) || d.starts_with(&format!("{}/", c))
+                }) {
+                    continue; // already covered by an explicit-segment / chosen override
                 }
-                chosen.push(d.clone());
-                out.entry(d).or_insert_with(|| tag.clone());
+                if names
+                    .iter()
+                    .any(|n| n.starts_with(&d_prefix) && n[d_prefix.len()..].contains(&seg))
+                {
+                    continue; // d wraps a destination segment — handled by pass A
+                }
+                chosen.push(d);
             }
+        }
+
+        for d in chosen {
+            out.entry(d).or_insert_with(|| tag.clone());
         }
     }
 
