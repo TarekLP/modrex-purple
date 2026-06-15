@@ -16,6 +16,10 @@ export interface ZipMultiPakPayload {
     fileType: string
     modVersion: string
     targetTag?: string
+    // Per-entry destination tag, parallel to `entries`. Sent by the backend only for archives
+    // that span more than one scan target (e.g. a modpack with both mods/ and mod_overrides/
+    // content). `null` = primary target. Absent for single-target archives.
+    entryTags?: (string | null)[]
 }
 
 export function parseZipMultiPak(error: string): ZipMultiPakPayload | null {
@@ -80,6 +84,10 @@ function entryStem(entry: string): string {
     const name = entryFilename(entry)
     const dot = name.lastIndexOf('.')
     return dot > 0 ? name.slice(0, dot) : name
+}
+
+function targetLabel(tag: string | null): string {
+    return tag === 'mod_overrides' ? t('zipPicker.targetOverrides') : t('zipPicker.targetMods')
 }
 
 interface Props {
@@ -153,6 +161,34 @@ export function ZipPickerModal({
         [grouped]
     )
 
+    // Per-entry target routing: present only when the archive spans more than one scan target.
+    const tagByEntry = useMemo(() => {
+        const map = new Map<string, string | null>()
+        const tags = payload.entryTags
+        if (tags && tags.length === payload.entries.length) {
+            payload.entries.forEach((e, i) => map.set(e, tags[i] ?? null))
+        }
+        return map
+    }, [payload.entries, payload.entryTags])
+
+    const multiTarget = useMemo(
+        () => tagByEntry.size > 0 && new Set(tagByEntry.values()).size > 1,
+        [tagByEntry]
+    )
+
+    // Entries grouped by destination target, primary (null) first.
+    const targetSections = useMemo(() => {
+        const groups = new Map<string | null, string[]>()
+        for (const entry of payload.entries) {
+            const tag = tagByEntry.get(entry) ?? null
+            if (!groups.has(tag)) groups.set(tag, [])
+            groups.get(tag)!.push(entry)
+        }
+        return [...groups.entries()].sort(([a], [b]) =>
+            a === null ? -1 : b === null ? 1 : a.localeCompare(b)
+        )
+    }, [payload.entries, tagByEntry])
+
     useEffect(() => {
         setArchiveEntries((gameId ?? 'pd3') as GameId, payload.fileId, payload.entries)
     }, [payload, gameId])
@@ -193,6 +229,39 @@ export function ZipPickerModal({
         if (selected.size === 0) return
         setError(null)
         const toInstall = payload.entries.filter((e) => selected.has(e))
+
+        // Mixed-target archive: route each entry to its own scan target. No app folders are
+        // created — secondary-target mods can't live in primary-target folders, and the
+        // packaging folders ("mods"/"overrides") are destinations, not user-facing folders.
+        if (multiTarget) {
+            for (const entry of toInstall) {
+                setInstallingEntry(entry)
+                try {
+                    await api.installFromZipEntry(
+                        payload.zipPath,
+                        entry,
+                        payload.modId,
+                        payload.modName,
+                        payload.fileId,
+                        payload.fileType,
+                        payload.modVersion,
+                        gamePath,
+                        null,
+                        gameId,
+                        tagByEntry.get(entry) ?? undefined
+                    )
+                    await onRefreshInstalled()
+                } catch (e) {
+                    setInstallingEntry(null)
+                    setError(String(e))
+                    return
+                }
+            }
+            setInstallingEntry(null)
+            await api.deleteTempFile(payload.zipPath)
+            onClose()
+            return
+        }
 
         const folderIdMap = new Map<string, string | null>([
             ['', payload.targetTag ? null : (folderId ?? null)],
@@ -363,7 +432,47 @@ export function ZipPickerModal({
                     </span>
                 </div>
 
-                {isStructured ? (
+                {multiTarget ? (
+                    targetSections.map(([tag, dirEntries]) => {
+                        const groupSelectable = dirEntries.filter((e) => !installedEntries.has(e))
+                        const allInGroup =
+                            groupSelectable.length > 0 &&
+                            groupSelectable.every((e) => selected.has(e))
+                        const someInGroup = groupSelectable.some((e) => selected.has(e))
+                        return (
+                            <div key={tag ?? '__primary__'} className="flex flex-col gap-1.5">
+                                <div
+                                    onClick={() =>
+                                        !isBusy &&
+                                        groupSelectable.length > 0 &&
+                                        toggleGroup(dirEntries)
+                                    }
+                                    className="flex items-center gap-2 px-3 py-1.5 cursor-pointer select-none"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={allInGroup}
+                                        ref={(el) => {
+                                            if (el) el.indeterminate = !allInGroup && someInGroup
+                                        }}
+                                        onChange={() => toggleGroup(dirEntries)}
+                                        disabled={isBusy || groupSelectable.length === 0}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="accent-accent w-4 h-4 shrink-0"
+                                    />
+                                    <Folder className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                                    <span className="text-xs font-medium text-text-muted">
+                                        {targetLabel(tag)}
+                                    </span>
+                                    <span className="text-xs text-text-subtle">
+                                        ({dirEntries.length})
+                                    </span>
+                                </div>
+                                {dirEntries.map((entry) => renderEntry(entry, true))}
+                            </div>
+                        )
+                    })
+                ) : isStructured ? (
                     <>
                         {rootEntries.map((entry) => renderEntry(entry))}
                         {subdirSections.map(([dir, dirEntries]) => {

@@ -187,6 +187,9 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     setInstallError(t('installed.manageFiles.fileUnavailable'))
                     return
                 }
+                // Mixed-target archives carry a per-entry tag; fall back to the single targetTag.
+                const realIdx = zip.entries.indexOf(realEntry)
+                const locationTag = zip.entryTags?.[realIdx] ?? zip.targetTag ?? undefined
                 await api.installFromZipEntry(
                     zip.zipPath,
                     realEntry,
@@ -198,7 +201,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     gamePath,
                     ghost.folderId,
                     activeGame,
-                    zip.targetTag
+                    locationTag
                 )
                 await api.deleteTempFile(zip.zipPath)
             }

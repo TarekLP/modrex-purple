@@ -178,7 +178,9 @@
         "subtitle": "{modName} — select which files to install.",
         "installSelected": "Install Selected ({count})",
         "selectAll": "Select all ({count})",
-        "deselectAll": "Deselect all"
+        "deselectAll": "Deselect all",
+        "targetMods": "Mods",
+        "targetOverrides": "Asset overrides"
     },
     "depsWarning": {
         "title": "Missing required dependencies",
