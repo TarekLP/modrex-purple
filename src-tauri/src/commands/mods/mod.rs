@@ -136,7 +136,11 @@ fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Option<String>
 /// Upgrades negative-id (unidentified) entries whose SHA256 is now present in the index —
 /// e.g. the mod was added to the index after it was first installed locally.
 /// Returns true if any entries were upgraded (caller must persist the change).
-fn upgrade_negative_ids_by_sha(app: &AppHandle, mods: &mut [InstalledMod], game_name: &str) -> bool {
+fn upgrade_negative_ids_by_sha(
+    app: &AppHandle,
+    mods: &mut [InstalledMod],
+    game_name: &str,
+) -> bool {
     let mut any = false;
     for m in mods {
         if m.id >= 0 {
@@ -771,6 +775,17 @@ pub async fn install_mod(
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
+    if result.is_ok() {
+        crate::commands::analytics::track(
+            &app,
+            "mod_installed",
+            serde_json::json!({
+                "game": game_id.as_deref().unwrap_or("pd3"),
+                "mod_id": mod_id,
+                "format": file_type,
+            }),
+        );
+    }
     result
 }
 
@@ -912,6 +927,17 @@ pub async fn install_file(
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
+    if result.is_ok() {
+        crate::commands::analytics::track(
+            &app,
+            "mod_installed",
+            serde_json::json!({
+                "game": game_id.as_deref().unwrap_or("pd3"),
+                "mod_id": mod_id,
+                "format": file_type,
+            }),
+        );
+    }
     result
 }
 
@@ -933,6 +959,7 @@ pub async fn install_from_zip_entry(
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let target = cfg.target_for(location_tag.as_deref());
     let zip = PathBuf::from(&zip_path);
+    let install_format = file_type.clone(); // file_type is moved before the success emit below
 
     // entry_stem / entry_filename are the last path component of entry_name.
     let entry_stem = std::path::Path::new(&entry_name)
@@ -1036,6 +1063,17 @@ pub async fn install_from_zip_entry(
     } else {
         let _ = tokio::fs::remove_file(&ext).await;
     }
+    if result.is_ok() {
+        crate::commands::analytics::track(
+            &app,
+            "mod_installed",
+            serde_json::json!({
+                "game": game_id.as_deref().unwrap_or("pd3"),
+                "mod_id": mod_id,
+                "format": install_format,
+            }),
+        );
+    }
     result
 }
 
@@ -1045,21 +1083,36 @@ pub async fn delete_temp_file(path: String) {
 }
 
 #[tauri::command]
-pub fn uninstall_mod(game_path: String, uid: String, game_id: Option<String>) {
+pub fn uninstall_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
+    crate::commands::analytics::track(
+        &app,
+        "mod_uninstalled",
+        serde_json::json!({ "game": game_id.as_deref().unwrap_or("pd3") }),
+    );
 }
 
 #[tauri::command]
-pub fn enable_mod(game_path: String, uid: String, game_id: Option<String>) {
+pub fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     enable_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
+    crate::commands::analytics::track(
+        &app,
+        "mod_enabled",
+        serde_json::json!({ "game": game_id.as_deref().unwrap_or("pd3") }),
+    );
 }
 
 #[tauri::command]
-pub fn disable_mod(game_path: String, uid: String, game_id: Option<String>) {
+pub fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     disable_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
+    crate::commands::analytics::track(
+        &app,
+        "mod_disabled",
+        serde_json::json!({ "game": game_id.as_deref().unwrap_or("pd3") }),
+    );
 }
 
 #[tauri::command]

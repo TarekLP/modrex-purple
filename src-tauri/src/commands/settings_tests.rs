@@ -54,6 +54,36 @@ fn roundtrip_all_optional_fields_none() {
     assert_eq!(loaded.launch_options, None);
     assert_eq!(loaded.skip_file_open_log_warning, None);
     assert_eq!(loaded.dismissed_deps_warnings, None);
+    assert_eq!(loaded.analytics_enabled, None);
+    assert_eq!(loaded.analytics_id, None);
+}
+
+#[test]
+fn roundtrip_analytics_fields() {
+    let f = NamedTempFile::new().unwrap();
+    let original = Settings {
+        analytics_enabled: Some(true),
+        analytics_id: Some("11111111-2222-3333-4444-555555555555".to_string()),
+        ..Default::default()
+    };
+    write_to(f.path(), &original);
+    let loaded = read_from(f.path());
+    assert_eq!(loaded.analytics_enabled, Some(true));
+    assert_eq!(
+        loaded.analytics_id.as_deref(),
+        Some("11111111-2222-3333-4444-555555555555")
+    );
+}
+
+#[test]
+fn analytics_consent_is_tristate() {
+    // An old settings file with no analytics keys must read back as "not yet asked"
+    // (None), not as an implicit opt-in or opt-out.
+    let mut f = NamedTempFile::new().unwrap();
+    write!(f, r#"{{"gamePath":"C:\\Games"}}"#).unwrap();
+    let loaded = read_from(f.path());
+    assert_eq!(loaded.analytics_enabled, None);
+    assert_eq!(loaded.analytics_id, None);
 }
 
 #[test]

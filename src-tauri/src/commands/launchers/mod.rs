@@ -223,6 +223,11 @@ pub fn launch_game(app: AppHandle, game_id: Option<String>) {
     };
     let cfg = engine_for_game(game_id);
     let _ = do_restore(game_path, cfg);
+    crate::commands::analytics::track(
+        &app,
+        "game_launched",
+        serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
+    );
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
         game_def_for_id(game_id),
@@ -284,6 +289,11 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
         }
     }
 
+    crate::commands::analytics::track(
+        &app,
+        "launch_without_mods",
+        serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
+    );
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
         game_def_for_id(game_id),

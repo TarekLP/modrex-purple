@@ -18,6 +18,12 @@ pub struct Settings {
     pub games: Option<HashMap<String, GameSettings>>,
     pub skip_file_open_log_warning: Option<bool>,
     pub dismissed_deps_warnings: Option<Vec<i32>>,
+    // Telemetry. `analytics_enabled` is tri-state: `None` = user hasn't been
+    // asked yet (renderer shows the first-run consent dialog), `Some(true/false)`
+    // = explicit choice. `analytics_id` is a random per-install identifier; it is
+    // never transmitted unless the user has enabled analytics.
+    pub analytics_enabled: Option<bool>,
+    pub analytics_id: Option<String>,
     // Legacy flat fields: deserialized from old files but never written back.
     #[serde(skip_serializing, default)]
     pub game_path: Option<String>,
@@ -191,6 +197,38 @@ pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
     let mut s = read_settings(&app);
     s.skip_file_open_log_warning = Some(skip);
     write_settings(&app, &s);
+}
+
+/// Current analytics consent: `None` = not yet asked, `Some(true/false)` = chosen.
+#[tauri::command]
+pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {
+    read_settings(&app).analytics_enabled
+}
+
+/// Records the user's explicit analytics choice. Generates the anonymous install
+/// ID lazily on first opt-in, so a user who never enables analytics never gets one.
+#[tauri::command]
+pub fn set_analytics_consent(app: AppHandle, enabled: bool) {
+    let mut s = read_settings(&app);
+    s.analytics_enabled = Some(enabled);
+    if enabled && s.analytics_id.is_none() {
+        s.analytics_id = Some(uuid::Uuid::new_v4().to_string());
+    }
+    write_settings(&app, &s);
+}
+
+/// Returns the persisted anonymous analytics ID, generating and persisting one if
+/// absent. Used by the analytics sender; the ID never leaves the device unless the
+/// user has enabled analytics.
+pub(crate) fn ensure_analytics_id(app: &AppHandle) -> String {
+    let mut s = read_settings(app);
+    if let Some(id) = s.analytics_id.clone() {
+        return id;
+    }
+    let id = uuid::Uuid::new_v4().to_string();
+    s.analytics_id = Some(id.clone());
+    write_settings(app, &s);
+    id
 }
 
 #[tauri::command]

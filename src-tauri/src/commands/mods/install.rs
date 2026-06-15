@@ -122,10 +122,13 @@ pub fn install_mod_from_path(
         ..mod_data
     });
 
-    save_state(state_path, &ModsState {
-        folders: state.folders,
-        mods: new_mods,
-    });
+    save_state(
+        state_path,
+        &ModsState {
+            folders: state.folders,
+            mods: new_mods,
+        },
+    );
     Ok(())
 }
 

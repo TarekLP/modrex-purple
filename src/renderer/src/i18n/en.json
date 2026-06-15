@@ -226,5 +226,22 @@
             "description": "If something goes wrong, open the log file and attach it to your bug report.",
             "open": "Open log file"
         }
+    },
+    "telemetry": {
+        "title": "Help improve Modrex",
+        "intro": "Modrex can send anonymous usage data so we can see which mods break, which games need attention, and what to build next. It's optional, and you can change this anytime in Settings.",
+        "collectTitle": "What we collect",
+        "collect1": "Anonymous usage — features used, mods installed, and how well mods are identified",
+        "collect2": "Your app version and operating system",
+        "dontCollectTitle": "What we never collect",
+        "dontCollect1": "No names, emails, accounts, or anything that identifies you",
+        "dontCollect2": "No file paths, mod search text, or other personal data",
+        "enable": "Enable",
+        "decline": "No thanks",
+        "detailsToggle": "What data is collected?",
+        "privacyPrefix": "Usage data is processed by Google Analytics. See",
+        "privacyLink": "Google's Privacy Policy",
+        "settingsTitle": "Usage analytics",
+        "settingsDescription": "Share anonymous usage data to help improve Modrex."
     }
 }

@@ -92,6 +92,20 @@ export const api = {
         return invoke('open_log_file')
     },
 
+    // ── Analytics ────────────────────────────────────────────────────────────────
+    // Fire-and-forget: the Rust side gates on consent and swallows errors, so callers
+    // never need to await or catch.
+    trackEvent(name: string, params?: Record<string, string | number | boolean>): Promise<void> {
+        return invoke('track_event', { name, params: params ?? {} })
+    },
+    // null = the user hasn't been asked yet (show the first-run consent dialog).
+    getAnalyticsConsent(): Promise<boolean | null> {
+        return invoke('get_analytics_consent')
+    },
+    setAnalyticsConsent(enabled: boolean): Promise<void> {
+        return invoke('set_analytics_consent', { enabled })
+    },
+
     // ── Installed mods ─────────────────────────────────────────────────────────
     getInstalled(
         gameId = 'pd3'

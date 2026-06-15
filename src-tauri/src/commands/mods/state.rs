@@ -67,7 +67,10 @@ pub fn save_state(state_path: &Path, state: &ModsState) {
         .to_os_string();
     tmp_name.push(".tmp");
     let tmp = state_path.with_file_name(tmp_name);
-    if let Err(e) = fs::write(&tmp, serde_json::to_string_pretty(state).unwrap_or_default()) {
+    if let Err(e) = fs::write(
+        &tmp,
+        serde_json::to_string_pretty(state).unwrap_or_default(),
+    ) {
         log::warn!("save_state: write {tmp:?}: {e}");
         return;
     }

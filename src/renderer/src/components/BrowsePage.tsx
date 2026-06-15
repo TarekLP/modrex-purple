@@ -30,6 +30,7 @@ import { isUnsupportedFormat } from '../formatCheck'
 import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
 import { t } from '../i18n'
 import { api } from '../api'
+import { trackSearch } from '../lib/analytics/events'
 
 interface Props {
     activeGame: GameId
@@ -236,6 +237,7 @@ export function BrowsePage({
                     category_id: cat,
                 })
                 setBrowseCache(workshopId, p, q, s, cat, data)
+                if (q) trackSearch(activeGame, q.length, data.meta.total)
                 startTransition(() => {
                     setResult(data)
                     setLoadingMods(false)
@@ -245,7 +247,7 @@ export function BrowsePage({
                 setLoadingMods(false)
             }
         },
-        [workshopId] // stable per mount — BrowsePage remounts on game change via key={activeGame}
+        [workshopId, activeGame] // both stable per mount — BrowsePage remounts on game change via key={activeGame}
     )
 
     useEffect(() => {

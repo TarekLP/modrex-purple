@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { FolderOpen, Loader, RefreshCw, ScrollText } from 'lucide-react'
 import { t } from '../i18n'
 import { Select } from './Select'
+import { Toggle } from './Toggle'
+import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { api } from '../api'
 import type { GameSettings } from '../api'
 import { getSettingsCache, setSettingsCache, patchSettingsCache } from '../settingsCache'
@@ -24,6 +26,8 @@ interface Props {
     gamePath: string | null
     gamePathReady: boolean
     onGamePathChange: () => Promise<void>
+    analyticsConsent: boolean | null
+    onAnalyticsConsent: (enabled: boolean) => void
 }
 
 function effectiveLauncher(gs: GameSettings, installed: string[]): string {
@@ -31,7 +35,14 @@ function effectiveLauncher(gs: GameSettings, installed: string[]): string {
     return installed.length > 0 && !installed.includes(saved) ? installed[0] : saved
 }
 
-export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathChange }: Props) {
+export function SettingsPage({
+    activeGame,
+    gamePath,
+    gamePathReady,
+    onGamePathChange,
+    analyticsConsent,
+    onAnalyticsConsent,
+}: Props) {
     // The component remounts per game (key={activeGame} in App.tsx), so cache reads
     // in the initializers always belong to the right game. Warm cache = instant
     // correct values; the effect below revalidates in the background.
@@ -52,6 +63,10 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
         () => getSettingsCache(activeGame)?.settings.launchOptions ?? ''
     )
     const launchOptionsLoaded = useRef(false)
+
+    // Controls the reopened consent pop-up. Consent itself is owned by App.tsx so
+    // the first-run dialog and this toggle stay in sync.
+    const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
 
     useEffect(() => {
         launchOptionsLoaded.current = false
@@ -262,6 +277,32 @@ export function SettingsPage({ activeGame, gamePath, gamePathReady, onGamePathCh
                         className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
                     />
                 </section>
+
+                <section className="max-w-xl flex flex-col gap-2 mt-6">
+                    <h2 className="text-sm font-semibold">{t('telemetry.settingsTitle')}</h2>
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                        <span className="text-sm text-text-muted pr-4">
+                            {t('telemetry.settingsDescription')}
+                        </span>
+                        <Toggle checked={analyticsConsent === true} onChange={onAnalyticsConsent} />
+                    </div>
+                    <button
+                        onClick={() => setShowAnalyticsDetails(true)}
+                        className="text-xs text-accent hover:underline self-start"
+                    >
+                        {t('telemetry.detailsToggle')}
+                    </button>
+                </section>
+
+                <TelemetryConsentDialog
+                    open={showAnalyticsDetails}
+                    dismissable
+                    onClose={() => setShowAnalyticsDetails(false)}
+                    onChoice={(enabled) => {
+                        onAnalyticsConsent(enabled)
+                        setShowAnalyticsDetails(false)
+                    }}
+                />
             </div>
         </div>
     )

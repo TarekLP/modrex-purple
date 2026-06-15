@@ -29,7 +29,18 @@ pub fn index_path(app: &AppHandle) -> PathBuf {
 }
 
 pub async fn ensure_index(app: AppHandle) {
-    let path = index_path(&app);
+    let outcome = refresh_index(&app).await;
+    crate::commands::analytics::track(
+        &app,
+        "index_refresh",
+        serde_json::json!({ "outcome": outcome }),
+    );
+}
+
+/// Refreshes the on-disk index if stale, returning the outcome for telemetry.
+/// Outcomes: `cached` (still fresh), `updated` (downloaded), or a specific failure.
+async fn refresh_index(app: &AppHandle) -> &'static str {
+    let path = index_path(app);
     if path.exists() {
         let age_ok = std::fs::metadata(&path)
             .ok()
@@ -38,7 +49,7 @@ pub async fn ensure_index(app: AppHandle) {
             .map(|e| e.as_secs() < MAX_AGE_SECS)
             .unwrap_or(false);
         if age_ok {
-            return;
+            return "cached";
         }
     }
     let client = match reqwest::Client::builder()
@@ -47,29 +58,31 @@ pub async fn ensure_index(app: AppHandle) {
         .build()
     {
         Ok(c) => c,
-        Err(_) => return,
+        Err(_) => return "client_error",
     };
     let resp = match client.get(INDEX_URL).send().await {
         Ok(r) if r.status().is_success() => r,
         Ok(r) => {
             eprintln!("[mod-index] download failed: HTTP {}", r.status());
-            return;
+            return "http_error";
         }
         Err(e) => {
             eprintln!("[mod-index] download failed: {}", e);
-            return;
+            return "network_error";
         }
     };
     let bytes = match resp.bytes().await {
         Ok(b) => b,
         Err(e) => {
             eprintln!("[mod-index] read response body failed: {}", e);
-            return;
+            return "read_error";
         }
     };
     if let Err(e) = std::fs::write(&path, &bytes) {
         eprintln!("[mod-index] write failed: {}", e);
+        return "write_error";
     }
+    "updated"
 }
 
 fn open_conn(path: &std::path::Path) -> Option<rusqlite::Connection> {
@@ -90,7 +103,11 @@ pub(crate) fn open_index(app: &AppHandle) -> Option<rusqlite::Connection> {
     open_conn(&path)
 }
 
-pub(crate) fn query_sha256(conn: &rusqlite::Connection, sha256: &str, game_name: &str) -> Option<IndexMatch> {
+pub(crate) fn query_sha256(
+    conn: &rusqlite::Connection,
+    sha256: &str,
+    game_name: &str,
+) -> Option<IndexMatch> {
     conn.query_row(
         "SELECT m.remote_id, m.name, f.remote_id, f.version
          FROM files f
@@ -142,7 +159,11 @@ pub(crate) fn query_mod_by_id(
     .ok()
 }
 
-pub(crate) fn query_by_name(conn: &rusqlite::Connection, name: &str, game_name: &str) -> Option<i64> {
+pub(crate) fn query_by_name(
+    conn: &rusqlite::Connection,
+    name: &str,
+    game_name: &str,
+) -> Option<i64> {
     let pattern = format!("%{}%", name);
     let mut stmt = conn
         .prepare(
