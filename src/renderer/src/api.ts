@@ -269,6 +269,14 @@ export const api = {
         return invoke('install_superblt', { gamePath })
     },
 
+    // ── PDTHModOverrides ───────────────────────────────────────────────────────
+    checkPdthOverrides(gamePath: string): Promise<boolean> {
+        return invoke('check_pdth_overrides', { gamePath })
+    },
+    installPdthOverrides(gamePath: string): Promise<void> {
+        return invoke('install_pdth_overrides', { gamePath })
+    },
+
     // ── Launchers & system ─────────────────────────────────────────────────────
     isGameRunning(gameId?: string): Promise<boolean> {
         return gameId ? invoke('is_game_running', { gameId }) : invoke('is_game_running')

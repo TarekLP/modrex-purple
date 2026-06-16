@@ -69,9 +69,11 @@ pub fn run() {
             commands::mods::rename_folder,
             commands::mods::delete_folder,
             commands::mods::open_mods_folder,
-            // superblt
+            // superblt / pdth_overrides
             commands::superblt::check_superblt,
             commands::superblt::install_superblt,
+            commands::pdth_overrides::check_pdth_overrides,
+            commands::pdth_overrides::install_pdth_overrides,
             // launchers & system
             commands::launchers::auto_detect_game,
             commands::launchers::installed_launchers,
