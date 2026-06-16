@@ -2,6 +2,9 @@ import { useState } from 'react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
 import { parseZipMultiPak } from '../components/ZipPickerModal'
+import type { HostPackPayload } from '../components/HostPackModal'
+import { parseHostModPack } from '../components/HostPackModal'
+import { isUnrecognizedArchive } from '../components/UnrecognizedArchiveModal'
 import { api } from '../api'
 
 export interface ModActions {
@@ -12,6 +15,10 @@ export interface ModActions {
     refreshing: boolean
     zipPickerData: ZipMultiPakPayload | null
     clearZipPickerData: () => void
+    hostPackData: HostPackPayload | null
+    clearHostPackData: () => void
+    unrecognizedModId: number | null
+    clearUnrecognizedModId: () => void
     handleRefresh: () => Promise<void>
     handleUninstall: (mods: InstalledMod[]) => Promise<void>
     handleEnable: (mods: InstalledMod[]) => Promise<void>
@@ -32,6 +39,8 @@ export function useModActions(
     const [reinstallError, setReinstallError] = useState<string | null>(null)
     const [refreshing, setRefreshing] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
+    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
+    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
 
     async function handleRefresh() {
         setRefreshing(true)
@@ -93,11 +102,17 @@ export function useModActions(
         try {
             await api.installMod(mods[0].id, gamePath, activeGame)
         } catch (e) {
-            const zipData = parseZipMultiPak(String(e))
+            const errStr = String(e)
+            const zipData = parseZipMultiPak(errStr)
+            const hostData = parseHostModPack(errStr)
             if (zipData) {
                 setZipPickerData(zipData)
+            } else if (hostData) {
+                setHostPackData(hostData)
+            } else if (isUnrecognizedArchive(errStr)) {
+                setUnrecognizedModId(mods[0].id)
             } else {
-                setReinstallError(String(e))
+                setReinstallError(errStr)
             }
         } finally {
             unsub()
@@ -115,6 +130,10 @@ export function useModActions(
         refreshing,
         zipPickerData,
         clearZipPickerData: () => setZipPickerData(null),
+        hostPackData,
+        clearHostPackData: () => setHostPackData(null),
+        unrecognizedModId,
+        clearUnrecognizedModId: () => setUnrecognizedModId(null),
         handleRefresh,
         handleUninstall,
         handleEnable,

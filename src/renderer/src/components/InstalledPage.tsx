@@ -3,6 +3,8 @@ import { X, Search, LayoutGrid, List, FolderOpen, FolderPlus, RefreshCw } from '
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { ZipPickerModal } from './ZipPickerModal'
+import { HostPackModal } from './HostPackModal'
+import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
 import { UpdatesModal } from './UpdatesModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
@@ -64,6 +66,10 @@ export function InstalledPage({
         refreshing,
         zipPickerData,
         clearZipPickerData,
+        hostPackData,
+        clearHostPackData,
+        unrecognizedModId,
+        clearUnrecognizedModId,
         handleRefresh,
         handleUninstall,
         handleEnable,
@@ -216,6 +222,22 @@ export function InstalledPage({
                         gameId={activeGame}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={clearZipPickerData}
+                    />
+                )}
+                {hostPackData && gamePath && (
+                    <HostPackModal
+                        payload={hostPackData}
+                        gamePath={gamePath}
+                        installed={installed}
+                        gameId={activeGame}
+                        onRefreshInstalled={onRefreshInstalled}
+                        onClose={clearHostPackData}
+                    />
+                )}
+                {unrecognizedModId !== null && (
+                    <UnrecognizedArchiveModal
+                        modId={unrecognizedModId}
+                        onClose={clearUnrecognizedModId}
                     />
                 )}
                 <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
