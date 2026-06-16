@@ -5,6 +5,7 @@ import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
+import { getCachedMod } from '../modCache'
 import { isLoaderDep, offsiteDepHost } from '../deps'
 
 interface Props {
@@ -125,6 +126,11 @@ export function DepsWarningModal({
                                 }
                                 setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: true }))
                                 try {
+                                    const fullMod = await getCachedMod(dep.mod!.id)
+                                    if (fullMod.download?.url && !fullMod.download.download_url) {
+                                        api.openExternal(fullMod.download.url)
+                                        return
+                                    }
                                     await api.installMod(dep.mod!.id, gamePath, gameId)
                                     await onRefreshInstalled()
                                 } finally {
