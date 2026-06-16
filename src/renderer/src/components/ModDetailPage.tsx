@@ -98,7 +98,7 @@ export function ModDetailPage({
     const [installError, setInstallError] = useState<string | null>(null)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
     const [showDepsWarning, setShowDepsWarning] = useState(false)
-    const [superbltInstalled, setSuperbltInstalled] = useState<boolean | null>(null)
+    const [loaderInstalled, setLoaderInstalled] = useState<boolean | null>(null)
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
@@ -190,13 +190,16 @@ export function ModDetailPage({
 
     async function doInstall() {
         if (!gamePath || !mod) return
-        let loaderOk = superbltInstalled
+        let loaderOk = loaderInstalled
         if (hasLoaderDep) {
             // Re-check at install time so a loader installed mid-session clears the warning.
-            loaderOk = await api.checkSuperblt(gamePath)
-            setSuperbltInstalled(loaderOk)
+            loaderOk =
+                activeGame === 'pdth'
+                    ? await api.checkPdthOverrides(gamePath)
+                    : await api.checkSuperblt(gamePath)
+            setLoaderInstalled(loaderOk)
         }
-        if (missingRequiredDeps(allDeps, installed, loaderOk).length > 0) {
+        if (missingRequiredDeps(allDeps, installed, loaderOk, pdthOverridesId).length > 0) {
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const s = await api.getSettings()
                 if (!s.dismissedDepsWarnings?.includes(modId)) {
@@ -235,8 +238,9 @@ export function ModDetailPage({
         if (!gamePath) return
         setInstallError(null)
         try {
-            await api.installSuperblt(gamePath)
-            setSuperbltInstalled(true)
+            if (activeGame === 'pdth') await api.installPdthOverrides(gamePath)
+            else await api.installSuperblt(gamePath)
+            setLoaderInstalled(true)
         } catch (e) {
             setInstallError(String(e))
         }
@@ -279,21 +283,32 @@ export function ModDetailPage({
 
     const allDeps: ModDependency[] = collectDeps(mod)
 
-    const missingRequired = missingRequiredDeps(allDeps, installed, superbltInstalled)
+    // PDTHModOverrides (id 53474) is a hosted mod that installs as a game-root DLL,
+    // so its dep can't be checked against the installed-mods list.
+    const pdthOverridesId = activeGame === 'pdth' ? 53474 : null
+    const hasLoaderDep =
+        pdthOverridesId !== null
+            ? allDeps.some((d) => d.mod?.id === pdthOverridesId)
+            : allDeps.some(isLoaderDep)
+    const missingRequired = missingRequiredDeps(
+        allDeps,
+        installed,
+        loaderInstalled,
+        pdthOverridesId
+    )
 
-    // Loader deps (SuperBLT) live in the game root, invisible to the installed
-    // list — ask the backend whether a loader DLL is present.
-    const hasLoaderDep = allDeps.some(isLoaderDep)
     useEffect(() => {
         if (!gamePath || !hasLoaderDep) return
         let cancelled = false
-        api.checkSuperblt(gamePath).then((v) => {
-            if (!cancelled) setSuperbltInstalled(v)
+        const check =
+            activeGame === 'pdth' ? api.checkPdthOverrides(gamePath) : api.checkSuperblt(gamePath)
+        check.then((v) => {
+            if (!cancelled) setLoaderInstalled(v)
         })
         return () => {
             cancelled = true
         }
-    }, [gamePath, hasLoaderDep])
+    }, [gamePath, hasLoaderDep, activeGame])
 
     const showChangelogTab = !!mod?.changelog
     const showDepsTab =
@@ -651,7 +666,7 @@ export function ModDetailPage({
                                 installed={installed}
                                 gamePath={gamePath}
                                 activeGame={activeGame}
-                                loaderInstalled={superbltInstalled}
+                                loaderInstalled={loaderInstalled}
                                 onInstallLoader={handleInstallLoader}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}

@@ -321,12 +321,22 @@ export function BrowsePage({
             if (!gamePath) return
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const allDeps = collectDeps(fullMod)
-                // Loader deps (SuperBLT) live in the game root, invisible to the
-                // installed list — ask the backend whether a loader DLL is present.
-                const loaderInstalled = allDeps.some(isLoaderDep)
-                    ? await api.checkSuperblt(gamePath)
+                const pdthOverridesId = activeGame === 'pdth' ? 53474 : null
+                const hasLoader =
+                    pdthOverridesId !== null
+                        ? allDeps.some((d) => d.mod?.id === pdthOverridesId)
+                        : allDeps.some(isLoaderDep)
+                const loaderInstalled = hasLoader
+                    ? await (activeGame === 'pdth'
+                          ? api.checkPdthOverrides(gamePath)
+                          : api.checkSuperblt(gamePath))
                     : null
-                const missingRequired = missingRequiredDeps(allDeps, installed, loaderInstalled)
+                const missingRequired = missingRequiredDeps(
+                    allDeps,
+                    installed,
+                    loaderInstalled,
+                    pdthOverridesId
+                )
                 if (missingRequired.length > 0) {
                     const s = await api.getSettings()
                     if (!s.dismissedDepsWarnings?.includes(modId)) {
@@ -457,7 +467,12 @@ export function BrowsePage({
     }, [installed])
 
     const missingDepsList = depsWarning
-        ? missingRequiredDeps(depsWarning.allDeps, installed, depsWarning.loaderInstalled)
+        ? missingRequiredDeps(
+              depsWarning.allDeps,
+              installed,
+              depsWarning.loaderInstalled,
+              activeGame === 'pdth' ? 53474 : null
+          )
         : []
 
     return (
@@ -525,7 +540,8 @@ export function BrowsePage({
                     onInstallLoader={async () => {
                         if (!gamePath) return
                         try {
-                            await api.installSuperblt(gamePath)
+                            if (activeGame === 'pdth') await api.installPdthOverrides(gamePath)
+                            else await api.installSuperblt(gamePath)
                             setDepsWarning((w) => (w ? { ...w, loaderInstalled: true } : w))
                         } catch (e) {
                             setError(String(e))
