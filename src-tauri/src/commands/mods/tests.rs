@@ -847,7 +847,7 @@ fn discovers_untracked_host_packs_excluding_bundled() {
     fs::create_dir_all(game.join("mods/disabled/host-17160/old set")).unwrap(); // user pack, disabled
 
     let found = find_untracked_host_packs(game.to_str().unwrap(), cfg, &[host_only_entry()], &[]);
-    let names: Vec<&str> = found.iter().map(|(_, _, n, _)| n.as_str()).collect();
+    let names: Vec<&str> = found.iter().map(|(_, _, n, _, _)| n.as_str()).collect();
     assert!(names.contains(&"astolfo bg"));
     assert!(names.contains(&"old set"));
     assert!(
@@ -857,11 +857,17 @@ fn discovers_untracked_host_packs_excluding_bundled() {
     assert!(
         found
             .iter()
-            .find(|(_, _, n, _)| n == "astolfo bg")
+            .find(|(_, _, n, _, _)| n == "astolfo bg")
             .unwrap()
             .3
     ); // active → enabled
-    assert!(!found.iter().find(|(_, _, n, _)| n == "old set").unwrap().3); // disabled
+    assert!(
+        !found
+            .iter()
+            .find(|(_, _, n, _, _)| n == "old set")
+            .unwrap()
+            .3
+    ); // disabled
 }
 
 #[test]

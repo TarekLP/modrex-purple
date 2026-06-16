@@ -541,22 +541,49 @@ pub async fn get_installed(
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     // Recover host-pack sets present on disk but absent from state (e.g. after a state rebuild):
-    // they live inside another mod, so the scan-target walk can't find them. Tracked as
-    // unidentified, folder-named entries — manageable via the host-aware enable/disable/uninstall.
+    // they live inside another mod, so the scan-target walk can't find them. Identify each by its
+    // representative file's SHA256 against the index (like the untracked pipeline); a hit restores
+    // the real id/name/version, a miss leaves a negative-id, folder-named entry whose stored
+    // sha256 lets a future index update upgrade it. Either way it's a manageable host-pack entry.
     let mut discovered_hosts = false;
-    for (host_id, subpath, set_name, enabled) in
+    for (host_id, subpath, set_name, enabled, dir) in
         find_untracked_host_packs(&game_path, cfg, &state.mods, &state.folders)
     {
-        state.mods.push(InstalledMod {
-            id: hash_filename(&set_name),
-            name: set_name.clone(),
-            uid: set_name.clone(),
-            filename: set_name,
-            enabled,
-            location: Some(format!("host:{}:{}", host_id, subpath)),
-            installed_at: Utc::now().to_rfc3339(),
-            ..InstalledMod::default()
-        });
+        let sha256 = match hashable_file_for_mod_dir(&dir) {
+            Some(p) => compute_sha256(&p).await.ok(),
+            None => None,
+        };
+        let hit = sha256
+            .as_deref()
+            .and_then(|s| mod_index::lookup_sha256(&app, s, cfg.index_game_name));
+        let location = Some(format!("host:{}:{}", host_id, subpath));
+        let entry = match hit {
+            Some(h) => InstalledMod {
+                uid: format!("{}_{}", h.file_remote_id, set_name),
+                id: h.mod_remote_id,
+                name: h.mod_name,
+                version: h.version,
+                filename: set_name,
+                enabled,
+                file_id: Some(h.file_remote_id),
+                sha256,
+                location,
+                installed_at: Utc::now().to_rfc3339(),
+                ..InstalledMod::default()
+            },
+            None => InstalledMod {
+                uid: set_name.clone(),
+                id: hash_filename(&set_name),
+                name: set_name.clone(),
+                filename: set_name,
+                enabled,
+                sha256,
+                location,
+                installed_at: Utc::now().to_rfc3339(),
+                ..InstalledMod::default()
+            },
+        };
+        state.mods.push(entry);
         discovered_hosts = true;
     }
 

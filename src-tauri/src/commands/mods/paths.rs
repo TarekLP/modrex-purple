@@ -57,15 +57,15 @@ pub fn host_pack_dir(
 
 /// Discovers host-pack set folders on disk that aren't tracked in `mods` — orphans left after a
 /// state rebuild (host packs live inside another mod, so the normal scan can't find them).
-/// Returns `(host_mod_id, subpath, set_name, enabled)` for each untracked set, scanning both the
-/// host's active subfolder and the Modrex disabled area. Excludes the host's bundled defaults and
-/// any set already tracked. Hosts whose mod isn't installed are skipped.
+/// Returns `(host_mod_id, subpath, set_name, enabled, dir)` for each untracked set, scanning both
+/// the host's active subfolder and the Modrex disabled area. Excludes the host's bundled defaults
+/// and any set already tracked. Hosts whose mod isn't installed are skipped.
 pub fn find_untracked_host_packs(
     game_path: &str,
     cfg: &ModEngineConfig,
     mods: &[InstalledMod],
     folders: &[ModFolder],
-) -> Vec<(i64, String, String, bool)> {
+) -> Vec<(i64, String, String, bool, PathBuf)> {
     let mut out = Vec::new();
     for host in HOST_TARGETS {
         let Some(host_dir) = resolve_host_mod_dir(game_path, cfg, mods, folders, host.host_mod_id)
@@ -100,7 +100,13 @@ pub fn find_untracked_host_packs(
                 if host.bundled.iter().any(|b| *b == name) || tracked.contains(&name) {
                     continue;
                 }
-                out.push((host.host_mod_id, subpath.clone(), name, enabled));
+                out.push((
+                    host.host_mod_id,
+                    subpath.clone(),
+                    name,
+                    enabled,
+                    entry.path(),
+                ));
             }
         }
     }
