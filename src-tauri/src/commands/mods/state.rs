@@ -1,6 +1,9 @@
 use super::engine::{backup_dir, ModEngineConfig};
 use super::naming::{apply_priority_prefix, make_uid, strip_priority_prefix};
-use super::paths::{active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, mods_base};
+use super::paths::{
+    active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
+    mods_base,
+};
 use super::types::{InstalledMod, ModFolder, ModsState};
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -206,13 +209,16 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         .mods
         .iter()
         .map(|m| {
-            // Host packs live inside another mod's folder, not at a scan-target root.
+            // Host packs live inside another mod's folder (enabled) or our disabled area.
             if m.location
                 .as_deref()
                 .is_some_and(|l| l.starts_with("host:"))
             {
-                return host_pack_dir(game_path, cfg, &state.mods, &state.folders, m)
+                let active = host_pack_dir(game_path, cfg, &state.mods, &state.folders, m)
                     .is_some_and(|p| p.exists());
+                let disabled =
+                    host_pack_disabled_dir(game_path, cfg, m).is_some_and(|p| p.exists());
+                return active || disabled;
             }
             let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
             let target = cfg.target_for(m.location.as_deref());

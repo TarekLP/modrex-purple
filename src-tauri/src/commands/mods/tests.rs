@@ -824,6 +824,75 @@ fn uninstall_removes_host_pack() {
 }
 
 #[test]
+fn disable_then_enable_host_pack_moves_files() {
+    let (tmp, sp, zip) = host_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2");
+    install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
+    let active = tmp.path().join("mods/Menu Backgrounds/Assets/My Set");
+    let disabled = tmp.path().join("mods/disabled/host-17160/My Set");
+    assert!(active.exists() && !disabled.exists());
+
+    disable_mod_op(game, &sp, "999_My Set", cfg);
+    assert!(
+        !active.exists() && disabled.exists(),
+        "disable moves the set out of the host"
+    );
+    assert!(
+        !read_state(&sp)
+            .mods
+            .iter()
+            .find(|m| m.id == 57135)
+            .unwrap()
+            .enabled
+    );
+
+    enable_mod_op(game, &sp, "999_My Set", cfg);
+    assert!(
+        active.exists() && !disabled.exists(),
+        "enable moves the set back into the host"
+    );
+    assert!(
+        read_state(&sp)
+            .mods
+            .iter()
+            .find(|m| m.id == 57135)
+            .unwrap()
+            .enabled
+    );
+}
+
+#[test]
+fn reconcile_keeps_disabled_host_pack() {
+    let (tmp, sp, zip) = host_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2");
+    install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
+    disable_mod_op(game, &sp, "999_My Set", cfg);
+
+    let state = reconcile_state(game, &sp, cfg);
+    let rec = state.mods.iter().find(|m| m.id == 57135).unwrap();
+    assert_eq!(
+        rec.missing, None,
+        "a disabled host pack must not read as missing"
+    );
+}
+
+#[test]
+fn uninstall_removes_disabled_host_pack() {
+    let (tmp, sp, zip) = host_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2");
+    install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
+    disable_mod_op(game, &sp, "999_My Set", cfg);
+
+    uninstall_mod_op(game, &sp, "999_My Set", cfg);
+
+    assert!(!tmp.path().join("mods/disabled/host-17160/My Set").exists());
+    assert!(read_state(&sp).mods.iter().all(|m| m.id != 57135));
+}
+
+#[test]
 fn classify_pure_wrapped_override_pack() {
     // No markers anywhere, override content wrapped in a destination segment.
     let dirs = classify(&[

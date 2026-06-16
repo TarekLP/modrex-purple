@@ -2,8 +2,8 @@ use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
 use super::naming::apply_priority_prefix;
 use super::paths::{
-    active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, mods_base,
-    resolve_host_mod_dir,
+    active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
+    mods_base, resolve_host_mod_dir,
 };
 use super::state::{get_folder_path, read_state, save_state};
 use super::types::{InstalledMod, ModsState};
@@ -11,6 +11,12 @@ use super::zip::extract_dir_entry;
 use chrono::Utc;
 use std::fs;
 use std::path::Path;
+
+fn is_host_pack(m: &InstalledMod) -> bool {
+    m.location
+        .as_deref()
+        .is_some_and(|l| l.starts_with("host:"))
+}
 
 /// Installs a host-mod content pack (e.g. a Menu Backgrounds set) into the host mod's folder
 /// (`<host dir>/<subpath>/<set name>/`) and records it in state so it can be managed. Returns a
@@ -206,12 +212,15 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
     let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
         return;
     };
-    // Host packs live inside another mod's folder; remove the pack dir directly.
-    if m.location
-        .as_deref()
-        .is_some_and(|l| l.starts_with("host:"))
-    {
-        if let Some(p) = host_pack_dir(game_path, cfg, &state.mods, &state.folders, &m) {
+    // Host packs live inside another mod's folder (or our disabled area); remove either.
+    if is_host_pack(&m) {
+        for p in [
+            host_pack_dir(game_path, cfg, &state.mods, &state.folders, &m),
+            host_pack_disabled_dir(game_path, cfg, &m),
+        ]
+        .into_iter()
+        .flatten()
+        {
             if p.exists() {
                 if let Err(e) = fs::remove_dir_all(&p) {
                     log::warn!("uninstall host pack: remove {p:?}: {e}");
@@ -290,6 +299,11 @@ pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEng
     else {
         return;
     };
+    // Host packs move back from our disabled area into the host mod's folder.
+    if is_host_pack(&m) {
+        move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, true);
+        return;
+    }
     let target = cfg.target_for(m.location.as_deref());
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     if let Some(r) = &rel {
@@ -312,6 +326,42 @@ pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEng
     save_state(state_path, &state);
 }
 
+/// Moves a host pack between the host mod's folder and Modrex's disabled area, then flips its
+/// `enabled` flag and persists. `enable = true` restores it into the host; `false` disables it.
+fn move_host_pack(
+    game_path: &str,
+    state_path: &Path,
+    state: &mut ModsState,
+    m: &InstalledMod,
+    uid: &str,
+    cfg: &ModEngineConfig,
+    enable: bool,
+) {
+    let active = host_pack_dir(game_path, cfg, &state.mods, &state.folders, m);
+    let disabled = host_pack_disabled_dir(game_path, cfg, m);
+    if let (Some(active), Some(disabled)) = (active, disabled) {
+        let (from, to) = if enable {
+            (disabled, active)
+        } else {
+            (active, disabled)
+        };
+        if from.exists() {
+            if let Some(parent) = to.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if let Err(e) = fs::rename(&from, &to) {
+                log::warn!("move host pack {from:?} -> {to:?}: {e}");
+            }
+        }
+    }
+    for x in state.mods.iter_mut() {
+        if x.uid == uid {
+            x.enabled = enable;
+        }
+    }
+    save_state(state_path, state);
+}
+
 pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
     let mut state = read_state(state_path);
     let Some(m) = state
@@ -322,6 +372,11 @@ pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEn
     else {
         return;
     };
+    // Host packs move out of the host mod's folder into our disabled area.
+    if is_host_pack(&m) {
+        move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, false);
+        return;
+    }
     let target = cfg.target_for(m.location.as_deref());
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let dis_dir = match &rel {

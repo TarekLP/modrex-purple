@@ -55,6 +55,21 @@ pub fn host_pack_dir(
     Some(p.join(&m.filename))
 }
 
+/// The Modrex-managed disabled location for a host pack — outside the host mod so the host no
+/// longer loads it: `<primary disabled dir>/host-<id>/<filename>`. `None` for non-host mods.
+pub fn host_pack_disabled_dir(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    m: &InstalledMod,
+) -> Option<PathBuf> {
+    let (host_id, _) = parse_host_location(m.location.as_deref()?)?;
+    Some(
+        disabled_dir(game_path, cfg.primary())
+            .join(format!("host-{host_id}"))
+            .join(&m.filename),
+    )
+}
+
 pub fn mods_base(game_path: &str, target: &ScanTarget) -> PathBuf {
     mods_dir(game_path, target)
 }
