@@ -242,7 +242,7 @@ export function BrowsePage({
         return () => {
             cancelled = true
         }
-    }, [gamePath]) // activeGame is stable per mount — BrowsePage remounts on game change via key={activeGame}
+    }, [gamePath]) // eslint-disable-line react-hooks/exhaustive-deps -- activeGame is stable per mount; BrowsePage remounts on game change via key={activeGame}
 
     const fetchMods = useCallback(
         async (p: number, q: string, cat: number | undefined, s: SortOption) => {

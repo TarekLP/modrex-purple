@@ -312,7 +312,6 @@ export function ModDetailPage({
     const hasLoaderDep_pdthOverrides =
         activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 53474)
     const hasLoaderDep_dahm = activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 14267)
-    const hasLoaderDep = hasLoaderDep_blt || hasLoaderDep_pdthOverrides || hasLoaderDep_dahm
     const pdthLoaderModIds: Record<number, boolean | null> =
         activeGame === 'pdth' ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled } : {}
     const missingRequired = missingRequiredDeps(
