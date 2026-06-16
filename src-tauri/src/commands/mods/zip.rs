@@ -282,6 +282,23 @@ fn override_dir_from_segment(name: &str, seg: &str) -> Option<(String, String)> 
     Some((mod_dir, wrapper))
 }
 
+/// True when an archive carries no loader marker and no nested asset structure — a flat folder of
+/// loose files (e.g. a menu-background set for an unknown host). A real asset-override mod nests
+/// its files under category dirs (`ModDir/category/file` → 2+ slashes), so the absence of any
+/// such nesting means the pack belongs inside some other mod that Modrex can't infer.
+pub(crate) fn is_unplaceable_pack(names: &[String]) -> bool {
+    let has_marker = names.iter().any(|n| {
+        n.ends_with("/mod.txt") || n.ends_with("/main.xml") || n == "mod.txt" || n == "main.xml"
+    });
+    if has_marker {
+        return false;
+    }
+    let has_nested = names
+        .iter()
+        .any(|n| !n.ends_with('/') && n.matches('/').count() >= 2);
+    !has_nested
+}
+
 /// Classifies an archive's mod directories by which scan target they install into. Each result
 /// is `(dir_path, location_tag)` where `location_tag` is `None` for the primary target and
 /// `Some(tag)` for a secondary target (e.g. `"mod_overrides"`).
@@ -621,6 +638,13 @@ pub fn resolve_archive_download(
                     });
                     return Err(format!("HOST_MOD_PACK:{}", payload));
                 }
+            }
+            // A flat folder of loose files (no marker, no nested asset structure) can't be a real
+            // override mod and isn't a known host pack — it installs inside some other mod we can't
+            // infer. Surface the mod's instructions rather than silently dropping it in mod_overrides.
+            if is_unplaceable_pack(&names) {
+                let _ = std::fs::remove_file(&downloaded);
+                return Err("UNRECOGNIZED_ARCHIVE".to_string());
             }
             let dirs = classify_archive_dirs(&names, cfg);
             if dirs.is_empty() {

@@ -38,6 +38,8 @@ import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
 import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
+import { HostPackModal, parseHostModPack } from './HostPackModal'
+import type { HostPackPayload } from './HostPackModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import { collectDeps, isLoaderDep, missingRequiredDeps, offsiteDepHost } from '../deps'
 import { useThumbnail } from '../hooks/useThumbnail'
@@ -99,6 +101,7 @@ export function ModDetailPage({
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
+    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -209,9 +212,14 @@ export function ModDetailPage({
             const zipData = parseZipMultiPak(String(e))
             if (zipData) {
                 setZipPickerData(zipData)
-            } else {
-                throw e
+                return
             }
+            const hostData = parseHostModPack(String(e))
+            if (hostData) {
+                setHostPackData(hostData)
+                return
+            }
+            throw e
         } finally {
             setActionLoading(false)
         }
@@ -316,6 +324,16 @@ export function ModDetailPage({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}
+                />
+            )}
+            {hostPackData && gamePath && (
+                <HostPackModal
+                    payload={hostPackData}
+                    gamePath={gamePath}
+                    installed={installed}
+                    gameId={activeGame}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setHostPackData(null)}
                 />
             )}
             {showFileSelect && mod && (
@@ -607,6 +625,7 @@ export function ModDetailPage({
                                 loading={filesLoading}
                                 mod={mod}
                                 gamePath={gamePath}
+                                installed={installed}
                                 installedFiles={installedFiles}
                                 downloadProgress={downloadProgress}
                                 activeGame={activeGame}
@@ -763,6 +782,7 @@ function DownloadsTab({
     loading,
     mod,
     gamePath,
+    installed,
     installedFiles,
     downloadProgress,
     activeGame,
@@ -773,6 +793,7 @@ function DownloadsTab({
     loading: boolean
     mod: Mod
     gamePath: string | null
+    installed: InstalledMod[]
     installedFiles: InstalledMod[]
     downloadProgress: { downloaded: number; total: number } | null
     activeGame?: GameId
@@ -783,6 +804,7 @@ function DownloadsTab({
     const [installError, setInstallError] = useState<string | null>(null)
     const [formatWarningFile, setFormatWarningFile] = useState<ModFile | null>(null)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
+    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
 
     async function handleUninstallFile(file: ModFile) {
         if (!gamePath) return
@@ -826,9 +848,14 @@ function DownloadsTab({
             const zipData = parseZipMultiPak(errStr)
             if (zipData) {
                 setZipPickerData(zipData)
-            } else {
-                setInstallError(errStr)
+                return
             }
+            const hostData = parseHostModPack(errStr)
+            if (hostData) {
+                setHostPackData(hostData)
+                return
+            }
+            setInstallError(errStr)
         } finally {
             setInstallingId(null)
         }
@@ -859,6 +886,16 @@ function DownloadsTab({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}
+                />
+            )}
+            {hostPackData && gamePath && (
+                <HostPackModal
+                    payload={hostPackData}
+                    gamePath={gamePath}
+                    installed={installed}
+                    gameId={activeGame}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setHostPackData(null)}
                 />
             )}
             {formatWarningFile && (

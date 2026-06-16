@@ -172,6 +172,33 @@ export const api = {
             locationTag,
         })
     },
+    installHostPack(
+        zipPath: string,
+        entryName: string,
+        modId: number,
+        modName: string,
+        fileId: number,
+        fileType: string,
+        modVersion: string,
+        gamePath: string,
+        hostModId: number,
+        hostSubpath: string,
+        gameId?: string
+    ): Promise<void> {
+        return invoke('install_host_pack', {
+            zipPath,
+            entryName,
+            modId,
+            modName,
+            fileId,
+            fileType,
+            modVersion,
+            gamePath,
+            hostModId,
+            hostSubpath,
+            gameId,
+        })
+    },
     uninstallMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
         return invoke('uninstall_mod', { uid, gamePath, gameId })
     },

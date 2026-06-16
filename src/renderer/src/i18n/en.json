@@ -182,6 +182,14 @@
         "targetMods": "Mods",
         "targetOverrides": "Asset overrides"
     },
+    "hostPack": {
+        "title": "Install add-on",
+        "intoHost": "This is an add-on for {hostName}. Install {count} into it?",
+        "requiresHost": "This add-on installs into {hostName}, which isn't installed yet. Install it first, then install this add-on.",
+        "installHost": "Install {hostName}",
+        "install": "Install ({count})",
+        "installing": "Installing…"
+    },
     "depsWarning": {
         "title": "Missing required dependencies",
         "body": "This mod requires the following mods to be installed:",

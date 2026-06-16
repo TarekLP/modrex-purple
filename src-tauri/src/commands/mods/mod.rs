@@ -39,7 +39,8 @@ pub(crate) use self::zip::{
 pub(crate) use self::naming::{apply_priority_prefix, make_uid};
 #[cfg(test)]
 pub(crate) use self::zip::{
-    classify_archive_dirs, detect_archive, is_zip, list_pak_entries, safe_dest, ArchiveFormat,
+    classify_archive_dirs, detect_archive, is_unplaceable_pack, is_zip, list_pak_entries,
+    safe_dest, ArchiveFormat,
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};

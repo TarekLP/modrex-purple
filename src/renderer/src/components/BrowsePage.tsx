@@ -26,6 +26,8 @@ import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
 import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
+import { HostPackModal, parseHostModPack } from './HostPackModal'
+import type { HostPackPayload } from './HostPackModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
 import { t } from '../i18n'
@@ -201,6 +203,7 @@ export function BrowsePage({
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
     const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: Mod } | null>(null)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
+    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
@@ -374,9 +377,14 @@ export function BrowsePage({
                 const zipData = parseZipMultiPak(errStr)
                 if (zipData) {
                     setZipPickerData(zipData)
-                } else {
-                    setError(errStr)
+                    return
                 }
+                const hostData = parseHostModPack(errStr)
+                if (hostData) {
+                    setHostPackData(hostData)
+                    return
+                }
+                setError(errStr)
             } finally {
                 setLoadingMod(null)
             }
@@ -484,6 +492,16 @@ export function BrowsePage({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setZipPickerData(null)}
+                />
+            )}
+            {hostPackData && gamePath && (
+                <HostPackModal
+                    payload={hostPackData}
+                    gamePath={gamePath}
+                    installed={installed}
+                    gameId={activeGame}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setHostPackData(null)}
                 />
             )}
             {depsWarning && (

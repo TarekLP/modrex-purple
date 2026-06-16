@@ -676,6 +676,32 @@ fn detect_ignores_non_image_signature_files() {
     assert!(detect_host(&["Set/standard.lua", "Set/crimenet.txt", "Set/briefing.json",]).is_none());
 }
 
+// ── is_unplaceable_pack ───────────────────────────────────────────────────
+
+fn unplaceable(names: &[&str]) -> bool {
+    is_unplaceable_pack(&names.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+}
+
+#[test]
+fn unplaceable_flags_loose_media_pack() {
+    // A background set: a folder of loose images, no nesting, no marker.
+    assert!(unplaceable(&[
+        "Nijigaku Original Ten/standard.png",
+        "Nijigaku Original Ten/loot.png"
+    ]));
+}
+
+#[test]
+fn unplaceable_allows_real_override() {
+    // Files nested under a category dir → a placeable asset-override mod.
+    assert!(!unplaceable(&["3D weapon rails/units/x.unit"]));
+}
+
+#[test]
+fn unplaceable_allows_marker_mod() {
+    assert!(!unplaceable(&["Some Mod/mod.txt", "Some Mod/standard.png"]));
+}
+
 // ── host-pack install / tracking ──────────────────────────────────────────
 
 #[test]
