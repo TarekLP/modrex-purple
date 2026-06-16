@@ -53,6 +53,18 @@ pub struct HostPackMatch {
     pub dirs: Vec<String>,
 }
 
+/// The registered host with this modworkshop id, if any.
+pub fn host_target_by_id(id: i64) -> Option<&'static HostTarget> {
+    HOST_TARGETS.iter().find(|h| h.host_mod_id == id)
+}
+
+/// Parses an `InstalledMod.location` of the form `host:<id>:<subpath>` into `(host_id, subpath)`.
+pub fn parse_host_location(loc: &str) -> Option<(i64, String)> {
+    let rest = loc.strip_prefix("host:")?;
+    let (id, subpath) = rest.split_once(':')?;
+    Some((id.parse().ok()?, subpath.to_string()))
+}
+
 /// Recognizes whether an archive (given its `/`-separated entry names) is a content pack for a
 /// known host mod. Returns the matching host and its pack directories, or `None`.
 pub fn detect_host_pack(names: &[String]) -> Option<HostPackMatch> {

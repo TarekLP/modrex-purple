@@ -1,11 +1,80 @@
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
+use super::host_mods::{host_target_by_id, parse_host_location};
 use super::naming::apply_priority_prefix;
-use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
+use super::paths::{
+    active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, mods_base,
+    resolve_host_mod_dir,
+};
 use super::state::{get_folder_path, read_state, save_state};
 use super::types::{InstalledMod, ModsState};
+use super::zip::extract_dir_entry;
 use chrono::Utc;
 use std::fs;
 use std::path::Path;
+
+/// Installs a host-mod content pack (e.g. a Menu Backgrounds set) into the host mod's folder
+/// (`<host dir>/<subpath>/<set name>/`) and records it in state so it can be managed. Returns a
+/// `HOST_MOD_MISSING:` error when the host mod isn't installed.
+pub fn install_host_pack_op(
+    game_path: &str,
+    state_path: &Path,
+    zip: &Path,
+    entry_name: &str,
+    mod_data: InstalledMod,
+    cfg: &ModEngineConfig,
+) -> Result<(), String> {
+    let (host_id, host_subpath) = mod_data
+        .location
+        .as_deref()
+        .and_then(parse_host_location)
+        .ok_or("install_host_pack: mod_data.location is not a host location")?;
+    let mut state = read_state(state_path);
+    let host_dir = resolve_host_mod_dir(game_path, cfg, &state.mods, &state.folders, host_id)
+        .ok_or_else(|| {
+            let name = host_target_by_id(host_id)
+                .map(|h| h.host_name)
+                .unwrap_or("");
+            format!(
+                "HOST_MOD_MISSING:{}",
+                serde_json::json!({ "hostModId": host_id, "hostName": name })
+            )
+        })?;
+
+    let set_name = Path::new(entry_name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("set")
+        .to_string();
+    let mut dest = host_dir;
+    for seg in host_subpath.split('/').filter(|s| !s.is_empty()) {
+        dest = dest.join(seg);
+    }
+    let dest = dest.join(&set_name);
+    if dest.exists() {
+        let _ = fs::remove_dir_all(&dest); // clean reinstall
+    }
+    fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
+    extract_dir_entry(zip, entry_name, &dest)?;
+
+    let uid = format!("{}_{}", mod_data.file_id.unwrap_or(0), set_name);
+    state.mods.retain(|x| x.uid != uid);
+    state.mods.push(InstalledMod {
+        uid,
+        filename: set_name,
+        enabled: true,
+        folder_id: None,
+        installed_at: Utc::now().to_rfc3339(),
+        ..mod_data
+    });
+    save_state(
+        state_path,
+        &ModsState {
+            folders: state.folders,
+            mods: state.mods,
+        },
+    );
+    Ok(())
+}
 
 pub fn install_mod_from_path(
     game_path: &str,
@@ -137,6 +206,22 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
     let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
         return;
     };
+    // Host packs live inside another mod's folder; remove the pack dir directly.
+    if m.location
+        .as_deref()
+        .is_some_and(|l| l.starts_with("host:"))
+    {
+        if let Some(p) = host_pack_dir(game_path, cfg, &state.mods, &state.folders, &m) {
+            if p.exists() {
+                if let Err(e) = fs::remove_dir_all(&p) {
+                    log::warn!("uninstall host pack: remove {p:?}: {e}");
+                }
+            }
+        }
+        state.mods.retain(|x| x.uid != uid);
+        save_state(state_path, &state);
+        return;
+    }
     let target = cfg.target_for(m.location.as_deref());
     let folder_id = m.folder_id.clone();
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());

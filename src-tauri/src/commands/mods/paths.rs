@@ -2,8 +2,58 @@ use super::engine::{
     backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
     ModEngineConfig, ModUnit, ScanTarget,
 };
+use super::host_mods::{host_target_by_id, parse_host_location};
+use super::state::get_folder_path;
+use super::types::{InstalledMod, ModFolder};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+
+/// Resolves the on-disk directory of an installed host mod (e.g. Menu Backgrounds), looked up by
+/// its modworkshop id in the current state — its active dir if present, else its disabled dir,
+/// else the host's conventional folder name directly under the primary target. `None` when the
+/// host mod isn't installed.
+pub fn resolve_host_mod_dir(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    mods: &[InstalledMod],
+    folders: &[ModFolder],
+    host_id: i64,
+) -> Option<PathBuf> {
+    if let Some(h) = mods
+        .iter()
+        .find(|h| h.id == host_id && h.location.is_none())
+    {
+        let rel = get_folder_path(folders, h.folder_id.as_deref());
+        let active = active_mod_path(game_path, &h.filename, rel.as_deref(), cfg.primary());
+        if active.exists() {
+            return Some(active);
+        }
+        let disabled = disabled_mod_path(game_path, &h.filename, rel.as_deref(), cfg.primary());
+        if disabled.exists() {
+            return Some(disabled);
+        }
+    }
+    let name = host_target_by_id(host_id)?.host_name;
+    let cand = mods_dir(game_path, cfg.primary()).join(name);
+    cand.exists().then_some(cand)
+}
+
+/// The on-disk directory where a host-pack mod (a `host:<id>:<subpath>` location) lives —
+/// `<host mod dir>/<subpath>/<filename>`. `None` for non-host mods or when the host is absent.
+pub fn host_pack_dir(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    mods: &[InstalledMod],
+    folders: &[ModFolder],
+    m: &InstalledMod,
+) -> Option<PathBuf> {
+    let (host_id, subpath) = parse_host_location(m.location.as_deref()?)?;
+    let mut p = resolve_host_mod_dir(game_path, cfg, mods, folders, host_id)?;
+    for seg in subpath.split('/').filter(|s| !s.is_empty()) {
+        p = p.join(seg);
+    }
+    Some(p.join(&m.filename))
+}
 
 pub fn mods_base(game_path: &str, target: &ScanTarget) -> PathBuf {
     mods_dir(game_path, target)

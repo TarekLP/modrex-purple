@@ -21,7 +21,9 @@ pub use self::zip::compute_sha256;
 pub(crate) use self::folders::{
     create_folder_op, delete_folder_op, move_folder_op, rename_folder_op,
 };
-pub(crate) use self::install::{disable_mod_op, enable_mod_op, uninstall_mod_op};
+pub(crate) use self::install::{
+    disable_mod_op, enable_mod_op, install_host_pack_op, uninstall_mod_op,
+};
 pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
 pub(crate) use self::paths::disabled_base;
 pub(crate) use self::reorder::{
@@ -650,16 +652,18 @@ pub async fn install_mod(
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let downloaded = download_file(&app, &download_url, &file_type).await?;
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
-        Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
-            if let Ok(mut v) =
-                serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..])
-            {
+        Err(e) if e.starts_with("ZIP_MULTI_PAK:") || e.starts_with("HOST_MOD_PACK:") => {
+            let prefix = e
+                .split_once(':')
+                .map(|(p, _)| format!("{p}:"))
+                .unwrap_or_default();
+            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e[prefix.len()..]) {
                 v["modId"] = serde_json::json!(remote_id);
                 v["modName"] = serde_json::json!(&mod_name);
                 v["fileId"] = serde_json::json!(file_id);
                 v["fileType"] = serde_json::json!(&file_type);
                 v["modVersion"] = serde_json::json!(&mod_version);
-                return Err(format!("ZIP_MULTI_PAK:{}", v));
+                return Err(format!("{}{}", prefix, v));
             }
             return Err(e);
         }
@@ -807,16 +811,18 @@ pub async fn install_file(
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let downloaded = download_file(&app, &download_url, &file_type).await?;
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
-        Err(e) if e.starts_with("ZIP_MULTI_PAK:") => {
-            if let Ok(mut v) =
-                serde_json::from_str::<serde_json::Value>(&e["ZIP_MULTI_PAK:".len()..])
-            {
+        Err(e) if e.starts_with("ZIP_MULTI_PAK:") || e.starts_with("HOST_MOD_PACK:") => {
+            let prefix = e
+                .split_once(':')
+                .map(|(p, _)| format!("{p}:"))
+                .unwrap_or_default();
+            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e[prefix.len()..]) {
                 v["modId"] = serde_json::json!(mod_id);
                 v["modName"] = serde_json::json!(&mod_name);
                 v["fileId"] = serde_json::json!(file_id);
                 v["fileType"] = serde_json::json!(&file_type);
                 v["modVersion"] = serde_json::json!(&mod_version);
-                return Err(format!("ZIP_MULTI_PAK:{}", v));
+                return Err(format!("{}{}", prefix, v));
             }
             return Err(e);
         }
@@ -1078,6 +1084,66 @@ pub async fn install_from_zip_entry(
         );
     }
     result
+}
+
+/// Installs a content set from an already-downloaded archive into a host mod's folder (e.g. a
+/// Menu Backgrounds set into `mods/Menu Backgrounds/Assets/`). The renderer reaches this after a
+/// `HOST_MOD_PACK` sentinel; the zip is left in place for multi-set installs (caller deletes it).
+#[tauri::command]
+pub async fn install_host_pack(
+    app: AppHandle,
+    zip_path: String,
+    entry_name: String,
+    mod_id: i64,
+    mod_name: String,
+    file_id: i64,
+    file_type: String,
+    mod_version: String,
+    game_path: String,
+    host_mod_id: i64,
+    host_subpath: String,
+    game_id: Option<String>,
+) -> Result<(), String> {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let sp = get_state_path(&game_path, cfg);
+    let install_format = file_type.clone();
+    let mod_data = InstalledMod {
+        id: mod_id,
+        name: mod_name,
+        version: mod_version,
+        file_id: Some(file_id),
+        file_type: Some(file_type),
+        location: Some(format!("host:{}:{}", host_mod_id, host_subpath)),
+        ..InstalledMod::default()
+    };
+    install_host_pack_op(
+        &game_path,
+        &sp,
+        &PathBuf::from(&zip_path),
+        &entry_name,
+        mod_data,
+        cfg,
+    )?;
+
+    let _ = http_client()
+        .post(format!(
+            "https://api.modworkshop.net/files/{}/register-download",
+            file_id
+        ))
+        .header("User-Agent", user_agent(&app))
+        .send()
+        .await;
+
+    crate::commands::analytics::track(
+        &app,
+        "mod_installed",
+        serde_json::json!({
+            "game": game_id.as_deref().unwrap_or("pd3"),
+            "mod_id": mod_id,
+            "format": install_format,
+        }),
+    );
+    Ok(())
 }
 
 #[tauri::command]

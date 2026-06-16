@@ -676,6 +676,127 @@ fn detect_ignores_non_image_signature_files() {
     assert!(detect_host(&["Set/standard.lua", "Set/crimenet.txt", "Set/briefing.json",]).is_none());
 }
 
+// ── host-pack install / tracking ──────────────────────────────────────────
+
+#[test]
+fn parse_host_location_roundtrip() {
+    use super::host_mods::parse_host_location;
+    assert_eq!(
+        parse_host_location("host:17160:Assets"),
+        Some((17160, "Assets".to_string()))
+    );
+    assert_eq!(parse_host_location("mod_overrides"), None);
+    assert_eq!(parse_host_location("host:abc:Assets"), None);
+}
+
+/// A game dir with Menu Backgrounds (id 17160) installed at `mods/Menu Backgrounds`, plus a zip
+/// holding one background set. Returns `(tempdir, state_path, zip)`.
+fn host_fixture() -> (TempDir, std::path::PathBuf, NamedTempFile) {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path();
+    let cfg = engine_for_game("pd2");
+    let host_dir = game.join("mods").join("Menu Backgrounds");
+    fs::create_dir_all(&host_dir).unwrap();
+    fs::write(host_dir.join("main.xml"), b"").unwrap();
+    let sp = get_state_path(game.to_str().unwrap(), cfg);
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![InstalledMod {
+                uid: "Menu Backgrounds".into(),
+                id: 17160,
+                name: "Menu Backgrounds".into(),
+                filename: "Menu Backgrounds".into(),
+                enabled: true,
+                ..InstalledMod::default()
+            }],
+        },
+    );
+    let zip = make_zip(&[
+        ("My Set/standard.png", b"a"),
+        ("My Set/crimenet.png", b"b"),
+        ("My Set/briefing.png", b"c"),
+    ]);
+    (tmp, sp, zip)
+}
+
+fn bg_mod_data() -> InstalledMod {
+    InstalledMod {
+        id: 57135,
+        name: "BG Mod".into(),
+        version: "1".into(),
+        file_id: Some(999),
+        location: Some("host:17160:Assets".into()),
+        ..InstalledMod::default()
+    }
+}
+
+#[test]
+fn install_host_pack_op_places_set_and_records() {
+    let (tmp, sp, zip) = host_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2");
+    install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
+
+    // Files land un-nested under the host's Assets folder.
+    assert!(tmp
+        .path()
+        .join("mods/Menu Backgrounds/Assets/My Set/standard.png")
+        .exists());
+    // Recorded with a host location.
+    let rec = read_state(&sp)
+        .mods
+        .into_iter()
+        .find(|m| m.id == 57135)
+        .expect("recorded");
+    assert_eq!(rec.location.as_deref(), Some("host:17160:Assets"));
+    assert_eq!(rec.filename, "My Set");
+}
+
+#[test]
+fn install_host_pack_op_errors_when_host_missing() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2");
+    let sp = get_state_path(game, cfg);
+    let zip = make_zip(&[("My Set/standard.png", b"a")]);
+    let err =
+        install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap_err();
+    assert!(err.starts_with("HOST_MOD_MISSING:"), "{err}");
+}
+
+#[test]
+fn reconcile_keeps_installed_host_pack() {
+    let (tmp, sp, zip) = host_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2");
+    install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
+
+    let state = reconcile_state(game, &sp, cfg);
+    let rec = state.mods.iter().find(|m| m.id == 57135).unwrap();
+    assert_eq!(
+        rec.missing, None,
+        "installed host pack must not read as missing"
+    );
+}
+
+#[test]
+fn uninstall_removes_host_pack() {
+    let (tmp, sp, zip) = host_fixture();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd2");
+    install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
+
+    uninstall_mod_op(game, &sp, "999_My Set", cfg);
+
+    assert!(!tmp
+        .path()
+        .join("mods/Menu Backgrounds/Assets/My Set")
+        .exists());
+    assert!(read_state(&sp).mods.iter().all(|m| m.id != 57135));
+}
+
 #[test]
 fn classify_pure_wrapped_override_pack() {
     // No markers anywhere, override content wrapped in a destination segment.
