@@ -13,8 +13,8 @@ interface Props {
     missingRequired: ModDependency[]
     gamePath: string | null
     gameId?: string
-    loaderModId?: number | null
-    onInstallLoader?: () => Promise<void>
+    loaderModIds?: number[]
+    onInstallLoader?: (modId: number | null) => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
     onGotIt: (permanent: boolean) => void
@@ -24,7 +24,7 @@ export function DepsWarningModal({
     missingRequired,
     gamePath,
     gameId,
-    loaderModId,
+    loaderModIds,
     onInstallLoader,
     onRefreshInstalled,
     onClose,
@@ -34,11 +34,11 @@ export function DepsWarningModal({
     const [installingDeps, setInstallingDeps] = useState<Record<number, boolean>>({})
     const [installingLoader, setInstallingLoader] = useState(false)
 
-    async function handleInstallLoader() {
+    async function handleInstallLoader(loaderModId: number | null) {
         if (!onInstallLoader) return
         setInstallingLoader(true)
         try {
-            await onInstallLoader()
+            await onInstallLoader(loaderModId)
         } finally {
             setInstallingLoader(false)
         }
@@ -91,7 +91,7 @@ export function DepsWarningModal({
                                 {isLoaderDep(dep) && gamePath && onInstallLoader ? (
                                     <button
                                         disabled={installingLoader}
-                                        onClick={handleInstallLoader}
+                                        onClick={() => handleInstallLoader(null)}
                                         className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
                                     >
                                         {installingLoader
@@ -112,7 +112,7 @@ export function DepsWarningModal({
                     {missingRequired
                         .filter((dep) => dep.mod !== null)
                         .map((dep) => {
-                            const isLoaderMod = loaderModId != null && dep.mod!.id === loaderModId
+                            const isLoaderMod = !!loaderModIds?.includes(dep.mod!.id)
                             const thumbUrl = dep.mod!.thumbnail
                                 ? `${THUMBNAIL_BASE_URL}/${dep.mod!.thumbnail.file}`
                                 : null
@@ -122,7 +122,7 @@ export function DepsWarningModal({
                             async function handleInstallDep() {
                                 if (!gamePath) return
                                 if (isLoaderMod) {
-                                    return handleInstallLoader()
+                                    return handleInstallLoader(dep.mod!.id)
                                 }
                                 setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: true }))
                                 try {

@@ -286,9 +286,18 @@ fn override_dir_from_segment(name: &str, seg: &str) -> Option<(String, String)> 
 /// loose files (e.g. a menu-background set for an unknown host). A real asset-override mod nests
 /// its files under category dirs (`ModDir/category/file` → 2+ slashes), so the absence of any
 /// such nesting means the pack belongs inside some other mod that Modrex can't infer.
-pub(crate) fn is_unplaceable_pack(names: &[String]) -> bool {
+/// `extra_markers` is the union of all `entry_markers` from the active engine config so that
+/// game-specific markers (e.g. `base.lua` for DAHM sub-mods) are recognised alongside the
+/// universal `mod.txt` / `main.xml`.
+pub(crate) fn is_unplaceable_pack(names: &[String], extra_markers: &[&str]) -> bool {
     let has_marker = names.iter().any(|n| {
-        n.ends_with("/mod.txt") || n.ends_with("/main.xml") || n == "mod.txt" || n == "main.xml"
+        n.ends_with("/mod.txt")
+            || n.ends_with("/main.xml")
+            || n == "mod.txt"
+            || n == "main.xml"
+            || extra_markers.iter().any(|m| {
+                n.ends_with(&format!("/{}", m)) || n.as_str() == *m
+            })
     });
     if has_marker {
         return false;
@@ -642,7 +651,15 @@ pub fn resolve_archive_download(
             // A flat folder of loose files (no marker, no nested asset structure) can't be a real
             // override mod and isn't a known host pack — it installs inside some other mod we can't
             // infer. Surface the mod's instructions rather than silently dropping it in mod_overrides.
-            if is_unplaceable_pack(&names) {
+            let engine_markers: Vec<&str> = cfg
+                .targets
+                .iter()
+                .flat_map(|t| match &t.unit {
+                    ModUnit::Directory { entry_markers, .. } => entry_markers.iter().copied(),
+                    ModUnit::File { .. } => [].iter().copied(),
+                })
+                .collect();
+            if is_unplaceable_pack(&names, &engine_markers) {
                 let _ = std::fs::remove_file(&downloaded);
                 return Err("UNRECOGNIZED_ARCHIVE".to_string());
             }

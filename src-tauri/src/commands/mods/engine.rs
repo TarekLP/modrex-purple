@@ -109,7 +109,8 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
         ScanTarget {
             tag: "mods",
             unit: ModUnit::Directory {
-                entry_markers: &["mod.txt"],
+                // base.lua is the DAHM mod-framework entry point (no mod.txt)
+                entry_markers: &["mod.txt", "base.lua"],
                 priority_prefix: false,
             },
             mods_subpath: &["mods"],

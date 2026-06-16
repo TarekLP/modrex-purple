@@ -26,25 +26,26 @@ export function isLoaderDep(d: ModDependency): boolean {
 
 /**
  * Required deps the user doesn't have. `loaderInstalled` is the result of
- * `api.checkSuperblt` / `api.checkPdthOverrides` (null = unknown) — loader
- * deps are only reported missing on a definitive negative, so detection gaps
- * never nag users who already have the loader. Non-loader offsite deps can't
- * be verified and are always surfaced; the per-mod dismissal handles false
- * positives there. Pass `loaderModId` for loaders hosted on modworkshop but
- * installed as game-root DLLs (e.g. PDTHModOverrides id 53474) — those deps
- * are checked against `loaderInstalled` rather than the installed-mods list.
+ * `api.checkSuperblt` (null = unknown) — loader deps are only reported missing
+ * on a definitive negative, so detection gaps never nag users who already have
+ * the loader. Non-loader offsite deps can't be verified and are always surfaced;
+ * the per-mod dismissal handles false positives there. Pass `loaderModIds` for
+ * loaders hosted on modworkshop but installed as game-root DLLs (e.g.
+ * PDTHModOverrides 53474, DAHM 14267) — those deps are checked against their
+ * per-id installed state rather than the installed-mods list.
  */
 export function missingRequiredDeps(
     allDeps: ModDependency[],
     installed: InstalledMod[],
     loaderInstalled: boolean | null,
-    loaderModId: number | null = null
+    loaderModIds: Record<number, boolean | null> = {}
 ): ModDependency[] {
     return allDeps.filter((d) => {
         if (d.optional) return false
         if (d.mod !== null) {
-            if (loaderModId !== null && d.mod.id === loaderModId) return loaderInstalled === false
-            return !installed.some((m) => m.id === d.mod!.id)
+            const id = d.mod.id
+            if (id in loaderModIds) return loaderModIds[id] === false
+            return !installed.some((m) => m.id === id)
         }
         if (!d.url) return false
         if (isLoaderDep(d)) return loaderInstalled === false

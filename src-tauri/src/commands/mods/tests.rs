@@ -679,7 +679,7 @@ fn detect_ignores_non_image_signature_files() {
 // ── is_unplaceable_pack ───────────────────────────────────────────────────
 
 fn unplaceable(names: &[&str]) -> bool {
-    is_unplaceable_pack(&names.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+    is_unplaceable_pack(&names.iter().map(|s| s.to_string()).collect::<Vec<_>>(), &[])
 }
 
 #[test]

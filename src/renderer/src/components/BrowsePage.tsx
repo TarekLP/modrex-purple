@@ -124,7 +124,7 @@ interface ModGridProps extends CardHandlers {
     gamePath: string | null
     loadingMod: number | null
     downloadProgress: { downloaded: number; total: number } | null
-    loaderInstalledModId: number | null
+    loaderInstalledIds: Set<number>
 }
 
 const ModGrid = memo(function ModGrid({
@@ -134,7 +134,7 @@ const ModGrid = memo(function ModGrid({
     gamePath,
     loadingMod,
     downloadProgress,
-    loaderInstalledModId,
+    loaderInstalledIds,
     ...handlers
 }: ModGridProps) {
     if (loadingMods || !result) {
@@ -161,7 +161,7 @@ const ModGrid = memo(function ModGrid({
                     mod={mod}
                     installed={installedByModId.get(mod.id)?.[0]}
                     installedCount={installedByModId.get(mod.id)?.length || undefined}
-                    loaderInstalled={loaderInstalledModId === mod.id ? true : undefined}
+                    loaderInstalled={loaderInstalledIds.has(mod.id) ? true : undefined}
                     gamePath={gamePath}
                     loading={loadingMod === mod.id}
                     progress={loadingMod === mod.id ? downloadProgress : null}
@@ -204,7 +204,7 @@ export function BrowsePage({
     const [depsWarning, setDepsWarning] = useState<{
         modId: number
         allDeps: ModDependency[]
-        loaderInstalled: boolean | null
+        bltLoaderInstalled: boolean | null
     } | null>(null)
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
     const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: Mod } | null>(null)
@@ -220,6 +220,7 @@ export function BrowsePage({
     } | null>(null)
     const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
+    const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
 
     useEffect(() => {
         return api.onDownloadProgress(({ downloaded, total }) => {
@@ -234,6 +235,9 @@ export function BrowsePage({
         let cancelled = false
         api.checkPdthOverrides(gamePath).then((v) => {
             if (!cancelled) setPdthOverridesInstalled(v)
+        })
+        api.checkDahm(gamePath).then((v) => {
+            if (!cancelled) setDahmInstalled(v)
         })
         return () => {
             cancelled = true
@@ -338,27 +342,29 @@ export function BrowsePage({
             if (!gamePath) return
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const allDeps = collectDeps(fullMod)
-                const pdthOverridesId = activeGame === 'pdth' ? 53474 : null
+                const pdthLoaderModIds: Record<number, boolean | null> =
+                    activeGame === 'pdth'
+                        ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
+                        : {}
                 const hasLoader =
-                    pdthOverridesId !== null
-                        ? allDeps.some((d) => d.mod?.id === pdthOverridesId)
+                    activeGame === 'pdth'
+                        ? allDeps.some(
+                              (d) => d.mod !== null && (d.mod.id === 53474 || d.mod.id === 14267)
+                          )
                         : allDeps.some(isLoaderDep)
-                const loaderInstalled = hasLoader
-                    ? await (activeGame === 'pdth'
-                          ? api.checkPdthOverrides(gamePath)
-                          : api.checkSuperblt(gamePath))
-                    : null
+                const bltLoaderInstalled =
+                    hasLoader && activeGame !== 'pdth' ? await api.checkSuperblt(gamePath) : null
                 const missingRequired = missingRequiredDeps(
                     allDeps,
                     installed,
-                    loaderInstalled,
-                    pdthOverridesId
+                    bltLoaderInstalled,
+                    pdthLoaderModIds
                 )
                 if (missingRequired.length > 0) {
                     const s = await api.getSettings()
                     if (!s.dismissedDepsWarnings?.includes(modId)) {
                         setLoadingMod(null)
-                        setDepsWarning({ modId, allDeps, loaderInstalled })
+                        setDepsWarning({ modId, allDeps, bltLoaderInstalled })
                         return
                     }
                 }
@@ -366,12 +372,15 @@ export function BrowsePage({
             if (activeGame === 'pdth' && modId === 53474) {
                 await api.installPdthOverrides(gamePath)
                 setPdthOverridesInstalled(true)
+            } else if (activeGame === 'pdth' && modId === 14267) {
+                await api.installDahm(gamePath)
+                setDahmInstalled(true)
             } else {
                 await api.installMod(modId, gamePath, activeGame)
             }
             await onRefreshInstalled()
         },
-        [gamePath, installed, activeGame, onRefreshInstalled]
+        [gamePath, installed, activeGame, pdthOverridesInstalled, dahmInstalled, onRefreshInstalled]
     )
 
     const handleInstall = useCallback(
@@ -492,12 +501,14 @@ export function BrowsePage({
         return map
     }, [installed])
 
+    const pdthLoaderModIds: Record<number, boolean | null> =
+        activeGame === 'pdth' ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled } : {}
     const missingDepsList = depsWarning
         ? missingRequiredDeps(
               depsWarning.allDeps,
               installed,
-              depsWarning.loaderInstalled,
-              activeGame === 'pdth' ? 53474 : null
+              depsWarning.bltLoaderInstalled,
+              pdthLoaderModIds
           )
         : []
 
@@ -563,17 +574,20 @@ export function BrowsePage({
                     missingRequired={missingDepsList}
                     gamePath={gamePath}
                     gameId={activeGame}
-                    loaderModId={activeGame === 'pdth' ? 53474 : null}
-                    onInstallLoader={async () => {
+                    loaderModIds={activeGame === 'pdth' ? [53474, 14267] : []}
+                    onInstallLoader={async (loaderModId) => {
                         if (!gamePath) return
                         try {
-                            if (activeGame === 'pdth') {
+                            if (loaderModId === 53474) {
                                 await api.installPdthOverrides(gamePath)
                                 setPdthOverridesInstalled(true)
+                            } else if (loaderModId === 14267) {
+                                await api.installDahm(gamePath)
+                                setDahmInstalled(true)
                             } else {
                                 await api.installSuperblt(gamePath)
+                                setDepsWarning((w) => (w ? { ...w, bltLoaderInstalled: true } : w))
                             }
-                            setDepsWarning((w) => (w ? { ...w, loaderInstalled: true } : w))
                         } catch (e) {
                             setError(String(e))
                         }
@@ -656,8 +670,11 @@ export function BrowsePage({
                     gamePath={gamePath}
                     loadingMod={loadingMod}
                     downloadProgress={downloadProgress}
-                    loaderInstalledModId={
-                        activeGame === 'pdth' && pdthOverridesInstalled ? 53474 : null
+                    loaderInstalledIds={
+                        new Set([
+                            ...(pdthOverridesInstalled ? [53474] : []),
+                            ...(dahmInstalled ? [14267] : []),
+                        ])
                     }
                     onOpen={onOpenDetail}
                     onPrefetch={handlePrefetch}

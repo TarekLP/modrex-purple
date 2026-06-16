@@ -99,6 +99,8 @@ export function ModDetailPage({
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
     const [showDepsWarning, setShowDepsWarning] = useState(false)
     const [loaderInstalled, setLoaderInstalled] = useState<boolean | null>(null)
+    const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
+    const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
@@ -113,7 +115,9 @@ export function ModDetailPage({
     const installedFiles = installed.filter((m) => m.id === modId)
     const installedMod = installedFiles[0]
     // Not tracked in the installed list — DLL presence drives its button state.
-    const isLoaderMod = activeGame === 'pdth' && modId === 53474
+    const isLoaderMod = activeGame === 'pdth' && (modId === 53474 || modId === 14267)
+    const loaderModInstalled =
+        modId === 53474 ? pdthOverridesInstalled : modId === 14267 ? dahmInstalled : null
 
     // Full-size banner via the disk cache — the CDN sends no cache headers, so a
     // direct URL costs a download or revalidation round-trip on every page visit.
@@ -196,16 +200,14 @@ export function ModDetailPage({
 
     async function doInstall() {
         if (!gamePath || !mod) return
-        let loaderOk = loaderInstalled
-        if (hasLoaderDep) {
-            // Re-check at install time so a loader installed mid-session clears the warning.
-            loaderOk =
-                activeGame === 'pdth'
-                    ? await api.checkPdthOverrides(gamePath)
-                    : await api.checkSuperblt(gamePath)
-            setLoaderInstalled(loaderOk)
+        const pdthLoaderModIds: Record<number, boolean | null> =
+            activeGame === 'pdth' ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled } : {}
+        let bltOk = loaderInstalled
+        if (hasLoaderDep_blt) {
+            bltOk = await api.checkSuperblt(gamePath)
+            setLoaderInstalled(bltOk)
         }
-        if (missingRequiredDeps(allDeps, installed, loaderOk, pdthOverridesId).length > 0) {
+        if (missingRequiredDeps(allDeps, installed, bltOk, pdthLoaderModIds).length > 0) {
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const s = await api.getSettings()
                 if (!s.dismissedDepsWarnings?.includes(modId)) {
@@ -217,9 +219,12 @@ export function ModDetailPage({
         setInstallError(null)
         setActionLoading(true)
         try {
-            if (pdthOverridesId !== null && mod.id === pdthOverridesId) {
+            if (activeGame === 'pdth' && mod.id === 53474) {
                 await api.installPdthOverrides(gamePath)
-                setLoaderInstalled(true)
+                setPdthOverridesInstalled(true)
+            } else if (activeGame === 'pdth' && mod.id === 14267) {
+                await api.installDahm(gamePath)
+                setDahmInstalled(true)
             } else {
                 await api.installMod(mod.id, gamePath, activeGame)
             }
@@ -245,13 +250,20 @@ export function ModDetailPage({
         }
     }
 
-    async function handleInstallLoader() {
+    async function handleInstallLoader(loaderModId: number | null) {
         if (!gamePath) return
         setInstallError(null)
         try {
-            if (activeGame === 'pdth') await api.installPdthOverrides(gamePath)
-            else await api.installSuperblt(gamePath)
-            setLoaderInstalled(true)
+            if (loaderModId === 53474) {
+                await api.installPdthOverrides(gamePath)
+                setPdthOverridesInstalled(true)
+            } else if (loaderModId === 14267) {
+                await api.installDahm(gamePath)
+                setDahmInstalled(true)
+            } else {
+                await api.installSuperblt(gamePath)
+                setLoaderInstalled(true)
+            }
         } catch (e) {
             setInstallError(String(e))
         }
@@ -294,32 +306,56 @@ export function ModDetailPage({
 
     const allDeps: ModDependency[] = collectDeps(mod)
 
-    // PDTHModOverrides (id 53474) is a hosted mod that installs as a game-root DLL,
-    // so its dep can't be checked against the installed-mods list.
-    const pdthOverridesId = activeGame === 'pdth' ? 53474 : null
-    const hasLoaderDep =
-        pdthOverridesId !== null
-            ? allDeps.some((d) => d.mod?.id === pdthOverridesId)
-            : allDeps.some(isLoaderDep)
+    // Hosted loader mods (PDTHModOverrides 53474, DAHM 14267) install as game-root DLLs
+    // and are checked by DLL presence, not the installed-mods list.
+    const hasLoaderDep_blt = activeGame !== 'pdth' && allDeps.some(isLoaderDep)
+    const hasLoaderDep_pdthOverrides =
+        activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 53474)
+    const hasLoaderDep_dahm = activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 14267)
+    const hasLoaderDep = hasLoaderDep_blt || hasLoaderDep_pdthOverrides || hasLoaderDep_dahm
+    const pdthLoaderModIds: Record<number, boolean | null> =
+        activeGame === 'pdth' ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled } : {}
     const missingRequired = missingRequiredDeps(
         allDeps,
         installed,
         loaderInstalled,
-        pdthOverridesId
+        pdthLoaderModIds
     )
 
     useEffect(() => {
-        if (!gamePath || (!hasLoaderDep && !isLoaderMod)) return
+        if (!gamePath) return
+        const needsBlt = hasLoaderDep_blt
+        const needsPdthOverrides =
+            hasLoaderDep_pdthOverrides || (activeGame === 'pdth' && modId === 53474)
+        const needsDahm = hasLoaderDep_dahm || (activeGame === 'pdth' && modId === 14267)
+        if (!needsBlt && !needsPdthOverrides && !needsDahm) return
         let cancelled = false
-        const check =
-            activeGame === 'pdth' ? api.checkPdthOverrides(gamePath) : api.checkSuperblt(gamePath)
-        check.then((v) => {
-            if (!cancelled) setLoaderInstalled(v)
-        })
+        if (needsBlt) {
+            api.checkSuperblt(gamePath).then((v) => {
+                if (!cancelled) setLoaderInstalled(v)
+            })
+        }
+        if (needsPdthOverrides) {
+            api.checkPdthOverrides(gamePath).then((v) => {
+                if (!cancelled) setPdthOverridesInstalled(v)
+            })
+        }
+        if (needsDahm) {
+            api.checkDahm(gamePath).then((v) => {
+                if (!cancelled) setDahmInstalled(v)
+            })
+        }
         return () => {
             cancelled = true
         }
-    }, [gamePath, hasLoaderDep, isLoaderMod, activeGame])
+    }, [
+        gamePath,
+        hasLoaderDep_blt,
+        hasLoaderDep_pdthOverrides,
+        hasLoaderDep_dahm,
+        activeGame,
+        modId,
+    ])
 
     const showChangelogTab = !!mod?.changelog
     const showDepsTab =
@@ -404,7 +440,7 @@ export function ModDetailPage({
                     missingRequired={missingRequired}
                     gamePath={gamePath}
                     gameId={activeGame}
-                    loaderModId={pdthOverridesId}
+                    loaderModIds={activeGame === 'pdth' ? [53474, 14267] : []}
                     onInstallLoader={handleInstallLoader}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setShowDepsWarning(false)}
@@ -447,12 +483,12 @@ export function ModDetailPage({
                             </Tooltip>
                         </>
                     )}
-                    {mod && isLoaderMod && loaderInstalled && (
+                    {mod && isLoaderMod && loaderModInstalled && (
                         <span className="text-xs text-success-text">
                             {t('detail.deps.statusInstalled')}
                         </span>
                     )}
-                    {mod && installedFiles.length === 0 && !(isLoaderMod && loaderInstalled) && (
+                    {mod && installedFiles.length === 0 && !(isLoaderMod && loaderModInstalled) && (
                         <div className="flex flex-col items-end gap-1">
                             {mod.disable_mod_managers ? (
                                 <span className="text-xs text-text-muted">
@@ -1185,7 +1221,7 @@ function DepsTab({
     gamePath: string | null
     activeGame?: GameId
     loaderInstalled: boolean | null
-    onInstallLoader?: () => Promise<void>
+    onInstallLoader?: (modId: number | null) => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
@@ -1275,7 +1311,7 @@ function DepRow({
     gamePath: string | null
     activeGame?: GameId
     loaderInstalled: boolean | null
-    onInstallLoader?: () => Promise<void>
+    onInstallLoader?: (modId: number | null) => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
@@ -1291,7 +1327,7 @@ function DepRow({
             e.stopPropagation()
             setInstalling(true)
             try {
-                await onInstallLoader!()
+                await onInstallLoader!(null)
             } finally {
                 setInstalling(false)
             }

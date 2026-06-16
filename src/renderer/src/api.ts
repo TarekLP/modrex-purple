@@ -277,6 +277,14 @@ export const api = {
         return invoke('install_pdth_overrides', { gamePath })
     },
 
+    // ── DAHM ───────────────────────────────────────────────────────────────────
+    checkDahm(gamePath: string): Promise<boolean> {
+        return invoke('check_dahm', { gamePath })
+    },
+    installDahm(gamePath: string): Promise<void> {
+        return invoke('install_dahm', { gamePath })
+    },
+
     // ── Launchers & system ─────────────────────────────────────────────────────
     isGameRunning(gameId?: string): Promise<boolean> {
         return gameId ? invoke('is_game_running', { gameId }) : invoke('is_game_running')

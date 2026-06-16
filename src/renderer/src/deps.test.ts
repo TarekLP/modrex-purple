@@ -86,11 +86,13 @@ describe('missingRequiredDeps', () => {
         expect(missingRequiredDeps([dep({})], [], false)).toEqual([])
     })
 
-    it('treats a hosted dep matching loaderModId like a loader dep', () => {
+    it('treats a hosted dep matching a loaderModIds entry like a loader dep', () => {
         const overridesDep = dep({ id: 99, mod: hostedMod(53474) })
-        expect(missingRequiredDeps([overridesDep], [], false, 53474)).toEqual([overridesDep])
-        expect(missingRequiredDeps([overridesDep], [], true, 53474)).toEqual([])
-        expect(missingRequiredDeps([overridesDep], [], null, 53474)).toEqual([])
+        expect(missingRequiredDeps([overridesDep], [], false, { 53474: false })).toEqual([
+            overridesDep,
+        ])
+        expect(missingRequiredDeps([overridesDep], [], true, { 53474: true })).toEqual([])
+        expect(missingRequiredDeps([overridesDep], [], null, { 53474: null })).toEqual([])
         expect(missingRequiredDeps([overridesDep], [], true)).toEqual([overridesDep])
     })
 })
