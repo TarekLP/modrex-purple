@@ -93,6 +93,7 @@ interface GridCardProps extends CardHandlers {
     gamePath: string | null
     loading: boolean
     progress: { downloaded: number; total: number } | null
+    loaderInstalled?: boolean
 }
 
 const GridCard = memo(function GridCard(p: GridCardProps) {
@@ -101,6 +102,7 @@ const GridCard = memo(function GridCard(p: GridCardProps) {
             mod={p.mod}
             installed={p.installed}
             installedCount={p.installedCount}
+            loaderInstalled={p.loaderInstalled}
             gamePath={p.gamePath}
             loading={p.loading}
             progress={p.progress}
@@ -122,6 +124,7 @@ interface ModGridProps extends CardHandlers {
     gamePath: string | null
     loadingMod: number | null
     downloadProgress: { downloaded: number; total: number } | null
+    loaderInstalledModId: number | null
 }
 
 const ModGrid = memo(function ModGrid({
@@ -131,6 +134,7 @@ const ModGrid = memo(function ModGrid({
     gamePath,
     loadingMod,
     downloadProgress,
+    loaderInstalledModId,
     ...handlers
 }: ModGridProps) {
     if (loadingMods || !result) {
@@ -157,6 +161,7 @@ const ModGrid = memo(function ModGrid({
                     mod={mod}
                     installed={installedByModId.get(mod.id)?.[0]}
                     installedCount={installedByModId.get(mod.id)?.length || undefined}
+                    loaderInstalled={loaderInstalledModId === mod.id ? true : undefined}
                     gamePath={gamePath}
                     loading={loadingMod === mod.id}
                     progress={loadingMod === mod.id ? downloadProgress : null}
@@ -214,6 +219,7 @@ export function BrowsePage({
         total: number
     } | null>(null)
     const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
 
     useEffect(() => {
         return api.onDownloadProgress(({ downloaded, total }) => {
@@ -222,6 +228,17 @@ export function BrowsePage({
             progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
         })
     }, [])
+
+    useEffect(() => {
+        if (activeGame !== 'pdth' || !gamePath) return
+        let cancelled = false
+        api.checkPdthOverrides(gamePath).then((v) => {
+            if (!cancelled) setPdthOverridesInstalled(v)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [gamePath]) // activeGame is stable per mount — BrowsePage remounts on game change via key={activeGame}
 
     const fetchMods = useCallback(
         async (p: number, q: string, cat: number | undefined, s: SortOption) => {
@@ -346,7 +363,12 @@ export function BrowsePage({
                     }
                 }
             }
-            await api.installMod(modId, gamePath, activeGame)
+            if (activeGame === 'pdth' && modId === 53474) {
+                await api.installPdthOverrides(gamePath)
+                setPdthOverridesInstalled(true)
+            } else {
+                await api.installMod(modId, gamePath, activeGame)
+            }
             await onRefreshInstalled()
         },
         [gamePath, installed, activeGame, onRefreshInstalled]
@@ -537,11 +559,16 @@ export function BrowsePage({
                     missingRequired={missingDepsList}
                     gamePath={gamePath}
                     gameId={activeGame}
+                    loaderModId={activeGame === 'pdth' ? 53474 : null}
                     onInstallLoader={async () => {
                         if (!gamePath) return
                         try {
-                            if (activeGame === 'pdth') await api.installPdthOverrides(gamePath)
-                            else await api.installSuperblt(gamePath)
+                            if (activeGame === 'pdth') {
+                                await api.installPdthOverrides(gamePath)
+                                setPdthOverridesInstalled(true)
+                            } else {
+                                await api.installSuperblt(gamePath)
+                            }
                             setDepsWarning((w) => (w ? { ...w, loaderInstalled: true } : w))
                         } catch (e) {
                             setError(String(e))
@@ -625,6 +652,9 @@ export function BrowsePage({
                     gamePath={gamePath}
                     loadingMod={loadingMod}
                     downloadProgress={downloadProgress}
+                    loaderInstalledModId={
+                        activeGame === 'pdth' && pdthOverridesInstalled ? 53474 : null
+                    }
                     onOpen={onOpenDetail}
                     onPrefetch={handlePrefetch}
                     onInstall={handleInstall}

@@ -112,6 +112,8 @@ export function ModDetailPage({
 
     const installedFiles = installed.filter((m) => m.id === modId)
     const installedMod = installedFiles[0]
+    // Not tracked in the installed list — DLL presence drives its button state.
+    const isLoaderMod = activeGame === 'pdth' && modId === 53474
 
     // Full-size banner via the disk cache — the CDN sends no cache headers, so a
     // direct URL costs a download or revalidation round-trip on every page visit.
@@ -211,7 +213,12 @@ export function ModDetailPage({
         setInstallError(null)
         setActionLoading(true)
         try {
-            await api.installMod(mod.id, gamePath, activeGame)
+            if (pdthOverridesId !== null && mod.id === pdthOverridesId) {
+                await api.installPdthOverrides(gamePath)
+                setLoaderInstalled(true)
+            } else {
+                await api.installMod(mod.id, gamePath, activeGame)
+            }
             await onRefreshInstalled()
         } catch (e) {
             const zipData = parseZipMultiPak(String(e))
@@ -298,7 +305,7 @@ export function ModDetailPage({
     )
 
     useEffect(() => {
-        if (!gamePath || !hasLoaderDep) return
+        if (!gamePath || (!hasLoaderDep && !isLoaderMod)) return
         let cancelled = false
         const check =
             activeGame === 'pdth' ? api.checkPdthOverrides(gamePath) : api.checkSuperblt(gamePath)
@@ -308,7 +315,7 @@ export function ModDetailPage({
         return () => {
             cancelled = true
         }
-    }, [gamePath, hasLoaderDep, activeGame])
+    }, [gamePath, hasLoaderDep, isLoaderMod, activeGame])
 
     const showChangelogTab = !!mod?.changelog
     const showDepsTab =
@@ -393,6 +400,7 @@ export function ModDetailPage({
                     missingRequired={missingRequired}
                     gamePath={gamePath}
                     gameId={activeGame}
+                    loaderModId={pdthOverridesId}
                     onInstallLoader={handleInstallLoader}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setShowDepsWarning(false)}
@@ -417,7 +425,7 @@ export function ModDetailPage({
                     </span>
                 )}
                 <div className="ml-auto flex items-center gap-2 shrink-0">
-                    {mod && installedMod && (
+                    {mod && installedMod && !isLoaderMod && (
                         <>
                             <Toggle
                                 checked={installedFiles.every((m) => m.enabled)}
@@ -435,7 +443,12 @@ export function ModDetailPage({
                             </Tooltip>
                         </>
                     )}
-                    {mod && installedFiles.length === 0 && (
+                    {mod && isLoaderMod && loaderInstalled && (
+                        <span className="text-xs text-success-text">
+                            {t('detail.deps.statusInstalled')}
+                        </span>
+                    )}
+                    {mod && installedFiles.length === 0 && !(isLoaderMod && loaderInstalled) && (
                         <div className="flex flex-col items-end gap-1">
                             {mod.disable_mod_managers ? (
                                 <span className="text-xs text-text-muted">

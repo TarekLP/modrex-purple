@@ -29,6 +29,7 @@ interface Props {
     mod: Mod
     installed: InstalledMod | undefined
     installedCount?: number
+    loaderInstalled?: boolean
     onOpen: () => void
     onInstall: () => void
     onUninstall: () => void
@@ -46,6 +47,7 @@ export function ModCard({
     mod,
     installed,
     installedCount,
+    loaderInstalled,
     onOpen,
     onInstall,
     onUninstall,
@@ -132,7 +134,12 @@ export function ModCard({
                         </div>
                     )}
                 </div>
-                {!installed && (
+                {loaderInstalled && (
+                    <span className="text-xs text-success-text">
+                        {t('detail.deps.statusInstalled')}
+                    </span>
+                )}
+                {!installed && !loaderInstalled && (
                     <button
                         disabled={!canAct || !mod.has_download || !!mod.disable_mod_managers}
                         title={

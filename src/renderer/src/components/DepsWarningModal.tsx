@@ -12,6 +12,7 @@ interface Props {
     missingRequired: ModDependency[]
     gamePath: string | null
     gameId?: string
+    loaderModId?: number | null
     onInstallLoader?: () => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
@@ -22,6 +23,7 @@ export function DepsWarningModal({
     missingRequired,
     gamePath,
     gameId,
+    loaderModId,
     onInstallLoader,
     onRefreshInstalled,
     onClose,
@@ -109,12 +111,18 @@ export function DepsWarningModal({
                     {missingRequired
                         .filter((dep) => dep.mod !== null)
                         .map((dep) => {
+                            const isLoaderMod = loaderModId != null && dep.mod!.id === loaderModId
                             const thumbUrl = dep.mod!.thumbnail
                                 ? `${THUMBNAIL_BASE_URL}/${dep.mod!.thumbnail.file}`
                                 : null
-                            const isInstalling = installingDeps[dep.mod!.id]
+                            const isInstalling = isLoaderMod
+                                ? installingLoader
+                                : installingDeps[dep.mod!.id]
                             async function handleInstallDep() {
                                 if (!gamePath) return
+                                if (isLoaderMod) {
+                                    return handleInstallLoader()
+                                }
                                 setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: true }))
                                 try {
                                     await api.installMod(dep.mod!.id, gamePath, gameId)
