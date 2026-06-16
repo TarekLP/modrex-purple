@@ -1,4 +1,5 @@
 use super::engine::{ModEngineConfig, ModUnit};
+use super::host_mods::detect_host_pack;
 use super::paths::{active_mod_path, disabled_mod_path};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
@@ -605,6 +606,22 @@ pub fn resolve_archive_download(
                     }
                 })
                 .collect();
+            // Content packs that install inside another mod (e.g. Menu Backgrounds sets) carry no
+            // marker and no asset-DB structure, so the target classification can't place them.
+            // Recognize them up front and hand off to the host-pack install path.
+            if cfg.game_id == "pd2" {
+                if let Some(m) = detect_host_pack(&names) {
+                    let zip_path = downloaded.to_string_lossy().to_string();
+                    let payload = serde_json::json!({
+                        "zipPath": zip_path,
+                        "entries": m.dirs,
+                        "hostModId": m.host.host_mod_id,
+                        "hostName": m.host.host_name,
+                        "hostSubpath": m.host.subpath.join("/"),
+                    });
+                    return Err(format!("HOST_MOD_PACK:{}", payload));
+                }
+            }
             let dirs = classify_archive_dirs(&names, cfg);
             if dirs.is_empty() {
                 let _ = std::fs::remove_file(&downloaded);

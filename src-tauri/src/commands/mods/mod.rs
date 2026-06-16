@@ -1,5 +1,6 @@
 mod engine;
 mod folders;
+mod host_mods;
 mod install;
 mod naming;
 mod paths;

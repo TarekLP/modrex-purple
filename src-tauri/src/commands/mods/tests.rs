@@ -597,6 +597,85 @@ fn classify_ignores_beardlib_internal_overrides() {
     assert_eq!(dirs, vec![("Pack/mods folder/BeardMod".to_string(), None)]);
 }
 
+// ── host-mod pack detection ───────────────────────────────────────────────
+
+fn detect_host(names: &[&str]) -> Option<super::host_mods::HostPackMatch> {
+    let owned: Vec<String> = names.iter().map(|s| s.to_string()).collect();
+    super::host_mods::detect_host_pack(&owned)
+}
+
+#[test]
+fn detect_menu_background_pack() {
+    let m = detect_host(&[
+        "Nijigaku Original Ten/standard.png",
+        "Nijigaku Original Ten/loading.png",
+        "Nijigaku Original Ten/briefing.png",
+        "Nijigaku Original Ten/crimenet.png",
+        "Nijigaku Original Ten/endscreen.png",
+        "Nijigaku Original Ten/loot.png",
+    ])
+    .expect("should detect a Menu Backgrounds set");
+    assert_eq!(m.host.host_mod_id, 17160);
+    assert_eq!(m.dirs, vec!["Nijigaku Original Ten".to_string()]);
+}
+
+#[test]
+fn detect_menu_background_pack_with_wrapper() {
+    let m = detect_host(&[
+        "Pack/My Set/standard.png",
+        "Pack/My Set/crimenet.png",
+        "Pack/My Set/briefing.png",
+    ])
+    .expect("wrapped set should still be detected");
+    assert_eq!(m.dirs, vec!["Pack/My Set".to_string()]);
+}
+
+#[test]
+fn detect_multiple_background_sets() {
+    let m = detect_host(&[
+        "SetA/standard.png",
+        "SetA/crimenet.png",
+        "SetA/briefing.png",
+        "SetB/standard.dds",
+        "SetB/loading.dds",
+        "SetB/endscreen.dds",
+    ])
+    .expect("two sets");
+    assert_eq!(m.dirs, vec!["SetA".to_string(), "SetB".to_string()]);
+}
+
+#[test]
+fn detect_rejects_below_min_matches() {
+    assert!(detect_host(&["My Set/standard.png", "My Set/crimenet.png"]).is_none());
+}
+
+#[test]
+fn detect_rejects_real_override_mod() {
+    assert!(detect_host(&[
+        "Cool Texture Mod/guis/textures/pd2/x.texture",
+        "Cool Texture Mod/units/y.unit",
+    ])
+    .is_none());
+}
+
+#[test]
+fn detect_rejects_mod_with_marker() {
+    // Has a marker → it's a real mod even though it carries background-named images.
+    assert!(detect_host(&[
+        "Some Mod/mod.txt",
+        "Some Mod/standard.png",
+        "Some Mod/crimenet.png",
+        "Some Mod/briefing.png",
+    ])
+    .is_none());
+}
+
+#[test]
+fn detect_ignores_non_image_signature_files() {
+    // Right names, wrong (non-image) extensions → not a background set.
+    assert!(detect_host(&["Set/standard.lua", "Set/crimenet.txt", "Set/briefing.json",]).is_none());
+}
+
 #[test]
 fn classify_pure_wrapped_override_pack() {
     // No markers anywhere, override content wrapped in a destination segment.
