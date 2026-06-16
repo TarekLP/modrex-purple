@@ -28,6 +28,7 @@ import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { HostPackModal, parseHostModPack } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
+import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
 import { t } from '../i18n'
@@ -204,6 +205,7 @@ export function BrowsePage({
     const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: Mod } | null>(null)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
+    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
@@ -384,6 +386,10 @@ export function BrowsePage({
                     setHostPackData(hostData)
                     return
                 }
+                if (isUnrecognizedArchive(errStr)) {
+                    setUnrecognizedModId(modId)
+                    return
+                }
                 setError(errStr)
             } finally {
                 setLoadingMod(null)
@@ -502,6 +508,12 @@ export function BrowsePage({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setHostPackData(null)}
+                />
+            )}
+            {unrecognizedModId !== null && (
+                <UnrecognizedArchiveModal
+                    modId={unrecognizedModId}
+                    onClose={() => setUnrecognizedModId(null)}
                 />
             )}
             {depsWarning && (

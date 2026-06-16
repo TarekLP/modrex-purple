@@ -40,6 +40,7 @@ import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { HostPackModal, parseHostModPack } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
+import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import { collectDeps, isLoaderDep, missingRequiredDeps, offsiteDepHost } from '../deps'
 import { useThumbnail } from '../hooks/useThumbnail'
@@ -102,6 +103,7 @@ export function ModDetailPage({
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
+    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -219,6 +221,10 @@ export function ModDetailPage({
                 setHostPackData(hostData)
                 return
             }
+            if (isUnrecognizedArchive(String(e))) {
+                setUnrecognizedModId(mod.id)
+                return
+            }
             throw e
         } finally {
             setActionLoading(false)
@@ -334,6 +340,12 @@ export function ModDetailPage({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setHostPackData(null)}
+                />
+            )}
+            {unrecognizedModId !== null && (
+                <UnrecognizedArchiveModal
+                    modId={unrecognizedModId}
+                    onClose={() => setUnrecognizedModId(null)}
                 />
             )}
             {showFileSelect && mod && (
@@ -805,6 +817,7 @@ function DownloadsTab({
     const [formatWarningFile, setFormatWarningFile] = useState<ModFile | null>(null)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
+    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
 
     async function handleUninstallFile(file: ModFile) {
         if (!gamePath) return
@@ -855,6 +868,10 @@ function DownloadsTab({
                 setHostPackData(hostData)
                 return
             }
+            if (isUnrecognizedArchive(errStr)) {
+                setUnrecognizedModId(mod.id)
+                return
+            }
             setInstallError(errStr)
         } finally {
             setInstallingId(null)
@@ -896,6 +913,12 @@ function DownloadsTab({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setHostPackData(null)}
+                />
+            )}
+            {unrecognizedModId !== null && (
+                <UnrecognizedArchiveModal
+                    modId={unrecognizedModId}
+                    onClose={() => setUnrecognizedModId(null)}
                 />
             )}
             {formatWarningFile && (

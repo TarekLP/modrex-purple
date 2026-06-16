@@ -190,6 +190,11 @@
         "install": "Install ({count})",
         "installing": "Installing…"
     },
+    "unrecognized": {
+        "title": "Couldn't place this mod",
+        "body": "Modrex couldn't tell where this mod installs — it likely belongs inside another mod. Follow the author's instructions:",
+        "noInstructions": "The author didn't include installation instructions. Check the mod's page on ModWorkshop."
+    },
     "depsWarning": {
         "title": "Missing required dependencies",
         "body": "This mod requires the following mods to be installed:",
