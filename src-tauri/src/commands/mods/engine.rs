@@ -105,16 +105,28 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pdth",
     index_game_name: "PAYDAY: The Heist",
     state_filename: ".modrex.json",
-    targets: &[ScanTarget {
-        tag: "mods",
-        unit: ModUnit::Directory {
-            entry_markers: &["mod.txt"],
-            priority_prefix: false,
+    targets: &[
+        ScanTarget {
+            tag: "mods",
+            unit: ModUnit::Directory {
+                entry_markers: &["mod.txt"],
+                priority_prefix: false,
+            },
+            mods_subpath: &["mods"],
+            disabled_subpath: &["mods", "disabled"],
+            backup_subpath: &["mods.bak"],
         },
-        mods_subpath: &["mods"],
-        disabled_subpath: &["mods", "disabled"],
-        backup_subpath: &["mods.bak"],
-    }],
+        ScanTarget {
+            tag: "mod_overrides",
+            unit: ModUnit::Directory {
+                entry_markers: &[],
+                priority_prefix: false,
+            },
+            mods_subpath: &["assets", "mod_overrides"],
+            disabled_subpath: &["assets", "mod_overrides", "disabled"],
+            backup_subpath: &["assets", "mod_overrides.bak"],
+        },
+    ],
 };
 
 pub fn engine_for_game(game_id: &str) -> &'static ModEngineConfig {
