@@ -385,6 +385,10 @@ export function BrowsePage({
                     setError(t('common.modManagerDisabled'))
                     return
                 }
+                if (fullMod.download?.url && !fullMod.download.download_url) {
+                    api.openExternal(fullMod.download.url)
+                    return
+                }
                 let checkType: string | undefined
                 let checkUrl: string | undefined
                 if (fullMod.download === null) {

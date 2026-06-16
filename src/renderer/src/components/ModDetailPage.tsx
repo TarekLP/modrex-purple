@@ -172,6 +172,10 @@ export function ModDetailPage({
 
     async function handleInstall() {
         if (!gamePath || !mod) return
+        if (mod.download?.url && !mod.download.download_url) {
+            api.openExternal(mod.download.url)
+            return
+        }
         if (mod.download === null && files.length > 1) {
             setShowFileSelect(true)
             return
