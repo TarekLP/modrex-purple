@@ -12,7 +12,7 @@ mod zip;
 // Public API used by lib.rs, launchers/, and other modules
 pub use self::engine::{backup_dir, engine_for_game, ModEngineConfig};
 pub use self::install::install_mod_from_path;
-pub use self::paths::{find_untracked_paks, get_state_path, mods_base};
+pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
 pub use self::state::{get_folder_path, read_state, reconcile_state};
 pub use self::types::{InstalledMod, InstalledResponse, ModFolder, ModsState, TopLevelItem};
 pub use self::zip::compute_sha256;
@@ -540,8 +540,28 @@ pub async fn get_installed(
     let any_upgraded = upgrade_negative_ids_by_sha(&app, &mut state.mods, cfg.index_game_name);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
+    // Recover host-pack sets present on disk but absent from state (e.g. after a state rebuild):
+    // they live inside another mod, so the scan-target walk can't find them. Tracked as
+    // unidentified, folder-named entries — manageable via the host-aware enable/disable/uninstall.
+    let mut discovered_hosts = false;
+    for (host_id, subpath, set_name, enabled) in
+        find_untracked_host_packs(&game_path, cfg, &state.mods, &state.folders)
+    {
+        state.mods.push(InstalledMod {
+            id: hash_filename(&set_name),
+            name: set_name.clone(),
+            uid: set_name.clone(),
+            filename: set_name,
+            enabled,
+            location: Some(format!("host:{}:{}", host_id, subpath)),
+            installed_at: Utc::now().to_rfc3339(),
+            ..InstalledMod::default()
+        });
+        discovered_hosts = true;
+    }
+
     if mods_hidden {
-        if any_upgraded {
+        if any_upgraded || discovered_hosts {
             save_state(&state_path, &state);
         }
         return Ok(InstalledResponse {
@@ -567,7 +587,7 @@ pub async fn get_installed(
     let untracked = find_untracked_paks(&game_path, &known, cfg).await;
     if untracked.is_empty() {
         let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
-        if any_checked || any_upgraded {
+        if any_checked || any_upgraded || discovered_hosts {
             save_state(
                 &state_path,
                 &ModsState {

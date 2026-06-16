@@ -823,6 +823,84 @@ fn uninstall_removes_host_pack() {
     assert!(read_state(&sp).mods.iter().all(|m| m.id != 57135));
 }
 
+fn host_only_entry() -> InstalledMod {
+    InstalledMod {
+        uid: "Menu Backgrounds".into(),
+        id: 17160,
+        name: "Menu Backgrounds".into(),
+        filename: "Menu Backgrounds".into(),
+        enabled: true,
+        ..InstalledMod::default()
+    }
+}
+
+#[test]
+fn discovers_untracked_host_packs_excluding_bundled() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path();
+    let cfg = engine_for_game("pd2");
+    let assets = game.join("mods/Menu Backgrounds/Assets");
+    fs::create_dir_all(game.join("mods/Menu Backgrounds")).unwrap();
+    fs::write(game.join("mods/Menu Backgrounds/main.xml"), b"").unwrap();
+    fs::create_dir_all(assets.join("The Diamond")).unwrap(); // host's bundled default
+    fs::create_dir_all(assets.join("astolfo bg")).unwrap(); // user pack, active
+    fs::create_dir_all(game.join("mods/disabled/host-17160/old set")).unwrap(); // user pack, disabled
+
+    let found = find_untracked_host_packs(game.to_str().unwrap(), cfg, &[host_only_entry()], &[]);
+    let names: Vec<&str> = found.iter().map(|(_, _, n, _)| n.as_str()).collect();
+    assert!(names.contains(&"astolfo bg"));
+    assert!(names.contains(&"old set"));
+    assert!(
+        !names.contains(&"The Diamond"),
+        "bundled default must be excluded"
+    );
+    assert!(
+        found
+            .iter()
+            .find(|(_, _, n, _)| n == "astolfo bg")
+            .unwrap()
+            .3
+    ); // active → enabled
+    assert!(!found.iter().find(|(_, _, n, _)| n == "old set").unwrap().3); // disabled
+}
+
+#[test]
+fn skips_already_tracked_host_packs() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path();
+    let cfg = engine_for_game("pd2");
+    let assets = game.join("mods/Menu Backgrounds/Assets");
+    fs::create_dir_all(game.join("mods/Menu Backgrounds")).unwrap();
+    fs::write(game.join("mods/Menu Backgrounds/main.xml"), b"").unwrap();
+    fs::create_dir_all(assets.join("astolfo bg")).unwrap();
+
+    let tracked = InstalledMod {
+        uid: "98785_astolfo bg".into(),
+        id: 39800,
+        filename: "astolfo bg".into(),
+        enabled: true,
+        location: Some("host:17160:Assets".into()),
+        ..InstalledMod::default()
+    };
+    let found = find_untracked_host_packs(
+        game.to_str().unwrap(),
+        cfg,
+        &[host_only_entry(), tracked],
+        &[],
+    );
+    assert!(
+        found.is_empty(),
+        "an already-tracked set must not be rediscovered"
+    );
+}
+
+#[test]
+fn no_host_packs_when_host_absent() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = engine_for_game("pd2");
+    assert!(find_untracked_host_packs(tmp.path().to_str().unwrap(), cfg, &[], &[]).is_empty());
+}
+
 #[test]
 fn disable_then_enable_host_pack_moves_files() {
     let (tmp, sp, zip) = host_fixture();

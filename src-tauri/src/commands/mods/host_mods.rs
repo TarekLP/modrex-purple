@@ -19,6 +19,9 @@ pub struct HostTarget {
     pub signature: &'static [&'static str],
     /// How many distinct signature files a directory must contain to qualify as a pack.
     pub min_matches: usize,
+    /// Set names the host mod ships itself (inside `subpath`). Excluded from disk discovery so
+    /// the host's own bundled content isn't mistaken for a user-installed pack.
+    pub bundled: &'static [&'static str],
 }
 
 pub static HOST_TARGETS: &[HostTarget] = &[HostTarget {
@@ -41,6 +44,7 @@ pub static HOST_TARGETS: &[HostTarget] = &[HostTarget {
         "result",
     ],
     min_matches: 3,
+    bundled: &["The Diamond"],
 }];
 
 /// Image/movie extensions a background-set file may use.

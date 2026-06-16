@@ -2,7 +2,7 @@ use super::engine::{
     backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
     ModEngineConfig, ModUnit, ScanTarget,
 };
-use super::host_mods::{host_target_by_id, parse_host_location};
+use super::host_mods::{host_target_by_id, parse_host_location, HOST_TARGETS};
 use super::state::get_folder_path;
 use super::types::{InstalledMod, ModFolder};
 use std::collections::HashSet;
@@ -53,6 +53,58 @@ pub fn host_pack_dir(
         p = p.join(seg);
     }
     Some(p.join(&m.filename))
+}
+
+/// Discovers host-pack set folders on disk that aren't tracked in `mods` — orphans left after a
+/// state rebuild (host packs live inside another mod, so the normal scan can't find them).
+/// Returns `(host_mod_id, subpath, set_name, enabled)` for each untracked set, scanning both the
+/// host's active subfolder and the Modrex disabled area. Excludes the host's bundled defaults and
+/// any set already tracked. Hosts whose mod isn't installed are skipped.
+pub fn find_untracked_host_packs(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    mods: &[InstalledMod],
+    folders: &[ModFolder],
+) -> Vec<(i64, String, String, bool)> {
+    let mut out = Vec::new();
+    for host in HOST_TARGETS {
+        let Some(host_dir) = resolve_host_mod_dir(game_path, cfg, mods, folders, host.host_mod_id)
+        else {
+            continue;
+        };
+        let tracked: HashSet<String> = mods
+            .iter()
+            .filter(|m| {
+                m.location
+                    .as_deref()
+                    .and_then(parse_host_location)
+                    .is_some_and(|(id, _)| id == host.host_mod_id)
+            })
+            .map(|m| m.filename.clone())
+            .collect();
+
+        let active = host.subpath.iter().fold(host_dir, |p, s| p.join(s));
+        let disabled =
+            disabled_dir(game_path, cfg.primary()).join(format!("host-{}", host.host_mod_id));
+        let subpath = host.subpath.join("/");
+
+        for (base, enabled) in [(active, true), (disabled, false)] {
+            let Ok(rd) = std::fs::read_dir(&base) else {
+                continue;
+            };
+            for entry in rd.flatten() {
+                if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                    continue;
+                }
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if host.bundled.iter().any(|b| *b == name) || tracked.contains(&name) {
+                    continue;
+                }
+                out.push((host.host_mod_id, subpath.clone(), name, enabled));
+            }
+        }
+    }
+    out
 }
 
 /// The Modrex-managed disabled location for a host pack — outside the host mod so the host no
