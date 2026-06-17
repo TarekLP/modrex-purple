@@ -9,10 +9,13 @@ pub enum ModUnit {
     Directory {
         /// Markers used to recognise mod directories inside a ZIP during install classification.
         entry_markers: &'static [&'static str],
-        /// Markers used to discover mod directories on disk (ambient scan). A subset of
-        /// `entry_markers` — omit loader-framework markers so their internal modules are not
-        /// auto-discovered as untracked mods (e.g. DAHM's base.lua-only framework modules).
+        /// Markers that unconditionally promote a directory to a mod during the ambient scan.
         scan_markers: &'static [&'static str],
+        /// Like `scan_markers` but the directory is only tracked if its SHA256 matches the index.
+        /// Unidentified entries are silently dropped — they are loader framework internals, not
+        /// user mods. Use when a marker (e.g. `base.lua`) is shared between framework modules
+        /// and genuinely installable mods that are distinguishable only via the mod index.
+        index_gated_markers: &'static [&'static str],
         priority_prefix: bool,
     },
 }
@@ -88,6 +91,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
             unit: ModUnit::Directory {
                 entry_markers: &["mod.txt", "main.xml"],
                 scan_markers: &["mod.txt", "main.xml"],
+                index_gated_markers: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["mods"],
@@ -99,6 +103,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
             unit: ModUnit::Directory {
                 entry_markers: &[],
                 scan_markers: &[],
+                index_gated_markers: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["assets", "mod_overrides"],
@@ -116,12 +121,14 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
         ScanTarget {
             tag: "mods",
             unit: ModUnit::Directory {
-                // base.lua is the DAHM mod-framework entry point (no mod.txt). It is listed in
-                // entry_markers so DAHM sub-mod ZIPs are classified correctly during install, but
-                // intentionally omitted from scan_markers so DAHM's own bundled framework modules
-                // (which also use base.lua) are not auto-discovered as untracked mods.
+                // base.lua is the DAHM mod-framework entry point. It is in entry_markers so
+                // DAHM sub-mod ZIPs are classified correctly during install, and in
+                // index_gated_markers so base.lua-only directories ARE discovered by the scan
+                // but only tracked when their SHA256 matches the mod index — that's the reliable
+                // way to tell user-installed DAHM sub-mods from DAHM's bundled framework modules.
                 entry_markers: &["mod.txt", "base.lua"],
                 scan_markers: &["mod.txt"],
+                index_gated_markers: &["base.lua"],
                 priority_prefix: false,
             },
             mods_subpath: &["mods"],
@@ -133,6 +140,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
             unit: ModUnit::Directory {
                 entry_markers: &[],
                 scan_markers: &[],
+                index_gated_markers: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["assets", "mod_overrides"],
