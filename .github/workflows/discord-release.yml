@@ -31,5 +31,5 @@ jobs:
                     --arg tag "$TAG" \
                     --arg body "$BODY" \
                     --arg url "$URL" \
-                    '{username:"Modrex",embeds:[{title:$tag,description:$body,url:$url,color:5814783}]}')
+                    '{username:"Modrex",avatar_url:"https://github.com/modrexio.png",embeds:[{title:$tag,description:$body,url:$url,color:5814783}]}')
                   curl -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
