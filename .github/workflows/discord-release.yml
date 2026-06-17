@@ -5,14 +5,8 @@ on:
     workflow_dispatch:
         inputs:
             tag_name:
-                description: 'Version tag'
-                default: 'v0.9.2-test'
-            release_body:
-                description: 'Release notes'
-                default: '- Test bullet point\n- Another fix'
-            release_url:
-                description: 'Release URL'
-                default: 'https://github.com/modrexio/modrex'
+                description: 'Version tag to fetch and post'
+                default: 'v0.9.1'
 
 jobs:
     notify:
@@ -21,18 +15,21 @@ jobs:
             - name: Post to Discord
               env:
                   DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+                  GH_TOKEN: ${{ github.token }}
               run: |
-                  TAG="${{ github.event.release.tag_name || inputs.tag_name }}"
-                  BODY="${{ github.event.release.body || inputs.release_body }}"
-                  URL="${{ github.event.release.html_url || inputs.release_url }}"
-                  curl -H "Content-Type: application/json" \
-                    -d "{
-                      \"username\": \"Modrex\",
-                      \"embeds\": [{
-                        \"title\": \"$TAG\",
-                        \"description\": \"$BODY\",
-                        \"url\": \"$URL\",
-                        \"color\": 5814783
-                      }]
-                    }" \
-                    "$DISCORD_WEBHOOK"
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    RELEASE=$(gh api repos/${{ github.repository }}/releases/tags/${{ inputs.tag_name }})
+                    TAG=$(echo "$RELEASE" | jq -r '.tag_name')
+                    BODY=$(echo "$RELEASE" | jq -r '.body')
+                    URL=$(echo "$RELEASE" | jq -r '.html_url')
+                  else
+                    TAG="${{ github.event.release.tag_name }}"
+                    BODY="${{ github.event.release.body }}"
+                    URL="${{ github.event.release.html_url }}"
+                  fi
+                  PAYLOAD=$(jq -n \
+                    --arg tag "$TAG" \
+                    --arg body "$BODY" \
+                    --arg url "$URL" \
+                    '{username:"Modrex",embeds:[{title:$tag,description:$body,url:$url,color:5814783}]}')
+                  curl -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
