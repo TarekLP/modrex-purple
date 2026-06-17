@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Compass, Package, Settings, ChevronLeft, ArrowLeftRight, CircleHelp } from 'lucide-react'
+import { siDiscord } from 'simple-icons'
 import { api } from '../api'
 import type { LucideIcon } from 'lucide-react'
 import { t } from '../i18n'
@@ -83,6 +84,25 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
             </nav>
 
             <div className="p-2">
+                <Tooltip content={t('sidebar.discordTitle')} side="right">
+                    <button
+                        onClick={() => api.openExternal('https://discord.gg/tenzpx8JRM')}
+                        className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            className="w-4 h-4 shrink-0 fill-current"
+                            aria-hidden
+                        >
+                            <path d={siDiscord.path} />
+                        </svg>
+                        <span
+                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                        >
+                            {t('sidebar.discord')}
+                        </span>
+                    </button>
+                </Tooltip>
                 <Tooltip content={t('sidebar.docsTitle')} side="right">
                     <button
                         onClick={() => api.openExternal('https://modrex.net/docs/getting-started/')}

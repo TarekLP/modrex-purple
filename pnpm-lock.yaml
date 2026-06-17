@@ -52,6 +52,9 @@ importers:
             remark-gfm:
                 specifier: ^4.0.1
                 version: 4.0.1
+            simple-icons:
+                specifier: ^16.23.0
+                version: 16.23.0
         devDependencies:
             '@commitlint/cli':
                 specifier: ^21.0.1
@@ -3798,6 +3801,13 @@ packages:
                 integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==,
             }
 
+    simple-icons@16.23.0:
+        resolution:
+            {
+                integrity: sha512-08MaTpxj9zGYUIe38tfELYkaHiGE1YgbrbXmTBf+GPxi5mEqLSORQqOXrP0QKPdaFuzEDSmW5o4xkbLlFhmdCw==,
+            }
+        engines: { node: '>=0.12.18' }
+
     snake-case@3.0.4:
         resolution:
             {
@@ -6660,6 +6670,8 @@ snapshots:
     shebang-regex@3.0.0: {}
 
     siginfo@2.0.0: {}
+
+    simple-icons@16.23.0: {}
 
     snake-case@3.0.4:
         dependencies:
