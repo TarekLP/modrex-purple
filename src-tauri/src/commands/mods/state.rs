@@ -1,4 +1,4 @@
-use super::engine::{backup_dir, ModEngineConfig};
+use super::engine::{backup_dir, ModEngineConfig, ModUnit};
 use super::naming::{apply_priority_prefix, make_uid, strip_priority_prefix};
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
@@ -180,6 +180,45 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
 
     let state = read_state(state_path);
 
+    // One-time cleanup: remove auto-discovered, never-installed entries whose directory has no
+    // scan_marker file on disk. This purges DAHM framework modules (base.lua, no mod.txt) that
+    // were mistakenly collected into state when base.lua was first added as an entry_marker.
+    // Entries with a file_id (Modrex-installed) or non-negative id (index-identified) are kept.
+    let cleanup_removed: HashSet<String> = state
+        .mods
+        .iter()
+        .filter(|m| {
+            if m.file_id.is_some() || m.id >= 0 {
+                return false;
+            }
+            let target = cfg.target_for(m.location.as_deref());
+            let ModUnit::Directory { scan_markers, .. } = &target.unit else {
+                return false;
+            };
+            if scan_markers.is_empty() {
+                return false;
+            }
+            let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
+            let dir = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+            !scan_markers.iter().any(|marker| dir.join(marker).exists())
+        })
+        .map(|m| m.uid.clone())
+        .collect();
+    let cleanup_changed = !cleanup_removed.is_empty();
+    let state = if cleanup_changed {
+        let mods = state
+            .mods
+            .into_iter()
+            .filter(|m| !cleanup_removed.contains(&m.uid))
+            .collect();
+        ModsState {
+            mods,
+            folders: state.folders,
+        }
+    } else {
+        state
+    };
+
     // Migrate legacy disabled paths: disabled/foo.pak becomes disabled/foo.pak.disabled
     let dis_dir = disabled_base(game_path, cfg.primary());
     let disabled_mods: Vec<InstalledMod> =
@@ -289,7 +328,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
     let (final_folders, any_compacted) =
         compact_folder_priorities(&cleaned_folders, &mods_base_path, &dis_dir);
 
-    if state_changed || !phantom_ids.is_empty() || any_compacted {
+    if state_changed || !phantom_ids.is_empty() || any_compacted || cleanup_changed {
         save_state(
             state_path,
             &ModsState {
