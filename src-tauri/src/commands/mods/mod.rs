@@ -484,11 +484,16 @@ fn identify_untracked(
 
         // Dirs discovered via index_gated_markers (e.g. base.lua) that didn't match the index
         // are loader framework modules, not user mods — drop them.
+        // Guard: only filter when the index actually has entries for this game; if it doesn't,
+        // we can't tell framework modules from real mods, so show everything (some "Unknown")
+        // rather than hide everything. Once the game is indexed the filter kicks in correctly.
         if id < 0 {
             if let engine::ModUnit::Directory { scan_markers, index_gated_markers, .. } =
                 &entry_target.unit
             {
-                if !index_gated_markers.is_empty() {
+                if !index_gated_markers.is_empty()
+                    && index.is_some_and(|c| mod_index::has_game(c, gname))
+                {
                     let mod_dir = if *enabled {
                         mods_base(game_path, entry_target).join(rel_path)
                     } else {

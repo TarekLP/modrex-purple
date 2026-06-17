@@ -103,6 +103,18 @@ pub(crate) fn open_index(app: &AppHandle) -> Option<rusqlite::Connection> {
     open_conn(&path)
 }
 
+/// Returns true when the index contains at least one mod entry for the given game name.
+/// Used to gate index-gated scanning: if the game isn't indexed yet, we can't reliably
+/// distinguish framework modules from user mods, so we show everything instead of nothing.
+pub(crate) fn has_game(conn: &rusqlite::Connection, game_name: &str) -> bool {
+    conn.query_row(
+        "SELECT 1 FROM games WHERE name = ?1 LIMIT 1",
+        rusqlite::params![game_name],
+        |_| Ok(()),
+    )
+    .is_ok()
+}
+
 pub(crate) fn query_sha256(
     conn: &rusqlite::Connection,
     sha256: &str,
