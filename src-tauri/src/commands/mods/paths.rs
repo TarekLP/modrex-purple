@@ -254,12 +254,13 @@ async fn scan_active(
                     out.push((rel, true));
                 }
             }
-            ModUnit::Directory { scan_markers, .. } => {
+            ModUnit::Directory { scan_markers, index_gated_markers, .. } => {
                 if ft.is_dir() {
-                    let is_mod = if scan_markers.is_empty() {
+                    let is_mod = if scan_markers.is_empty() && index_gated_markers.is_empty() {
                         true
                     } else {
                         scan_markers.iter().any(|m| entry.path().join(m).exists())
+                            || index_gated_markers.iter().any(|m| entry.path().join(m).exists())
                     };
                     if is_mod {
                         if !known.contains(&rel) {
@@ -316,12 +317,13 @@ async fn scan_disabled(
                     }
                 }
             }
-            ModUnit::Directory { scan_markers, .. } => {
+            ModUnit::Directory { scan_markers, index_gated_markers, .. } => {
                 if ft.is_dir() {
-                    let is_mod = if scan_markers.is_empty() {
+                    let is_mod = if scan_markers.is_empty() && index_gated_markers.is_empty() {
                         true
                     } else {
                         scan_markers.iter().any(|m| entry.path().join(m).exists())
+                            || index_gated_markers.iter().any(|m| entry.path().join(m).exists())
                     };
                     if is_mod {
                         if !known.contains(&sub) {
