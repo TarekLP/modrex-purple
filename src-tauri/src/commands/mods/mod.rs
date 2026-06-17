@@ -482,6 +482,25 @@ fn identify_untracked(
             },
         };
 
+        // Dirs discovered via index_gated_markers (e.g. base.lua) that didn't match the index
+        // are loader framework modules, not user mods — drop them.
+        if id < 0 {
+            if let engine::ModUnit::Directory { scan_markers, index_gated_markers, .. } =
+                &entry_target.unit
+            {
+                if !index_gated_markers.is_empty() {
+                    let mod_dir = if *enabled {
+                        mods_base(game_path, entry_target).join(rel_path)
+                    } else {
+                        disabled_base(game_path, entry_target).join(rel_path)
+                    };
+                    if !scan_markers.iter().any(|m| mod_dir.join(m).exists()) {
+                        continue;
+                    }
+                }
+            }
+        }
+
         // Fall back to filename uid when file_id already exists — multi-pak ZIPs share one file_id.
         let uid = match file_id {
             Some(fid) => {
