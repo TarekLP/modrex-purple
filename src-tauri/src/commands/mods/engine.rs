@@ -7,7 +7,12 @@ pub enum ModUnit {
         priority_prefix: bool,
     },
     Directory {
+        /// Markers used to recognise mod directories inside a ZIP during install classification.
         entry_markers: &'static [&'static str],
+        /// Markers used to discover mod directories on disk (ambient scan). A subset of
+        /// `entry_markers` — omit loader-framework markers so their internal modules are not
+        /// auto-discovered as untracked mods (e.g. DAHM's base.lua-only framework modules).
+        scan_markers: &'static [&'static str],
         priority_prefix: bool,
     },
 }
@@ -82,6 +87,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
             tag: "mods",
             unit: ModUnit::Directory {
                 entry_markers: &["mod.txt", "main.xml"],
+                scan_markers: &["mod.txt", "main.xml"],
                 priority_prefix: false,
             },
             mods_subpath: &["mods"],
@@ -92,6 +98,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
             tag: "mod_overrides",
             unit: ModUnit::Directory {
                 entry_markers: &[],
+                scan_markers: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["assets", "mod_overrides"],
@@ -109,8 +116,12 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
         ScanTarget {
             tag: "mods",
             unit: ModUnit::Directory {
-                // base.lua is the DAHM mod-framework entry point (no mod.txt)
+                // base.lua is the DAHM mod-framework entry point (no mod.txt). It is listed in
+                // entry_markers so DAHM sub-mod ZIPs are classified correctly during install, but
+                // intentionally omitted from scan_markers so DAHM's own bundled framework modules
+                // (which also use base.lua) are not auto-discovered as untracked mods.
                 entry_markers: &["mod.txt", "base.lua"],
+                scan_markers: &["mod.txt"],
                 priority_prefix: false,
             },
             mods_subpath: &["mods"],
@@ -121,6 +132,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
             tag: "mod_overrides",
             unit: ModUnit::Directory {
                 entry_markers: &[],
+                scan_markers: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["assets", "mod_overrides"],
