@@ -83,11 +83,11 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
                 })}
             </nav>
 
-            <div className="p-2">
+            <div className="p-2 flex flex-col gap-1">
                 <Tooltip content={t('sidebar.discordTitle')} side="right">
                     <button
                         onClick={() => api.openExternal('https://discord.gg/tenzpx8JRM')}
-                        className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
+                        className="w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm text-text-muted hover:bg-surface-hover hover:text-text transition-colors"
                     >
                         <svg
                             viewBox="0 0 24 24"
@@ -106,7 +106,7 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
                 <Tooltip content={t('sidebar.docsTitle')} side="right">
                     <button
                         onClick={() => api.openExternal('https://modrex.net/docs/getting-started/')}
-                        className="w-full px-2 py-1.5 gap-2.5 flex items-center rounded text-xs text-text-subtle hover:bg-surface-hover hover:text-text transition-colors"
+                        className="w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm text-text-muted hover:bg-surface-hover hover:text-text transition-colors"
                     >
                         <CircleHelp className="w-4 h-4 shrink-0" />
                         <span
