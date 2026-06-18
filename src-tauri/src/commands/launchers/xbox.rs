@@ -25,13 +25,17 @@ impl Launcher for Xbox {
 
     fn find_game(&self, game: &GameDef) -> Option<String> {
         let def = game.xbox.as_ref()?;
-        if let Some(p) = find_in_drives(game.name, def.executable) {
-            return Some(p);
-        }
+
         #[cfg(target_os = "windows")]
-        return find_via_package_manager(def.product_id, def.executable);
+        let result = if let Some(p) = find_in_drives(game.name, def.executable) {
+            Some(p)
+        } else {
+            find_via_package_manager(def.product_id, def.executable)
+        };
         #[cfg(not(target_os = "windows"))]
-        None
+        let result = find_in_drives(game.name, def.executable);
+
+        result
     }
 
     fn identify_path(&self, game_path: &str) -> bool {
@@ -78,7 +82,7 @@ fn find_via_package_manager(product_id: &str, xbox_executable: &str) -> Option<S
         product_id
     );
     let out = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &script])
         .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output()
         .ok()?;

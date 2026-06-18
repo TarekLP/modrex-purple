@@ -90,6 +90,49 @@ pub fn game_settings<'a>(s: &'a Settings, game_id: &str) -> Option<&'a GameSetti
 /// On first launch after the Electron-to-Tauri migration, copy settings.json
 /// and mod-index.db from the old Electron userData path to the new Tauri path.
 /// Safe to remove once no Electron installs remain in the wild.
+pub fn migrate_from_old_identifier(app: &AppHandle) {
+    let new_settings = settings_path(app);
+    if new_settings.exists() {
+        return;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let Ok(appdata) = std::env::var("APPDATA") else {
+            return;
+        };
+        let old_dir = PathBuf::from(appdata).join("io.github.shulhaoleh.pd3modmanager");
+        let new_dir = new_settings.parent().unwrap();
+        let _ = std::fs::create_dir_all(new_dir);
+        if old_dir.join("settings.json").exists() {
+            let _ = std::fs::copy(old_dir.join("settings.json"), &new_settings);
+        }
+        let old_index = old_dir.join("mod-index.db");
+        let new_index = new_dir.join("mod-index.db");
+        if old_index.exists() && !new_index.exists() {
+            let _ = std::fs::copy(old_index, new_index);
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let Ok(home) = std::env::var("HOME") else {
+            return;
+        };
+        let old_dir = PathBuf::from(home)
+            .join(".config")
+            .join("io.github.shulhaoleh.pd3modmanager");
+        let new_dir = new_settings.parent().unwrap();
+        let _ = std::fs::create_dir_all(new_dir);
+        if old_dir.join("settings.json").exists() {
+            let _ = std::fs::copy(old_dir.join("settings.json"), &new_settings);
+        }
+        let old_index = old_dir.join("mod-index.db");
+        let new_index = new_dir.join("mod-index.db");
+        if old_index.exists() && !new_index.exists() {
+            let _ = std::fs::copy(old_index, new_index);
+        }
+    }
+}
+
 pub fn migrate_from_electron(app: &AppHandle) {
     let new_settings = settings_path(app);
     if new_settings.exists() {

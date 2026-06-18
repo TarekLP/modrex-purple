@@ -102,6 +102,7 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
+    commands::settings::migrate_from_old_identifier(app.handle());
     commands::settings::migrate_from_electron(app.handle());
 
     let games_configured = commands::settings::read_settings(app.handle())
