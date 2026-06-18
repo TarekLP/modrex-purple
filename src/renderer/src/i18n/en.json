@@ -58,6 +58,12 @@
         "discord": "Discord",
         "discordTitle": "Join our Discord"
     },
+    "gamePicker": {
+        "title": "Games",
+        "searchLabel": "Search games",
+        "searchPlaceholder": "Search games…",
+        "noMatches": "No games found"
+    },
     "browse": {
         "title": "Browse Mods",
         "gameNotFound": "Game not found — install disabled",

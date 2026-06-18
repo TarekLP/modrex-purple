@@ -17,6 +17,7 @@ interface Props {
     onRefreshInstalled: () => Promise<void>
     update?: UpdateState | null
     onDismissUpdate?: () => void
+    hideGameActions?: boolean
 }
 
 export function TopBar({
@@ -25,6 +26,7 @@ export function TopBar({
     onRefreshInstalled,
     update,
     onDismissUpdate,
+    hideGameActions,
 }: Props) {
     const [gameRunning, setGameRunning] = useState(false)
     const [launching, setLaunching] = useState<'modded' | 'vanilla' | null>(null)
@@ -61,6 +63,7 @@ export function TopBar({
     }
 
     useEffect(() => {
+        if (hideGameActions) return
         const check = async () => {
             const game = activeGame
             const running = await api.isGameRunning(game)
@@ -97,7 +100,7 @@ export function TopBar({
         check()
         const id = setInterval(check, 3000)
         return () => clearInterval(id)
-    }, [onRefreshInstalled, activeGame])
+    }, [onRefreshInstalled, activeGame, hideGameActions])
 
     async function handleLaunchModded() {
         if (activeGame === 'pd3') {
@@ -197,46 +200,47 @@ export function TopBar({
                                 <div className="w-px h-4 bg-border mx-1" />
                             </>
                         )}
-                        {gameRunning ? (
-                            <button
-                                onClick={stopGame}
-                                className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors flex items-center gap-1.5"
-                            >
-                                <Square className="w-3.5 h-3.5" fill="currentColor" />
-                                {t('topBar.stopGame')}
-                            </button>
-                        ) : (
-                            <>
+                        {!hideGameActions &&
+                            (gameRunning ? (
                                 <button
-                                    disabled={!gamePath || !!launching}
-                                    onClick={launchWithoutMods}
-                                    className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                    onClick={stopGame}
+                                    className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors flex items-center gap-1.5"
                                 >
-                                    {launching === 'vanilla' ? (
-                                        <Loader className="w-3.5 h-3.5 animate-spin" />
-                                    ) : (
-                                        <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                    )}
-                                    {launching === 'vanilla'
-                                        ? t('topBar.launching')
-                                        : t('topBar.launchWithoutMods')}
+                                    <Square className="w-3.5 h-3.5" fill="currentColor" />
+                                    {t('topBar.stopGame')}
                                 </button>
-                                <button
-                                    disabled={!gamePath || !!launching}
-                                    onClick={handleLaunchModded}
-                                    className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-                                >
-                                    {launching === 'modded' ? (
-                                        <Loader className="w-3.5 h-3.5 animate-spin" />
-                                    ) : (
-                                        <Play className="w-3.5 h-3.5" fill="currentColor" />
-                                    )}
-                                    {launching === 'modded'
-                                        ? t('topBar.launching')
-                                        : t('topBar.launchModded')}
-                                </button>
-                            </>
-                        )}
+                            ) : (
+                                <>
+                                    <button
+                                        disabled={!gamePath || !!launching}
+                                        onClick={launchWithoutMods}
+                                        className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                    >
+                                        {launching === 'vanilla' ? (
+                                            <Loader className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                            <Play className="w-3.5 h-3.5" fill="currentColor" />
+                                        )}
+                                        {launching === 'vanilla'
+                                            ? t('topBar.launching')
+                                            : t('topBar.launchWithoutMods')}
+                                    </button>
+                                    <button
+                                        disabled={!gamePath || !!launching}
+                                        onClick={handleLaunchModded}
+                                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                    >
+                                        {launching === 'modded' ? (
+                                            <Loader className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                            <Play className="w-3.5 h-3.5" fill="currentColor" />
+                                        )}
+                                        {launching === 'modded'
+                                            ? t('topBar.launching')
+                                            : t('topBar.launchModded')}
+                                    </button>
+                                </>
+                            ))}
                     </div>
                 </div>
                 {update?.phase === 'downloading' && (
