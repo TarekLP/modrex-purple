@@ -10,7 +10,7 @@
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/modrexio/modrex/releases/latest)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/tenzpx8JRM)
 
-A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/) powered by [modworkshop](https://modworkshop.net/g/payday-3).
+A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), and [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/) powered by [modworkshop](https://modworkshop.net).
 
 </div>
 
@@ -25,19 +25,23 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 ## Features
 
+- Supports PAYDAY 3, PAYDAY 2, and PAYDAY: The Heist — switch games from the sidebar
 - Browse and search mods from modworkshop
 - Full mod detail page: description, images, downloads, changelog, dependencies, and install instructions
 - Rich description rendering: formatted text, tables, collapsible sections, colored text, and inline video embeds (YouTube, Streamable)
-- One-click install, uninstall, enable, and disable — supports `.pak`, `.zip`, and `.7z` mods
+- One-click install, uninstall, enable, and disable — supports `.pak`, `.zip`, `.7z`, and `.rar` mods
 - Organize mods into folders with arbitrary nesting depth and drag-and-drop reordering
 - Mods with multiple installed files grouped as a single card
 - Update detection with selective per-mod updates
 - Launch modded or vanilla directly from the app
-- Automatically detects your PD3 installation (Steam, Epic Games Store, Xbox App)
-- Identifies manually placed .pak files via SHA256 lookup against a live mod index
+- Automatically detects your game installation (Steam, Epic Games Store, Xbox App)
+- One-click install for mod loaders: SuperBLT (PD2), DAHM and PDTHModOverrides (PDTH)
+- Identifies manually placed mod files via SHA256 lookup against a live mod index
 - Automatic update checks with one-click in-app updates
 
 ## Requirements
+
+PAYDAY 2 and PAYDAY: The Heist support Steam on Windows and Linux. PAYDAY 3 additionally supports Epic Games Store and Xbox App on Windows.
 
 | Launcher                                                                                                                                                 | <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows | <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------: |
