@@ -1,4 +1,4 @@
-use crate::commands::launchers::types::{GameDef, SteamDef};
+use crate::commands::launchers::types::{EpicDef, GameDef, SteamDef};
 
 pub const PD2: GameDef = GameDef {
     name: "PAYDAY 2",
@@ -8,6 +8,8 @@ pub const PD2: GameDef = GameDef {
         app_id: 218620,
         folder_name: "PAYDAY 2",
     }),
-    epic: None,
+    epic: Some(EpicDef {
+        display_name: "PAYDAY 2",
+    }),
     xbox: None,
 };
