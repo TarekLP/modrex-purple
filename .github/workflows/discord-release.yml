@@ -16,16 +16,22 @@ jobs:
               env:
                   DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
                   GH_TOKEN: ${{ github.token }}
+                  EVENT_NAME: ${{ github.event_name }}
+                  REPOSITORY: ${{ github.repository }}
+                  INPUT_TAG: ${{ inputs.tag_name }}
+                  RELEASE_TAG: ${{ github.event.release.tag_name }}
+                  RELEASE_BODY: ${{ github.event.release.body }}
+                  RELEASE_URL: ${{ github.event.release.html_url }}
               run: |
-                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-                    RELEASE=$(gh api repos/${{ github.repository }}/releases/tags/${{ inputs.tag_name }})
+                  if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+                    RELEASE=$(gh api "repos/$REPOSITORY/releases/tags/$INPUT_TAG")
                     TAG=$(echo "$RELEASE" | jq -r '.tag_name')
                     BODY=$(echo "$RELEASE" | jq -r '.body')
                     URL=$(echo "$RELEASE" | jq -r '.html_url')
                   else
-                    TAG="${{ github.event.release.tag_name }}"
-                    BODY="${{ github.event.release.body }}"
-                    URL="${{ github.event.release.html_url }}"
+                    TAG="$RELEASE_TAG"
+                    BODY="$RELEASE_BODY"
+                    URL="$RELEASE_URL"
                   fi
                   PAYLOAD=$(jq -n \
                     --arg tag "$TAG" \
