@@ -64,6 +64,14 @@ function buildPages(current: number, last: number): (number | '...')[] {
     return pages
 }
 
+// api.rs's api_get formats a rate-limit failure as "modworkshop API 429: <path>"
+// after exhausting its own retries — matches "API 429" specifically (not just
+// "429") so a 429 appearing inside a path segment in some other error doesn't
+// false-positive.
+function isRateLimitError(error: string): boolean {
+    return error.includes('API 429')
+}
+
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: 'bumped_at', label: t('browse.sort.lastUpdated') },
     { value: 'downloads', label: t('browse.sort.mostDownloaded') },
@@ -138,12 +146,22 @@ const ModGrid = memo(function ModGrid({
     loaderInstalledIds,
     ...handlers
 }: ModGridProps) {
-    if (loadingMods || !result) {
+    if (loadingMods) {
         return (
             <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                 {Array.from({ length: 24 }, (_, i) => (
                     <SkeletonCard key={i} />
                 ))}
+            </div>
+        )
+    }
+    if (!result) {
+        // Cold start with nothing cached and the fetch failed — without this,
+        // loadingMods=false + result=null fell through to the skeleton branch
+        // above and rendered placeholder cards forever.
+        return (
+            <div className="flex items-center justify-center h-full text-text-subtle text-sm">
+                {t('browse.loadFailed')}
             </div>
         )
     }
@@ -662,11 +680,16 @@ export function BrowsePage({
                 </div>
             </div>
 
-            {error && (
-                <div className="mx-6 mt-4 px-4 py-3 bg-danger/30 border border-danger-hover rounded text-sm text-danger-text">
-                    {error}
-                </div>
-            )}
+            {error &&
+                (isRateLimitError(error) ? (
+                    <div className="mx-6 mt-4 px-4 py-3 bg-warning/10 border border-warning/30 rounded text-sm text-warning">
+                        {t('browse.rateLimited')}
+                    </div>
+                ) : (
+                    <div className="mx-6 mt-4 px-4 py-3 bg-danger/30 border border-danger-hover rounded text-sm text-danger-text">
+                        {error}
+                    </div>
+                ))}
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
                 <ModGrid

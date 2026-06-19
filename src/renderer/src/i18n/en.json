@@ -65,6 +65,8 @@
         "searchPlaceholder": "Search mods…",
         "allCategories": "All categories",
         "noMods": "No mods found",
+        "loadFailed": "Couldn't load mods",
+        "rateLimited": "modworkshop is rate-limiting requests right now. Try again in a moment.",
         "modCount": "{total} mods",
         "sort": {
             "lastUpdated": "Last Updated",
