@@ -11,8 +11,11 @@ const INSTALLED_META_CHUNK_SIZE = 50
 
 // Freshness window for bulk installed-mod metadata (see fetchInstalledModsMeta).
 // Exported so useModData's own staleness check stays in lockstep with what
-// this cache actually serves.
-export const INSTALLED_META_TTL_MS = 5 * 60 * 1000
+// this cache actually serves. Longer than the 5-min mod/files/links TTL above
+// on purpose: name/version/thumbnail rarely change minute-to-minute, and a
+// short window was re-triggering a full batch refresh on every game switch
+// once it lapsed.
+export const INSTALLED_META_TTL_MS = 30 * 60 * 1000
 
 interface ModCacheEntry {
     mod: Mod
