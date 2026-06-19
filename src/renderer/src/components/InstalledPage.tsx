@@ -11,7 +11,7 @@ import { FolderSection, NewFolderInput } from './FolderSection'
 import { InstalledModItem } from './InstalledModItem'
 import { InstalledContext } from './InstalledContext'
 import type { InstalledMod, ModFolder, GameId } from '../../../shared/types'
-import { GAME_STORAGE_KEY } from '../../../shared/types'
+import { GAME_STORAGE_KEY, GAMES } from '../../../shared/types'
 import { useModData } from '../hooks/useModData'
 import { useDragDrop } from '../hooks/useDragDrop'
 import { useFolderActions } from '../hooks/useFolderActions'
@@ -51,7 +51,7 @@ export function InstalledPage({
     onOpenDetail,
 }: Props) {
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
-    const { modData, failedIds, updatable } = useModData(installed)
+    const { modData, failedIds, updatable } = useModData(installed, GAMES[activeGame].workshopId)
     const [showUpdates, setShowUpdates] = useState(false)
     const [filterQuery, setFilterQuery] = useState('')
     // Which group's ManageFilesModal is open. Lives here (not in InstalledModItem)

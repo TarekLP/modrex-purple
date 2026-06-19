@@ -168,6 +168,7 @@ export interface ListModsParams {
     sort?: SortOption
     category_id?: number
     page?: number
+    ids?: number[]
 }
 
 export interface Paginated<T> {

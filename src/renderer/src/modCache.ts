@@ -6,6 +6,13 @@ const STORAGE_TTL_MS = 24 * 60 * 60 * 1000
 const MOD_STORAGE_KEY = 'modrex:mod-cache'
 const FILES_STORAGE_KEY = 'modrex:files-cache'
 const LINKS_STORAGE_KEY = 'modrex:links-cache'
+const INSTALLED_META_STORAGE_KEY = 'modrex:installed-meta-cache'
+const INSTALLED_META_CHUNK_SIZE = 50
+
+// Freshness window for bulk installed-mod metadata (see fetchInstalledModsMeta).
+// Exported so useModData's own staleness check stays in lockstep with what
+// this cache actually serves.
+export const INSTALLED_META_TTL_MS = 5 * 60 * 1000
 
 interface ModCacheEntry {
     mod: Mod
@@ -22,9 +29,19 @@ interface LinksCacheEntry {
     fetchedAt: number
 }
 
+// Deliberately separate from ModCacheEntry: entries here come from the
+// `ids[]` listing filter, which lacks images/dependencies/changelog/full
+// banner. ModDetailPage seeds from getModCacheEntry and treats a hit as
+// complete, so a thin entry must never be visible through that lookup.
+interface InstalledMetaCacheEntry {
+    mod: Mod
+    fetchedAt: number
+}
+
 const modCache = new Map<number, ModCacheEntry>()
 const filesCache = new Map<number, FilesCacheEntry>()
 const linksCache = new Map<number, LinksCacheEntry>()
+const installedMetaCache = new Map<number, InstalledMetaCacheEntry>()
 
 function loadFromStorage(): void {
     const now = Date.now()
@@ -67,6 +84,19 @@ function loadFromStorage(): void {
     } catch {
         // Corrupted storage or unavailable — start fresh
     }
+    try {
+        const raw = localStorage.getItem(INSTALLED_META_STORAGE_KEY)
+        if (raw) {
+            const stored = JSON.parse(raw) as Record<string, InstalledMetaCacheEntry>
+            for (const [key, entry] of Object.entries(stored)) {
+                if (now - entry.fetchedAt < STORAGE_TTL_MS) {
+                    installedMetaCache.set(Number(key), entry)
+                }
+            }
+        }
+    } catch {
+        // Corrupted storage or unavailable — start fresh
+    }
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -95,6 +125,13 @@ function scheduleStorage(): void {
         } catch {
             // Quota exceeded or unavailable — ignore
         }
+        try {
+            const installedMeta: Record<string, InstalledMetaCacheEntry> = {}
+            for (const [id, entry] of installedMetaCache) installedMeta[String(id)] = entry
+            localStorage.setItem(INSTALLED_META_STORAGE_KEY, JSON.stringify(installedMeta))
+        } catch {
+            // Quota exceeded or unavailable — ignore
+        }
     }, 2000)
 }
 
@@ -110,6 +147,10 @@ export function getFilesCacheEntry(id: number): FilesCacheEntry | undefined {
 
 export function getLinksCacheEntry(id: number): LinksCacheEntry | undefined {
     return linksCache.get(id)
+}
+
+export function getInstalledMetaEntry(id: number): InstalledMetaCacheEntry | undefined {
+    return installedMetaCache.get(id)
 }
 
 export async function getCachedMod(id: number): Promise<Mod> {
@@ -137,4 +178,37 @@ export async function getCachedModLinks(id: number): Promise<ModLink[]> {
     linksCache.set(id, { links: data, fetchedAt: Date.now() })
     scheduleStorage()
     return data
+}
+
+// Bulk-refreshes installed-mod metadata via the `ids[]` listing filter instead
+// of one `get_mod` call per id — turns an N-request refresh into one request
+// per ~50 ids. Unconditionally fetches and caches every id passed in (callers
+// decide what's stale); ids missing from the response (deleted mods) are
+// reported in failedIds. Writes only to installedMetaCache, never modCache.
+export async function fetchInstalledModsMeta(
+    workshopId: number,
+    ids: number[]
+): Promise<{ mods: Map<number, Mod>; failedIds: number[] }> {
+    const mods = new Map<number, Mod>()
+    const failedIds: number[] = []
+    for (let i = 0; i < ids.length; i += INSTALLED_META_CHUNK_SIZE) {
+        const chunk = ids.slice(i, i + INSTALLED_META_CHUNK_SIZE)
+        try {
+            const { data } = await api.listMods(workshopId, { ids: chunk, limit: chunk.length })
+            const fetchedAt = Date.now()
+            const got = new Set<number>()
+            for (const mod of data) {
+                installedMetaCache.set(mod.id, { mod, fetchedAt })
+                mods.set(mod.id, mod)
+                got.add(mod.id)
+            }
+            for (const id of chunk) {
+                if (!got.has(id)) failedIds.push(id)
+            }
+        } catch {
+            failedIds.push(...chunk)
+        }
+    }
+    if (ids.length > 0) scheduleStorage()
+    return { mods, failedIds }
 }

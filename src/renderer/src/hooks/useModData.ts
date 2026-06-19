@@ -1,26 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { Mod, InstalledMod } from '../../../shared/types'
-import { getCachedMod, getModCacheEntry } from '../modCache'
+import { getInstalledMetaEntry, fetchInstalledModsMeta, INSTALLED_META_TTL_MS } from '../modCache'
 import { getLocalImage } from '../thumbnailCache'
 
-const TTL_MS = 5 * 60 * 1000
-const FETCH_CONCURRENCY = 5
-const BATCH_DELAY_MS = 50
-
-async function fetchInBatches<T, R>(
-    items: T[],
-    fn: (item: T) => Promise<R>
-): Promise<PromiseSettledResult<R>[]> {
-    const results: PromiseSettledResult<R>[] = []
-    for (let i = 0; i < items.length; i += FETCH_CONCURRENCY) {
-        if (i > 0) await new Promise<void>((r) => setTimeout(r, BATCH_DELAY_MS))
-        const batch = items.slice(i, i + FETCH_CONCURRENCY)
-        results.push(...(await Promise.allSettled(batch.map(fn))))
-    }
-    return results
-}
-
-export function useModData(installed: InstalledMod[]): {
+export function useModData(
+    installed: InstalledMod[],
+    workshopId: number
+): {
     modData: Map<number, Mod>
     failedIds: Set<number>
     updatable: InstalledMod[]
@@ -53,11 +39,11 @@ export function useModData(installed: InstalledMod[]): {
         const fromCache: [number, Mod][] = []
         for (const m of installed) {
             if (m.id < 0) continue
-            const entry = getModCacheEntry(m.id)
+            const entry = getInstalledMetaEntry(m.id)
             if (!entry) continue
             fromCache.push([m.id, entry.mod])
             // Mark as fetched so fresh entries skip the API call below
-            if (now - entry.fetchedAt < TTL_MS) {
+            if (now - entry.fetchedAt < INSTALLED_META_TTL_MS) {
                 fetchedAt.current.set(m.id, entry.fetchedAt)
             }
         }
@@ -82,28 +68,23 @@ export function useModData(installed: InstalledMod[]): {
         const stale = installed.filter((m) => {
             if (m.id < 0) return false
             const t = fetchedAt.current.get(m.id)
-            return t === undefined || now - t >= TTL_MS
+            return t === undefined || now - t >= INSTALLED_META_TTL_MS
         })
         if (stale.length === 0) return
-        fetchInBatches(stale, (m) => getCachedMod(m.id)).then((results) => {
-            const updates: [number, Mod][] = []
-            const failed: number[] = []
-            results.forEach((r, i) => {
-                fetchedAt.current.set(stale[i].id, Date.now())
-                if (r.status === 'fulfilled') {
-                    updates.push([stale[i].id, r.value])
-                } else {
-                    failed.push(stale[i].id)
-                }
-            })
-            for (const [, mod] of updates) {
+        fetchInstalledModsMeta(
+            workshopId,
+            stale.map((m) => m.id)
+        ).then(({ mods, failedIds: failed }) => {
+            const fetchedNow = Date.now()
+            for (const m of stale) fetchedAt.current.set(m.id, fetchedNow)
+            for (const mod of mods.values()) {
                 // Pre-warm the full-size variant — that's what ModCard renders.
                 if (mod.thumbnail?.file) getLocalImage(mod.thumbnail.file, true).catch(() => {})
             }
-            if (updates.length > 0) {
+            if (mods.size > 0) {
                 setModData((prev) => {
                     const next = new Map(prev)
-                    updates.forEach(([id, mod]) => next.set(id, mod))
+                    for (const [id, mod] of mods) next.set(id, mod)
                     return next
                 })
             }
@@ -111,7 +92,7 @@ export function useModData(installed: InstalledMod[]): {
                 setFailedIds((prev) => new Set([...prev, ...failed]))
             }
         })
-    }, [installed])
+    }, [installed, workshopId])
 
     const updatable = useMemo(() => {
         const installedVersions = new Set(installed.map((m) => `${m.id}:${m.version}`))

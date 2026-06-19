@@ -141,6 +141,11 @@ pub struct ListModsParams {
     pub sort: Option<String>,
     pub category_id: Option<u32>,
     pub page: Option<u32>,
+    // Filters the listing down to exactly these mod ids (undocumented
+    // modworkshop feature, verified live: `/games/{id}/mods?ids[]=A&ids[]=B`
+    // returns just A and B, full list-item shape). Lets bulk metadata refresh
+    // use one request per ~50 ids instead of one `get_mod` per id.
+    pub ids: Option<Vec<u32>>,
 }
 
 #[tauri::command]
@@ -165,6 +170,11 @@ pub async fn list_mods(
         }
         if let Some(v) = p.page {
             query.push(("page", v.to_string()));
+        }
+        if let Some(ids) = &p.ids {
+            for id in ids {
+                query.push(("ids[]", id.to_string()));
+            }
         }
     }
     api_get(&app, &format!("/games/{}/mods", game_id), query).await

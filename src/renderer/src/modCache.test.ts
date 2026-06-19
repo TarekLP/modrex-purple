@@ -54,6 +54,7 @@ function makeLink(id: number): ModLink {
 let mockGetMod: ReturnType<typeof vi.fn>
 let mockListModFiles: ReturnType<typeof vi.fn>
 let mockListModLinks: ReturnType<typeof vi.fn>
+let mockListMods: ReturnType<typeof vi.fn>
 let storage: ReturnType<typeof makeLocalStorage>
 let cache!: typeof ModCacheMod
 
@@ -65,12 +66,14 @@ beforeEach(async () => {
     mockGetMod = vi.fn()
     mockListModFiles = vi.fn()
     mockListModLinks = vi.fn()
+    mockListMods = vi.fn()
 
     vi.doMock('./api', () => ({
         api: {
             getMod: mockGetMod,
             listModFiles: mockListModFiles,
             listModLinks: mockListModLinks,
+            listMods: mockListMods,
         },
     }))
 
@@ -233,7 +236,55 @@ describe('scheduleStorage', () => {
         await cache.getCachedMod(1)
         await cache.getCachedMod(2)
         vi.advanceTimersByTime(2001)
-        // One flush writes three keys: mod-cache, files-cache, links-cache
-        expect(setItemSpy).toHaveBeenCalledTimes(3)
+        // One flush writes four keys: mod-cache, files-cache, links-cache, installed-meta-cache
+        expect(setItemSpy).toHaveBeenCalledTimes(4)
+    })
+})
+
+describe('fetchInstalledModsMeta', () => {
+    it('calls api.listMods with an ids filter on a miss and caches the result', async () => {
+        const mod = makeMod(1)
+        mockListMods.mockResolvedValue({ data: [mod], meta: {} })
+        const { mods, failedIds } = await cache.fetchInstalledModsMeta(853, [1])
+        expect(mockListMods).toHaveBeenCalledWith(853, { ids: [1], limit: 1 })
+        expect(mods.get(1)).toBe(mod)
+        expect(failedIds).toEqual([])
+        expect(cache.getInstalledMetaEntry(1)!.mod).toBe(mod)
+    })
+
+    it('reports ids missing from the response as failed', async () => {
+        mockListMods.mockResolvedValue({ data: [makeMod(1)], meta: {} })
+        const { mods, failedIds } = await cache.fetchInstalledModsMeta(853, [1, 2])
+        expect(mods.has(2)).toBe(false)
+        expect(failedIds).toEqual([2])
+    })
+
+    it('reports the whole chunk as failed when the request rejects', async () => {
+        mockListMods.mockRejectedValue(new Error('modworkshop API 429'))
+        const { mods, failedIds } = await cache.fetchInstalledModsMeta(853, [1, 2])
+        expect(mods.size).toBe(0)
+        expect(failedIds).toEqual([1, 2])
+    })
+
+    it('splits more than 50 ids into multiple chunked requests', async () => {
+        mockListMods.mockResolvedValue({ data: [], meta: {} })
+        const ids = Array.from({ length: 75 }, (_, i) => i + 1)
+        await cache.fetchInstalledModsMeta(853, ids)
+        expect(mockListMods).toHaveBeenCalledTimes(2)
+        expect(mockListMods).toHaveBeenNthCalledWith(1, 853, { ids: ids.slice(0, 50), limit: 50 })
+        expect(mockListMods).toHaveBeenNthCalledWith(2, 853, { ids: ids.slice(50), limit: 25 })
+    })
+
+    it('never writes into the modCache used by getCachedMod/ModDetailPage', async () => {
+        const mod = makeMod(1)
+        mockListMods.mockResolvedValue({ data: [mod], meta: {} })
+        await cache.fetchInstalledModsMeta(853, [1])
+        expect(cache.getModCacheEntry(1)).toBeUndefined()
+    })
+})
+
+describe('getInstalledMetaEntry', () => {
+    it('returns undefined for an unknown id', () => {
+        expect(cache.getInstalledMetaEntry(1)).toBeUndefined()
     })
 })
