@@ -34,6 +34,7 @@ import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
 import { t } from '../i18n'
 import { api } from '../api'
 import { trackSearch } from '../lib/analytics/events'
+import { markForegroundActivity, waitForForegroundClear } from '../requestPriority'
 
 interface Props {
     activeGame: GameId
@@ -254,6 +255,7 @@ export function BrowsePage({
                 setLoadingMods(true)
             }
             setError(null)
+            markForegroundActivity()
             try {
                 const data = await api.listMods(workshopId, {
                     page: p,
@@ -271,6 +273,8 @@ export function BrowsePage({
             } catch (e) {
                 setError(String(e))
                 setLoadingMods(false)
+            } finally {
+                markForegroundActivity()
             }
         },
         [workshopId, activeGame] // both stable per mount — BrowsePage remounts on game change via key={activeGame}
@@ -331,9 +335,11 @@ export function BrowsePage({
     const handlePrefetch = useCallback((modId: number) => {
         if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
         prefetchTimerRef.current = setTimeout(() => {
-            getCachedMod(modId).catch(() => {})
-            getCachedModFiles(modId).catch(() => {})
-            getCachedModLinks(modId).catch(() => {})
+            waitForForegroundClear().then(() => {
+                getCachedMod(modId).catch(() => {})
+                getCachedModFiles(modId).catch(() => {})
+                getCachedModLinks(modId).catch(() => {})
+            })
         }, 150)
     }, [])
 

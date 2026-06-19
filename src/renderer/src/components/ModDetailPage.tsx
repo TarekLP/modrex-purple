@@ -45,6 +45,7 @@ import { isUnsupportedFormat } from '../formatCheck'
 import { collectDeps, isLoaderDep, missingRequiredDeps, offsiteDepHost } from '../deps'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
+import { markForegroundActivity } from '../requestPriority'
 
 type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'deps'
 
@@ -125,13 +126,17 @@ export function ModDetailPage({
 
     const fetchData = useCallback(() => {
         setError(null)
+        markForegroundActivity()
 
         // Mod and files/links fetch in parallel; each resolves independently so
         // the header renders as soon as mod data is available.
         getCachedMod(modId)
             .then((modData) => setMod(modData))
             .catch((e) => setError(String(e)))
-            .finally(() => setLoading(false))
+            .finally(() => {
+                setLoading(false)
+                markForegroundActivity()
+            })
 
         Promise.all([getCachedModFiles(modId), getCachedModLinks(modId)])
             .then(([filesData, linksData]) => {
@@ -139,7 +144,10 @@ export function ModDetailPage({
                 setLinks(linksData)
             })
             .catch(() => {})
-            .finally(() => setFilesLoading(false))
+            .finally(() => {
+                setFilesLoading(false)
+                markForegroundActivity()
+            })
     }, [modId])
 
     useEffect(() => {

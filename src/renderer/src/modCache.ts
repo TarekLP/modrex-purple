@@ -1,5 +1,6 @@
 import type { Mod, ModFile, ModLink } from '../../shared/types'
 import { api } from './api'
+import { waitForForegroundClear } from './requestPriority'
 
 const TTL_MS = 5 * 60 * 1000
 const STORAGE_TTL_MS = 24 * 60 * 60 * 1000
@@ -196,6 +197,7 @@ export async function fetchInstalledModsMeta(
     const failedIds: number[] = []
     for (let i = 0; i < ids.length; i += INSTALLED_META_CHUNK_SIZE) {
         const chunk = ids.slice(i, i + INSTALLED_META_CHUNK_SIZE)
+        await waitForForegroundClear()
         try {
             const { data } = await api.listMods(workshopId, { ids: chunk, limit: chunk.length })
             const fetchedAt = Date.now()
