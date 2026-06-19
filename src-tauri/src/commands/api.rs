@@ -1,6 +1,8 @@
+use reqwest::header::HeaderMap;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::Value;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
@@ -15,6 +17,23 @@ const MAX_CONCURRENT: usize = 3;
 // over the real limit and self-inflicted the 429s it was meant to prevent.
 const RATE_BURST: f64 = 4.0;
 const RATE_PER_SEC: f64 = 1.3;
+
+// Last x-ratelimit-remaining seen on any response; -1 = unknown (no response
+// yet this run). modworkshop exposes no reset timestamp, so once the budget
+// gets low we can't compute an exact wait — add a flat precautionary pause
+// instead and let the token bucket's steady pacing (plus the server's window
+// eventually rolling over) do the rest. This makes the client slow down
+// proactively instead of only reacting after a 429 already happened.
+static RATE_REMAINING: AtomicI64 = AtomicI64::new(-1);
+const LOW_REMAINING_THRESHOLD: i64 = 5;
+const LOW_REMAINING_PAUSE: Duration = Duration::from_secs(3);
+
+fn parse_rate_limit_remaining(headers: &HeaderMap) -> Option<i64> {
+    headers
+        .get("x-ratelimit-remaining")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<i64>().ok())
+}
 
 struct TokenBucket {
     tokens: f64,
@@ -98,6 +117,14 @@ pub(crate) async fn api_get(
             tokio::time::sleep(wait).await;
         }
 
+        // Proactive slowdown: the last response said the per-minute budget is
+        // nearly gone. Pause before even taking a semaphore permit, on top of
+        // the token bucket's normal pacing above.
+        let remaining = RATE_REMAINING.load(Ordering::Relaxed);
+        if (0..=LOW_REMAINING_THRESHOLD).contains(&remaining) {
+            tokio::time::sleep(LOW_REMAINING_PAUSE).await;
+        }
+
         let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
         let res = client
             .get(url.clone())
@@ -107,6 +134,10 @@ pub(crate) async fn api_get(
             .send()
             .await
             .map_err(|e| e.to_string())?;
+
+        if let Some(remaining) = parse_rate_limit_remaining(res.headers()) {
+            RATE_REMAINING.store(remaining, Ordering::Relaxed);
+        }
 
         if res.status() == 429 {
             drop(_permit);
@@ -221,3 +252,7 @@ pub async fn register_download(app: AppHandle, file_id: u32) -> Result<(), Strin
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "api_tests.rs"]
+mod tests;
