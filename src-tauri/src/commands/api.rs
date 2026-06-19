@@ -8,9 +8,13 @@ use tokio::sync::Semaphore;
 
 const BASE: &str = "https://api.modworkshop.net";
 const MAX_CONCURRENT: usize = 3;
-// Burst up to 8, then 4/sec sustained — keeps total rate well under the API's threshold.
-const RATE_BURST: f64 = 8.0;
-const RATE_PER_SEC: f64 = 4.0;
+// modworkshop enforces 90 req/min per IP, shared across every endpoint
+// (confirmed live via the x-ratelimit-limit response header — not documented
+// anywhere). Burst up to 4, then 1.3/sec sustained (≈78/min) leaves headroom
+// instead of exceeding it: the previous 4/sec sustained (240/min) was 2.7x
+// over the real limit and self-inflicted the 429s it was meant to prevent.
+const RATE_BURST: f64 = 4.0;
+const RATE_PER_SEC: f64 = 1.3;
 
 struct TokenBucket {
     tokens: f64,
