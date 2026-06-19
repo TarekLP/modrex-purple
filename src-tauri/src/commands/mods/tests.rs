@@ -418,6 +418,47 @@ fn read_state_missing_location_is_none() {
     assert_eq!(state.mods[0].location, None);
 }
 
+#[test]
+fn uninstall_mod_keeps_empty_folder() {
+    let temp = TempDir::new().unwrap();
+    let game = temp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3");
+    let state_path = get_state_path(game, cfg);
+    let folders = vec![folder("f1", "001_KeepMe", None)];
+    let folder_rel = get_folder_path(&folders, Some("f1")).unwrap();
+    let filename = "001_Test_Mod.pak";
+
+    let folder_dir = mods_base(game, cfg.primary()).join(&folder_rel);
+    fs::create_dir_all(&folder_dir).unwrap();
+    fs::write(folder_dir.join(filename), b"pak").unwrap();
+    save_state(
+        &state_path,
+        &ModsState {
+            folders: folders.clone(),
+            mods: vec![InstalledMod {
+                uid: "mod1".to_string(),
+                id: 1,
+                name: "Test Mod".to_string(),
+                version: "1.0".to_string(),
+                filename: filename.to_string(),
+                enabled: true,
+                installed_at: "2024-01-01T00:00:00Z".to_string(),
+                folder_id: Some("f1".to_string()),
+                priority: Some(1),
+                ..InstalledMod::default()
+            }],
+        },
+    );
+
+    uninstall_mod_op(game, &state_path, "mod1", cfg);
+
+    let state = read_state(&state_path);
+    assert!(state.mods.is_empty());
+    assert_eq!(state.folders.len(), 1);
+    assert_eq!(state.folders[0].id, "f1");
+    assert!(folder_dir.exists());
+}
+
 // ── PD2 multi-target engine ───────────────────────────────────────────────
 
 #[test]
@@ -679,7 +720,10 @@ fn detect_ignores_non_image_signature_files() {
 // ── is_unplaceable_pack ───────────────────────────────────────────────────
 
 fn unplaceable(names: &[&str]) -> bool {
-    is_unplaceable_pack(&names.iter().map(|s| s.to_string()).collect::<Vec<_>>(), &[])
+    is_unplaceable_pack(
+        &names.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+        &[],
+    )
 }
 
 #[test]

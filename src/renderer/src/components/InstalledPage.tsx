@@ -77,13 +77,7 @@ export function InstalledPage({
         handleReinstall,
     } = useModActions(gamePath, onRefreshInstalled, activeGame)
 
-    const folderActions = useFolderActions(
-        gamePath,
-        onRefreshInstalled,
-        installed,
-        folders,
-        activeGame
-    )
+    const folderActions = useFolderActions(gamePath, onRefreshInstalled, activeGame)
 
     const {
         dragItem,

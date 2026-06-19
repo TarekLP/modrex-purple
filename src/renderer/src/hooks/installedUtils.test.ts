@@ -326,9 +326,17 @@ describe('computeChildren', () => {
         expect(folderEntries[1].folder.id).toBe('f1')
     })
 
-    it('excludes folders that have no mods', () => {
+    it('includes folders that have no mods', () => {
         const folders = [makeFolder('empty')]
         const result = computeChildren([], folders, null)
+        expect(result).toHaveLength(1)
+        expect(result[0].type).toBe('folder')
+        expect((result[0] as { type: 'folder'; folder: ModFolder }).folder.id).toBe('empty')
+    })
+
+    it('hides empty folders when filtering does not expose them', () => {
+        const folders = [makeFolder('empty')]
+        const result = computeChildren([], folders, null, new Set())
         expect(result).toHaveLength(0)
     })
 

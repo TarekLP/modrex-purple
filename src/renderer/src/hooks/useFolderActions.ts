@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type { GameId, InstalledMod, ModFolder } from '../../../shared/types'
 import { GAME_STORAGE_KEY } from '../../../shared/types'
 import { api } from '../api'
-import { getAllModsInFolder } from './installedUtils'
 
 export interface FolderActions {
     collapsedFolders: Set<string>
@@ -24,14 +23,16 @@ export interface FolderActions {
     setNewFolderName: (name: string) => void
     handleCreateFolder: () => Promise<void>
     toggleCollapse: (folderId: string) => void
-    handleToggleFolder: (folderId: string, anyEnabled: boolean) => Promise<void>
+    handleToggleFolder: (
+        folderId: string,
+        mods: InstalledMod[],
+        anyEnabled: boolean
+    ) => Promise<void>
 }
 
 export function useFolderActions(
     gamePath: string | null,
     onRefreshInstalled: () => Promise<void>,
-    installed: InstalledMod[],
-    folders: ModFolder[],
     activeGame?: GameId
 ): FolderActions {
     const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => {
@@ -120,11 +121,10 @@ export function useFolderActions(
         })
     }
 
-    async function handleToggleFolder(folderId: string, anyEnabled: boolean) {
+    async function handleToggleFolder(folderId: string, mods: InstalledMod[], anyEnabled: boolean) {
         if (!gamePath) return
         setLoadingFolderId(folderId)
         try {
-            const mods = getAllModsInFolder(installed, folders, folderId)
             for (const mod of mods) {
                 if (anyEnabled) {
                     await api.disableMod(mod.uid, gamePath, activeGame)

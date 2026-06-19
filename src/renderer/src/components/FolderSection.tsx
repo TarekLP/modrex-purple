@@ -48,7 +48,6 @@ export function FolderSection({ folder }: Props) {
         visibleFolderIds,
         renderMods,
         folders,
-        installed,
         dragItem,
         dropTarget,
         folderActions,
@@ -86,13 +85,11 @@ export function FolderSection({ folder }: Props) {
 
     const children = computeChildren(renderMods, folders, folder.id, visibleFolderIds)
     const isEmpty = children.length === 0
-    const allMods = getAllModsInFolder(installed, folders, folder.id)
+    const folderMods = getAllModsInFolder(renderMods, folders, folder.id)
     const normalizedCount = new Set(
-        getAllModsInFolder(renderMods, folders, folder.id).map((m) =>
-            m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`
-        )
+        folderMods.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
     ).size
-    const anyEnabled = allMods.some((m) => m.enabled)
+    const anyEnabled = folderMods.some((m) => m.enabled)
     const isFolderLoading = loadingFolderId === folder.id
 
     return (
@@ -185,14 +182,14 @@ export function FolderSection({ folder }: Props) {
                     )}
                 </span>
 
-                {!isRenaming && allMods.length > 0 && (
+                {!isRenaming && folderMods.length > 0 && (
                     <div
                         className="flex items-center shrink-0"
                         onMouseDown={(e) => e.stopPropagation()}
                     >
                         <Toggle
                             checked={anyEnabled}
-                            onChange={() => handleToggleFolder(folder.id, anyEnabled)}
+                            onChange={() => handleToggleFolder(folder.id, folderMods, anyEnabled)}
                             disabled={isFolderLoading || !gamePath}
                             title={t(
                                 anyEnabled ? 'installed.folder.disable' : 'installed.folder.enable'
