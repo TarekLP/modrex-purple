@@ -48,7 +48,6 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={t('gamePicker.searchPlaceholder')}
                         className="w-full text-sm pl-8 pr-3 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors"
-                        autoFocus
                     />
                 </label>
             </div>
