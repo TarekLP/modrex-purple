@@ -4,6 +4,14 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Changed
+
+- Improved modworkshop API request performance and pacing.
+
+### Fixed
+
+- Fixed empty Installed folders disappearing after their last mod was uninstalled.
+
 ## 0.10.0
 
 ### Added
