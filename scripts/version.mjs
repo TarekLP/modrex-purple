@@ -25,6 +25,19 @@ writeFileSync(
         .replace(/modrex_[\d.]+_amd64\.AppImage/g, `modrex_${version}_amd64.AppImage`)
 )
 
-execSync('git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock README.md', {
-    stdio: 'inherit',
-})
+const changelog = readFileSync('CHANGELOG.md', 'utf8')
+const unreleasedBody = changelog.match(/## Unreleased\n([\s\S]*?)\n## /)?.[1].trim()
+if (!unreleasedBody) {
+    console.warn(
+        `Warning: CHANGELOG.md Unreleased section is empty — v${version} will ship with no release notes.`
+    )
+}
+writeFileSync(
+    'CHANGELOG.md',
+    changelog.replace(/## Unreleased\n+/, `## Unreleased\n\n## ${version}\n\n`)
+)
+
+execSync(
+    'git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock README.md CHANGELOG.md',
+    { stdio: 'inherit' }
+)

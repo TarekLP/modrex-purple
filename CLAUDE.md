@@ -288,7 +288,8 @@ Reusable skills live in `.agents/skills/` and are listed in `AGENTS.md`. Availab
 
 - `/commit` — read the current diff and propose a conventional commit message; waits for confirmation before committing.
 - `/deslop` — audit the branch diff for AI-generated slop (unnecessary comments, defensive checks, wrong abstractions, project convention violations) and fix each issue found.
+- `/changelog` — add user-facing entries (Keep a Changelog categories: Added/Changed/Fixed/Security) to `CHANGELOG.md`'s `## Unreleased` section for recent commits or uncommitted changes. Run this after any user-facing change, not just at release time — it's what keeps release notes from requiring a re-read of every commit.
 
 **Deferred work**: tracked in `.TODO`. Do NOT act on anything in that file unless the user explicitly says "do the TODO: <name>".
 
-**Releasing**: run `pnpm version patch|minor|major` — bumps `package.json`, commits as `chore(release): X.Y.Z`, creates a `vX.Y.Z` tag. Pushing the tag triggers the CI release workflow.
+**Releasing**: run `pnpm version patch|minor|major` — bumps `package.json`, commits as `chore(release): X.Y.Z`, creates a `vX.Y.Z` tag. As part of the version bump, `scripts/version.mjs` stamps `CHANGELOG.md`'s `## Unreleased` section into a `## X.Y.Z` section (no brackets, no date — opening a fresh empty `Unreleased` above it) and stages it into the release commit — so `/changelog` entries written before the version number was known land in the right place automatically. Pushing the tag triggers the CI release workflow, which extracts that section (`scripts/changelog-section.mjs`) as the GitHub release body instead of an auto-generated commit dump, and publishes the release as `vX.Y.Z` (not "Modrex vX.Y.Z").
