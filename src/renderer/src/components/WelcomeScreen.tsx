@@ -1,7 +1,12 @@
-import { useState } from 'react'
-import appIcon from '../../../../assets/icon.png'
+import { useEffect, useState } from 'react'
+import { Search } from 'lucide-react'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
+import { t } from '../i18n'
+import { api } from '../api'
+import { Toggle } from './Toggle'
+
+const INSTALLED_ONLY_KEY = 'modrex:show-installed-games-only'
 
 const CDN_URLS: Record<GameId, string> = {
     pd3: 'https://cdn.akamai.steamstatic.com/steam/apps/1272080/library_600x900.jpg',
@@ -23,66 +28,117 @@ interface Props {
 
 export function WelcomeScreen({ onSelectGame }: Props) {
     const [failed, setFailed] = useState<Partial<Record<GameId, boolean>>>({})
+    const [query, setQuery] = useState('')
+    const [installedOnly, setInstalledOnly] = useState(
+        () => localStorage.getItem(INSTALLED_ONLY_KEY) === 'true'
+    )
+    const [installedStatus, setInstalledStatus] = useState<Partial<Record<GameId, boolean>>>({})
+
+    useEffect(() => {
+        let cancelled = false
+        for (const g of Object.keys(GAMES) as GameId[]) {
+            void api.findGamePath(g).then((path) => {
+                if (cancelled) return
+                setInstalledStatus((prev) => ({ ...prev, [g]: path !== null }))
+            })
+        }
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
+    function handleInstalledOnlyChange(checked: boolean) {
+        setInstalledOnly(checked)
+        localStorage.setItem(INSTALLED_ONLY_KEY, String(checked))
+    }
+
+    const normalizedQuery = query.trim().toLowerCase()
+    const games = (Object.keys(GAMES) as GameId[]).filter((g) => {
+        const game = GAMES[g]
+        if (installedOnly && !installedStatus[g]) return false
+        return (
+            !normalizedQuery ||
+            game.name.toLowerCase().includes(normalizedQuery) ||
+            game.shortName.toLowerCase().includes(normalizedQuery)
+        )
+    })
 
     return (
-        <div className="h-full flex flex-col items-center justify-center gap-10 p-8 bg-surface">
-            <div className="flex flex-col items-center gap-3">
-                <img src={appIcon} alt="Modrex" className="w-14 h-14 opacity-90" />
-                <h1
-                    style={{
-                        fontFamily: "'Bebas Neue', sans-serif",
-                        fontSize: '2.5rem',
-                        letterSpacing: '0.05em',
-                        lineHeight: 1,
-                    }}
-                >
-                    <span style={{ color: 'var(--color-text)' }}>MOD</span>
-                    <span style={{ color: 'var(--color-accent)' }}>REX</span>
-                </h1>
-                <p className="text-sm text-text-muted">Choose your game</p>
+        <div className="h-full bg-surface text-text flex flex-col">
+            <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-lg font-semibold">{t('gamePicker.title')}</h1>
+                    <div className="flex items-center gap-2">
+                        <Toggle checked={installedOnly} onChange={handleInstalledOnlyChange} />
+                        <span className="text-xs text-text-muted">
+                            {t('gamePicker.installedOnly')}
+                        </span>
+                    </div>
+                </div>
+                <label className="relative block w-full">
+                    <span className="sr-only">{t('gamePicker.searchLabel')}</span>
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-subtle pointer-events-none" />
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder={t('gamePicker.searchPlaceholder')}
+                        className="w-full text-sm pl-8 pr-3 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors"
+                    />
+                </label>
             </div>
 
-            <div className="flex gap-6">
-                {(Object.keys(GAMES) as GameId[]).map((g) => {
-                    const fallback = FALLBACK_STYLES[g]
-                    const showFallback = failed[g]
-                    return (
-                        <button
-                            key={g}
-                            onClick={() => onSelectGame(g)}
-                            className="group relative rounded-2xl border border-border overflow-hidden transition-all duration-200 hover:scale-[1.03] hover:border-accent/50 focus:outline-none focus:border-accent/50 shadow-lg"
-                            style={{ width: 200, height: 300 }}
-                        >
-                            {showFallback ? (
-                                <div
-                                    className="absolute inset-0 flex items-center justify-center"
-                                    style={{ background: fallback.background }}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+                {games.length ? (
+                    <div className="grid grid-cols-[repeat(auto-fill,200px)] gap-6">
+                        {games.map((g) => {
+                            const fallback = FALLBACK_STYLES[g]
+                            const showFallback = failed[g]
+                            return (
+                                <button
+                                    key={g}
+                                    onClick={() => onSelectGame(g)}
+                                    aria-label={GAMES[g].name}
+                                    className="group relative aspect-[2/3] overflow-hidden rounded-lg border border-border bg-surface-raised transition-all duration-200 hover:scale-[1.03] hover:border-accent/60 focus-visible:outline-none focus-visible:border-accent/60"
                                 >
-                                    <span
-                                        style={{
-                                            fontFamily: "'Bebas Neue', sans-serif",
-                                            fontSize: '2.2rem',
-                                            letterSpacing: '0.08em',
-                                            color: fallback.nameColor,
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        {GAMES[g].name}
-                                    </span>
-                                </div>
-                            ) : (
-                                <img
-                                    src={CDN_URLS[g]}
-                                    alt={GAMES[g].name}
-                                    className="absolute inset-0 w-full h-full object-cover"
-                                    draggable={false}
-                                    onError={() => setFailed((prev) => ({ ...prev, [g]: true }))}
-                                />
-                            )}
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
-                        </button>
-                    )
-                })}
+                                    {showFallback ? (
+                                        <div
+                                            className="absolute inset-0 flex items-center justify-center p-4 text-center"
+                                            style={{ background: fallback.background }}
+                                        >
+                                            <span
+                                                style={{
+                                                    fontFamily: "'Bebas Neue', sans-serif",
+                                                    fontSize: '2rem',
+                                                    letterSpacing: '0.08em',
+                                                    color: fallback.nameColor,
+                                                    lineHeight: 1,
+                                                }}
+                                            >
+                                                {GAMES[g].name}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <img
+                                            src={CDN_URLS[g]}
+                                            alt=""
+                                            className="absolute inset-0 h-full w-full object-contain"
+                                            draggable={false}
+                                            onError={() =>
+                                                setFailed((prev) => ({ ...prev, [g]: true }))
+                                            }
+                                        />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/10" />
+                                </button>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className="flex h-48 items-center justify-center rounded border border-border bg-surface-raised text-sm text-text-muted">
+                        {t('gamePicker.noMatches')}
+                    </div>
+                )}
             </div>
         </div>
     )

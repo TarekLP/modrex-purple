@@ -341,7 +341,9 @@ export default function App() {
     const goToSettings = useCallback(() => handleSidebarChange('settings'), [handleSidebarChange])
 
     const sidebarView =
-        view === 'detail' ? prevView : (view as 'browse' | 'installed' | 'news' | 'settings')
+        view === 'detail' || view === 'welcome'
+            ? prevView
+            : (view as 'browse' | 'installed' | 'news' | 'settings')
 
     return (
         <TooltipProvider delayDuration={400}>
@@ -363,119 +365,125 @@ export default function App() {
                         <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
                     </div>
                 )}
-                {view === 'welcome' ? (
-                    <WelcomeScreen onSelectGame={handleGameChange} />
-                ) : (
-                    <>
-                        <TopBar
-                            gamePath={gamePath}
-                            activeGame={activeGame}
-                            onRefreshInstalled={refreshInstalled}
-                            update={
-                                update && update.phase !== 'available'
-                                    ? { phase: update.phase, percent: update.percent }
-                                    : null
-                            }
-                            onDismissUpdate={() => setUpdate(null)}
-                        />
-                        {modsHidden && (
-                            <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
-                                <span>{t('app.modsHidden')}</span>
-                                <div className="flex items-center gap-3 shrink-0">
-                                    {restoreError && (
-                                        <span className="text-danger-text">{restoreError}</span>
-                                    )}
-                                    <button
-                                        onClick={handleRestoreMods}
-                                        className="px-3 py-1 rounded bg-warning/20 hover:bg-warning/30 transition-colors"
-                                    >
-                                        {t('app.restoreMods')}
-                                    </button>
-                                </div>
+                <>
+                    <TopBar
+                        gamePath={gamePath}
+                        activeGame={activeGame}
+                        onRefreshInstalled={refreshInstalled}
+                        update={
+                            update && update.phase !== 'available'
+                                ? { phase: update.phase, percent: update.percent }
+                                : null
+                        }
+                        onDismissUpdate={() => setUpdate(null)}
+                        hideGameActions={view === 'welcome'}
+                    />
+                    {view !== 'welcome' && modsHidden && (
+                        <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
+                            <span>{t('app.modsHidden')}</span>
+                            <div className="flex items-center gap-3 shrink-0">
+                                {restoreError && (
+                                    <span className="text-danger-text">{restoreError}</span>
+                                )}
+                                <button
+                                    onClick={handleRestoreMods}
+                                    className="px-3 py-1 rounded bg-warning/20 hover:bg-warning/30 transition-colors"
+                                >
+                                    {t('app.restoreMods')}
+                                </button>
                             </div>
-                        )}
-                        <div className="flex flex-1 overflow-hidden">
-                            <Sidebar
-                                view={sidebarView}
-                                onViewChange={handleSidebarChange}
-                                activeGame={activeGame}
-                                onShowWelcome={handleShowWelcome}
-                            />
-                            {/* Pages are stacked absolute panes toggled with visibility, not
+                        </div>
+                    )}
+                    <div className="flex flex-1 overflow-hidden">
+                        <Sidebar
+                            view={sidebarView}
+                            onViewChange={handleSidebarChange}
+                            activeGame={activeGame}
+                            onShowWelcome={handleShowWelcome}
+                            mode={view === 'welcome' ? 'picker' : 'app'}
+                        />
+                        {/* Pages are stacked absolute panes toggled with visibility, not
                                 display:none — un-hiding a display:none subtree re-layouts it
                                 from scratch and re-decodes every image, which made tab switches
                                 stutter. A visibility flip is paint-only. */}
-                            <main className="relative flex-1 overflow-hidden">
+                        <main className="relative flex-1 overflow-hidden">
+                            <div
+                                className={`absolute inset-0 ${view === 'welcome' ? '' : 'invisible pointer-events-none'}`}
+                            >
+                                {/* Mounted only while active, unlike the other panes: its effect
+                                    scans every game's launcher path on mount, which shouldn't run
+                                    on every app launch just because this pane exists in the DOM. */}
+                                {view === 'welcome' && (
+                                    <WelcomeScreen onSelectGame={handleGameChange} />
+                                )}
+                            </div>
+                            <div
+                                className={`absolute inset-0 ${view === 'browse' ? '' : 'invisible pointer-events-none'}`}
+                            >
+                                <BrowsePageMemo
+                                    key={activeGame}
+                                    activeGame={activeGame}
+                                    isActive={view === 'browse'}
+                                    gamePath={gamePath}
+                                    gamePathReady={gamePathReady}
+                                    installed={installed}
+                                    onRefreshInstalled={refreshInstalled}
+                                    onOpenDetail={openDetailFromBrowse}
+                                    onGoToSettings={goToSettings}
+                                />
+                            </div>
+                            <div
+                                className={`absolute inset-0 ${view === 'installed' ? '' : 'invisible pointer-events-none'}`}
+                            >
+                                <InstalledPageMemo
+                                    activeGame={activeGame}
+                                    gamePath={gamePath}
+                                    installed={installed}
+                                    folders={folders}
+                                    installedReady={readyGames.has(activeGame)}
+                                    onRefreshInstalled={refreshInstalled}
+                                    onOpenDetail={openDetailFromInstalled}
+                                />
+                            </div>
+                            <div
+                                className={`absolute inset-0 ${view === 'news' ? '' : 'invisible pointer-events-none'}`}
+                            >
+                                <NewsPage isActive={view === 'news'} activeGame={activeGame} />
+                            </div>
+                            <div
+                                className={`absolute inset-0 ${view === 'settings' ? '' : 'invisible pointer-events-none'}`}
+                            >
+                                <SettingsPage
+                                    key={activeGame}
+                                    activeGame={activeGame}
+                                    gamePath={gamePath}
+                                    gamePathReady={gamePathReady}
+                                    onGamePathChange={handleGamePathSet}
+                                    analyticsConsent={analyticsConsent ?? null}
+                                    onAnalyticsConsent={handleAnalyticsConsent}
+                                />
+                            </div>
+                            {detailStack.map(({ modId, initialMod }, i) => (
                                 <div
-                                    className={`absolute inset-0 ${view === 'browse' ? '' : 'invisible pointer-events-none'}`}
+                                    key={modId}
+                                    className={`absolute inset-0 ${view === 'detail' && i === detailStack.length - 1 ? '' : 'invisible pointer-events-none'}`}
                                 >
-                                    <BrowsePageMemo
-                                        key={activeGame}
-                                        activeGame={activeGame}
-                                        isActive={view === 'browse'}
+                                    <ModDetailPage
+                                        modId={modId}
+                                        initialMod={initialMod}
+                                        isActive={view === 'detail' && i === detailStack.length - 1}
                                         gamePath={gamePath}
-                                        gamePathReady={gamePathReady}
                                         installed={installed}
-                                        onRefreshInstalled={refreshInstalled}
-                                        onOpenDetail={openDetailFromBrowse}
-                                        onGoToSettings={goToSettings}
-                                    />
-                                </div>
-                                <div
-                                    className={`absolute inset-0 ${view === 'installed' ? '' : 'invisible pointer-events-none'}`}
-                                >
-                                    <InstalledPageMemo
                                         activeGame={activeGame}
-                                        gamePath={gamePath}
-                                        installed={installed}
-                                        folders={folders}
-                                        installedReady={readyGames.has(activeGame)}
+                                        onBack={closeDetail}
                                         onRefreshInstalled={refreshInstalled}
-                                        onOpenDetail={openDetailFromInstalled}
+                                        onOpenDetail={pushDetail}
                                     />
                                 </div>
-                                <div
-                                    className={`absolute inset-0 ${view === 'news' ? '' : 'invisible pointer-events-none'}`}
-                                >
-                                    <NewsPage isActive={view === 'news'} activeGame={activeGame} />
-                                </div>
-                                <div
-                                    className={`absolute inset-0 ${view === 'settings' ? '' : 'invisible pointer-events-none'}`}
-                                >
-                                    <SettingsPage
-                                        key={activeGame}
-                                        activeGame={activeGame}
-                                        gamePath={gamePath}
-                                        gamePathReady={gamePathReady}
-                                        onGamePathChange={handleGamePathSet}
-                                        analyticsConsent={analyticsConsent ?? null}
-                                        onAnalyticsConsent={handleAnalyticsConsent}
-                                    />
-                                </div>
-                                {detailStack.map(({ modId, initialMod }, i) => (
-                                    <div
-                                        key={modId}
-                                        className={`absolute inset-0 ${view === 'detail' && i === detailStack.length - 1 ? '' : 'invisible pointer-events-none'}`}
-                                    >
-                                        <ModDetailPage
-                                            modId={modId}
-                                            initialMod={initialMod}
-                                            isActive={
-                                                view === 'detail' && i === detailStack.length - 1
-                                            }
-                                            gamePath={gamePath}
-                                            installed={installed}
-                                            activeGame={activeGame}
-                                            onBack={closeDetail}
-                                            onRefreshInstalled={refreshInstalled}
-                                            onOpenDetail={pushDetail}
-                                        />
-                                    </div>
-                                ))}
-                            </main>
-                        </div>
-                    </>
-                )}
+                            ))}
+                        </main>
+                    </div>
+                </>
 
                 <Dialog
                     open={showUpdateModal && !!update && update.phase === 'available'}

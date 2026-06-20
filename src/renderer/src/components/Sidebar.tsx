@@ -24,6 +24,7 @@ interface Props {
     onViewChange: (v: NavView) => void
     activeGame: GameId
     onShowWelcome: () => void
+    mode?: 'app' | 'picker'
 }
 
 const navItems: { id: NavView; labelKey: StringKey; icon: LucideIcon }[] = [
@@ -33,10 +34,11 @@ const navItems: { id: NavView; labelKey: StringKey; icon: LucideIcon }[] = [
     { id: 'settings', labelKey: 'sidebar.settings', icon: Settings },
 ]
 
-export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props) {
+export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 'app' }: Props) {
     const [collapsed, setCollapsed] = useState(
         () => localStorage.getItem('modrex:sidebar-collapsed') === 'true'
     )
+    const isPicker = mode === 'picker'
     const visibleNavItems = navItems.filter(
         (item) => item.id !== 'news' || GAMES[activeGame].hasNews
     )
@@ -46,53 +48,56 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
             className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-200 overflow-hidden`}
         >
             {/* Game switcher */}
-            <div className="p-2 border-b border-border shrink-0">
-                <Tooltip
-                    content={`${GAMES[activeGame].name} — ${t('sidebar.changeGame')}`}
-                    side="right"
-                >
-                    <button
-                        onClick={onShowWelcome}
-                        className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs hover:bg-surface-hover text-text hover:text-text transition-colors"
+            {!isPicker && (
+                <div className="p-2 border-b border-border shrink-0">
+                    <Tooltip
+                        content={`${GAMES[activeGame].name} — ${t('sidebar.changeGame')}`}
+                        side="right"
                     >
-                        <ArrowLeftRight className="w-3.5 h-3.5 shrink-0 text-text-subtle" />
-                        <span
-                            className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                        <button
+                            onClick={onShowWelcome}
+                            className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs hover:bg-surface-hover text-text hover:text-text transition-colors"
                         >
-                            {GAMES[activeGame].name}
-                        </span>
-                    </button>
-                </Tooltip>
-            </div>
+                            <ArrowLeftRight className="w-3.5 h-3.5 shrink-0 text-text-subtle" />
+                            <span
+                                className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                            >
+                                {GAMES[activeGame].name}
+                            </span>
+                        </button>
+                    </Tooltip>
+                </div>
+            )}
 
             <nav className="flex flex-col gap-1 p-2 flex-1">
-                {visibleNavItems.map((item) => {
-                    const Icon = item.icon
-                    return (
-                        <Tooltip
-                            key={item.id}
-                            content={t(item.labelKey)}
-                            disabled={!collapsed}
-                            side="right"
-                        >
-                            <button
-                                onClick={() => onViewChange(item.id)}
-                                className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
-                                    view === item.id
-                                        ? 'bg-surface-active text-text'
-                                        : 'text-text-muted hover:bg-surface-hover hover:text-text'
-                                }`}
+                {!isPicker &&
+                    visibleNavItems.map((item) => {
+                        const Icon = item.icon
+                        return (
+                            <Tooltip
+                                key={item.id}
+                                content={t(item.labelKey)}
+                                disabled={!collapsed}
+                                side="right"
                             >
-                                <Icon className="w-4 h-4 shrink-0" />
-                                <span
-                                    className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                                <button
+                                    onClick={() => onViewChange(item.id)}
+                                    className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
+                                        view === item.id
+                                            ? 'bg-surface-active text-text'
+                                            : 'text-text-muted hover:bg-surface-hover hover:text-text'
+                                    }`}
                                 >
-                                    {t(item.labelKey)}
-                                </span>
-                            </button>
-                        </Tooltip>
-                    )
-                })}
+                                    <Icon className="w-4 h-4 shrink-0" />
+                                    <span
+                                        className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                                    >
+                                        {t(item.labelKey)}
+                                    </span>
+                                </button>
+                            </Tooltip>
+                        )
+                    })}
             </nav>
 
             <div className="p-2 flex flex-col gap-1">
