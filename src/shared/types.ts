@@ -152,6 +152,16 @@ export interface ModsState {
     mods: InstalledMod[]
 }
 
+// One article from paydaythegame.com's news category page for the active game
+export interface NewsItem {
+    title: string
+    url: string
+    date: string
+    excerpt: string
+    image: string | null
+    categories: string[]
+}
+
 export type SortOption =
     | 'downloads'
     | 'likes'
