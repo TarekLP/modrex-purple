@@ -8,6 +8,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Added an in-app News tab per game.
 - Added Crime Boss: Rockay City support.
+- Added search and an installed-only filter to the game picker.
 
 ### Changed
 
@@ -16,6 +17,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Fixed
 
 - Fixed empty Installed folders disappearing after their last mod was uninstalled.
+- Fixed mods that ship separate .ucas/.utoc data files alongside their .pak.
 
 ## 0.10.0
 
