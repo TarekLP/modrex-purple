@@ -81,6 +81,23 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
     }],
 };
 
+pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
+    game_id: "cb",
+    index_game_name: "Crime Boss: Rockay City",
+    state_filename: ".modrex.json",
+    targets: &[ScanTarget {
+        tag: "paks",
+        unit: ModUnit::File {
+            extension: "pak",
+            disabled_suffix: ".disabled",
+            priority_prefix: true,
+        },
+        mods_subpath: &["CrimeBoss", "Content", "Paks", "~mods"],
+        disabled_subpath: &["CrimeBoss", "Content", "Paks", "~mods", "disabled"],
+        backup_subpath: &["CrimeBoss", "Content", "~mods.bak"],
+    }],
+};
+
 pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pd2",
     index_game_name: "PAYDAY 2",
@@ -154,6 +171,7 @@ pub fn engine_for_game(game_id: &str) -> &'static ModEngineConfig {
     match game_id {
         "pd2" => &PD2_ENGINE,
         "pdth" => &PDTH_ENGINE,
+        "cb" => &CRIMEBOSS_ENGINE,
         _ => &PD3_ENGINE,
     }
 }
