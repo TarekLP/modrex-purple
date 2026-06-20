@@ -1641,3 +1641,74 @@ fn uninstall_removes_iostore_sidecars() {
     assert!(!active_dir.join(format!("{stem}.ucas")).exists());
     assert!(!active_dir.join(format!("{stem}.utoc")).exists());
 }
+
+// Real-world Crime Boss ModKit "Package Mod" output is a folder users are told to copy into
+// `CrimeBoss/Mods/<name>/`: `<name>/Content/Paks/WindowsNoEditor/<name>-WindowsNoEditor.{pak,ucas,utoc}`
+// (verified against the actual "More Multiplayer Jobs" download from modworkshop, mod id 54316).
+// This proves the *other* real convention (loose triplet for `~mods/`) and this one both resolve
+// to the exact same flat install — Modrex extracts by content, not by mirroring archive structure,
+// so no second Directory-unit scan target is needed for ModKit-packaged archives.
+#[test]
+fn modkit_packaged_archive_flattens_into_mods_target_same_as_loose_triplet() {
+    let zip = make_zip(&[
+        ("MoreMPJobs/", b""),
+        ("MoreMPJobs/Content/", b""),
+        ("MoreMPJobs/Content/Paks/", b""),
+        ("MoreMPJobs/Content/Paks/WindowsNoEditor/", b""),
+        (
+            "MoreMPJobs/Content/Paks/WindowsNoEditor/MoreMPJobsCrimeBoss-WindowsNoEditor.pak",
+            b"pak header",
+        ),
+        (
+            "MoreMPJobs/Content/Paks/WindowsNoEditor/MoreMPJobsCrimeBoss-WindowsNoEditor.ucas",
+            b"bulk data",
+        ),
+        (
+            "MoreMPJobs/Content/Paks/WindowsNoEditor/MoreMPJobsCrimeBoss-WindowsNoEditor.utoc",
+            b"table of contents",
+        ),
+    ]);
+
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+
+    let (extracted, _orig, location_tag) =
+        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    assert_eq!(
+        location_tag, None,
+        "single pak resolves to the primary target"
+    );
+
+    let mod_data = InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "More Multiplayer Jobs".into(),
+        filename: "MoreMPJobsCrimeBoss-WindowsNoEditor.pak".into(),
+        enabled: true,
+        file_id: Some(1),
+        ..InstalledMod::default()
+    };
+    install_mod_from_path(game, &sp, mod_data, &extracted, None, cfg, cfg.primary()).unwrap();
+
+    // Lands flat in ~mods, identical to a mod packaged as a loose triplet — the
+    // wrapper folders (MoreMPJobs/Content/Paks/WindowsNoEditor/) are never recreated on disk.
+    let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
+    let filename = read_state(&sp).mods[0].filename.clone();
+    let stem = std::path::Path::new(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert_eq!(fs::read(active_dir.join(&filename)).unwrap(), b"pak header");
+    assert_eq!(
+        fs::read(active_dir.join(format!("{stem}.ucas"))).unwrap(),
+        b"bulk data"
+    );
+    assert_eq!(
+        fs::read(active_dir.join(format!("{stem}.utoc"))).unwrap(),
+        b"table of contents"
+    );
+    assert!(!tmp.path().join("CrimeBoss/Mods").exists());
+}
