@@ -37,6 +37,9 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
     const [collapsed, setCollapsed] = useState(
         () => localStorage.getItem('modrex:sidebar-collapsed') === 'true'
     )
+    const visibleNavItems = navItems.filter(
+        (item) => item.id !== 'news' || GAMES[activeGame].hasNews
+    )
 
     return (
         <aside
@@ -63,7 +66,7 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome }: Props
             </div>
 
             <nav className="flex flex-col gap-1 p-2 flex-1">
-                {navItems.map((item) => {
+                {visibleNavItems.map((item) => {
                     const Icon = item.icon
                     return (
                         <Tooltip

@@ -102,15 +102,34 @@ export interface Category {
 export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
 export const GAME_STORAGE_KEY = 'pd3'
 
-export type GameId = 'pd3' | 'pd2' | 'pdth'
+export type GameId = 'pd3' | 'pd2' | 'pdth' | 'cb'
 
 export const GAMES: Record<
     GameId,
-    { name: string; shortName: string; workshopId: number; storageKey: string }
+    {
+        name: string
+        shortName: string
+        workshopId: number
+        storageKey: string
+        hasNews: boolean
+    }
 > = {
-    pd3: { name: 'PAYDAY 3', shortName: 'PD3', workshopId: 853, storageKey: 'pd3' },
-    pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2' },
-    pdth: { name: 'PAYDAY: The Heist', shortName: 'PDTH', workshopId: 2, storageKey: 'pdth' },
+    pd3: { name: 'PAYDAY 3', shortName: 'PD3', workshopId: 853, storageKey: 'pd3', hasNews: true },
+    pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2', hasNews: true },
+    pdth: {
+        name: 'PAYDAY: The Heist',
+        shortName: 'PDTH',
+        workshopId: 2,
+        storageKey: 'pdth',
+        hasNews: true,
+    },
+    cb: {
+        name: 'Crime Boss: Rockay City',
+        shortName: 'CBRC',
+        workshopId: 857,
+        storageKey: 'cb',
+        hasNews: false,
+    },
 }
 
 export interface ModFolder {

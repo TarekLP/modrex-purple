@@ -1,6 +1,7 @@
+use super::crimeboss_settings;
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
-use super::naming::apply_priority_prefix;
+use super::naming::{apply_priority_prefix, sidecar_path, PAK_SIDECAR_EXTENSIONS};
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
     mods_base, resolve_host_mod_dir,
@@ -142,8 +143,8 @@ pub fn install_mod_from_path(
 
     let dest = active_mod_path(game_path, &filename, folder_rel.as_deref(), target);
     match &target.unit {
-        ModUnit::File { .. } => {
-            fs::copy(source, &dest).map_err(|e| e.to_string())?;
+        ModUnit::File { extension, .. } => {
+            copy_file_with_sidecars(source, &dest, extension)?;
         }
         ModUnit::Directory { .. } => {
             copy_dir_all(source, &dest)?;
@@ -160,8 +161,8 @@ pub fn install_mod_from_path(
         let new_active = active_mod_path(game_path, &filename, folder_rel.as_deref(), target);
         if old != new_active && old.exists() {
             match &target.unit {
-                ModUnit::File { .. } => {
-                    if let Err(e) = fs::remove_file(&old) {
+                ModUnit::File { extension, .. } => {
+                    if let Err(e) = remove_file_with_sidecars(&old, extension) {
                         log::warn!("install: remove old pak {old:?}: {e}");
                     }
                 }
@@ -240,8 +241,8 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
     };
     if path.exists() {
         match &target.unit {
-            ModUnit::File { .. } => {
-                if let Err(e) = fs::remove_file(&path) {
+            ModUnit::File { extension, .. } => {
+                if let Err(e) = remove_file_with_sidecars(&path, extension) {
                     log::warn!("uninstall: remove {path:?}: {e}");
                 }
             }
@@ -256,7 +257,13 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
     save_state(state_path, &state);
 }
 
-pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
+pub fn enable_mod_op(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    cfg: &ModEngineConfig,
+    launcher: Option<&str>,
+) {
     let mut state = read_state(state_path);
     let Some(m) = state
         .mods
@@ -280,8 +287,17 @@ pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEng
     }
     let from = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let to = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    // The game's own UGC mod-loader, not this file move, is what actually controls whether a
+    // Crime Boss mod is active — see crimeboss_settings.rs.
+    if cfg.game_id == "cb" {
+        crimeboss_settings::sync_enabled(&from, target.is_directory_unit(), launcher, true);
+    }
     if from.exists() {
-        if let Err(e) = fs::rename(&from, &to) {
+        let renamed = match &target.unit {
+            ModUnit::File { extension, .. } => rename_with_sidecars(&from, &to, extension),
+            ModUnit::Directory { .. } => fs::rename(&from, &to),
+        };
+        if let Err(e) = renamed {
             log::warn!("enable_mod: rename {from:?} -> {to:?}: {e}");
         }
     }
@@ -329,7 +345,13 @@ fn move_host_pack(
     save_state(state_path, state);
 }
 
-pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
+pub fn disable_mod_op(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    cfg: &ModEngineConfig,
+    launcher: Option<&str>,
+) {
     let mut state = read_state(state_path);
     let Some(m) = state
         .mods
@@ -355,8 +377,15 @@ pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEn
     }
     let from = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let to = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    if cfg.game_id == "cb" {
+        crimeboss_settings::sync_enabled(&from, target.is_directory_unit(), launcher, false);
+    }
     if from.exists() {
-        if let Err(e) = fs::rename(&from, &to) {
+        let renamed = match &target.unit {
+            ModUnit::File { extension, .. } => rename_with_sidecars(&from, &to, extension),
+            ModUnit::Directory { .. } => fs::rename(&from, &to),
+        };
+        if let Err(e) = renamed {
             log::warn!("disable_mod: rename {from:?} -> {to:?}: {e}");
         }
     }
@@ -366,6 +395,54 @@ pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEn
         }
     }
     save_state(state_path, &state);
+}
+
+/// Copies `src` to `dest`, plus any `.ucas`/`.utoc` siblings of `src` (same stem) to the
+/// matching siblings of `dest`. A missing sidecar is not an error.
+fn copy_file_with_sidecars(src: &Path, dest: &Path, main_ext: &str) -> Result<(), String> {
+    fs::copy(src, dest).map_err(|e| e.to_string())?;
+    for ext in PAK_SIDECAR_EXTENSIONS {
+        let Some(sidecar) = sidecar_path(src, main_ext, ext) else {
+            continue;
+        };
+        if sidecar.exists() {
+            if let Some(dest_sidecar) = sidecar_path(dest, main_ext, ext) {
+                let _ = fs::copy(&sidecar, dest_sidecar);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Renames `from` to `to`, plus any `.ucas`/`.utoc` siblings of `from` to the matching siblings
+/// of `to`. Used for enable/disable, which move a mod between active and disabled directories.
+fn rename_with_sidecars(from: &Path, to: &Path, main_ext: &str) -> std::io::Result<()> {
+    fs::rename(from, to)?;
+    for ext in PAK_SIDECAR_EXTENSIONS {
+        let Some(sidecar) = sidecar_path(from, main_ext, ext) else {
+            continue;
+        };
+        if sidecar.exists() {
+            if let Some(to_sidecar) = sidecar_path(to, main_ext, ext) {
+                let _ = fs::rename(&sidecar, to_sidecar);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Removes `path`, plus any `.ucas`/`.utoc` siblings of `path` (same stem).
+fn remove_file_with_sidecars(path: &Path, main_ext: &str) -> std::io::Result<()> {
+    fs::remove_file(path)?;
+    for ext in PAK_SIDECAR_EXTENSIONS {
+        let Some(sidecar) = sidecar_path(path, main_ext, ext) else {
+            continue;
+        };
+        if sidecar.exists() {
+            let _ = fs::remove_file(&sidecar);
+        }
+    }
+    Ok(())
 }
 
 fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {

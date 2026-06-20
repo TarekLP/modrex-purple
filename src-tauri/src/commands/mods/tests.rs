@@ -102,6 +102,65 @@ fn extract_zip_entry_handles_nested_path() {
     assert_eq!(written, content);
 }
 
+// ── extract_entry_with_sidecars (IoStore .ucas/.utoc) ────────────────────────
+
+#[test]
+fn extract_entry_with_sidecars_pulls_in_ucas_and_utoc() {
+    let zip = make_zip(&[
+        ("TestMod.pak", b"pak bytes"),
+        ("TestMod.ucas", b"ucas bytes"),
+        ("TestMod.utoc", b"utoc bytes"),
+        ("readme.txt", b"ignore me"),
+    ]);
+    let dest = NamedTempFile::new().unwrap();
+    extract_entry_with_sidecars(zip.path(), "TestMod.pak", dest.path()).unwrap();
+    assert_eq!(fs::read(dest.path()).unwrap(), b"pak bytes");
+    assert_eq!(
+        fs::read(dest.path().with_extension("ucas")).unwrap(),
+        b"ucas bytes"
+    );
+    assert_eq!(
+        fs::read(dest.path().with_extension("utoc")).unwrap(),
+        b"utoc bytes"
+    );
+}
+
+#[test]
+fn extract_entry_with_sidecars_ok_when_no_sidecars_present() {
+    let zip = make_zip(&[("TestMod.pak", b"pak only")]);
+    let dest = NamedTempFile::new().unwrap();
+    extract_entry_with_sidecars(zip.path(), "TestMod.pak", dest.path()).unwrap();
+    assert_eq!(fs::read(dest.path()).unwrap(), b"pak only");
+    assert!(!dest.path().with_extension("ucas").exists());
+    assert!(!dest.path().with_extension("utoc").exists());
+}
+
+#[test]
+fn extract_entry_with_sidecars_matches_nested_path_siblings_only() {
+    let zip = make_zip(&[
+        (
+            "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.pak",
+            b"pak",
+        ),
+        (
+            "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.ucas",
+            b"right ucas",
+        ),
+        ("OtherFolder/Mod-WindowsNoEditor.ucas", b"wrong ucas"),
+    ]);
+    let dest = NamedTempFile::new().unwrap();
+    extract_entry_with_sidecars(
+        zip.path(),
+        "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.pak",
+        dest.path(),
+    )
+    .unwrap();
+    assert_eq!(
+        fs::read(dest.path().with_extension("ucas")).unwrap(),
+        b"right ucas"
+    );
+}
+
 // ── strip_priority_prefix ─────────────────────────────────────────────────
 
 #[test]
@@ -961,7 +1020,7 @@ fn disable_then_enable_host_pack_moves_files() {
     let disabled = tmp.path().join("mods/disabled/host-17160/My Set");
     assert!(active.exists() && !disabled.exists());
 
-    disable_mod_op(game, &sp, "999_My Set", cfg);
+    disable_mod_op(game, &sp, "999_My Set", cfg, None);
     assert!(
         !active.exists() && disabled.exists(),
         "disable moves the set out of the host"
@@ -975,7 +1034,7 @@ fn disable_then_enable_host_pack_moves_files() {
             .enabled
     );
 
-    enable_mod_op(game, &sp, "999_My Set", cfg);
+    enable_mod_op(game, &sp, "999_My Set", cfg, None);
     assert!(
         active.exists() && !disabled.exists(),
         "enable moves the set back into the host"
@@ -996,7 +1055,7 @@ fn reconcile_keeps_disabled_host_pack() {
     let game = tmp.path().to_str().unwrap();
     let cfg = engine_for_game("pd2");
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
-    disable_mod_op(game, &sp, "999_My Set", cfg);
+    disable_mod_op(game, &sp, "999_My Set", cfg, None);
 
     let state = reconcile_state(game, &sp, cfg);
     let rec = state.mods.iter().find(|m| m.id == 57135).unwrap();
@@ -1012,7 +1071,7 @@ fn uninstall_removes_disabled_host_pack() {
     let game = tmp.path().to_str().unwrap();
     let cfg = engine_for_game("pd2");
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
-    disable_mod_op(game, &sp, "999_My Set", cfg);
+    disable_mod_op(game, &sp, "999_My Set", cfg, None);
 
     uninstall_mod_op(game, &sp, "999_My Set", cfg);
 
@@ -1441,4 +1500,525 @@ fn identify_untracked_falls_back_to_name_without_embedded() {
     assert_eq!(m.id, 555); // matched by name
     assert_eq!(m.file_id, None);
     assert_eq!(m.version, "unknown");
+}
+
+// ── File-unit install/enable/disable/uninstall carry IoStore sidecars ────────
+// Crime Boss (and some PAYDAY 3) mods ship a .pak plus .ucas/.utoc siblings sharing one
+// stem; every File-unit op must move all three together even though InstalledMod only
+// ever stores the .pak filename.
+
+fn iostore_mod_source() -> (TempDir, std::path::PathBuf) {
+    let src = TempDir::new().unwrap();
+    let pak = src.path().join("TestMod.pak");
+    fs::write(&pak, b"pak header").unwrap();
+    fs::write(src.path().join("TestMod.ucas"), b"bulk data").unwrap();
+    fs::write(src.path().join("TestMod.utoc"), b"table of contents").unwrap();
+    (src, pak)
+}
+
+fn iostore_mod_data() -> InstalledMod {
+    InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "Test Mod".into(),
+        filename: "TestMod.pak".into(),
+        enabled: true,
+        file_id: Some(1),
+        ..InstalledMod::default()
+    }
+}
+
+#[test]
+fn install_carries_iostore_sidecars_alongside_pak() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+    let (_src, pak) = iostore_mod_source();
+
+    install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.target_for(Some("paks")),
+    )
+    .unwrap();
+
+    let filename = read_state(&sp).mods[0].filename.clone();
+    let stem = std::path::Path::new(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
+    assert_eq!(fs::read(active_dir.join(&filename)).unwrap(), b"pak header");
+    assert_eq!(
+        fs::read(active_dir.join(format!("{stem}.ucas"))).unwrap(),
+        b"bulk data"
+    );
+    assert_eq!(
+        fs::read(active_dir.join(format!("{stem}.utoc"))).unwrap(),
+        b"table of contents"
+    );
+}
+
+#[test]
+fn disable_then_enable_carries_iostore_sidecars() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+    let (_src, pak) = iostore_mod_source();
+    install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.target_for(Some("paks")),
+    )
+    .unwrap();
+
+    let filename = read_state(&sp).mods[0].filename.clone();
+    let stem = std::path::Path::new(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
+    let disabled_dir = active_dir.join("disabled");
+
+    disable_mod_op(game, &sp, "1", cfg, None);
+    assert!(!active_dir.join(format!("{stem}.ucas")).exists());
+    assert!(!active_dir.join(format!("{stem}.utoc")).exists());
+    // Disabled File-unit mods get both a different directory and a `.disabled`-suffixed
+    // filename (see naming::sidecar_path) — sidecars must carry the same suffix.
+    assert!(disabled_dir.join(format!("{stem}.ucas.disabled")).exists());
+    assert!(disabled_dir.join(format!("{stem}.utoc.disabled")).exists());
+
+    enable_mod_op(game, &sp, "1", cfg, None);
+    assert!(active_dir.join(format!("{stem}.ucas")).exists());
+    assert!(active_dir.join(format!("{stem}.utoc")).exists());
+    assert!(!disabled_dir.join(format!("{stem}.ucas")).exists());
+    assert!(!disabled_dir.join(format!("{stem}.utoc")).exists());
+}
+
+#[test]
+fn uninstall_removes_iostore_sidecars() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+    let (_src, pak) = iostore_mod_source();
+    install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.target_for(Some("paks")),
+    )
+    .unwrap();
+
+    let filename = read_state(&sp).mods[0].filename.clone();
+    let stem = std::path::Path::new(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
+
+    uninstall_mod_op(game, &sp, "1", cfg);
+
+    assert!(!active_dir.join(&filename).exists());
+    assert!(!active_dir.join(format!("{stem}.ucas")).exists());
+    assert!(!active_dir.join(format!("{stem}.utoc")).exists());
+}
+
+// Real-world Crime Boss ModKit "Package Mod" output is a folder users are told to copy into
+// `CrimeBoss/Mods/<name>/`: `<name>/Content/Paks/WindowsNoEditor/<name>-WindowsNoEditor.{pak,ucas,utoc}`
+// (verified against the actual "More Multiplayer Jobs" download from modworkshop, mod id 54316).
+// `CrimeBoss/Mods/` is the primary install target (the official UGC mod-loader there merges
+// multiple mods' Data Table Extensions additively; the legacy `~mods` target is generic Unreal
+// pak-mounting with no merge semantics — see engine.rs's CRIMEBOSS_ENGINE comment). Regardless
+// of how the archive nests the triplet, Modrex always synthesizes the canonical
+// `Content/Paks/WindowsNoEditor/` skeleton itself rather than copying the archive's wrapper
+// folder as-is.
+#[test]
+fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
+    let zip = make_zip(&[
+        ("MoreMPJobs/", b""),
+        ("MoreMPJobs/Content/", b""),
+        ("MoreMPJobs/Content/Paks/", b""),
+        ("MoreMPJobs/Content/Paks/WindowsNoEditor/", b""),
+        (
+            "MoreMPJobs/Content/Paks/WindowsNoEditor/MoreMPJobsCrimeBoss-WindowsNoEditor.pak",
+            b"pak header",
+        ),
+        (
+            "MoreMPJobs/Content/Paks/WindowsNoEditor/MoreMPJobsCrimeBoss-WindowsNoEditor.ucas",
+            b"bulk data",
+        ),
+        (
+            "MoreMPJobs/Content/Paks/WindowsNoEditor/MoreMPJobsCrimeBoss-WindowsNoEditor.utoc",
+            b"table of contents",
+        ),
+    ]);
+
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+
+    let (extracted, _orig, location_tag) =
+        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    assert_eq!(
+        location_tag, None,
+        "new installs always resolve to the primary Mods/ target"
+    );
+
+    let mod_name = "More Multiplayer Jobs";
+    let mod_data = InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: mod_name.into(),
+        filename: mod_folder_name(mod_name),
+        enabled: true,
+        file_id: Some(1),
+        ..InstalledMod::default()
+    };
+    install_mod_from_path(game, &sp, mod_data, &extracted, None, cfg, cfg.primary()).unwrap();
+
+    let pak_dir = tmp
+        .path()
+        .join("CrimeBoss/Mods/More_Multiplayer_Jobs/Content/Paks/WindowsNoEditor");
+    assert_eq!(
+        fs::read(pak_dir.join("MoreMPJobsCrimeBoss-WindowsNoEditor.pak")).unwrap(),
+        b"pak header"
+    );
+    assert_eq!(
+        fs::read(pak_dir.join("MoreMPJobsCrimeBoss-WindowsNoEditor.ucas")).unwrap(),
+        b"bulk data"
+    );
+    assert_eq!(
+        fs::read(pak_dir.join("MoreMPJobsCrimeBoss-WindowsNoEditor.utoc")).unwrap(),
+        b"table of contents"
+    );
+    // The legacy loose-triplet target is never touched by a new install.
+    assert!(!tmp.path().join("CrimeBoss/Content/Paks/~mods").exists());
+}
+
+// The loose-triplet convention (no wrapper folder at all — e.g. modworkshop's #1 most-downloaded
+// Crime Boss mod, "Total Mission Value") must resolve into the exact same Mods/ skeleton.
+#[test]
+fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
+    let zip = make_zip(&[
+        ("Nadz_TotalMissionValue_P.pak", b"pak header"),
+        ("Nadz_TotalMissionValue_P.ucas", b"bulk data"),
+        ("Nadz_TotalMissionValue_P.utoc", b"table of contents"),
+    ]);
+
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+
+    let (extracted, _orig, location_tag) =
+        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    assert_eq!(location_tag, None);
+
+    let mod_name = "Total Mission Value";
+    let mod_data = InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: mod_name.into(),
+        filename: mod_folder_name(mod_name),
+        enabled: true,
+        file_id: Some(1),
+        ..InstalledMod::default()
+    };
+    install_mod_from_path(game, &sp, mod_data, &extracted, None, cfg, cfg.primary()).unwrap();
+
+    let pak_dir = tmp
+        .path()
+        .join("CrimeBoss/Mods/Total_Mission_Value/Content/Paks/WindowsNoEditor");
+    assert_eq!(
+        fs::read(pak_dir.join("Nadz_TotalMissionValue_P.pak")).unwrap(),
+        b"pak header"
+    );
+    assert_eq!(
+        fs::read(pak_dir.join("Nadz_TotalMissionValue_P.ucas")).unwrap(),
+        b"bulk data"
+    );
+}
+
+// Identification of pre-existing/manually-placed Mods/ content must hash the .pak specifically,
+// not "first file alphabetically" — a sibling Config/ folder (custom gameplay tags, per the
+// ModKit docs) sorts before Content/ and would otherwise be hashed instead.
+#[test]
+fn hashable_file_for_mod_dir_prefers_pak_over_alphabetically_first_file() {
+    let dir = TempDir::new().unwrap();
+    fs::create_dir_all(dir.path().join("Config/Tags")).unwrap();
+    fs::write(dir.path().join("Config/Tags/Tags.ini"), b"[Mod]\n").unwrap();
+    let pak_dir = dir.path().join("Content/Paks/WindowsNoEditor");
+    fs::create_dir_all(&pak_dir).unwrap();
+    fs::write(pak_dir.join("SomeMod-WindowsNoEditor.pak"), b"pak bytes").unwrap();
+
+    let hashed = hashable_file_for_mod_dir(dir.path()).unwrap();
+    assert_eq!(hashed, pak_dir.join("SomeMod-WindowsNoEditor.pak"));
+}
+
+// ── crimeboss_settings: ModSettings id derivation / file sync ────────────────
+// Derivation and schema verified against real installs (see CLAUDE.md's Crime Boss section):
+// e.g. DallasPDCrimeBoss-WindowsNoEditor.pak <-> Saved/ModSettings/dallaspd.json.
+
+#[test]
+fn settings_id_strips_suffix_and_lowercases() {
+    assert_eq!(
+        settings_id_from_pak_filename("DallasPDCrimeBoss-WindowsNoEditor.pak"),
+        Some("dallaspd".to_string())
+    );
+    assert_eq!(
+        settings_id_from_pak_filename("MoreWeaponVariantsCrimeBoss-WindowsNoEditor.pak"),
+        Some("moreweaponvariants".to_string())
+    );
+}
+
+#[test]
+fn settings_id_none_for_non_modkit_naming() {
+    // "Total Mission Value" — a real mod predating/bypassing the ModKit's standard pipeline.
+    assert_eq!(
+        settings_id_from_pak_filename("Nadz_TotalMissionValue_P.pak"),
+        None
+    );
+    assert_eq!(
+        settings_id_from_pak_filename("CrimeBoss-WindowsNoEditor.pak"),
+        None
+    );
+    assert_eq!(settings_id_from_pak_filename("NotEvenAPak.txt"), None);
+}
+
+#[test]
+fn find_pak_in_dir_finds_the_pak_and_ignores_siblings() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("SomeMod-WindowsNoEditor.ucas"), b"").unwrap();
+    fs::write(dir.path().join("SomeMod-WindowsNoEditor.pak"), b"").unwrap();
+    assert_eq!(
+        find_pak_in_dir(dir.path()),
+        Some(dir.path().join("SomeMod-WindowsNoEditor.pak"))
+    );
+}
+
+#[test]
+fn find_pak_in_dir_none_when_missing() {
+    let dir = TempDir::new().unwrap();
+    assert_eq!(find_pak_in_dir(dir.path()), None);
+    assert_eq!(find_pak_in_dir(&dir.path().join("nonexistent")), None);
+}
+
+#[test]
+fn set_enabled_in_file_noops_when_file_missing() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("nonexistent.json");
+    set_enabled_in_file(&path, false).unwrap();
+    assert!(!path.exists());
+}
+
+#[test]
+fn set_enabled_in_file_flips_value_preserving_other_entries() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mod.json");
+    fs::write(
+        &path,
+        r#"[{"name":"enabled","value":"true"},{"name":"volume","value":"0.8"}]"#,
+    )
+    .unwrap();
+
+    set_enabled_in_file(&path, false).unwrap();
+
+    let entries: Vec<serde_json::Value> =
+        serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(entries.len(), 2, "custom setting must survive the write");
+    let enabled = entries
+        .iter()
+        .find(|e| e["name"] == "enabled")
+        .expect("enabled entry");
+    assert_eq!(enabled["value"], "false");
+    let volume = entries
+        .iter()
+        .find(|e| e["name"] == "volume")
+        .expect("volume entry untouched");
+    assert_eq!(volume["value"], "0.8");
+}
+
+#[test]
+fn set_enabled_in_file_appends_entry_when_absent() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mod.json");
+    fs::write(&path, r#"[{"name":"volume","value":"0.8"}]"#).unwrap();
+
+    set_enabled_in_file(&path, true).unwrap();
+
+    let entries: Vec<serde_json::Value> =
+        serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(entries.len(), 2);
+    assert!(entries
+        .iter()
+        .any(|e| e["name"] == "enabled" && e["value"] == "true"));
+}
+
+#[test]
+fn read_enabled_from_file_reads_the_current_value() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mod.json");
+    fs::write(&path, r#"[{"name":"enabled","value":"false"}]"#).unwrap();
+    assert_eq!(read_enabled_from_file(&path), Some(false));
+}
+
+#[test]
+fn read_enabled_from_file_none_when_missing_or_malformed() {
+    let dir = TempDir::new().unwrap();
+    assert_eq!(
+        read_enabled_from_file(&dir.path().join("nonexistent.json")),
+        None
+    );
+
+    let bad = dir.path().join("bad.json");
+    fs::write(&bad, "not json").unwrap();
+    assert_eq!(read_enabled_from_file(&bad), None);
+
+    let no_enabled_entry = dir.path().join("no_enabled.json");
+    fs::write(&no_enabled_entry, r#"[{"name":"volume","value":"0.8"}]"#).unwrap();
+    assert_eq!(read_enabled_from_file(&no_enabled_entry), None);
+}
+
+// ── Crime Boss multi-pak bundle archives (ZIP_MULTI_PAK) ──────────────────────
+// Real-world shape verified against modworkshop mod id 56196 ("Career Criminal Janitor Set"):
+// two independent mods ("The Cleaner", "The Sweeper") bundled in one archive, each with its own
+// Content/Paks/WindowsNoEditor triplet. install_from_zip_entry (the command this exercises the
+// underlying pieces of) can't be unit-tested directly — it needs an AppHandle and makes a network
+// call — but resolve_archive_download's detection and extract_entry_into_crimeboss_skeleton's
+// per-entry extraction are exactly what it relies on, and both are directly testable.
+
+fn janitor_bundle_zip() -> NamedTempFile {
+    make_zip(&[
+        ("The Cleaner/", b""),
+        ("The Cleaner/Content/", b""),
+        ("The Cleaner/Content/Paks/", b""),
+        ("The Cleaner/Content/Paks/WindowsNoEditor/", b""),
+        (
+            "The Cleaner/Content/Paks/WindowsNoEditor/Slippery_JanitorCrimeBoss-WindowsNoEditor.pak",
+            b"cleaner pak",
+        ),
+        (
+            "The Cleaner/Content/Paks/WindowsNoEditor/Slippery_JanitorCrimeBoss-WindowsNoEditor.ucas",
+            b"cleaner bulk data",
+        ),
+        (
+            "The Cleaner/Content/Paks/WindowsNoEditor/Slippery_JanitorCrimeBoss-WindowsNoEditor.utoc",
+            b"cleaner toc",
+        ),
+        ("The Sweeper/", b""),
+        ("The Sweeper/Content/", b""),
+        ("The Sweeper/Content/Paks/", b""),
+        ("The Sweeper/Content/Paks/WindowsNoEditor/", b""),
+        (
+            "The Sweeper/Content/Paks/WindowsNoEditor/Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.pak",
+            b"sweeper pak",
+        ),
+        (
+            "The Sweeper/Content/Paks/WindowsNoEditor/Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.ucas",
+            b"sweeper bulk data",
+        ),
+        (
+            "The Sweeper/Content/Paks/WindowsNoEditor/Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.utoc",
+            b"sweeper toc",
+        ),
+    ])
+}
+
+#[test]
+fn crimeboss_bundle_archive_resolves_to_zip_multi_pak_with_both_entries() {
+    let zip = janitor_bundle_zip();
+    let cfg = engine_for_game("cb");
+
+    let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
+    assert!(err.starts_with("ZIP_MULTI_PAK:"), "{err}");
+    let payload: serde_json::Value =
+        serde_json::from_str(err.strip_prefix("ZIP_MULTI_PAK:").unwrap()).unwrap();
+    let entries: Vec<&str> = payload["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e.as_str().unwrap())
+        .collect();
+    assert_eq!(entries.len(), 2);
+    assert!(entries.iter().any(|e| e.contains("Slippery_Janitor")));
+    assert!(entries
+        .iter()
+        .any(|e| e.contains("Career_Criminal_Janitor")));
+}
+
+#[test]
+fn crimeboss_bundle_archive_each_entry_installs_independently_without_cross_contamination() {
+    let zip = janitor_bundle_zip();
+    let cfg = engine_for_game("cb");
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+
+    for (entry, mod_name, expected_pak, expected_bytes) in [
+        (
+            "The Cleaner/Content/Paks/WindowsNoEditor/Slippery_JanitorCrimeBoss-WindowsNoEditor.pak",
+            "The Cleaner",
+            "Slippery_JanitorCrimeBoss-WindowsNoEditor.pak",
+            b"cleaner pak".as_slice(),
+        ),
+        (
+            "The Sweeper/Content/Paks/WindowsNoEditor/Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.pak",
+            "The Sweeper",
+            "Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.pak",
+            b"sweeper pak".as_slice(),
+        ),
+    ] {
+        let skeleton = extract_entry_into_crimeboss_skeleton(zip.path(), entry).unwrap();
+        let mod_data = InstalledMod {
+            uid: entry.to_string(),
+            id: 1,
+            name: mod_name.to_string(),
+            filename: mod_folder_name(mod_name),
+            enabled: true,
+            file_id: Some(1),
+            ..InstalledMod::default()
+        };
+        install_mod_from_path(game, &sp, mod_data, &skeleton, None, cfg, cfg.primary()).unwrap();
+
+        let pak_dir = tmp
+            .path()
+            .join("CrimeBoss/Mods")
+            .join(mod_folder_name(mod_name))
+            .join("Content/Paks/WindowsNoEditor");
+        assert_eq!(fs::read(pak_dir.join(expected_pak)).unwrap(), expected_bytes);
+    }
+
+    // Neither install's content leaked into the other's folder.
+    let cleaner_dir = tmp
+        .path()
+        .join("CrimeBoss/Mods/The_Cleaner/Content/Paks/WindowsNoEditor");
+    let sweeper_dir = tmp
+        .path()
+        .join("CrimeBoss/Mods/The_Sweeper/Content/Paks/WindowsNoEditor");
+    assert!(!cleaner_dir
+        .join("Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.pak")
+        .exists());
+    assert!(!sweeper_dir
+        .join("Slippery_JanitorCrimeBoss-WindowsNoEditor.pak")
+        .exists());
 }

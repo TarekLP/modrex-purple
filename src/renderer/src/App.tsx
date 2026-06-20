@@ -10,6 +10,7 @@ import {
 import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId, Mod } from '../../shared/types'
+import { GAMES } from '../../shared/types'
 import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
@@ -46,8 +47,10 @@ export type View = 'browse' | 'installed' | 'news' | 'detail' | 'settings' | 'we
 const DETECT_RETRY_MS = 5 * 60 * 1000
 
 function getInitialView(): View {
-    if (!localStorage.getItem('modrex:active-game')) return 'welcome'
+    const game = localStorage.getItem('modrex:active-game')
+    if (!game) return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
+    if (v === 'news' && !GAMES[game as GameId]?.hasNews) return 'browse'
     return v === 'browse' || v === 'installed' || v === 'news' || v === 'settings' ? v : 'browse'
 }
 
@@ -56,7 +59,7 @@ export default function App() {
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [activeGame, setActiveGame] = useState<GameId>(() => {
         const saved = localStorage.getItem('modrex:active-game')
-        if (saved === 'pd2' || saved === 'pdth') return saved
+        if (saved === 'pd2' || saved === 'pdth' || saved === 'cb') return saved
         return 'pd3'
     })
     const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: Mod }[]>([])
@@ -151,7 +154,11 @@ export default function App() {
         const cachedInstalled = installedCache.current[g]
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
-            saved === 'browse' || saved === 'installed' || saved === 'news' || saved === 'settings'
+            (saved === 'browse' ||
+                saved === 'installed' ||
+                saved === 'news' ||
+                saved === 'settings') &&
+            (saved !== 'news' || GAMES[g].hasNews)
                 ? saved
                 : 'browse'
         // The switch commit renders three pages' worth of tree at once — as a

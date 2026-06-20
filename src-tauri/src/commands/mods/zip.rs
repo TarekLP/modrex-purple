@@ -215,6 +215,44 @@ fn extract_tar_entry<R: Read>(reader: R, entry_name: &str, dest: &Path) -> Resul
     Err(format!("entry '{}' not found in archive", entry_name))
 }
 
+/// The archive-entry key used to match a `.pak` to its IoStore siblings: directory plus stem,
+/// lowercased so Windows-authored archives with inconsistent casing still match.
+fn entry_key(name: &str) -> String {
+    let path = Path::new(name);
+    let dir = path
+        .parent()
+        .map(|d| d.to_string_lossy())
+        .unwrap_or_default();
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(name);
+    format!("{dir}/{stem}").to_ascii_lowercase()
+}
+
+/// Like `extract_entry`, but also extracts any `.ucas`/`.utoc` siblings of `entry_name` found in
+/// the same archive (matched by directory + stem) to `dest.with_extension(...)`. A missing
+/// sidecar is not an error — most mods don't ship IoStore triplets, only some games' do.
+pub fn extract_entry_with_sidecars(
+    archive_path: &Path,
+    entry_name: &str,
+    dest: &Path,
+) -> Result<(), String> {
+    extract_entry(archive_path, entry_name, dest)?;
+    let Ok(entries) = list_entries(archive_path) else {
+        return Ok(());
+    };
+    let key = entry_key(entry_name);
+    for ext in super::naming::PAK_SIDECAR_EXTENSIONS {
+        let sidecar = entries.iter().find(|e| {
+            !e.is_dir
+                && entry_key(&e.name) == key
+                && e.name.to_ascii_lowercase().ends_with(&format!(".{ext}"))
+        });
+        if let Some(sidecar) = sidecar {
+            let _ = extract_entry(archive_path, &sidecar.name, &dest.with_extension(ext));
+        }
+    }
+    Ok(())
+}
+
 pub async fn compute_sha256(path: &Path) -> Result<String, String> {
     let path = path.to_path_buf();
     tauri::async_runtime::spawn_blocking(move || {
@@ -295,9 +333,9 @@ pub(crate) fn is_unplaceable_pack(names: &[String], extra_markers: &[&str]) -> b
             || n.ends_with("/main.xml")
             || n == "mod.txt"
             || n == "main.xml"
-            || extra_markers.iter().any(|m| {
-                n.ends_with(&format!("/{}", m)) || n.as_str() == *m
-            })
+            || extra_markers
+                .iter()
+                .any(|m| n.ends_with(&format!("/{}", m)) || n.as_str() == *m)
     });
     if has_marker {
         return false;
@@ -598,6 +636,9 @@ pub fn resolve_archive_download(
     downloaded: PathBuf,
     cfg: &ModEngineConfig,
 ) -> Result<(PathBuf, Option<PathBuf>, Option<String>), String> {
+    if cfg.game_id == "cb" {
+        return resolve_crimeboss_archive(downloaded, cfg);
+    }
     if detect_archive(&downloaded).is_none() {
         return Ok((downloaded, None, None));
     }
@@ -611,7 +652,7 @@ pub fn resolve_archive_download(
                 }
                 1 => {
                     let tmp = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
-                    extract_entry(&downloaded, &entries[0], &tmp)?;
+                    extract_entry_with_sidecars(&downloaded, &entries[0], &tmp)?;
                     Ok((tmp, Some(downloaded), None))
                 }
                 _ => {
@@ -712,6 +753,62 @@ pub fn resolve_archive_download(
             }
         }
     }
+}
+
+/// Crime Boss's two real archive shapes — a loose `.pak`/`.ucas`/`.utoc` triplet at any depth,
+/// or the official ModKit's "Package Mod" folder output — both reduce to "find the .pak,
+/// wherever it is, plus its siblings." Unlike PD2/PDTH's Directory targets, the result isn't an
+/// author-supplied folder copied as-is: Modrex always synthesizes the canonical
+/// `Content/Paks/WindowsNoEditor/` skeleton the game's UGC mod-loader expects under
+/// `CrimeBoss/Mods/<name>/`, regardless of how the source archive nested things.
+fn resolve_crimeboss_archive(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+) -> Result<(PathBuf, Option<PathBuf>, Option<String>), String> {
+    if detect_archive(&downloaded).is_none() {
+        // No known real mod ships a bare .pak with no archive (sidecars require a zip to carry
+        // them), but if one shows up, fall back to the legacy flat `paks` target rather than
+        // guessing at a skeleton with no .ucas/.utoc to find.
+        let legacy_tag = cfg.targets.iter().find(|t| t.tag == "paks").map(|t| t.tag);
+        return Ok((downloaded, None, legacy_tag.map(str::to_string)));
+    }
+    let entries = list_pak_entries(&downloaded)?;
+    match entries.len() {
+        0 => {
+            let _ = std::fs::remove_file(&downloaded);
+            Err("This mod is packaged as an archive with no .pak files inside.".to_string())
+        }
+        1 => {
+            let tmp = extract_entry_into_crimeboss_skeleton(&downloaded, &entries[0])?;
+            Ok((tmp, Some(downloaded), None))
+        }
+        _ => {
+            let zip_path = downloaded.to_string_lossy().to_string();
+            let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries, "targetTag": serde_json::Value::Null });
+            Err(format!("ZIP_MULTI_PAK:{}", payload))
+        }
+    }
+}
+
+/// Extracts `entry_name` (a `.pak` archive entry) plus its `.ucas`/`.utoc` siblings into a fresh
+/// temp directory shaped `Content/Paks/WindowsNoEditor/<filename>`, ready to be copied wholesale
+/// into `CrimeBoss/Mods/<name>/` as a Directory-unit install.
+pub fn extract_entry_into_crimeboss_skeleton(
+    archive_path: &Path,
+    entry_name: &str,
+) -> Result<PathBuf, String> {
+    let tmp_root = std::env::temp_dir().join(format!("modrex-cb-mod-{}", Uuid::new_v4()));
+    let skeleton_dir = tmp_root
+        .join("Content")
+        .join("Paks")
+        .join("WindowsNoEditor");
+    std::fs::create_dir_all(&skeleton_dir).map_err(|e| e.to_string())?;
+    let filename = Path::new(entry_name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("invalid archive entry name: {entry_name}"))?;
+    extract_entry_with_sidecars(archive_path, entry_name, &skeleton_dir.join(filename))?;
+    Ok(tmp_root)
 }
 
 fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {

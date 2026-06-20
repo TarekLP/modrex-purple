@@ -209,6 +209,9 @@ fn curl_fetch(url: &str) -> Result<String, String> {
 }
 
 async fn download_news(game_id: &str, page: u32) -> Result<NewsResult, String> {
+    if game_id == "cb" {
+        return Err("Crime Boss: Rockay City has no official news source".to_string());
+    }
     let url = category_url(game_id, page);
     let html = tokio::task::spawn_blocking(move || curl_fetch(&url))
         .await
