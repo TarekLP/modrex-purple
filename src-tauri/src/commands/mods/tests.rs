@@ -1898,3 +1898,127 @@ fn read_enabled_from_file_none_when_missing_or_malformed() {
     fs::write(&no_enabled_entry, r#"[{"name":"volume","value":"0.8"}]"#).unwrap();
     assert_eq!(read_enabled_from_file(&no_enabled_entry), None);
 }
+
+// ── Crime Boss multi-pak bundle archives (ZIP_MULTI_PAK) ──────────────────────
+// Real-world shape verified against modworkshop mod id 56196 ("Career Criminal Janitor Set"):
+// two independent mods ("The Cleaner", "The Sweeper") bundled in one archive, each with its own
+// Content/Paks/WindowsNoEditor triplet. install_from_zip_entry (the command this exercises the
+// underlying pieces of) can't be unit-tested directly — it needs an AppHandle and makes a network
+// call — but resolve_archive_download's detection and extract_entry_into_crimeboss_skeleton's
+// per-entry extraction are exactly what it relies on, and both are directly testable.
+
+fn janitor_bundle_zip() -> NamedTempFile {
+    make_zip(&[
+        ("The Cleaner/", b""),
+        ("The Cleaner/Content/", b""),
+        ("The Cleaner/Content/Paks/", b""),
+        ("The Cleaner/Content/Paks/WindowsNoEditor/", b""),
+        (
+            "The Cleaner/Content/Paks/WindowsNoEditor/Slippery_JanitorCrimeBoss-WindowsNoEditor.pak",
+            b"cleaner pak",
+        ),
+        (
+            "The Cleaner/Content/Paks/WindowsNoEditor/Slippery_JanitorCrimeBoss-WindowsNoEditor.ucas",
+            b"cleaner bulk data",
+        ),
+        (
+            "The Cleaner/Content/Paks/WindowsNoEditor/Slippery_JanitorCrimeBoss-WindowsNoEditor.utoc",
+            b"cleaner toc",
+        ),
+        ("The Sweeper/", b""),
+        ("The Sweeper/Content/", b""),
+        ("The Sweeper/Content/Paks/", b""),
+        ("The Sweeper/Content/Paks/WindowsNoEditor/", b""),
+        (
+            "The Sweeper/Content/Paks/WindowsNoEditor/Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.pak",
+            b"sweeper pak",
+        ),
+        (
+            "The Sweeper/Content/Paks/WindowsNoEditor/Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.ucas",
+            b"sweeper bulk data",
+        ),
+        (
+            "The Sweeper/Content/Paks/WindowsNoEditor/Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.utoc",
+            b"sweeper toc",
+        ),
+    ])
+}
+
+#[test]
+fn crimeboss_bundle_archive_resolves_to_zip_multi_pak_with_both_entries() {
+    let zip = janitor_bundle_zip();
+    let cfg = engine_for_game("cb");
+
+    let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
+    assert!(err.starts_with("ZIP_MULTI_PAK:"), "{err}");
+    let payload: serde_json::Value =
+        serde_json::from_str(err.strip_prefix("ZIP_MULTI_PAK:").unwrap()).unwrap();
+    let entries: Vec<&str> = payload["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e.as_str().unwrap())
+        .collect();
+    assert_eq!(entries.len(), 2);
+    assert!(entries.iter().any(|e| e.contains("Slippery_Janitor")));
+    assert!(entries
+        .iter()
+        .any(|e| e.contains("Career_Criminal_Janitor")));
+}
+
+#[test]
+fn crimeboss_bundle_archive_each_entry_installs_independently_without_cross_contamination() {
+    let zip = janitor_bundle_zip();
+    let cfg = engine_for_game("cb");
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+
+    for (entry, mod_name, expected_pak, expected_bytes) in [
+        (
+            "The Cleaner/Content/Paks/WindowsNoEditor/Slippery_JanitorCrimeBoss-WindowsNoEditor.pak",
+            "The Cleaner",
+            "Slippery_JanitorCrimeBoss-WindowsNoEditor.pak",
+            b"cleaner pak".as_slice(),
+        ),
+        (
+            "The Sweeper/Content/Paks/WindowsNoEditor/Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.pak",
+            "The Sweeper",
+            "Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.pak",
+            b"sweeper pak".as_slice(),
+        ),
+    ] {
+        let skeleton = extract_entry_into_crimeboss_skeleton(zip.path(), entry).unwrap();
+        let mod_data = InstalledMod {
+            uid: entry.to_string(),
+            id: 1,
+            name: mod_name.to_string(),
+            filename: mod_folder_name(mod_name),
+            enabled: true,
+            file_id: Some(1),
+            ..InstalledMod::default()
+        };
+        install_mod_from_path(game, &sp, mod_data, &skeleton, None, cfg, cfg.primary()).unwrap();
+
+        let pak_dir = tmp
+            .path()
+            .join("CrimeBoss/Mods")
+            .join(mod_folder_name(mod_name))
+            .join("Content/Paks/WindowsNoEditor");
+        assert_eq!(fs::read(pak_dir.join(expected_pak)).unwrap(), expected_bytes);
+    }
+
+    // Neither install's content leaked into the other's folder.
+    let cleaner_dir = tmp
+        .path()
+        .join("CrimeBoss/Mods/The_Cleaner/Content/Paks/WindowsNoEditor");
+    let sweeper_dir = tmp
+        .path()
+        .join("CrimeBoss/Mods/The_Sweeper/Content/Paks/WindowsNoEditor");
+    assert!(!cleaner_dir
+        .join("Career_Criminal_JanitorCrimeBoss-WindowsNoEditor.pak")
+        .exists());
+    assert!(!sweeper_dir
+        .join("Slippery_JanitorCrimeBoss-WindowsNoEditor.pak")
+        .exists());
+}
