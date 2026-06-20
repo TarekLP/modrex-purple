@@ -4,6 +4,7 @@ pub mod download;
 pub mod launchers;
 pub mod mod_index;
 pub mod mods;
+pub mod news;
 pub mod settings;
 pub mod dahm;
 pub mod pdth_overrides;
