@@ -1,3 +1,4 @@
+use super::crimeboss_settings;
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
 use super::naming::{apply_priority_prefix, sidecar_path, PAK_SIDECAR_EXTENSIONS};
@@ -256,7 +257,13 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
     save_state(state_path, &state);
 }
 
-pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
+pub fn enable_mod_op(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    cfg: &ModEngineConfig,
+    launcher: Option<&str>,
+) {
     let mut state = read_state(state_path);
     let Some(m) = state
         .mods
@@ -280,6 +287,11 @@ pub fn enable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEng
     }
     let from = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let to = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    // The game's own UGC mod-loader, not this file move, is what actually controls whether a
+    // Crime Boss mod is active — see crimeboss_settings.rs.
+    if cfg.game_id == "cb" {
+        crimeboss_settings::sync_enabled(&from, target.is_directory_unit(), launcher, true);
+    }
     if from.exists() {
         let renamed = match &target.unit {
             ModUnit::File { extension, .. } => rename_with_sidecars(&from, &to, extension),
@@ -333,7 +345,13 @@ fn move_host_pack(
     save_state(state_path, state);
 }
 
-pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEngineConfig) {
+pub fn disable_mod_op(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    cfg: &ModEngineConfig,
+    launcher: Option<&str>,
+) {
     let mut state = read_state(state_path);
     let Some(m) = state
         .mods
@@ -359,6 +377,9 @@ pub fn disable_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &ModEn
     }
     let from = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let to = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    if cfg.game_id == "cb" {
+        crimeboss_settings::sync_enabled(&from, target.is_directory_unit(), launcher, false);
+    }
     if from.exists() {
         let renamed = match &target.unit {
             ModUnit::File { extension, .. } => rename_with_sidecars(&from, &to, extension),

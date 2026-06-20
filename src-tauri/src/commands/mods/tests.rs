@@ -1020,7 +1020,7 @@ fn disable_then_enable_host_pack_moves_files() {
     let disabled = tmp.path().join("mods/disabled/host-17160/My Set");
     assert!(active.exists() && !disabled.exists());
 
-    disable_mod_op(game, &sp, "999_My Set", cfg);
+    disable_mod_op(game, &sp, "999_My Set", cfg, None);
     assert!(
         !active.exists() && disabled.exists(),
         "disable moves the set out of the host"
@@ -1034,7 +1034,7 @@ fn disable_then_enable_host_pack_moves_files() {
             .enabled
     );
 
-    enable_mod_op(game, &sp, "999_My Set", cfg);
+    enable_mod_op(game, &sp, "999_My Set", cfg, None);
     assert!(
         active.exists() && !disabled.exists(),
         "enable moves the set back into the host"
@@ -1055,7 +1055,7 @@ fn reconcile_keeps_disabled_host_pack() {
     let game = tmp.path().to_str().unwrap();
     let cfg = engine_for_game("pd2");
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
-    disable_mod_op(game, &sp, "999_My Set", cfg);
+    disable_mod_op(game, &sp, "999_My Set", cfg, None);
 
     let state = reconcile_state(game, &sp, cfg);
     let rec = state.mods.iter().find(|m| m.id == 57135).unwrap();
@@ -1071,7 +1071,7 @@ fn uninstall_removes_disabled_host_pack() {
     let game = tmp.path().to_str().unwrap();
     let cfg = engine_for_game("pd2");
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
-    disable_mod_op(game, &sp, "999_My Set", cfg);
+    disable_mod_op(game, &sp, "999_My Set", cfg, None);
 
     uninstall_mod_op(game, &sp, "999_My Set", cfg);
 
@@ -1593,7 +1593,7 @@ fn disable_then_enable_carries_iostore_sidecars() {
     let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
     let disabled_dir = active_dir.join("disabled");
 
-    disable_mod_op(game, &sp, "1", cfg);
+    disable_mod_op(game, &sp, "1", cfg, None);
     assert!(!active_dir.join(format!("{stem}.ucas")).exists());
     assert!(!active_dir.join(format!("{stem}.utoc")).exists());
     // Disabled File-unit mods get both a different directory and a `.disabled`-suffixed
@@ -1601,7 +1601,7 @@ fn disable_then_enable_carries_iostore_sidecars() {
     assert!(disabled_dir.join(format!("{stem}.ucas.disabled")).exists());
     assert!(disabled_dir.join(format!("{stem}.utoc.disabled")).exists());
 
-    enable_mod_op(game, &sp, "1", cfg);
+    enable_mod_op(game, &sp, "1", cfg, None);
     assert!(active_dir.join(format!("{stem}.ucas")).exists());
     assert!(active_dir.join(format!("{stem}.utoc")).exists());
     assert!(!disabled_dir.join(format!("{stem}.ucas")).exists());
@@ -1773,4 +1773,128 @@ fn hashable_file_for_mod_dir_prefers_pak_over_alphabetically_first_file() {
 
     let hashed = hashable_file_for_mod_dir(dir.path()).unwrap();
     assert_eq!(hashed, pak_dir.join("SomeMod-WindowsNoEditor.pak"));
+}
+
+// ── crimeboss_settings: ModSettings id derivation / file sync ────────────────
+// Derivation and schema verified against real installs (see CLAUDE.md's Crime Boss section):
+// e.g. DallasPDCrimeBoss-WindowsNoEditor.pak <-> Saved/ModSettings/dallaspd.json.
+
+#[test]
+fn settings_id_strips_suffix_and_lowercases() {
+    assert_eq!(
+        settings_id_from_pak_filename("DallasPDCrimeBoss-WindowsNoEditor.pak"),
+        Some("dallaspd".to_string())
+    );
+    assert_eq!(
+        settings_id_from_pak_filename("MoreWeaponVariantsCrimeBoss-WindowsNoEditor.pak"),
+        Some("moreweaponvariants".to_string())
+    );
+}
+
+#[test]
+fn settings_id_none_for_non_modkit_naming() {
+    // "Total Mission Value" — a real mod predating/bypassing the ModKit's standard pipeline.
+    assert_eq!(
+        settings_id_from_pak_filename("Nadz_TotalMissionValue_P.pak"),
+        None
+    );
+    assert_eq!(
+        settings_id_from_pak_filename("CrimeBoss-WindowsNoEditor.pak"),
+        None
+    );
+    assert_eq!(settings_id_from_pak_filename("NotEvenAPak.txt"), None);
+}
+
+#[test]
+fn find_pak_in_dir_finds_the_pak_and_ignores_siblings() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("SomeMod-WindowsNoEditor.ucas"), b"").unwrap();
+    fs::write(dir.path().join("SomeMod-WindowsNoEditor.pak"), b"").unwrap();
+    assert_eq!(
+        find_pak_in_dir(dir.path()),
+        Some(dir.path().join("SomeMod-WindowsNoEditor.pak"))
+    );
+}
+
+#[test]
+fn find_pak_in_dir_none_when_missing() {
+    let dir = TempDir::new().unwrap();
+    assert_eq!(find_pak_in_dir(dir.path()), None);
+    assert_eq!(find_pak_in_dir(&dir.path().join("nonexistent")), None);
+}
+
+#[test]
+fn set_enabled_in_file_noops_when_file_missing() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("nonexistent.json");
+    set_enabled_in_file(&path, false).unwrap();
+    assert!(!path.exists());
+}
+
+#[test]
+fn set_enabled_in_file_flips_value_preserving_other_entries() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mod.json");
+    fs::write(
+        &path,
+        r#"[{"name":"enabled","value":"true"},{"name":"volume","value":"0.8"}]"#,
+    )
+    .unwrap();
+
+    set_enabled_in_file(&path, false).unwrap();
+
+    let entries: Vec<serde_json::Value> =
+        serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(entries.len(), 2, "custom setting must survive the write");
+    let enabled = entries
+        .iter()
+        .find(|e| e["name"] == "enabled")
+        .expect("enabled entry");
+    assert_eq!(enabled["value"], "false");
+    let volume = entries
+        .iter()
+        .find(|e| e["name"] == "volume")
+        .expect("volume entry untouched");
+    assert_eq!(volume["value"], "0.8");
+}
+
+#[test]
+fn set_enabled_in_file_appends_entry_when_absent() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mod.json");
+    fs::write(&path, r#"[{"name":"volume","value":"0.8"}]"#).unwrap();
+
+    set_enabled_in_file(&path, true).unwrap();
+
+    let entries: Vec<serde_json::Value> =
+        serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(entries.len(), 2);
+    assert!(entries
+        .iter()
+        .any(|e| e["name"] == "enabled" && e["value"] == "true"));
+}
+
+#[test]
+fn read_enabled_from_file_reads_the_current_value() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mod.json");
+    fs::write(&path, r#"[{"name":"enabled","value":"false"}]"#).unwrap();
+    assert_eq!(read_enabled_from_file(&path), Some(false));
+}
+
+#[test]
+fn read_enabled_from_file_none_when_missing_or_malformed() {
+    let dir = TempDir::new().unwrap();
+    assert_eq!(
+        read_enabled_from_file(&dir.path().join("nonexistent.json")),
+        None
+    );
+
+    let bad = dir.path().join("bad.json");
+    fs::write(&bad, "not json").unwrap();
+    assert_eq!(read_enabled_from_file(&bad), None);
+
+    let no_enabled_entry = dir.path().join("no_enabled.json");
+    fs::write(&no_enabled_entry, r#"[{"name":"volume","value":"0.8"}]"#).unwrap();
+    assert_eq!(read_enabled_from_file(&no_enabled_entry), None);
 }

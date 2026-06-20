@@ -1,3 +1,4 @@
+mod crimeboss_settings;
 mod engine;
 mod folders;
 mod host_mods;
@@ -25,7 +26,7 @@ pub(crate) use self::install::{
     disable_mod_op, enable_mod_op, install_host_pack_op, uninstall_mod_op,
 };
 pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
-pub(crate) use self::paths::disabled_base;
+pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path};
 pub(crate) use self::reorder::{
     move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,
 };
@@ -36,6 +37,10 @@ pub(crate) use self::zip::{
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
+#[cfg(test)]
+pub(crate) use self::crimeboss_settings::{
+    find_pak_in_dir, read_enabled_from_file, set_enabled_in_file, settings_id_from_pak_filename,
+};
 #[cfg(test)]
 pub(crate) use self::naming::{apply_priority_prefix, make_uid, mod_folder_name};
 #[cfg(test)]
@@ -213,6 +218,55 @@ fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
             }
         }
     }
+}
+
+/// Crime Boss mods can be toggled from the game's own Options > Mods screen, which writes
+/// straight to `Saved/ModSettings/<id>.json` — Modrex's tracked `enabled` flag (driven by which
+/// folder a mod's files happen to sit in) has no way to learn about that on its own. Re-reads
+/// the real value for every tracked mod and corrects the flag where it disagrees. Returns `true`
+/// if anything changed (callers fold that into their existing save_state decision).
+fn resync_crimeboss_enabled_flags(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    mods: &mut [InstalledMod],
+    launcher: Option<&str>,
+) -> bool {
+    let mut changed = false;
+    for m in mods.iter_mut() {
+        if is_host_pack_location(m.location.as_deref()) {
+            continue;
+        }
+        let target = cfg.target_for(m.location.as_deref());
+        let rel = get_folder_path(folders, m.folder_id.as_deref());
+        // Don't trust `m.enabled` to pick which location holds the file: it's exactly the flag
+        // this function corrects, so on the *second* in-game toggle in a row it would already be
+        // stale relative to where the file actually sits (the in-game manager never moves
+        // files — only this resync, or Modrex's own enable/disable, ever does). Check both.
+        let active = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+        let disabled = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+        let path = if active.exists() {
+            Some(active)
+        } else if disabled.exists() {
+            Some(disabled)
+        } else {
+            None
+        };
+        let Some(path) = path else { continue };
+        if let Some(real_enabled) =
+            crimeboss_settings::read_enabled(&path, target.is_directory_unit(), launcher)
+        {
+            if real_enabled != m.enabled {
+                m.enabled = real_enabled;
+                changed = true;
+            }
+        }
+    }
+    changed
+}
+
+fn is_host_pack_location(location: Option<&str>) -> bool {
+    location.is_some_and(|l| l.starts_with("host:"))
 }
 
 /// Creates app folders for every directory segment in the untracked paths that does not yet
@@ -589,6 +643,21 @@ pub async fn get_installed(
     let any_upgraded = upgrade_negative_ids_by_sha(&app, &mut state.mods, cfg.index_game_name);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
+    // The player can also toggle mods from Crime Boss's own Options > Mods screen — pull that
+    // back in so Modrex's tracked flag doesn't silently disagree with the game.
+    let cb_resynced = if cfg.game_id == "cb" {
+        let launcher = game_settings(&settings, game_id).and_then(|gs| gs.launcher.clone());
+        resync_crimeboss_enabled_flags(
+            &game_path,
+            cfg,
+            &state.folders,
+            &mut state.mods,
+            launcher.as_deref(),
+        )
+    } else {
+        false
+    };
+
     // Recover host-pack sets present on disk but absent from state (e.g. after a state rebuild):
     // they live inside another mod, so the scan-target walk can't find them. Identify each by its
     // representative file's SHA256 against the index (like the untracked pipeline); a hit restores
@@ -637,7 +706,7 @@ pub async fn get_installed(
     }
 
     if mods_hidden {
-        if any_upgraded || discovered_hosts {
+        if any_upgraded || discovered_hosts || cb_resynced {
             save_state(&state_path, &state);
         }
         return Ok(InstalledResponse {
@@ -663,7 +732,7 @@ pub async fn get_installed(
     let untracked = find_untracked_paks(&game_path, &known, cfg).await;
     if untracked.is_empty() {
         let (mods, any_checked) = mark_archive_files(&game_path, &state.folders, state.mods, cfg);
-        if any_checked || any_upgraded || discovered_hosts {
+        if any_checked || any_upgraded || discovered_hosts || cb_resynced {
             save_state(
                 &state_path,
                 &ModsState {
@@ -1306,7 +1375,16 @@ pub fn uninstall_mod(app: AppHandle, game_path: String, uid: String, game_id: Op
 #[tauri::command]
 pub fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    enable_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
+    let settings = read_settings(&app);
+    let launcher = game_settings(&settings, game_id.as_deref().unwrap_or("pd3"))
+        .and_then(|gs| gs.launcher.clone());
+    enable_mod_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        &uid,
+        cfg,
+        launcher.as_deref(),
+    );
     crate::commands::analytics::track(
         &app,
         "mod_enabled",
@@ -1317,7 +1395,16 @@ pub fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Optio
 #[tauri::command]
 pub fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    disable_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
+    let settings = read_settings(&app);
+    let launcher = game_settings(&settings, game_id.as_deref().unwrap_or("pd3"))
+        .and_then(|gs| gs.launcher.clone());
+    disable_mod_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        &uid,
+        cfg,
+        launcher.as_deref(),
+    );
     crate::commands::analytics::track(
         &app,
         "mod_disabled",
