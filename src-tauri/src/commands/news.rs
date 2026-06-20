@@ -1,12 +1,16 @@
 use std::path::PathBuf;
-use std::time::Duration;
+use std::process::Command;
 
 use scraper::{Html, Selector};
 use tauri::{AppHandle, Manager};
 
-use crate::commands::api::{http_client, user_agent};
-
 const MAX_AGE_SECS: u64 = 3600;
+
+/// A normal browser UA, sent purely so the site's own analytics see a
+/// plausible visitor — curl's TLS/HTTP2 fingerprint is what actually gets
+/// through Cloudflare here, not this string (see `curl_fetch`).
+const BROWSER_UA: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -114,22 +118,6 @@ pub fn parse_news_html(html: &str) -> Vec<NewsItem> {
         .collect()
 }
 
-async fn download_news(app: &AppHandle, game_id: &str) -> Result<Vec<NewsItem>, String> {
-    let client = http_client();
-    let resp = client
-        .get(category_url(game_id))
-        .header("User-Agent", user_agent(app))
-        .timeout(Duration::from_secs(15))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    if !resp.status().is_success() {
-        return Err(format!("paydaythegame.com {}", resp.status()));
-    }
-    let html = resp.text().await.map_err(|e| e.to_string())?;
-    Ok(parse_news_html(&html))
-}
-
 fn read_cache(path: &std::path::Path) -> Option<Vec<NewsItem>> {
     let bytes = std::fs::read(path).ok()?;
     serde_json::from_slice(&bytes).ok()
@@ -152,6 +140,43 @@ fn cache_age_secs(path: &std::path::Path) -> Option<u64> {
         .map(|e| e.as_secs())
 }
 
+/// paydaythegame.com sits behind Cloudflare bot management that 403s every
+/// library HTTP client tried (verified live: reqwest and .NET HttpClient
+/// both blocked regardless of UA/headers — a TLS/HTTP2 fingerprint check).
+/// A renderer-side `fetch()` doesn't work either: the site sends no
+/// `Access-Control-Allow-Origin` header, so the browser's CORS policy blocks
+/// the response before JS ever sees it. curl.exe is the one client that
+/// passed in testing, so we shell out to it — matching the existing pattern
+/// of shelling out to system binaries elsewhere in this codebase (steam.rs's
+/// `reg query`, xbox.rs's `powershell`).
+fn curl_fetch(url: &str) -> Result<String, String> {
+    let mut cmd = Command::new("curl");
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let output = cmd
+        .args(["-sL", "--max-time", "15", "-A", BROWSER_UA, url])
+        .output()
+        .map_err(|e| format!("curl unavailable: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "curl exited with status {:?}",
+            output.status.code()
+        ));
+    }
+    String::from_utf8(output.stdout).map_err(|e| e.to_string())
+}
+
+async fn download_news(game_id: &str) -> Result<Vec<NewsItem>, String> {
+    let url = category_url(game_id);
+    let html = tokio::task::spawn_blocking(move || curl_fetch(&url))
+        .await
+        .map_err(|e| e.to_string())??;
+    Ok(parse_news_html(&html))
+}
+
 #[tauri::command]
 pub async fn fetch_news(app: AppHandle, game_id: Option<String>) -> Result<Vec<NewsItem>, String> {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
@@ -161,7 +186,7 @@ pub async fn fetch_news(app: AppHandle, game_id: Option<String>) -> Result<Vec<N
             return Ok(items);
         }
     }
-    let items = download_news(&app, &game_id).await?;
+    let items = download_news(&game_id).await?;
     let _ = write_cache(&path, &items);
     Ok(items)
 }
@@ -172,7 +197,7 @@ pub async fn refresh_news(
     game_id: Option<String>,
 ) -> Result<Vec<NewsItem>, String> {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
-    let items = download_news(&app, &game_id).await?;
+    let items = download_news(&game_id).await?;
     let _ = write_cache(&cache_path(&app, &game_id), &items);
     Ok(items)
 }
