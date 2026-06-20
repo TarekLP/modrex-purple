@@ -17,7 +17,7 @@ pnpm lint:fix     # ESLint with auto-fix
 pnpm test         # Run all tests: Rust (cargo test) then renderer (vitest)
 pnpm test:renderer # Run only renderer TypeScript tests (vitest)
 pnpm generate-licenses # Regenerate THIRD_PARTY_LICENSES.md (run after adding/updating deps)
-cargo clippy      # Rust lints (run from src-tauri/); one expected warning: too_many_arguments on install_file
+cargo clippy      # Rust lints (run from src-tauri/); a handful of pre-existing warnings are expected (too_many_arguments on install_file/install_from_zip_entry/install_host_pack, plus a few minor style lints) — only treat *new* warnings as signal
 cargo fmt         # Format Rust code (run from src-tauri/)
 ```
 
@@ -109,6 +109,8 @@ Missing any of these three breaks the channel silently at the type level.
 
 - **`mod_index.rs`** — SHA256-based mod identification. Downloads `index.db` from the `modrexio/modrex-index` GitHub release to `app_data_dir()`, cached with a 1-hour TTL (fire-and-forget at startup). `query_sha256(conn, sha256, game_name)`, `query_by_name(conn, name, game_name)`, and `query_mod_by_id(conn, mod_remote_id, game_name)` (newest indexed file for a known modworkshop id — used to enrich embedded-id matches) are private helpers that take a `&rusqlite::Connection` — testable with in-memory SQLite. Both join `files → mods → sources → games` and filter by `games.name = game_name` so a PD2 hash never matches a PD3 mod. `lookup_sha256` / `lookup_by_name` are the public wrappers (accept `&AppHandle` and `game_name`); callers pass `cfg.index_game_name`. `lookup_by_name` returns `Some` only when exactly one mod matches (ambiguous = `None`). Uses `rusqlite` with `features = ["bundled"]` — no native module issues.
 
+- **`news.rs`** — scrapes `paydaythegame.com`'s per-game news category page (`category_slug`: `"pd2"` → `payday2`, `"pdth"` → `theheist`, else `payday3`) for the News tab. **Fetches via a `curl` subprocess, not `reqwest`**: the site's Cloudflare bot management 403s every library HTTP client tried (`reqwest`, .NET `HttpClient`) regardless of headers — a TLS/HTTP2 fingerprint check — and a renderer-side `fetch()` is blocked too since the site sends no `Access-Control-Allow-Origin` header; `curl.exe` is the one client that passes (verified live), so `curl_fetch` shells out to it with `creation_flags(0x08000000)` on Windows, matching the `reg query`/`powershell` subprocess pattern in `launchers/`. `parse_news_html` (pure, HTML-in/`Vec<NewsItem>`-out) and `extract_total_pages` (parses the WP-PageNavi block — the total is the max page number across every `.wp-pagenavi a` link plus the `.current` span, since WP-PageNavi omits the link to whichever page you're already on) are both unit-tested against saved fixtures. `fetch_news`/`refresh_news` (page 1 only) are TTL-cached to `app_data_dir()/news-{slug}.json` (1 hour, same atomic `.tmp`-then-rename write as `mod_index.rs`); `fetch_news_page(game_id, page)` fetches any other page uncached. All three return `NewsResult { items, total_pages }`.
+
 - **`analytics.rs`** — anonymous, opt-in GA4 usage telemetry via the Measurement Protocol, sent from Rust. See the **Usage analytics** section below for the full design.
 
 ### Renderer (`src/renderer/src/`)
@@ -140,6 +142,8 @@ Missing any of these three breaks the channel silently at the type level.
 **`requestPriority.ts`** — lets background API work defer to foreground work so it doesn't sit queued behind silent background calls on the shared rate-limited connection to modworkshop. `markForegroundActivity()` (called by `BrowsePage.fetchMods` and `ModDetailPage.fetchData`, at both start and completion) and `waitForForegroundClear()` (awaited by `modCache.ts`'s `fetchInstalledModsMeta` before each chunk, and by `BrowsePage`'s hover-prefetch before firing) track **recency of foreground activity** — a single `lastForegroundAt` timestamp — rather than an in-flight counter, deliberately: a call site that forgets to mark completion can't permanently starve background work, since at worst `waitForForegroundClear` just waits out one 1.5 s quiet window and proceeds anyway. The "never marked" sentinel is `-Infinity`, not `0` — `0` collided with tests that fake the clock to epoch 0, reading as "foreground just active" and hanging forever on a timer that never advances (caught by `requestPriority.test.ts`).
 
 **`BrowsePage.tsx`** — `fetchMods` calls `markForegroundActivity()` around the `api.listMods` call (start and `finally`) so the installed-mod bulk refresh and hover-prefetch yield to it. `handlePrefetch` (the 150 ms hover-debounced `getCachedMod`/`getCachedModFiles`/`getCachedModLinks` prefetch) awaits `waitForForegroundClear()` before firing. On a fetch failure, `isRateLimitError(error)` matches the literal `"API 429"` substring `api.rs`'s `api_get` produces (not just `"429"`, so a mod id containing 429 inside some other error's path never false-positives) and selects a friendly amber notice (`t('browse.rateLimited')`) instead of the raw error string; whatever `result` is already cached (even stale) keeps rendering underneath either way, since `getBrowseCache` returns stale entries rather than evicting them. `ModGrid`'s skeleton branch is gated on `loadingMods` alone — a separate `!result` branch (`t('browse.loadFailed')`) covers a cold start with nothing cached where the fetch failed, which previously fell through to the skeleton branch and rendered placeholder cards forever.
+
+**`NewsPage.tsx`** — News tab. A module-level `Map<GameId, { items, totalPages, page }>` caches the last-viewed page per game for the session (mirroring `gamePathCache`'s pattern) so switching tabs or games restores where the user left off instead of resetting to page 1. Pagination is deliberately a clone of `BrowsePage`'s numbered-page footer (`buildPages`, same active-page styling) rather than infinite scroll, to match the rest of the app: the clicked page number updates `page` state _before_ the fetch resolves (so the highlight is instant), and the previous `items`/`totalPages` are kept on screen (grid swaps to skeletons, footer never unmounts) while the new page loads — clearing them on click would hide the footer mid-transition, the opposite of `BrowsePage`'s behavior. Article links open via `api.openExternal`, never raw `<a href>`.
 
 **`thumbnailCache.ts`** — Persistent thumbnail cache bridge. Module-level `resolved: Map<filename, thumbUrl>` deduplicates IPC calls within a session. `getLocalThumbnail(filename)` invokes `get_thumbnail` (which ensures the file exists in the disk cache, downloading if missing), then builds the URL via `convertFileSrc(filename, 'thumb')` — the custom `thumb://` protocol registered in `lib.rs`, **not** Tauri's asset protocol. The thumb protocol serves files from the thumbnails cache dir with `Cache-Control: immutable` (CDN filenames are content-unique), so the webview reuses cached decoded images across page remounts — the asset protocol sends no cache headers, which made every game/tab switch re-decode the whole grid. The `thumb:`/`http://thumb.localhost` origins must stay in `img-src` in both `csp` and `devCsp`. `getCachedThumbnailUrl(filename)` is a synchronous accessor used by `useThumbnail` to initialize state without triggering an IPC call on second render. Never call `api.getThumbnail` directly — always go through `thumbnailCache.ts`. `useModData` pre-warms thumbnails for all installed mods as mod data becomes available (both the sync cache pass and the async fetch pass).
 
@@ -186,7 +190,7 @@ t('common.install')
 t('browse.modCount', { total: 42 })
 ```
 
-`t(key, vars?)` is fully type-safe — TypeScript errors on unknown keys. Top-level namespaces: `common`, `app`, `topBar`, `sidebar`, `browse`, `installed`, `detail`, `embed`, `fileSelect`, `zipPicker`, `depsWarning`, `settings`.
+`t(key, vars?)` is fully type-safe — TypeScript errors on unknown keys. Top-level namespaces: `common`, `app`, `topBar`, `sidebar`, `browse`, `installed`, `news`, `detail`, `embed`, `fileSelect`, `zipPicker`, `depsWarning`, `settings`.
 
 ### Styling
 
@@ -250,7 +254,7 @@ Anonymous, opt-in usage analytics sent to **GA4 via the Measurement Protocol, fr
 
 ## Testing
 
-Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 173 tests across 8 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests; `tokio = { version = "1", features = ["rt", "macros"] }` is in `[dev-dependencies]` (in addition to the production dep) to enable `#[tokio::test]` for async filesystem tests.
+Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`. 181 tests across 9 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests; `tokio = { version = "1", features = ["rt", "macros"] }` is in `[dev-dependencies]` (in addition to the production dep) to enable `#[tokio::test]` for async filesystem tests.
 
 - `mods/tests.rs` — pure functions + state I/O (naming, paths, zip, state); multi-target engine routing; `InstalledMod.location` round-trip; four async `find_untracked_paks` filesystem tests (primary=None location, secondary location tag, known-set cross-target isolation, backup-skip per target)
 - `launchers/mod_tests.rs` — VDF parser + launcher identification
@@ -260,8 +264,9 @@ Rust unit tests live in separate test files referenced from the module via `#[cf
 - `superblt_tests.rs` — SuperBLT loader-presence detection across the three loader filenames
 - `pdth_overrides_tests.rs` — PDTHModOverrides loader-presence detection (`DINPUT8.dll` required; `PDTHModOverrides.dll` alone is insufficient) + ZIP loader-file extraction overwrite
 - `api_tests.rs` — `parse_rate_limit_remaining` header parsing (present/zero/absent/malformed)
+- `news_tests.rs` — `parse_news_html` against a saved fixture; `extract_total_pages` against inline WP-PageNavi HTML (both the `.last`-link case and the last-page case where that link is absent); `category_url`/`category_slug` page-segment and game-mapping logic
 
-Renderer tests use Vitest (`pnpm test:renderer`) in a Node environment — no browser APIs needed since tested modules are pure TypeScript. Six test files, 121 tests:
+Renderer tests use Vitest (`pnpm test:renderer`) in a Node environment — no browser APIs needed since tested modules are pure TypeScript. Six test files, 122 tests:
 
 - `src/renderer/src/formatCheck.test.ts` — `isUnsupportedFormat`: type field, URL extension fallback, tar double-extensions, invalid URLs
 - `src/renderer/src/hooks/installedUtils.test.ts` — all six exports: `syntheticMod`, `getAllModsInFolder`, `filterInstalled`, `normalizeModScopes`, `computeChildren`, `groupChildren`
