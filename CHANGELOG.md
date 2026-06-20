@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Added an in-app News tab per game.
+
 ### Changed
 
 - Improved modworkshop API request performance and pacing.
