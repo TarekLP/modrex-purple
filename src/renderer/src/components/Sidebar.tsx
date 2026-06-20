@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { Compass, Package, Settings, ChevronLeft, ArrowLeftRight, CircleHelp } from 'lucide-react'
+import {
+    Compass,
+    Package,
+    Newspaper,
+    Settings,
+    ChevronLeft,
+    ArrowLeftRight,
+    CircleHelp,
+} from 'lucide-react'
 import { siDiscord } from 'simple-icons'
 import { api } from '../api'
 import type { LucideIcon } from 'lucide-react'
@@ -9,7 +17,7 @@ import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { Tooltip } from './Tooltip'
 
-type NavView = 'browse' | 'installed' | 'settings'
+type NavView = 'browse' | 'installed' | 'news' | 'settings'
 
 interface Props {
     view: NavView
@@ -21,6 +29,7 @@ interface Props {
 const navItems: { id: NavView; labelKey: StringKey; icon: LucideIcon }[] = [
     { id: 'browse', labelKey: 'sidebar.browse', icon: Compass },
     { id: 'installed', labelKey: 'sidebar.installed', icon: Package },
+    { id: 'news', labelKey: 'sidebar.news', icon: Newspaper },
     { id: 'settings', labelKey: 'sidebar.settings', icon: Settings },
 ]
 

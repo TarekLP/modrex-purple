@@ -48,6 +48,7 @@
     "sidebar": {
         "browse": "Browse Mods",
         "installed": "Installed",
+        "news": "News",
         "settings": "Settings",
         "collapse": "Collapse menu",
         "expandTitle": "Expand sidebar",
@@ -121,6 +122,16 @@
             "updateSelected": "Update Selected ({count})",
             "error": "Update failed. Check your connection and try again."
         }
+    },
+    "news": {
+        "title": "News",
+        "subtitle": "Official headlines, summaries, and images from paydaythegame.com.",
+        "readArticle": "Read article",
+        "refresh": "Refresh",
+        "refreshing": "Refreshing…",
+        "empty": "No news available",
+        "loadFailed": "Couldn't load news",
+        "source": "paydaythegame.com"
     },
     "detail": {
         "spoiler": "Spoiler!",

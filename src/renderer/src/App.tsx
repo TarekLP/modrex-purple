@@ -15,6 +15,7 @@ import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
 import { BrowsePage } from './components/BrowsePage'
 import { InstalledPage } from './components/InstalledPage'
+import { NewsPage } from './components/NewsPage'
 import { ModDetailPage } from './components/ModDetailPage'
 import { SettingsPage } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
@@ -40,14 +41,14 @@ function warmSettingsCache(game: GameId) {
         .catch(() => {})
 }
 
-export type View = 'browse' | 'installed' | 'detail' | 'settings' | 'welcome'
+export type View = 'browse' | 'installed' | 'news' | 'detail' | 'settings' | 'welcome'
 
 const DETECT_RETRY_MS = 5 * 60 * 1000
 
 function getInitialView(): View {
     if (!localStorage.getItem('modrex:active-game')) return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
-    return v === 'browse' || v === 'installed' || v === 'settings' ? v : 'browse'
+    return v === 'browse' || v === 'installed' || v === 'news' || v === 'settings' ? v : 'browse'
 }
 
 export default function App() {
@@ -150,7 +151,9 @@ export default function App() {
         const cachedInstalled = installedCache.current[g]
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
-            saved === 'browse' || saved === 'installed' || saved === 'settings' ? saved : 'browse'
+            saved === 'browse' || saved === 'installed' || saved === 'news' || saved === 'settings'
+                ? saved
+                : 'browse'
         // The switch commit renders three pages' worth of tree at once — as a
         // transition it stays interruptible, so rapid switching can't pile up
         // janky frames (a newer switch cancels the in-progress render).
@@ -317,7 +320,7 @@ export default function App() {
         }
     }
 
-    const handleSidebarChange = useCallback((v: 'browse' | 'installed' | 'settings') => {
+    const handleSidebarChange = useCallback((v: 'browse' | 'installed' | 'news' | 'settings') => {
         localStorage.setItem('modrex:active-view', v)
         setDetailStack([])
         setView(v)
@@ -330,7 +333,8 @@ export default function App() {
 
     const goToSettings = useCallback(() => handleSidebarChange('settings'), [handleSidebarChange])
 
-    const sidebarView = view === 'detail' ? prevView : (view as 'browse' | 'installed' | 'settings')
+    const sidebarView =
+        view === 'detail' ? prevView : (view as 'browse' | 'installed' | 'news' | 'settings')
 
     return (
         <TooltipProvider delayDuration={400}>
@@ -385,7 +389,7 @@ export default function App() {
                         )}
                         <div className="flex flex-1 overflow-hidden">
                             <Sidebar
-                                view={sidebarView as 'browse' | 'installed' | 'settings'}
+                                view={sidebarView}
                                 onViewChange={handleSidebarChange}
                                 activeGame={activeGame}
                                 onShowWelcome={handleShowWelcome}
@@ -422,6 +426,11 @@ export default function App() {
                                         onRefreshInstalled={refreshInstalled}
                                         onOpenDetail={openDetailFromInstalled}
                                     />
+                                </div>
+                                <div
+                                    className={`absolute inset-0 ${view === 'news' ? '' : 'invisible pointer-events-none'}`}
+                                >
+                                    <NewsPage isActive={view === 'news'} activeGame={activeGame} />
                                 </div>
                                 <div
                                     className={`absolute inset-0 ${view === 'settings' ? '' : 'invisible pointer-events-none'}`}
