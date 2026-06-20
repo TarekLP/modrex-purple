@@ -1543,7 +1543,7 @@ fn install_carries_iostore_sidecars_alongside_pak() {
         &pak,
         None,
         cfg,
-        cfg.primary(),
+        cfg.target_for(Some("paks")),
     )
     .unwrap();
 
@@ -1579,7 +1579,7 @@ fn disable_then_enable_carries_iostore_sidecars() {
         &pak,
         None,
         cfg,
-        cfg.primary(),
+        cfg.target_for(Some("paks")),
     )
     .unwrap();
 
@@ -1622,7 +1622,7 @@ fn uninstall_removes_iostore_sidecars() {
         &pak,
         None,
         cfg,
-        cfg.primary(),
+        cfg.target_for(Some("paks")),
     )
     .unwrap();
 
@@ -1645,11 +1645,14 @@ fn uninstall_removes_iostore_sidecars() {
 // Real-world Crime Boss ModKit "Package Mod" output is a folder users are told to copy into
 // `CrimeBoss/Mods/<name>/`: `<name>/Content/Paks/WindowsNoEditor/<name>-WindowsNoEditor.{pak,ucas,utoc}`
 // (verified against the actual "More Multiplayer Jobs" download from modworkshop, mod id 54316).
-// This proves the *other* real convention (loose triplet for `~mods/`) and this one both resolve
-// to the exact same flat install — Modrex extracts by content, not by mirroring archive structure,
-// so no second Directory-unit scan target is needed for ModKit-packaged archives.
+// `CrimeBoss/Mods/` is the primary install target (the official UGC mod-loader there merges
+// multiple mods' Data Table Extensions additively; the legacy `~mods` target is generic Unreal
+// pak-mounting with no merge semantics — see engine.rs's CRIMEBOSS_ENGINE comment). Regardless
+// of how the archive nests the triplet, Modrex always synthesizes the canonical
+// `Content/Paks/WindowsNoEditor/` skeleton itself rather than copying the archive's wrapper
+// folder as-is.
 #[test]
-fn modkit_packaged_archive_flattens_into_mods_target_same_as_loose_triplet() {
+fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
     let zip = make_zip(&[
         ("MoreMPJobs/", b""),
         ("MoreMPJobs/Content/", b""),
@@ -1678,37 +1681,96 @@ fn modkit_packaged_archive_flattens_into_mods_target_same_as_loose_triplet() {
         resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
     assert_eq!(
         location_tag, None,
-        "single pak resolves to the primary target"
+        "new installs always resolve to the primary Mods/ target"
     );
 
+    let mod_name = "More Multiplayer Jobs";
     let mod_data = InstalledMod {
         uid: "1".into(),
         id: 1,
-        name: "More Multiplayer Jobs".into(),
-        filename: "MoreMPJobsCrimeBoss-WindowsNoEditor.pak".into(),
+        name: mod_name.into(),
+        filename: mod_folder_name(mod_name),
         enabled: true,
         file_id: Some(1),
         ..InstalledMod::default()
     };
     install_mod_from_path(game, &sp, mod_data, &extracted, None, cfg, cfg.primary()).unwrap();
 
-    // Lands flat in ~mods, identical to a mod packaged as a loose triplet — the
-    // wrapper folders (MoreMPJobs/Content/Paks/WindowsNoEditor/) are never recreated on disk.
-    let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
-    let filename = read_state(&sp).mods[0].filename.clone();
-    let stem = std::path::Path::new(&filename)
-        .file_stem()
-        .unwrap()
-        .to_str()
-        .unwrap();
-    assert_eq!(fs::read(active_dir.join(&filename)).unwrap(), b"pak header");
+    let pak_dir = tmp
+        .path()
+        .join("CrimeBoss/Mods/More_Multiplayer_Jobs/Content/Paks/WindowsNoEditor");
     assert_eq!(
-        fs::read(active_dir.join(format!("{stem}.ucas"))).unwrap(),
+        fs::read(pak_dir.join("MoreMPJobsCrimeBoss-WindowsNoEditor.pak")).unwrap(),
+        b"pak header"
+    );
+    assert_eq!(
+        fs::read(pak_dir.join("MoreMPJobsCrimeBoss-WindowsNoEditor.ucas")).unwrap(),
         b"bulk data"
     );
     assert_eq!(
-        fs::read(active_dir.join(format!("{stem}.utoc"))).unwrap(),
+        fs::read(pak_dir.join("MoreMPJobsCrimeBoss-WindowsNoEditor.utoc")).unwrap(),
         b"table of contents"
     );
-    assert!(!tmp.path().join("CrimeBoss/Mods").exists());
+    // The legacy loose-triplet target is never touched by a new install.
+    assert!(!tmp.path().join("CrimeBoss/Content/Paks/~mods").exists());
+}
+
+// The loose-triplet convention (no wrapper folder at all — e.g. modworkshop's #1 most-downloaded
+// Crime Boss mod, "Total Mission Value") must resolve into the exact same Mods/ skeleton.
+#[test]
+fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
+    let zip = make_zip(&[
+        ("Nadz_TotalMissionValue_P.pak", b"pak header"),
+        ("Nadz_TotalMissionValue_P.ucas", b"bulk data"),
+        ("Nadz_TotalMissionValue_P.utoc", b"table of contents"),
+    ]);
+
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+
+    let (extracted, _orig, location_tag) =
+        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    assert_eq!(location_tag, None);
+
+    let mod_name = "Total Mission Value";
+    let mod_data = InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: mod_name.into(),
+        filename: mod_folder_name(mod_name),
+        enabled: true,
+        file_id: Some(1),
+        ..InstalledMod::default()
+    };
+    install_mod_from_path(game, &sp, mod_data, &extracted, None, cfg, cfg.primary()).unwrap();
+
+    let pak_dir = tmp
+        .path()
+        .join("CrimeBoss/Mods/Total_Mission_Value/Content/Paks/WindowsNoEditor");
+    assert_eq!(
+        fs::read(pak_dir.join("Nadz_TotalMissionValue_P.pak")).unwrap(),
+        b"pak header"
+    );
+    assert_eq!(
+        fs::read(pak_dir.join("Nadz_TotalMissionValue_P.ucas")).unwrap(),
+        b"bulk data"
+    );
+}
+
+// Identification of pre-existing/manually-placed Mods/ content must hash the .pak specifically,
+// not "first file alphabetically" — a sibling Config/ folder (custom gameplay tags, per the
+// ModKit docs) sorts before Content/ and would otherwise be hashed instead.
+#[test]
+fn hashable_file_for_mod_dir_prefers_pak_over_alphabetically_first_file() {
+    let dir = TempDir::new().unwrap();
+    fs::create_dir_all(dir.path().join("Config/Tags")).unwrap();
+    fs::write(dir.path().join("Config/Tags/Tags.ini"), b"[Mod]\n").unwrap();
+    let pak_dir = dir.path().join("Content/Paks/WindowsNoEditor");
+    fs::create_dir_all(&pak_dir).unwrap();
+    fs::write(pak_dir.join("SomeMod-WindowsNoEditor.pak"), b"pak bytes").unwrap();
+
+    let hashed = hashable_file_for_mod_dir(dir.path()).unwrap();
+    assert_eq!(hashed, pak_dir.join("SomeMod-WindowsNoEditor.pak"));
 }

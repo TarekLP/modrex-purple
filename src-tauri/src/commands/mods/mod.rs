@@ -31,13 +31,13 @@ pub(crate) use self::reorder::{
 };
 pub(crate) use self::state::save_state;
 pub(crate) use self::zip::{
-    extract_dir_entry, extract_entry, extract_entry_with_sidecars, mark_archive_files,
-    resolve_archive_download,
+    extract_dir_entry, extract_entry, extract_entry_into_crimeboss_skeleton,
+    extract_entry_with_sidecars, mark_archive_files, resolve_archive_download,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
 #[cfg(test)]
-pub(crate) use self::naming::{apply_priority_prefix, make_uid};
+pub(crate) use self::naming::{apply_priority_prefix, make_uid, mod_folder_name};
 #[cfg(test)]
 pub(crate) use self::zip::{
     classify_archive_dirs, detect_archive, is_unplaceable_pack, is_zip, list_pak_entries,
@@ -73,12 +73,36 @@ fn first_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     None
 }
 
+/// Recursively finds a `.pak` file inside `dir`, preferring it over `first_file_in_dir`'s
+/// alphabetical-first pick. Crime Boss's `Mods/<name>/` can have a sibling `Config/` folder
+/// (custom gameplay tags) that sorts before `Content/` — without this, identification would
+/// hash an `.ini` instead of the `.pak` modrex-index actually records SHA256 for.
+fn first_pak_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in &entries {
+        if entry.file_type().ok()?.is_file()
+            && entry.file_name().to_string_lossy().ends_with(".pak")
+        {
+            return Some(entry.path());
+        }
+    }
+    for entry in &entries {
+        if entry.file_type().ok()?.is_dir() {
+            if let Some(p) = first_pak_file_in_dir(&entry.path()) {
+                return Some(p);
+            }
+        }
+    }
+    None
+}
+
 fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     let main_xml = dir.join("main.xml");
     if main_xml.exists() {
         return Some(main_xml);
     }
-    first_file_in_dir(dir)
+    first_pak_file_in_dir(dir).or_else(|| first_file_in_dir(dir))
 }
 
 /// Reads the value of an XML attribute (`name="value"` or `name='value'`) from a single
@@ -790,6 +814,9 @@ pub async fn install_mod(
             .map(|m| m.filename.clone())
             .unwrap_or_else(|| match &target.unit {
                 engine::ModUnit::File { .. } => pak_filename(&mod_name),
+                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
+                    naming::mod_folder_name(&mod_name)
+                }
                 engine::ModUnit::Directory { .. } => tmp
                     .file_name()
                     .and_then(|s| s.to_str())
@@ -848,6 +875,12 @@ pub async fn install_mod(
             for ext in naming::PAK_SIDECAR_EXTENSIONS {
                 let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
             }
+        }
+        // Crime Boss's synthesized skeleton is `tmp` itself (one level under the OS temp dir),
+        // not `{uuid_dir}/{dir_name}` like PD2/PDTH — `tmp.parent()` there would be the OS temp
+        // dir itself, which must never be passed to remove_dir_all.
+        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
+            let _ = tokio::fs::remove_dir_all(&tmp).await;
         }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
@@ -957,6 +990,9 @@ pub async fn install_file(
                         pak_filename(&format!("{}_{}", mod_name, file_id))
                     }
                 }
+                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
+                    naming::mod_folder_name(&mod_name)
+                }
                 engine::ModUnit::Directory { .. } => tmp
                     .file_name()
                     .and_then(|s| s.to_str())
@@ -1005,6 +1041,12 @@ pub async fn install_file(
             for ext in naming::PAK_SIDECAR_EXTENSIONS {
                 let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
             }
+        }
+        // See the matching comment in install_mod: tmp.parent() must never be removed for Crime
+        // Boss, since tmp is the synthesized skeleton root itself, not a {uuid_dir}/{dir_name}
+        // child like PD2/PDTH.
+        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
+            let _ = tokio::fs::remove_dir_all(&tmp).await;
         }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
@@ -1062,24 +1104,41 @@ pub async fn install_from_zip_entry(
 
     // For File mods: ext is a temp .pak file.
     // For Directory mods: ext is {tmp_parent}/{dir_name} (two-level, consistent with resolve_archive_download).
-    let (ext, tmp_parent) = match &target.unit {
-        engine::ModUnit::File { .. } => {
-            let p = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
-            (p, None)
-        }
-        engine::ModUnit::Directory { .. } => {
-            let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
-            let p = parent.join(&entry_filename);
-            (p, Some(parent))
+    // Crime Boss is neither: the chosen .pak entry (plus its .ucas/.utoc siblings) is wrapped in
+    // a synthesized Content/Paks/WindowsNoEditor skeleton — see extract_entry_into_crimeboss_skeleton.
+    let (ext, tmp_parent) = if cfg.game_id == "cb" {
+        let skeleton_root = extract_entry_into_crimeboss_skeleton(&zip, &entry_name)?;
+        (skeleton_root.clone(), Some(skeleton_root))
+    } else {
+        match &target.unit {
+            engine::ModUnit::File { .. } => {
+                let p = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
+                (p, None)
+            }
+            engine::ModUnit::Directory { .. } => {
+                let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+                let p = parent.join(&entry_filename);
+                (p, Some(parent))
+            }
         }
     };
 
     let uid = format!("{}_{}", file_id, entry_stem);
+    // Crime Boss installs into its own named folder, not the archive entry's pak filename.
+    let install_filename = if cfg.game_id == "cb" {
+        naming::mod_folder_name(&mod_name)
+    } else {
+        entry_filename.clone()
+    };
 
     let result = async {
-        match &target.unit {
-            engine::ModUnit::File { .. } => extract_entry_with_sidecars(&zip, &entry_name, &ext)?,
-            engine::ModUnit::Directory { .. } => extract_dir_entry(&zip, &entry_name, &ext)?,
+        if cfg.game_id != "cb" {
+            match &target.unit {
+                engine::ModUnit::File { .. } => {
+                    extract_entry_with_sidecars(&zip, &entry_name, &ext)?
+                }
+                engine::ModUnit::Directory { .. } => extract_dir_entry(&zip, &entry_name, &ext)?,
+            }
         }
         let sha256 = match &target.unit {
             engine::ModUnit::File { .. } => compute_sha256(&ext).await?,
@@ -1118,7 +1177,7 @@ pub async fn install_from_zip_entry(
                 id: mod_id,
                 name: mod_name,
                 version: mod_version,
-                filename: entry_filename,
+                filename: install_filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
                 file_id: Some(file_id),

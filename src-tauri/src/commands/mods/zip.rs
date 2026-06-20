@@ -636,6 +636,9 @@ pub fn resolve_archive_download(
     downloaded: PathBuf,
     cfg: &ModEngineConfig,
 ) -> Result<(PathBuf, Option<PathBuf>, Option<String>), String> {
+    if cfg.game_id == "cb" {
+        return resolve_crimeboss_archive(downloaded, cfg);
+    }
     if detect_archive(&downloaded).is_none() {
         return Ok((downloaded, None, None));
     }
@@ -750,6 +753,62 @@ pub fn resolve_archive_download(
             }
         }
     }
+}
+
+/// Crime Boss's two real archive shapes — a loose `.pak`/`.ucas`/`.utoc` triplet at any depth,
+/// or the official ModKit's "Package Mod" folder output — both reduce to "find the .pak,
+/// wherever it is, plus its siblings." Unlike PD2/PDTH's Directory targets, the result isn't an
+/// author-supplied folder copied as-is: Modrex always synthesizes the canonical
+/// `Content/Paks/WindowsNoEditor/` skeleton the game's UGC mod-loader expects under
+/// `CrimeBoss/Mods/<name>/`, regardless of how the source archive nested things.
+fn resolve_crimeboss_archive(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+) -> Result<(PathBuf, Option<PathBuf>, Option<String>), String> {
+    if detect_archive(&downloaded).is_none() {
+        // No known real mod ships a bare .pak with no archive (sidecars require a zip to carry
+        // them), but if one shows up, fall back to the legacy flat `paks` target rather than
+        // guessing at a skeleton with no .ucas/.utoc to find.
+        let legacy_tag = cfg.targets.iter().find(|t| t.tag == "paks").map(|t| t.tag);
+        return Ok((downloaded, None, legacy_tag.map(str::to_string)));
+    }
+    let entries = list_pak_entries(&downloaded)?;
+    match entries.len() {
+        0 => {
+            let _ = std::fs::remove_file(&downloaded);
+            Err("This mod is packaged as an archive with no .pak files inside.".to_string())
+        }
+        1 => {
+            let tmp = extract_entry_into_crimeboss_skeleton(&downloaded, &entries[0])?;
+            Ok((tmp, Some(downloaded), None))
+        }
+        _ => {
+            let zip_path = downloaded.to_string_lossy().to_string();
+            let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries, "targetTag": serde_json::Value::Null });
+            Err(format!("ZIP_MULTI_PAK:{}", payload))
+        }
+    }
+}
+
+/// Extracts `entry_name` (a `.pak` archive entry) plus its `.ucas`/`.utoc` siblings into a fresh
+/// temp directory shaped `Content/Paks/WindowsNoEditor/<filename>`, ready to be copied wholesale
+/// into `CrimeBoss/Mods/<name>/` as a Directory-unit install.
+pub fn extract_entry_into_crimeboss_skeleton(
+    archive_path: &Path,
+    entry_name: &str,
+) -> Result<PathBuf, String> {
+    let tmp_root = std::env::temp_dir().join(format!("modrex-cb-mod-{}", Uuid::new_v4()));
+    let skeleton_dir = tmp_root
+        .join("Content")
+        .join("Paks")
+        .join("WindowsNoEditor");
+    std::fs::create_dir_all(&skeleton_dir).map_err(|e| e.to_string())?;
+    let filename = Path::new(entry_name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("invalid archive entry name: {entry_name}"))?;
+    extract_entry_with_sidecars(archive_path, entry_name, &skeleton_dir.join(filename))?;
+    Ok(tmp_root)
 }
 
 fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {

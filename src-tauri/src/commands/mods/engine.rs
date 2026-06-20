@@ -81,21 +81,46 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
     }],
 };
 
+// Primary target is `CrimeBoss/Mods/<name>/` (Directory unit) — the official ModKit's install
+// location. Unlike PD2/PDTH's Directory targets, the install-time content isn't an
+// author-supplied folder copied as-is; Modrex synthesizes the `Content/Paks/WindowsNoEditor/`
+// skeleton itself around the extracted .pak (+ .ucas/.utoc) regardless of how the source archive
+// is packaged (see zip.rs's CB-specific resolution path). The official UGC mod-loader merges
+// multiple mods' Data Table Extensions additively when mods live here; the legacy `paks` target
+// (generic Unreal pak-mount, no merge semantics) only ever "last loaded wins" on overlapping
+// data, so it's kept for backward compatibility / loose-triplet-only mods but never selected for
+// new installs (`resolve_archive_download` dispatches on `cfg.primary().unit`, which is this
+// Directory target — `paks` is reachable only via `target_for(Some("paks"))`, i.e. ambient scan
+// of pre-existing installs).
 pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "cb",
     index_game_name: "Crime Boss: Rockay City",
     state_filename: ".modrex.json",
-    targets: &[ScanTarget {
-        tag: "paks",
-        unit: ModUnit::File {
-            extension: "pak",
-            disabled_suffix: ".disabled",
-            priority_prefix: true,
+    targets: &[
+        ScanTarget {
+            tag: "mods",
+            unit: ModUnit::Directory {
+                entry_markers: &[],
+                scan_markers: &[],
+                index_gated_markers: &[],
+                priority_prefix: false,
+            },
+            mods_subpath: &["CrimeBoss", "Mods"],
+            disabled_subpath: &["CrimeBoss", "Mods", "disabled"],
+            backup_subpath: &["CrimeBoss", "Mods.bak"],
         },
-        mods_subpath: &["CrimeBoss", "Content", "Paks", "~mods"],
-        disabled_subpath: &["CrimeBoss", "Content", "Paks", "~mods", "disabled"],
-        backup_subpath: &["CrimeBoss", "Content", "~mods.bak"],
-    }],
+        ScanTarget {
+            tag: "paks",
+            unit: ModUnit::File {
+                extension: "pak",
+                disabled_suffix: ".disabled",
+                priority_prefix: true,
+            },
+            mods_subpath: &["CrimeBoss", "Content", "Paks", "~mods"],
+            disabled_subpath: &["CrimeBoss", "Content", "Paks", "~mods", "disabled"],
+            backup_subpath: &["CrimeBoss", "Content", "~mods.bak"],
+        },
+    ],
 };
 
 pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {

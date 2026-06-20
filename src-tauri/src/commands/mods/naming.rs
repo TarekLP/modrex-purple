@@ -43,7 +43,7 @@ pub fn apply_priority_prefix(filename: &str, priority: i64) -> String {
     format!("{:03}_{}", priority, strip_priority_prefix(filename))
 }
 
-pub fn pak_filename(mod_name: &str) -> String {
+fn sanitize(mod_name: &str) -> String {
     let trimmed = mod_name.trim();
     let mut result = String::new();
     let mut last_sep = false;
@@ -56,7 +56,17 @@ pub fn pak_filename(mod_name: &str) -> String {
             last_sep = true;
         }
     }
-    let result = result.trim_matches('_');
+    result.trim_matches('_').to_string()
+}
+
+/// Folder name for a Crime Boss mod installed under `CrimeBoss/Mods/<name>/` — same
+/// sanitization as `pak_filename`, minus the `.pak` extension.
+pub fn mod_folder_name(mod_name: &str) -> String {
+    sanitize(mod_name)
+}
+
+pub fn pak_filename(mod_name: &str) -> String {
+    let result = sanitize(mod_name);
     format!("{}.pak", result)
 }
 
