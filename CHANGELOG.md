@@ -7,6 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added an in-app News tab per game.
+- Added Crime Boss: Rockay City support.
 
 ### Changed
 
