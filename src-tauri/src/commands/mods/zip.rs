@@ -215,6 +215,44 @@ fn extract_tar_entry<R: Read>(reader: R, entry_name: &str, dest: &Path) -> Resul
     Err(format!("entry '{}' not found in archive", entry_name))
 }
 
+/// The archive-entry key used to match a `.pak` to its IoStore siblings: directory plus stem,
+/// lowercased so Windows-authored archives with inconsistent casing still match.
+fn entry_key(name: &str) -> String {
+    let path = Path::new(name);
+    let dir = path
+        .parent()
+        .map(|d| d.to_string_lossy())
+        .unwrap_or_default();
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(name);
+    format!("{dir}/{stem}").to_ascii_lowercase()
+}
+
+/// Like `extract_entry`, but also extracts any `.ucas`/`.utoc` siblings of `entry_name` found in
+/// the same archive (matched by directory + stem) to `dest.with_extension(...)`. A missing
+/// sidecar is not an error — most mods don't ship IoStore triplets, only some games' do.
+pub fn extract_entry_with_sidecars(
+    archive_path: &Path,
+    entry_name: &str,
+    dest: &Path,
+) -> Result<(), String> {
+    extract_entry(archive_path, entry_name, dest)?;
+    let Ok(entries) = list_entries(archive_path) else {
+        return Ok(());
+    };
+    let key = entry_key(entry_name);
+    for ext in super::naming::PAK_SIDECAR_EXTENSIONS {
+        let sidecar = entries.iter().find(|e| {
+            !e.is_dir
+                && entry_key(&e.name) == key
+                && e.name.to_ascii_lowercase().ends_with(&format!(".{ext}"))
+        });
+        if let Some(sidecar) = sidecar {
+            let _ = extract_entry(archive_path, &sidecar.name, &dest.with_extension(ext));
+        }
+    }
+    Ok(())
+}
+
 pub async fn compute_sha256(path: &Path) -> Result<String, String> {
     let path = path.to_path_buf();
     tauri::async_runtime::spawn_blocking(move || {
@@ -295,9 +333,9 @@ pub(crate) fn is_unplaceable_pack(names: &[String], extra_markers: &[&str]) -> b
             || n.ends_with("/main.xml")
             || n == "mod.txt"
             || n == "main.xml"
-            || extra_markers.iter().any(|m| {
-                n.ends_with(&format!("/{}", m)) || n.as_str() == *m
-            })
+            || extra_markers
+                .iter()
+                .any(|m| n.ends_with(&format!("/{}", m)) || n.as_str() == *m)
     });
     if has_marker {
         return false;
@@ -611,7 +649,7 @@ pub fn resolve_archive_download(
                 }
                 1 => {
                     let tmp = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
-                    extract_entry(&downloaded, &entries[0], &tmp)?;
+                    extract_entry_with_sidecars(&downloaded, &entries[0], &tmp)?;
                     Ok((tmp, Some(downloaded), None))
                 }
                 _ => {

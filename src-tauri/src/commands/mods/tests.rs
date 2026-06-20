@@ -102,6 +102,65 @@ fn extract_zip_entry_handles_nested_path() {
     assert_eq!(written, content);
 }
 
+// ── extract_entry_with_sidecars (IoStore .ucas/.utoc) ────────────────────────
+
+#[test]
+fn extract_entry_with_sidecars_pulls_in_ucas_and_utoc() {
+    let zip = make_zip(&[
+        ("TestMod.pak", b"pak bytes"),
+        ("TestMod.ucas", b"ucas bytes"),
+        ("TestMod.utoc", b"utoc bytes"),
+        ("readme.txt", b"ignore me"),
+    ]);
+    let dest = NamedTempFile::new().unwrap();
+    extract_entry_with_sidecars(zip.path(), "TestMod.pak", dest.path()).unwrap();
+    assert_eq!(fs::read(dest.path()).unwrap(), b"pak bytes");
+    assert_eq!(
+        fs::read(dest.path().with_extension("ucas")).unwrap(),
+        b"ucas bytes"
+    );
+    assert_eq!(
+        fs::read(dest.path().with_extension("utoc")).unwrap(),
+        b"utoc bytes"
+    );
+}
+
+#[test]
+fn extract_entry_with_sidecars_ok_when_no_sidecars_present() {
+    let zip = make_zip(&[("TestMod.pak", b"pak only")]);
+    let dest = NamedTempFile::new().unwrap();
+    extract_entry_with_sidecars(zip.path(), "TestMod.pak", dest.path()).unwrap();
+    assert_eq!(fs::read(dest.path()).unwrap(), b"pak only");
+    assert!(!dest.path().with_extension("ucas").exists());
+    assert!(!dest.path().with_extension("utoc").exists());
+}
+
+#[test]
+fn extract_entry_with_sidecars_matches_nested_path_siblings_only() {
+    let zip = make_zip(&[
+        (
+            "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.pak",
+            b"pak",
+        ),
+        (
+            "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.ucas",
+            b"right ucas",
+        ),
+        ("OtherFolder/Mod-WindowsNoEditor.ucas", b"wrong ucas"),
+    ]);
+    let dest = NamedTempFile::new().unwrap();
+    extract_entry_with_sidecars(
+        zip.path(),
+        "Mod/Content/Paks/WindowsNoEditor/Mod-WindowsNoEditor.pak",
+        dest.path(),
+    )
+    .unwrap();
+    assert_eq!(
+        fs::read(dest.path().with_extension("ucas")).unwrap(),
+        b"right ucas"
+    );
+}
+
 // ── strip_priority_prefix ─────────────────────────────────────────────────
 
 #[test]
@@ -1441,4 +1500,144 @@ fn identify_untracked_falls_back_to_name_without_embedded() {
     assert_eq!(m.id, 555); // matched by name
     assert_eq!(m.file_id, None);
     assert_eq!(m.version, "unknown");
+}
+
+// ── File-unit install/enable/disable/uninstall carry IoStore sidecars ────────
+// Crime Boss (and some PAYDAY 3) mods ship a .pak plus .ucas/.utoc siblings sharing one
+// stem; every File-unit op must move all three together even though InstalledMod only
+// ever stores the .pak filename.
+
+fn iostore_mod_source() -> (TempDir, std::path::PathBuf) {
+    let src = TempDir::new().unwrap();
+    let pak = src.path().join("TestMod.pak");
+    fs::write(&pak, b"pak header").unwrap();
+    fs::write(src.path().join("TestMod.ucas"), b"bulk data").unwrap();
+    fs::write(src.path().join("TestMod.utoc"), b"table of contents").unwrap();
+    (src, pak)
+}
+
+fn iostore_mod_data() -> InstalledMod {
+    InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "Test Mod".into(),
+        filename: "TestMod.pak".into(),
+        enabled: true,
+        file_id: Some(1),
+        ..InstalledMod::default()
+    }
+}
+
+#[test]
+fn install_carries_iostore_sidecars_alongside_pak() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+    let (_src, pak) = iostore_mod_source();
+
+    install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    let filename = read_state(&sp).mods[0].filename.clone();
+    let stem = std::path::Path::new(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
+    assert_eq!(fs::read(active_dir.join(&filename)).unwrap(), b"pak header");
+    assert_eq!(
+        fs::read(active_dir.join(format!("{stem}.ucas"))).unwrap(),
+        b"bulk data"
+    );
+    assert_eq!(
+        fs::read(active_dir.join(format!("{stem}.utoc"))).unwrap(),
+        b"table of contents"
+    );
+}
+
+#[test]
+fn disable_then_enable_carries_iostore_sidecars() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+    let (_src, pak) = iostore_mod_source();
+    install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    let filename = read_state(&sp).mods[0].filename.clone();
+    let stem = std::path::Path::new(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
+    let disabled_dir = active_dir.join("disabled");
+
+    disable_mod_op(game, &sp, "1", cfg);
+    assert!(!active_dir.join(format!("{stem}.ucas")).exists());
+    assert!(!active_dir.join(format!("{stem}.utoc")).exists());
+    // Disabled File-unit mods get both a different directory and a `.disabled`-suffixed
+    // filename (see naming::sidecar_path) — sidecars must carry the same suffix.
+    assert!(disabled_dir.join(format!("{stem}.ucas.disabled")).exists());
+    assert!(disabled_dir.join(format!("{stem}.utoc.disabled")).exists());
+
+    enable_mod_op(game, &sp, "1", cfg);
+    assert!(active_dir.join(format!("{stem}.ucas")).exists());
+    assert!(active_dir.join(format!("{stem}.utoc")).exists());
+    assert!(!disabled_dir.join(format!("{stem}.ucas")).exists());
+    assert!(!disabled_dir.join(format!("{stem}.utoc")).exists());
+}
+
+#[test]
+fn uninstall_removes_iostore_sidecars() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+    let (_src, pak) = iostore_mod_source();
+    install_mod_from_path(
+        game,
+        &sp,
+        iostore_mod_data(),
+        &pak,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    let filename = read_state(&sp).mods[0].filename.clone();
+    let stem = std::path::Path::new(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let active_dir = tmp.path().join("CrimeBoss/Content/Paks/~mods");
+
+    uninstall_mod_op(game, &sp, "1", cfg);
+
+    assert!(!active_dir.join(&filename).exists());
+    assert!(!active_dir.join(format!("{stem}.ucas")).exists());
+    assert!(!active_dir.join(format!("{stem}.utoc")).exists());
 }

@@ -31,7 +31,8 @@ pub(crate) use self::reorder::{
 };
 pub(crate) use self::state::save_state;
 pub(crate) use self::zip::{
-    extract_dir_entry, extract_entry, mark_archive_files, resolve_archive_download,
+    extract_dir_entry, extract_entry, extract_entry_with_sidecars, mark_archive_files,
+    resolve_archive_download,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
@@ -844,6 +845,9 @@ pub async fn install_mod(
     match &target.unit {
         engine::ModUnit::File { .. } => {
             let _ = tokio::fs::remove_file(&tmp).await;
+            for ext in naming::PAK_SIDECAR_EXTENSIONS {
+                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
+            }
         }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
@@ -998,6 +1002,9 @@ pub async fn install_file(
     match &target.unit {
         engine::ModUnit::File { .. } => {
             let _ = tokio::fs::remove_file(&tmp).await;
+            for ext in naming::PAK_SIDECAR_EXTENSIONS {
+                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
+            }
         }
         engine::ModUnit::Directory { .. } => {
             if let Some(parent) = tmp.parent() {
@@ -1071,7 +1078,7 @@ pub async fn install_from_zip_entry(
 
     let result = async {
         match &target.unit {
-            engine::ModUnit::File { .. } => extract_entry(&zip, &entry_name, &ext)?,
+            engine::ModUnit::File { .. } => extract_entry_with_sidecars(&zip, &entry_name, &ext)?,
             engine::ModUnit::Directory { .. } => extract_dir_entry(&zip, &entry_name, &ext)?,
         }
         let sha256 = match &target.unit {
@@ -1143,6 +1150,9 @@ pub async fn install_from_zip_entry(
         let _ = tokio::fs::remove_dir_all(parent).await;
     } else {
         let _ = tokio::fs::remove_file(&ext).await;
+        for sidecar_ext in naming::PAK_SIDECAR_EXTENSIONS {
+            let _ = tokio::fs::remove_file(ext.with_extension(sidecar_ext)).await;
+        }
     }
     if result.is_ok() {
         crate::commands::analytics::track(
