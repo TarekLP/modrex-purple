@@ -60,6 +60,7 @@
     },
     "gamePicker": {
         "title": "Games",
+        "installedOnly": "Installed only",
         "searchLabel": "Search games",
         "searchPlaceholder": "Search games…",
         "noMatches": "No games found"

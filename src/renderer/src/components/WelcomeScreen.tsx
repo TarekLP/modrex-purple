@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { t } from '../i18n'
+import { api } from '../api'
+import { Toggle } from './Toggle'
+
+const INSTALLED_ONLY_KEY = 'modrex:show-installed-games-only'
 
 const CDN_URLS: Record<GameId, string> = {
     pd3: 'https://cdn.akamai.steamstatic.com/steam/apps/1272080/library_600x900.jpg',
@@ -23,9 +27,33 @@ interface Props {
 export function WelcomeScreen({ onSelectGame }: Props) {
     const [failed, setFailed] = useState<Partial<Record<GameId, boolean>>>({})
     const [query, setQuery] = useState('')
+    const [installedOnly, setInstalledOnly] = useState(
+        () => localStorage.getItem(INSTALLED_ONLY_KEY) === 'true'
+    )
+    const [installedStatus, setInstalledStatus] = useState<Partial<Record<GameId, boolean>>>({})
+
+    useEffect(() => {
+        let cancelled = false
+        for (const g of Object.keys(GAMES) as GameId[]) {
+            void api.findGamePath(g).then((path) => {
+                if (cancelled) return
+                setInstalledStatus((prev) => ({ ...prev, [g]: path !== null }))
+            })
+        }
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
+    function handleInstalledOnlyChange(checked: boolean) {
+        setInstalledOnly(checked)
+        localStorage.setItem(INSTALLED_ONLY_KEY, String(checked))
+    }
+
     const normalizedQuery = query.trim().toLowerCase()
     const games = (Object.keys(GAMES) as GameId[]).filter((g) => {
         const game = GAMES[g]
+        if (installedOnly && !installedStatus[g]) return false
         return (
             !normalizedQuery ||
             game.name.toLowerCase().includes(normalizedQuery) ||
@@ -36,8 +64,14 @@ export function WelcomeScreen({ onSelectGame }: Props) {
     return (
         <div className="h-full bg-surface text-text flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                <div>
+                <div className="flex items-center gap-3">
                     <h1 className="text-lg font-semibold">{t('gamePicker.title')}</h1>
+                    <div className="flex items-center gap-2">
+                        <Toggle checked={installedOnly} onChange={handleInstalledOnlyChange} />
+                        <span className="text-xs text-text-muted">
+                            {t('gamePicker.installedOnly')}
+                        </span>
+                    </div>
                 </div>
                 <label className="relative block w-full">
                     <span className="sr-only">{t('gamePicker.searchLabel')}</span>
