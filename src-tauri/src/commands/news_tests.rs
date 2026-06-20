@@ -34,3 +34,52 @@ fn category_slug_maps_known_games() {
     assert_eq!(category_slug("pd3"), "payday3");
     assert_eq!(category_slug("unknown"), "payday3");
 }
+
+#[test]
+fn category_url_omits_page_segment_on_first_page() {
+    assert_eq!(
+        category_url("pd3", 1),
+        "https://www.paydaythegame.com/news/category/payday3/"
+    );
+    assert_eq!(
+        category_url("pd3", 0),
+        "https://www.paydaythegame.com/news/category/payday3/"
+    );
+}
+
+#[test]
+fn category_url_adds_page_segment_for_later_pages() {
+    assert_eq!(
+        category_url("pd2", 3),
+        "https://www.paydaythegame.com/news/category/payday2/page/3/"
+    );
+}
+
+#[test]
+fn extract_total_pages_reads_last_link_on_early_pages() {
+    let html = r#"<div class=wp-pagenavi role=navigation>
+        <span aria-current=page class=current>1</span>
+        <a class="page larger" href=https://www.paydaythegame.com/news/category/payday3/page/2/>2</a>
+        <a class=last href=https://www.paydaythegame.com/news/category/payday3/page/19/>Last »</a>
+    </div>"#;
+    assert_eq!(extract_total_pages(html), 19);
+}
+
+#[test]
+fn extract_total_pages_falls_back_to_current_span_on_last_page() {
+    // WP-PageNavi shows no `.last` link when you're already on the last page.
+    let html = r#"<div class=wp-pagenavi role=navigation>
+        <a class=first href=https://www.paydaythegame.com/news/category/payday3/>« First</a>
+        <a class="page smaller" href=https://www.paydaythegame.com/news/category/payday3/page/18/>18</a>
+        <span aria-current=page class=current>19</span>
+    </div>"#;
+    assert_eq!(extract_total_pages(html), 19);
+}
+
+#[test]
+fn extract_total_pages_defaults_to_one_without_pagenavi() {
+    assert_eq!(
+        extract_total_pages("<html><body>no pagination here</body></html>"),
+        1
+    );
+}

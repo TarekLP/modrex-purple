@@ -9,11 +9,32 @@ import { Tooltip } from './Tooltip'
 
 const SOURCE_URL = 'https://www.paydaythegame.com/'
 
-const newsCache = new Map<GameId, NewsItem[]>()
+// Cached per game for the session so navigating away and back (or switching
+// games) restores the page the user was on instead of resetting to page 1.
+const newsCache = new Map<GameId, { items: NewsItem[]; totalPages: number; page: number }>()
 
 interface Props {
     isActive: boolean
     activeGame: GameId
+}
+
+// Mirrors BrowsePage's buildPages: first, last, and a window around current,
+// with "…" filling the gaps.
+function buildPages(current: number, last: number): (number | '...')[] {
+    const pages: (number | '...')[] = []
+    const delta = 2
+    const left = current - delta
+    const right = current + delta
+
+    let prev: number | null = null
+    for (let p = 1; p <= last; p++) {
+        if (p === 1 || p === last || (p >= left && p <= right)) {
+            if (prev !== null && p - prev > 1) pages.push('...')
+            pages.push(p)
+            prev = p
+        }
+    }
+    return pages
 }
 
 function NewsCard({ item }: { item: NewsItem }) {
@@ -54,16 +75,21 @@ function NewsCard({ item }: { item: NewsItem }) {
 }
 
 function NewsPageImpl({ isActive, activeGame }: Props) {
-    const [items, setItems] = useState<NewsItem[] | null>(() => newsCache.get(activeGame) ?? null)
+    const cached = newsCache.get(activeGame)
+    const [items, setItems] = useState<NewsItem[] | null>(cached?.items ?? null)
+    const [totalPages, setTotalPages] = useState(cached?.totalPages ?? 1)
+    const [page, setPage] = useState(cached?.page ?? 1)
     const [loading, setLoading] = useState(items === null)
     const [refreshing, setRefreshing] = useState(false)
     const [error, setError] = useState(false)
 
     useEffect(() => {
         if (!isActive) return
-        const cached = newsCache.get(activeGame)
-        if (cached) {
-            setItems(cached)
+        const existing = newsCache.get(activeGame)
+        if (existing) {
+            setItems(existing.items)
+            setTotalPages(existing.totalPages)
+            setPage(existing.page)
             setLoading(false)
             return
         }
@@ -73,8 +99,14 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
         api.fetchNews(activeGame)
             .then((result) => {
                 if (cancelled) return
-                newsCache.set(activeGame, result)
-                setItems(result)
+                newsCache.set(activeGame, {
+                    items: result.items,
+                    totalPages: result.totalPages,
+                    page: 1,
+                })
+                setItems(result.items)
+                setTotalPages(result.totalPages)
+                setPage(1)
             })
             .catch(() => {
                 if (!cancelled) setError(true)
@@ -92,8 +124,14 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
         setError(false)
         try {
             const result = await api.refreshNews(activeGame)
-            newsCache.set(activeGame, result)
-            setItems(result)
+            newsCache.set(activeGame, {
+                items: result.items,
+                totalPages: result.totalPages,
+                page: 1,
+            })
+            setItems(result.items)
+            setTotalPages(result.totalPages)
+            setPage(1)
         } catch {
             setError(true)
         } finally {
@@ -101,9 +139,31 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
         }
     }
 
+    async function handlePageChange(p: number) {
+        if (p === page) return
+        setPage(p)
+        setLoading(true)
+        setError(false)
+        try {
+            const result =
+                p === 1 ? await api.fetchNews(activeGame) : await api.fetchNewsPage(activeGame, p)
+            newsCache.set(activeGame, {
+                items: result.items,
+                totalPages: result.totalPages,
+                page: p,
+            })
+            setItems(result.items)
+            setTotalPages(result.totalPages)
+        } catch {
+            setError(true)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return (
-        <div className="h-full overflow-y-auto p-6">
-            <div className="mb-6">
+        <div className="h-full flex flex-col">
+            <div className="px-6 py-4 shrink-0">
                 <p className="text-xs text-text-subtle uppercase tracking-wide">
                     {GAMES[activeGame].name}
                 </p>
@@ -133,21 +193,52 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
                 </p>
             </div>
 
-            {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-                    {Array.from({ length: 8 }, (_, i) => (
-                        <SkeletonCard key={i} />
-                    ))}
-                </div>
-            ) : error && (!items || items.length === 0) ? (
-                <p className="text-sm text-text-subtle">{t('news.loadFailed')}</p>
-            ) : !items || items.length === 0 ? (
-                <p className="text-sm text-text-subtle">{t('news.empty')}</p>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-                    {items.map((item) => (
-                        <NewsCard key={item.url} item={item} />
-                    ))}
+            <div className="flex-1 overflow-y-auto px-6 pb-6">
+                {loading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+                        {Array.from({ length: 8 }, (_, i) => (
+                            <SkeletonCard key={i} />
+                        ))}
+                    </div>
+                ) : error && (!items || items.length === 0) ? (
+                    <p className="text-sm text-text-subtle">{t('news.loadFailed')}</p>
+                ) : !items || items.length === 0 ? (
+                    <p className="text-sm text-text-subtle">{t('news.empty')}</p>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+                        {items.map((item) => (
+                            <NewsCard key={item.url} item={item} />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {items && items.length > 0 && totalPages > 1 && (
+                <div className="px-6 py-3 border-t border-border flex items-center justify-end shrink-0">
+                    <div className="flex gap-1">
+                        {buildPages(page, totalPages).map((p, i) =>
+                            p === '...' ? (
+                                <span
+                                    key={`ellipsis-${i}`}
+                                    className="text-xs px-2 py-1 text-text-subtle"
+                                >
+                                    …
+                                </span>
+                            ) : (
+                                <button
+                                    key={p}
+                                    onClick={() => handlePageChange(p as number)}
+                                    className={`text-xs px-3 py-1 rounded transition-colors ${
+                                        p === page
+                                            ? 'bg-accent text-white'
+                                            : 'bg-surface-hover hover:bg-surface-active'
+                                    }`}
+                                >
+                                    {p}
+                                </button>
+                            )
+                        )}
+                    </div>
                 </div>
             )}
         </div>

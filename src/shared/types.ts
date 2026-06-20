@@ -162,6 +162,11 @@ export interface NewsItem {
     categories: string[]
 }
 
+export interface NewsResult {
+    items: NewsItem[]
+    totalPages: number
+}
+
 export type SortOption =
     | 'downloads'
     | 'likes'

@@ -23,6 +23,13 @@ pub struct NewsItem {
     pub categories: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewsResult {
+    pub items: Vec<NewsItem>,
+    pub total_pages: u32,
+}
+
 fn category_slug(game_id: &str) -> &'static str {
     match game_id {
         "pd2" => "payday2",
@@ -31,11 +38,13 @@ fn category_slug(game_id: &str) -> &'static str {
     }
 }
 
-fn category_url(game_id: &str) -> String {
-    format!(
-        "https://www.paydaythegame.com/news/category/{}/",
-        category_slug(game_id)
-    )
+fn category_url(game_id: &str, page: u32) -> String {
+    let slug = category_slug(game_id);
+    if page <= 1 {
+        format!("https://www.paydaythegame.com/news/category/{slug}/")
+    } else {
+        format!("https://www.paydaythegame.com/news/category/{slug}/page/{page}/")
+    }
 }
 
 fn cache_path(app: &AppHandle, game_id: &str) -> PathBuf {
@@ -118,13 +127,43 @@ pub fn parse_news_html(html: &str) -> Vec<NewsItem> {
         .collect()
 }
 
-fn read_cache(path: &std::path::Path) -> Option<Vec<NewsItem>> {
+/// WP-PageNavi never shows a link to the page you're currently on (no
+/// `.last` link on the last page, no link back to page 1 from page 1) —
+/// so the total is the max page number across every link plus whichever
+/// page is marked `.current`, not just the `.last` link's target.
+pub fn extract_total_pages(html: &str) -> u32 {
+    let document = Html::parse_document(html);
+    let nav_link_sel = Selector::parse(".wp-pagenavi a").unwrap();
+    let current_sel = Selector::parse(".wp-pagenavi .current").unwrap();
+
+    let mut max_page = 1u32;
+    for link in document.select(&nav_link_sel) {
+        if let Some(href) = link.value().attr("href") {
+            if let Some(n) = href
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .and_then(|s| s.parse::<u32>().ok())
+            {
+                max_page = max_page.max(n);
+            }
+        }
+    }
+    if let Some(current) = document.select(&current_sel).next() {
+        if let Ok(n) = text_of(&current).parse::<u32>() {
+            max_page = max_page.max(n);
+        }
+    }
+    max_page
+}
+
+fn read_cache(path: &std::path::Path) -> Option<NewsResult> {
     let bytes = std::fs::read(path).ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 
-fn write_cache(path: &std::path::Path, items: &[NewsItem]) -> Result<(), String> {
-    let bytes = serde_json::to_vec(items).map_err(|e| e.to_string())?;
+fn write_cache(path: &std::path::Path, result: &NewsResult) -> Result<(), String> {
+    let bytes = serde_json::to_vec(result).map_err(|e| e.to_string())?;
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, path).map_err(|e| e.to_string())
@@ -169,37 +208,48 @@ fn curl_fetch(url: &str) -> Result<String, String> {
     String::from_utf8(output.stdout).map_err(|e| e.to_string())
 }
 
-async fn download_news(game_id: &str) -> Result<Vec<NewsItem>, String> {
-    let url = category_url(game_id);
+async fn download_news(game_id: &str, page: u32) -> Result<NewsResult, String> {
+    let url = category_url(game_id, page);
     let html = tokio::task::spawn_blocking(move || curl_fetch(&url))
         .await
         .map_err(|e| e.to_string())??;
-    Ok(parse_news_html(&html))
+    Ok(NewsResult {
+        items: parse_news_html(&html),
+        total_pages: extract_total_pages(&html),
+    })
 }
 
+/// Page 1 only — this is the cached, TTL-backed entry point used on first
+/// load and by the Refresh button.
 #[tauri::command]
-pub async fn fetch_news(app: AppHandle, game_id: Option<String>) -> Result<Vec<NewsItem>, String> {
+pub async fn fetch_news(app: AppHandle, game_id: Option<String>) -> Result<NewsResult, String> {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let path = cache_path(&app, &game_id);
     if cache_age_secs(&path).is_some_and(|age| age < MAX_AGE_SECS) {
-        if let Some(items) = read_cache(&path) {
-            return Ok(items);
+        if let Some(result) = read_cache(&path) {
+            return Ok(result);
         }
     }
-    let items = download_news(&game_id).await?;
-    let _ = write_cache(&path, &items);
-    Ok(items)
+    let result = download_news(&game_id, 1).await?;
+    let _ = write_cache(&path, &result);
+    Ok(result)
 }
 
 #[tauri::command]
-pub async fn refresh_news(
-    app: AppHandle,
-    game_id: Option<String>,
-) -> Result<Vec<NewsItem>, String> {
+pub async fn refresh_news(app: AppHandle, game_id: Option<String>) -> Result<NewsResult, String> {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
-    let items = download_news(&game_id).await?;
-    let _ = write_cache(&cache_path(&app, &game_id), &items);
-    Ok(items)
+    let result = download_news(&game_id, 1).await?;
+    let _ = write_cache(&cache_path(&app, &game_id), &result);
+    Ok(result)
+}
+
+/// Pages other than 1 — fetched on demand, never cached (the disk cache
+/// exists to make the default page-1 view instant, not to mirror the whole
+/// site).
+#[tauri::command]
+pub async fn fetch_news_page(game_id: Option<String>, page: u32) -> Result<NewsResult, String> {
+    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+    download_news(&game_id, page.max(1)).await
 }
 
 #[cfg(test)]

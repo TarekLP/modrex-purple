@@ -11,7 +11,7 @@ import type {
     TopLevelItem,
     ListModsParams,
     IndexModFile,
-    NewsItem,
+    NewsResult,
 } from '../../shared/types'
 
 type Settings = {
@@ -148,11 +148,14 @@ export const api = {
     },
 
     // ── News ───────────────────────────────────────────────────────────────────
-    fetchNews(gameId?: string): Promise<NewsItem[]> {
+    fetchNews(gameId?: string): Promise<NewsResult> {
         return invoke('fetch_news', { gameId })
     },
-    refreshNews(gameId?: string): Promise<NewsItem[]> {
+    refreshNews(gameId?: string): Promise<NewsResult> {
         return invoke('refresh_news', { gameId })
+    },
+    fetchNewsPage(gameId: string | undefined, page: number): Promise<NewsResult> {
+        return invoke('fetch_news_page', { gameId, page })
     },
     installFromZipEntry(
         zipPath: string,

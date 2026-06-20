@@ -101,6 +101,7 @@ pub fn run() {
             // news
             commands::news::fetch_news,
             commands::news::refresh_news,
+            commands::news::fetch_news_page,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
