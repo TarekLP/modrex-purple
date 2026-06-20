@@ -125,10 +125,9 @@
     },
     "news": {
         "title": "News",
-        "subtitle": "Official headlines, summaries, and images from paydaythegame.com.",
+        "subtitlePrefix": "Official headlines, summaries, and images from",
         "readArticle": "Read article",
         "refresh": "Refresh",
-        "refreshing": "Refreshing…",
         "empty": "No news available",
         "loadFailed": "Couldn't load news",
         "source": "paydaythegame.com"

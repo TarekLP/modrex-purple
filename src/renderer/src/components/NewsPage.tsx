@@ -5,6 +5,9 @@ import { t } from '../i18n'
 import { GAMES } from '../../../shared/types'
 import type { GameId, NewsItem } from '../../../shared/types'
 import { SkeletonCard } from './SkeletonCard'
+import { Tooltip } from './Tooltip'
+
+const SOURCE_URL = 'https://www.paydaythegame.com/'
 
 const newsCache = new Map<GameId, NewsItem[]>()
 
@@ -36,15 +39,15 @@ function NewsCard({ item }: { item: NewsItem }) {
                 <h3 className="text-sm font-semibold leading-snug line-clamp-2">{item.title}</h3>
                 <p className="text-xs text-text-subtle line-clamp-3">{item.excerpt}</p>
             </div>
-            <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
-                <button
-                    onClick={() => api.openExternal(item.url)}
-                    className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
-                >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    {t('news.readArticle')}
-                </button>
-                <span className="text-xs text-text-subtle">{t('news.source')}</span>
+            <div className="px-3 pb-3 pt-2 flex items-center mt-auto">
+                <Tooltip content={t('news.readArticle')}>
+                    <button
+                        onClick={() => api.openExternal(item.url)}
+                        className="p-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
+                    >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                </Tooltip>
             </div>
         </div>
     )
@@ -100,22 +103,34 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
 
     return (
         <div className="h-full overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <p className="text-xs text-text-subtle uppercase tracking-wide">
-                        {GAMES[activeGame].name}
-                    </p>
-                    <h1 className="text-2xl font-semibold">{t('news.title')}</h1>
-                    <p className="text-sm text-text-muted mt-1">{t('news.subtitle')}</p>
+            <div className="mb-6">
+                <p className="text-xs text-text-subtle uppercase tracking-wide">
+                    {GAMES[activeGame].name}
+                </p>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-semibold leading-none">{t('news.title')}</h1>
+                    <Tooltip content={t('news.refresh')}>
+                        <button
+                            onClick={handleRefresh}
+                            disabled={refreshing || loading}
+                            className="p-1 rounded bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed text-text-subtle hover:text-text transition-colors"
+                        >
+                            <RefreshCw
+                                className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                            />
+                        </button>
+                    </Tooltip>
                 </div>
-                <button
-                    onClick={handleRefresh}
-                    disabled={refreshing || loading}
-                    className="px-3 py-1.5 rounded bg-surface-active hover:bg-surface-hover disabled:opacity-40 transition-colors text-sm flex items-center gap-2 shrink-0"
-                >
-                    <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-                    {refreshing ? t('news.refreshing') : t('news.refresh')}
-                </button>
+                <p className="text-sm text-text-muted mt-1">
+                    {t('news.subtitlePrefix')}{' '}
+                    <button
+                        onClick={() => api.openExternal(SOURCE_URL)}
+                        className="text-accent hover:text-accent-bright underline-offset-2 hover:underline transition-colors"
+                    >
+                        {t('news.source')}
+                    </button>
+                    .
+                </p>
             </div>
 
             {loading ? (
