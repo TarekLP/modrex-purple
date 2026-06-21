@@ -7,30 +7,36 @@ use crate::commands::settings::{game_settings, read_settings};
 
 /// UE4SS is a community-forked Lua/native modding framework, unlike SuperBLT/DAHM
 /// (one maintainer, one stable build) — each game's UE4SS build is a separately
-/// maintained fork with its own proxy DLL and destination. Verified by downloading
+/// maintained fork with its own proxy DLL(s) and destination. Verified by downloading
 /// and inspecting the real released archives rather than assumed:
 /// - Crime Boss ("UE4SS-CB", modworkshop id 47749): proxy `dwmapi.dll`, installs into
 ///   `CrimeBoss/Binaries/Win64`. Only Steam verified — Crime Boss has no Xbox/GamePass
-///   release, and no Epic build of this mod has been confirmed.
-/// - PAYDAY 3 ("PD3 UE4SS V3.01 + Allow Pak Mods", modworkshop id 47771): proxy
-///   `xinput1_3.dll`, installs into `<game_path>/PAYDAY3/Binaries/Win64` for Steam/Epic
+///   release, and no Epic build of this mod has been confirmed. Single maintainer, single
+///   release line — no other proxy DLL has been seen for this game.
+/// - PAYDAY 3: installs into `<game_path>/PAYDAY3/Binaries/Win64` for Steam/Epic
 ///   (`game_path` already ends in `PAYDAY3`, the Steam installdir name — this is the
 ///   *inner* project subfolder, not a second copy of it; verified against a real install).
-///   The Xbox/GamePass build uses a different destination (`Binaries/WinGDK`) and an
-///   unverified proxy DLL — intentionally unsupported here rather than guessed.
+///   Unlike Crime Boss, PD3 has multiple independently-maintained mod pages distributing
+///   UE4SS over time, each with its own proxy DLL: the older "PD3 UE4SS / Allow Pak Mods"
+///   (id 44048, Narknon) uses `dxgi.dll`; the newer "PD3 UE4SS V3.01 + Allow Pak Mods"
+///   (id 47771, Shalashaska) uses `xinput1_3.dll`. Both verified against their real
+///   downloaded archives — detection checks either, so it doesn't matter which release a
+///   user actually installed. The Xbox/GamePass build uses a different destination
+///   (`Binaries/WinGDK`) and an unverified proxy DLL — intentionally unsupported here
+///   rather than guessed.
 struct Ue4ssDescriptor {
-    proxy_dll: &'static str,
+    proxy_dlls: &'static [&'static str],
     binaries_subpath: &'static [&'static str],
 }
 
 fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssDescriptor> {
     match (game_id, launcher) {
         ("cb", Some("steam")) => Some(Ue4ssDescriptor {
-            proxy_dll: "dwmapi.dll",
+            proxy_dlls: &["dwmapi.dll"],
             binaries_subpath: &["CrimeBoss", "Binaries", "Win64"],
         }),
         ("pd3", Some("steam")) | ("pd3", Some("epic")) => Some(Ue4ssDescriptor {
-            proxy_dll: "xinput1_3.dll",
+            proxy_dlls: &["xinput1_3.dll", "dxgi.dll"],
             // game_path already ends in `.../PAYDAY3` (the Steam installdir name) — this adds
             // the *inner* PAYDAY3 project subfolder, not a second copy of the installdir.
             // Verified against the real install: `<game_path>/PAYDAY3/Binaries/Win64/`.
@@ -56,9 +62,11 @@ fn is_installed(game_id: &str, game_path: &str, launcher: Option<&str>) -> bool 
     let Some(descriptor) = descriptor_for(game_id, launcher) else {
         return false;
     };
-    binaries_dir(game_path, &descriptor)
-        .join(descriptor.proxy_dll)
-        .is_file()
+    let dir = binaries_dir(game_path, &descriptor);
+    descriptor
+        .proxy_dlls
+        .iter()
+        .any(|dll| dir.join(dll).is_file())
 }
 
 /// Extracts a downloaded UE4SS loader package flat into the game's `Binaries` directory.

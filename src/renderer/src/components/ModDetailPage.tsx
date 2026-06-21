@@ -42,7 +42,14 @@ import { HostPackModal, parseHostModPack } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
 import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
 import { isUnsupportedFormat } from '../formatCheck'
-import { collectDeps, isLoaderDep, missingRequiredDeps, offsiteDepHost } from '../deps'
+import {
+    collectDeps,
+    isLoaderDep,
+    isUe4ssLoaderId,
+    missingRequiredDeps,
+    offsiteDepHost,
+    ue4ssLoaderIdsFor,
+} from '../deps'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
 import { markForegroundActivity } from '../requestPriority'
@@ -117,8 +124,7 @@ export function ModDetailPage({
     const installedFiles = installed.filter((m) => m.id === modId)
     const installedMod = installedFiles[0]
     // Not tracked in the installed list — DLL presence drives its button state.
-    const isUe4ssMod =
-        (activeGame === 'cb' && modId === 47749) || (activeGame === 'pd3' && modId === 47771)
+    const isUe4ssMod = isUe4ssLoaderId(activeGame, modId)
     const isLoaderMod =
         (activeGame === 'pdth' && (modId === 53474 || modId === 14267)) || isUe4ssMod
     const loaderModInstalled =
@@ -221,11 +227,9 @@ export function ModDetailPage({
         const loaderModIds: Record<number, boolean | null> =
             activeGame === 'pdth'
                 ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
-                : activeGame === 'cb'
-                  ? { 47749: ue4ssInstalled }
-                  : activeGame === 'pd3'
-                    ? { 47771: ue4ssInstalled }
-                    : {}
+                : Object.fromEntries(
+                      ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled])
+                  )
         let bltOk = loaderInstalled
         if (hasLoaderDep_blt) {
             bltOk = await api.checkSuperblt(gamePath)
@@ -284,7 +288,7 @@ export function ModDetailPage({
             } else if (loaderModId === 14267) {
                 await api.installDahm(gamePath)
                 setDahmInstalled(true)
-            } else if (loaderModId === 47749 || loaderModId === 47771) {
+            } else if (loaderModId !== null && isUe4ssLoaderId(activeGame, loaderModId)) {
                 // UE4SS has no dedicated install command — it's routed server-side via the
                 // UE4SS_LOADER sentinel the same way any other mod install resolves.
                 await api.installMod(loaderModId, gamePath, activeGame)
@@ -335,24 +339,19 @@ export function ModDetailPage({
 
     const allDeps: ModDependency[] = collectDeps(mod)
 
-    // Hosted loader mods (PDTHModOverrides 53474, DAHM 14267, UE4SS-CB 47749, PD3-UE4SS 47771)
-    // install as game-root/Binaries files and are checked by presence, not the installed-mods
-    // list.
+    // Hosted loader mods (PDTHModOverrides 53474, DAHM 14267, UE4SS) install as
+    // game-root/Binaries files and are checked by presence, not the installed-mods list.
     const hasLoaderDep_blt = activeGame !== 'pdth' && allDeps.some(isLoaderDep)
     const hasLoaderDep_pdthOverrides =
         activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 53474)
     const hasLoaderDep_dahm = activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 14267)
-    const hasLoaderDep_ue4ss =
-        (activeGame === 'cb' && allDeps.some((d) => d.mod?.id === 47749)) ||
-        (activeGame === 'pd3' && allDeps.some((d) => d.mod?.id === 47771))
+    const hasLoaderDep_ue4ss = allDeps.some(
+        (d) => d.mod !== null && isUe4ssLoaderId(activeGame, d.mod.id)
+    )
     const loaderModIds: Record<number, boolean | null> =
         activeGame === 'pdth'
             ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
-            : activeGame === 'cb'
-              ? { 47749: ue4ssInstalled }
-              : activeGame === 'pd3'
-                ? { 47771: ue4ssInstalled }
-                : {}
+            : Object.fromEntries(ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled]))
     const missingRequired = missingRequiredDeps(allDeps, installed, loaderInstalled, loaderModIds)
 
     useEffect(() => {
@@ -482,13 +481,7 @@ export function ModDetailPage({
                     gamePath={gamePath}
                     gameId={activeGame}
                     loaderModIds={
-                        activeGame === 'pdth'
-                            ? [53474, 14267]
-                            : activeGame === 'cb'
-                              ? [47749]
-                              : activeGame === 'pd3'
-                                ? [47771]
-                                : []
+                        activeGame === 'pdth' ? [53474, 14267] : ue4ssLoaderIdsFor(activeGame)
                     }
                     onInstallLoader={handleInstallLoader}
                     onRefreshInstalled={onRefreshInstalled}

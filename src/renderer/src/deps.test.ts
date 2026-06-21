@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { collectDeps, isOffsiteDep, isLoaderDep, missingRequiredDeps, offsiteDepHost } from './deps'
+import {
+    collectDeps,
+    isOffsiteDep,
+    isLoaderDep,
+    isUe4ssLoaderId,
+    missingRequiredDeps,
+    offsiteDepHost,
+    ue4ssLoaderIdsFor,
+} from './deps'
 import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
 
 function dep(overrides: Partial<ModDependency>): ModDependency {
@@ -54,6 +62,31 @@ describe('isOffsiteDep / isLoaderDep', () => {
 
     it('does not treat a hosted mod named blt as a loader dep', () => {
         expect(isLoaderDep(dep({ name: 'SuperBLT', mod: hostedMod(5) }))).toBe(false)
+    })
+})
+
+describe('isUe4ssLoaderId / ue4ssLoaderIdsFor', () => {
+    it('recognizes both PD3 mod pages that distribute UE4SS', () => {
+        expect(isUe4ssLoaderId('pd3', 47771)).toBe(true)
+        expect(isUe4ssLoaderId('pd3', 44048)).toBe(true)
+        expect(isUe4ssLoaderId('pd3', 12345)).toBe(false)
+    })
+
+    it('recognizes the single Crime Boss UE4SS mod page', () => {
+        expect(isUe4ssLoaderId('cb', 47749)).toBe(true)
+        expect(isUe4ssLoaderId('cb', 47771)).toBe(false)
+    })
+
+    it('returns false for games without a UE4SS mod page, or an undefined game', () => {
+        expect(isUe4ssLoaderId('pdth', 47749)).toBe(false)
+        expect(isUe4ssLoaderId(undefined, 47749)).toBe(false)
+    })
+
+    it('lists every known id for a game', () => {
+        expect(ue4ssLoaderIdsFor('pd3')).toEqual([47771, 44048])
+        expect(ue4ssLoaderIdsFor('cb')).toEqual([47749])
+        expect(ue4ssLoaderIdsFor('pdth')).toEqual([])
+        expect(ue4ssLoaderIdsFor(undefined)).toEqual([])
     })
 })
 

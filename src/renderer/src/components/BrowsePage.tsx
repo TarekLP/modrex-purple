@@ -30,7 +30,13 @@ import { HostPackModal, parseHostModPack } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
 import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
 import { isUnsupportedFormat } from '../formatCheck'
-import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
+import {
+    collectDeps,
+    isLoaderDep,
+    isUe4ssLoaderId,
+    missingRequiredDeps,
+    ue4ssLoaderIdsFor,
+} from '../deps'
 import { t } from '../i18n'
 import { api } from '../api'
 import { trackSearch } from '../lib/analytics/events'
@@ -377,11 +383,9 @@ export function BrowsePage({
                 const loaderModIds: Record<number, boolean | null> =
                     activeGame === 'pdth'
                         ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
-                        : activeGame === 'cb'
-                          ? { 47749: ue4ssInstalled }
-                          : activeGame === 'pd3'
-                            ? { 47771: ue4ssInstalled }
-                            : {}
+                        : Object.fromEntries(
+                              ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled])
+                          )
                 const hasLoader =
                     activeGame === 'pdth'
                         ? allDeps.some(
@@ -405,9 +409,7 @@ export function BrowsePage({
                     }
                 }
             }
-            const isUe4ssLoader =
-                (activeGame === 'cb' && modId === 47749) ||
-                (activeGame === 'pd3' && modId === 47771)
+            const isUe4ssLoader = isUe4ssLoaderId(activeGame, modId)
             if (activeGame === 'pdth' && modId === 53474) {
                 await api.installPdthOverrides(gamePath)
                 setPdthOverridesInstalled(true)
@@ -556,11 +558,7 @@ export function BrowsePage({
     const loaderModIds: Record<number, boolean | null> =
         activeGame === 'pdth'
             ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
-            : activeGame === 'cb'
-              ? { 47749: ue4ssInstalled }
-              : activeGame === 'pd3'
-                ? { 47771: ue4ssInstalled }
-                : {}
+            : Object.fromEntries(ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled]))
     const missingDepsList = depsWarning
         ? missingRequiredDeps(
               depsWarning.allDeps,
@@ -633,13 +631,7 @@ export function BrowsePage({
                     gamePath={gamePath}
                     gameId={activeGame}
                     loaderModIds={
-                        activeGame === 'pdth'
-                            ? [53474, 14267]
-                            : activeGame === 'cb'
-                              ? [47749]
-                              : activeGame === 'pd3'
-                                ? [47771]
-                                : []
+                        activeGame === 'pdth' ? [53474, 14267] : ue4ssLoaderIdsFor(activeGame)
                     }
                     onInstallLoader={async (loaderModId) => {
                         if (!gamePath) return
@@ -650,7 +642,10 @@ export function BrowsePage({
                             } else if (loaderModId === 14267) {
                                 await api.installDahm(gamePath)
                                 setDahmInstalled(true)
-                            } else if (loaderModId === 47749 || loaderModId === 47771) {
+                            } else if (
+                                loaderModId !== null &&
+                                isUe4ssLoaderId(activeGame, loaderModId)
+                            ) {
                                 await api.installMod(loaderModId, gamePath, activeGame)
                                 setUe4ssInstalled(true)
                             } else {
@@ -748,8 +743,7 @@ export function BrowsePage({
                         new Set([
                             ...(pdthOverridesInstalled ? [53474] : []),
                             ...(dahmInstalled ? [14267] : []),
-                            ...(ue4ssInstalled && activeGame === 'cb' ? [47749] : []),
-                            ...(ue4ssInstalled && activeGame === 'pd3' ? [47771] : []),
+                            ...(ue4ssInstalled ? ue4ssLoaderIdsFor(activeGame) : []),
                         ])
                     }
                     onOpen={onOpenDetail}

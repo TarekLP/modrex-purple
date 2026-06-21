@@ -16,6 +16,23 @@ export function isOffsiteDep(d: ModDependency): boolean {
 }
 
 /**
+ * UE4SS loader mod ids, hosted on modworkshop (unlike SuperBLT, so they're checked via
+ * `loaderModIds` rather than `isLoaderDep`'s offsite heuristic). Crime Boss has a single
+ * maintained release; PAYDAY 3 has two independently-maintained mod pages distributing
+ * UE4SS over time (different proxy DLLs, same loader) — both ids must be recognized so a
+ * dependency on either shows "install the loader" instead of "missing mod".
+ */
+const UE4SS_LOADER_IDS: Record<string, number[]> = { cb: [47749], pd3: [47771, 44048] }
+
+export function isUe4ssLoaderId(gameId: string | undefined, id: number): boolean {
+    return !!gameId && (UE4SS_LOADER_IDS[gameId] ?? []).includes(id)
+}
+
+export function ue4ssLoaderIdsFor(gameId: string | undefined): number[] {
+    return (gameId && UE4SS_LOADER_IDS[gameId]) || []
+}
+
+/**
  * BLT-family mod loaders (SuperBLT, PDTH BLT) are declared on modworkshop as
  * offsite dependencies. They live in the game root as a loader DLL, so their
  * install state comes from `api.checkSuperblt`, not the installed-mods list.
