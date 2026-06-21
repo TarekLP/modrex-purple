@@ -782,13 +782,68 @@ fn extract_flat_rar(archive_path: &Path, dest: &Path) -> Result<(), String> {
     result
 }
 
+/// Same shape `resolve_archive_download` resolves to: the extracted path, the original archive
+/// (for cleanup once installed), and the target's location tag (`None` for primary).
+type ResolvedArchive = Result<(PathBuf, Option<PathBuf>, Option<String>), String>;
+
+/// Checks whether a zero-`.pak` archive instead contains directory-shaped content matching one
+/// of `cfg`'s Directory-unit targets — currently only `ue4ss_mods` ever matches here (a
+/// standalone UE4SS Lua sub-mod, e.g. `Mods/<name>/Scripts/main.lua`), since it's the only
+/// Directory target a File-unit-primary game (PD3) or CB's pak-specific resolver wouldn't
+/// otherwise consult. Reuses `classify_archive_dirs` as-is — it already iterates every target in
+/// `cfg.targets` regardless of which one is primary. Returns `None` when nothing matches, so the
+/// caller falls through to its own "no .pak files" error.
+fn try_classify_as_directory_target(
+    downloaded: &Path,
+    cfg: &ModEngineConfig,
+) -> Option<ResolvedArchive> {
+    let names: Vec<String> = list_entries(downloaded)
+        .ok()?
+        .into_iter()
+        .map(|e| {
+            if e.is_dir && !e.name.ends_with('/') {
+                format!("{}/", e.name)
+            } else {
+                e.name
+            }
+        })
+        .collect();
+    let dirs = classify_archive_dirs(&names, cfg);
+    if dirs.is_empty() {
+        return None;
+    }
+    if dirs.len() == 1 {
+        let (dir, location_tag) = &dirs[0];
+        let dir_name = Path::new(dir)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("mod")
+            .to_string();
+        // Two-level temp: {uuid_dir}/{dir_name} so tmp.file_name() == dir_name — matches the
+        // generic Directory-unit single-dir branch below.
+        let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+        let tmp = tmp_parent.join(&dir_name);
+        return Some(
+            extract_dir_entry(downloaded, dir, &tmp)
+                .map(|_| (tmp, Some(downloaded.to_path_buf()), location_tag.clone())),
+        );
+    }
+    let zip_path = downloaded.to_string_lossy().to_string();
+    let entry_names: Vec<&String> = dirs.iter().map(|(d, _)| d).collect();
+    let distinct_tags: HashSet<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
+    let payload = if distinct_tags.len() == 1 {
+        serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "targetTag": dirs[0].1 })
+    } else {
+        let entry_tags: Vec<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
+        serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "entryTags": entry_tags, "targetTag": serde_json::Value::Null })
+    };
+    Some(Err(format!("ZIP_MULTI_PAK:{}", payload)))
+}
+
 /// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
 /// Returns `(extracted_path, original_archive, location_tag)` where `location_tag` is `None`
 /// for the primary target and `Some(tag)` for any secondary target (e.g. `"mod_overrides"`).
-pub fn resolve_archive_download(
-    downloaded: PathBuf,
-    cfg: &ModEngineConfig,
-) -> Result<(PathBuf, Option<PathBuf>, Option<String>), String> {
+pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
     if cfg.game_id == "cb" {
         return resolve_crimeboss_archive(downloaded, cfg);
     }
@@ -803,6 +858,9 @@ pub fn resolve_archive_download(
                     if has_ue4ss_loader_signature(&downloaded) {
                         let zip_path = downloaded.to_string_lossy().to_string();
                         return Err(format!("UE4SS_LOADER:{zip_path}"));
+                    }
+                    if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
+                        return result;
                     }
                     let _ = std::fs::remove_file(&downloaded);
                     Err("This mod is packaged as an archive with no .pak files inside.".to_string())
@@ -918,10 +976,7 @@ pub fn resolve_archive_download(
 /// author-supplied folder copied as-is: Modrex always synthesizes the canonical
 /// `Content/Paks/WindowsNoEditor/` skeleton the game's UGC mod-loader expects under
 /// `CrimeBoss/Mods/<name>/`, regardless of how the source archive nested things.
-fn resolve_crimeboss_archive(
-    downloaded: PathBuf,
-    cfg: &ModEngineConfig,
-) -> Result<(PathBuf, Option<PathBuf>, Option<String>), String> {
+fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
     if detect_archive(&downloaded).is_none() {
         // No known real mod ships a bare .pak with no archive (sidecars require a zip to carry
         // them), but if one shows up, fall back to the legacy flat `paks` target rather than
@@ -935,6 +990,9 @@ fn resolve_crimeboss_archive(
             if has_ue4ss_loader_signature(&downloaded) {
                 let zip_path = downloaded.to_string_lossy().to_string();
                 return Err(format!("UE4SS_LOADER:{zip_path}"));
+            }
+            if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
+                return result;
             }
             let _ = std::fs::remove_file(&downloaded);
             Err("This mod is packaged as an archive with no .pak files inside.".to_string())

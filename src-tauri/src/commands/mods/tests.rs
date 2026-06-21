@@ -123,6 +123,51 @@ fn extract_archive_flat_rejects_path_traversal() {
         .exists());
 }
 
+// ── resolve_archive_download: standalone UE4SS sub-mod fallback ──────────────
+
+#[test]
+fn crimeboss_standalone_submod_resolves_to_ue4ss_mods_target() {
+    let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
+    let cfg = engine_for_game("cb");
+
+    let (extracted, _orig, location_tag) =
+        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
+    assert_eq!(extracted.file_name().unwrap(), "CoolMod");
+    assert_eq!(
+        fs::read(extracted.join("Scripts").join("main.lua")).unwrap(),
+        b"-- a real sub-mod"
+    );
+}
+
+#[test]
+fn pd3_standalone_submod_resolves_to_ue4ss_mods_target() {
+    // PD3's primary unit is File (paks) — the fallback must still find the secondary
+    // Directory target even though it isn't primary.
+    let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
+    let cfg = engine_for_game("pd3");
+
+    let (extracted, _orig, location_tag) =
+        resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
+    assert_eq!(location_tag.as_deref(), Some("ue4ss_mods"));
+    assert_eq!(extracted.file_name().unwrap(), "CoolMod");
+}
+
+#[test]
+fn genuinely_unplaceable_archive_still_errors_on_both_games() {
+    // resolve_archive_download deletes the source file on this error path — a fresh zip per
+    // game avoids the second call seeing an already-deleted file.
+    for game_id in ["cb", "pd3"] {
+        let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
+        let cfg = engine_for_game(game_id);
+        let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
+        assert!(
+            err.contains("no .pak files inside"),
+            "game {game_id}: {err}"
+        );
+    }
+}
+
 #[test]
 fn list_pak_entries_empty_when_no_paks() {
     let zip = make_zip(&[("readme.txt", b"hello"), ("data.bin", b"data")]);
@@ -817,6 +862,50 @@ async fn find_untracked_paks_excludes_bundled_ue4ss_submods() {
 
     assert_eq!(ue4ss_results.len(), 1);
     assert_eq!(ue4ss_results[0].0, "CoolMod");
+}
+
+#[test]
+fn reconcile_state_purges_already_tracked_bundled_ue4ss_submods() {
+    // Simulates state.json entries collected by an earlier ambient scan, before excluded_names
+    // existed — the marker file is still genuinely on disk, so the scan_markers-presence check
+    // alone would never catch these; only the excluded_names check does.
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+
+    let mods_dir = tmp
+        .path()
+        .join("CrimeBoss")
+        .join("Binaries")
+        .join("Win64")
+        .join("Mods");
+    for name in ["ActorDumperMod", "CoolMod"] {
+        let dir = mods_dir.join(name).join("Scripts");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("main.lua"), b"-- mod").unwrap();
+    }
+
+    let stale_entry = |filename: &str| InstalledMod {
+        uid: filename.to_string(),
+        id: -1,
+        name: filename.to_string(),
+        filename: filename.to_string(),
+        enabled: true,
+        location: Some("ue4ss_mods".to_string()),
+        ..InstalledMod::default()
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![stale_entry("ActorDumperMod"), stale_entry("CoolMod")],
+        },
+    );
+
+    let state = reconcile_state(game, &sp, cfg);
+    let names: Vec<&str> = state.mods.iter().map(|m| m.filename.as_str()).collect();
+    assert_eq!(names, vec!["CoolMod"]);
 }
 
 // ── host-mod pack detection ───────────────────────────────────────────────

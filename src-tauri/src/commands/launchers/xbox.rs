@@ -82,7 +82,14 @@ fn find_via_package_manager(product_id: &str, xbox_executable: &str) -> Option<S
         product_id
     );
     let out = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &script])
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            &script,
+        ])
         .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output()
         .ok()?;

@@ -181,9 +181,13 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
     let state = read_state(state_path);
 
     // One-time cleanup: remove auto-discovered, never-installed entries whose directory has no
-    // scan_marker file on disk. This purges DAHM framework modules (base.lua, no mod.txt) that
-    // were mistakenly collected into state when base.lua was first added as an entry_marker.
-    // Entries with a file_id (Modrex-installed) or non-negative id (index-identified) are kept.
+    // scan_marker file on disk, or whose name is on the target's excluded_names list. The first
+    // case purges DAHM framework modules (base.lua, no mod.txt) that were mistakenly collected
+    // into state when base.lua was first added as an entry_marker; the second purges UE4SS's
+    // bundled framework sub-mods (e.g. ActorDumperMod) that ambient scans collected before
+    // excluded_names existed — their marker file is still genuinely on disk, so the first check
+    // alone never catches them. Entries with a file_id (Modrex-installed) or non-negative id
+    // (index-identified) are kept.
     let cleanup_removed: HashSet<String> = state
         .mods
         .iter()
@@ -192,9 +196,17 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
                 return false;
             }
             let target = cfg.target_for(m.location.as_deref());
-            let ModUnit::Directory { scan_markers, .. } = &target.unit else {
+            let ModUnit::Directory {
+                scan_markers,
+                excluded_names,
+                ..
+            } = &target.unit
+            else {
                 return false;
             };
+            if excluded_names.contains(&m.filename.as_str()) {
+                return true;
+            }
             if scan_markers.is_empty() {
                 return false;
             }
