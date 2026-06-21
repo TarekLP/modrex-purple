@@ -629,6 +629,159 @@ fn extract_dir_tar<R: Read>(reader: R, dir_prefix: &str, dest: &Path) -> Result<
     Ok(())
 }
 
+/// `UE4SS-settings.ini` sits at the zip's top level only in the full loader package — verified
+/// against the real UE4SS-CB and PD3-UE4SS releases, both of which also ship many
+/// `Scripts/main.lua` paths for their own bundled framework sub-mods, so that marker alone can't
+/// tell a full loader install apart from a single standalone Lua sub-mod.
+pub(crate) fn has_ue4ss_loader_signature(path: &Path) -> bool {
+    list_entries(path)
+        .map(|entries| {
+            entries
+                .iter()
+                .any(|e| !e.is_dir && e.name == "UE4SS-settings.ini")
+        })
+        .unwrap_or(false)
+}
+
+/// Extracts every entry in the archive directly into `dest`, preserving the archive's own
+/// internal structure (used for the UE4SS loader package, which must land as a flat dump in
+/// `Binaries/<platform>/` rather than under any scan-target skeleton).
+pub fn extract_archive_flat(archive_path: &Path, dest: &Path) -> Result<(), String> {
+    match detect_archive(archive_path) {
+        Some(ArchiveFormat::Zip) => extract_flat_zip(archive_path, dest),
+        Some(ArchiveFormat::SevenZip) => extract_flat_7z(archive_path, dest),
+        Some(ArchiveFormat::TarGz) => extract_flat_tar(
+            flate2::read::GzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
+            dest,
+        ),
+        Some(ArchiveFormat::TarXz) => extract_flat_tar(
+            xz2::read::XzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
+            dest,
+        ),
+        Some(ArchiveFormat::Rar) => extract_flat_rar(archive_path, dest),
+        None => Err("Not a supported archive format".to_string()),
+    }
+}
+
+fn extract_flat_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
+    let file = File::open(zip_path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = entry.name().replace('\\', "/");
+        let Some(dest_path) = safe_dest(dest, &name) else {
+            continue;
+        };
+        if entry.is_dir() {
+            std::fs::create_dir_all(&dest_path).map_err(|e| e.to_string())?;
+            continue;
+        }
+        if let Some(parent) = dest_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let mut out = File::create(&dest_path).map_err(|e| e.to_string())?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn extract_flat_7z(archive_path: &Path, dest: &Path) -> Result<(), String> {
+    use std::cell::RefCell;
+    let file = File::open(archive_path).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    let dest = dest.to_path_buf();
+    let write_err: RefCell<Option<String>> = RefCell::new(None);
+    sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dst| {
+        let name = entry.name().replace('\\', "/");
+        let Some(dest_path) = safe_dest(&dest, &name) else {
+            let _ = std::io::copy(reader, &mut std::io::sink());
+            return Ok(true);
+        };
+        if entry.is_directory() {
+            let _ = std::fs::create_dir_all(&dest_path);
+            let _ = std::io::copy(reader, &mut std::io::sink());
+            return Ok(true);
+        }
+        if let Some(parent) = dest_path.parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                *write_err.borrow_mut() = Some(e.to_string());
+                let _ = std::io::copy(reader, &mut std::io::sink());
+                return Ok(true);
+            }
+        }
+        match File::create(&dest_path).and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ())) {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                *write_err.borrow_mut() = Some(e.to_string());
+                Ok(true)
+            }
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    if let Some(e) = write_err.into_inner() {
+        return Err(e);
+    }
+    Ok(())
+}
+
+fn extract_flat_tar<R: Read>(reader: R, dest: &Path) -> Result<(), String> {
+    let mut archive = tar::Archive::new(reader);
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    for entry in archive.entries().map_err(|e| e.to_string())? {
+        let mut entry = entry.map_err(|e| e.to_string())?;
+        let name = entry
+            .path()
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let Some(dest_path) = safe_dest(dest, &name) else {
+            continue;
+        };
+        if entry.header().entry_type().is_dir() {
+            std::fs::create_dir_all(&dest_path).map_err(|e| e.to_string())?;
+            continue;
+        }
+        if let Some(parent) = dest_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let mut out = File::create(&dest_path).map_err(|e| e.to_string())?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn extract_flat_rar(archive_path: &Path, dest: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    let tmp_dir = std::env::temp_dir().join(format!("modrex-rar-{}", Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+    let result = (|| -> Result<(), String> {
+        let mut archive = unrar::Archive::new(archive_path)
+            .open_for_processing()
+            .map_err(|e| e.to_string())?;
+        loop {
+            match archive.read_header().map_err(|e| e.to_string())? {
+                None => break,
+                Some(header) => {
+                    let name = header.entry().filename.to_string_lossy().replace('\\', "/");
+                    // extract_with_base writes to tmp_dir joined with the internal name; skip
+                    // any entry whose path would escape tmp_dir (Zip-Slip via `..`).
+                    if safe_dest(&tmp_dir, &name).is_some() {
+                        archive = header
+                            .extract_with_base(&tmp_dir)
+                            .map_err(|e| e.to_string())?;
+                    } else {
+                        archive = header.skip().map_err(|e| e.to_string())?;
+                    }
+                }
+            }
+        }
+        rar_copy_dir(&tmp_dir, dest)
+    })();
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    result
+}
+
 /// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
 /// Returns `(extracted_path, original_archive, location_tag)` where `location_tag` is `None`
 /// for the primary target and `Some(tag)` for any secondary target (e.g. `"mod_overrides"`).
@@ -647,6 +800,10 @@ pub fn resolve_archive_download(
             let entries = list_pak_entries(&downloaded)?;
             match entries.len() {
                 0 => {
+                    if has_ue4ss_loader_signature(&downloaded) {
+                        let zip_path = downloaded.to_string_lossy().to_string();
+                        return Err(format!("UE4SS_LOADER:{zip_path}"));
+                    }
                     let _ = std::fs::remove_file(&downloaded);
                     Err("This mod is packaged as an archive with no .pak files inside.".to_string())
                 }
@@ -775,6 +932,10 @@ fn resolve_crimeboss_archive(
     let entries = list_pak_entries(&downloaded)?;
     match entries.len() {
         0 => {
+            if has_ue4ss_loader_signature(&downloaded) {
+                let zip_path = downloaded.to_string_lossy().to_string();
+                return Err(format!("UE4SS_LOADER:{zip_path}"));
+            }
             let _ = std::fs::remove_file(&downloaded);
             Err("This mod is packaged as an archive with no .pak files inside.".to_string())
         }

@@ -53,6 +53,76 @@ fn list_pak_entries_finds_pak_files() {
     assert_eq!(entries, vec!["weapons_alt.pak", "weapons_default.pak"]);
 }
 
+// ── has_ue4ss_loader_signature ────────────────────────────────────────────────
+
+#[test]
+fn loader_signature_detects_top_level_settings_ini() {
+    let zip = make_zip(&[
+        ("dwmapi.dll", b"proxy"),
+        ("UE4SS.dll", b"engine"),
+        ("UE4SS-settings.ini", b"[General]"),
+        ("Mods/mods.txt", b"SomeMod : 1"),
+        (
+            "Mods/SomeMod/Scripts/main.lua",
+            b"-- bundled framework sub-mod",
+        ),
+    ]);
+    assert!(has_ue4ss_loader_signature(zip.path()));
+}
+
+#[test]
+fn loader_signature_absent_for_a_standalone_lua_submod() {
+    // A single Lua sub-mod a user downloads separately: no top-level DLL/ini, just the
+    // mod's own folder — must not be misclassified as the full loader package.
+    let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
+    assert!(!has_ue4ss_loader_signature(zip.path()));
+}
+
+#[test]
+fn loader_signature_requires_top_level_ini_not_nested() {
+    // A sub-mod could plausibly bundle its own ini somewhere under its own folder —
+    // only a *top-level* UE4SS-settings.ini counts as the full loader.
+    let zip = make_zip(&[("CoolMod/Config/UE4SS-settings.ini", b"not the real one")]);
+    assert!(!has_ue4ss_loader_signature(zip.path()));
+}
+
+// ── extract_archive_flat ───────────────────────────────────────────────────────
+
+#[test]
+fn extract_archive_flat_preserves_internal_structure() {
+    let zip = make_zip(&[
+        ("dwmapi.dll", b"proxy"),
+        ("UE4SS-settings.ini", b"[General]"),
+        ("Mods/CoolMod/Scripts/main.lua", b"-- lua"),
+    ]);
+    let dest = TempDir::new().unwrap();
+    extract_archive_flat(zip.path(), dest.path()).unwrap();
+    assert_eq!(fs::read(dest.path().join("dwmapi.dll")).unwrap(), b"proxy");
+    assert_eq!(
+        fs::read(dest.path().join("UE4SS-settings.ini")).unwrap(),
+        b"[General]"
+    );
+    assert_eq!(
+        fs::read(dest.path().join("Mods/CoolMod/Scripts/main.lua")).unwrap(),
+        b"-- lua"
+    );
+}
+
+#[test]
+fn extract_archive_flat_rejects_path_traversal() {
+    let zip = make_zip(&[("../../evil.dll", b"escape attempt")]);
+    let dest = TempDir::new().unwrap();
+    extract_archive_flat(zip.path(), dest.path()).unwrap();
+    assert!(!dest
+        .path()
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("evil.dll")
+        .exists());
+}
+
 #[test]
 fn list_pak_entries_empty_when_no_paks() {
     let zip = make_zip(&[("readme.txt", b"hello"), ("data.bin", b"data")]);

@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use tauri::AppHandle;
 
+use crate::commands::mods::extract_archive_flat;
 use crate::commands::settings::{game_settings, read_settings};
 
 /// UE4SS is a community-forked Lua/native modding framework, unlike SuperBLT/DAHM
@@ -53,6 +54,25 @@ fn is_installed(game_id: &str, game_path: &str, launcher: Option<&str>) -> bool 
     binaries_dir(game_path, &descriptor)
         .join(descriptor.proxy_dll)
         .is_file()
+}
+
+/// Extracts a downloaded UE4SS loader package flat into the game's `Binaries` directory.
+/// Unlike a normal mod install, this is never recorded in `state.json` — mirrors
+/// `superblt`/`dahm`: presence-detected via `is_installed`, not tracked or uninstallable
+/// through Modrex.
+pub(crate) fn install_loader(
+    game_id: &str,
+    game_path: &str,
+    launcher: Option<&str>,
+    zip_path: &Path,
+) -> Result<(), String> {
+    let Some(descriptor) = descriptor_for(game_id, launcher) else {
+        return Err(
+            "UE4SS isn't supported yet for this game and launcher combination.".to_string(),
+        );
+    };
+    let dest = binaries_dir(game_path, &descriptor);
+    extract_archive_flat(zip_path, &dest)
 }
 
 #[tauri::command]

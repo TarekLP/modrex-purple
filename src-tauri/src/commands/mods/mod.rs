@@ -32,7 +32,7 @@ pub(crate) use self::reorder::{
 };
 pub(crate) use self::state::save_state;
 pub(crate) use self::zip::{
-    extract_dir_entry, extract_entry, extract_entry_into_crimeboss_skeleton,
+    extract_archive_flat, extract_dir_entry, extract_entry, extract_entry_into_crimeboss_skeleton,
     extract_entry_with_sidecars, mark_archive_files, resolve_archive_download,
 };
 
@@ -45,8 +45,8 @@ pub(crate) use self::crimeboss_settings::{
 pub(crate) use self::naming::{apply_priority_prefix, make_uid, mod_folder_name};
 #[cfg(test)]
 pub(crate) use self::zip::{
-    classify_archive_dirs, detect_archive, is_unplaceable_pack, is_zip, list_pak_entries,
-    safe_dest, ArchiveFormat,
+    classify_archive_dirs, detect_archive, has_ue4ss_loader_signature, is_unplaceable_pack, is_zip,
+    list_pak_entries, safe_dest, ArchiveFormat,
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};
@@ -567,8 +567,11 @@ fn identify_untracked(
         // we can't tell framework modules from real mods, so show everything (some "Unknown")
         // rather than hide everything. Once the game is indexed the filter kicks in correctly.
         if id < 0 {
-            if let engine::ModUnit::Directory { scan_markers, index_gated_markers, .. } =
-                &entry_target.unit
+            if let engine::ModUnit::Directory {
+                scan_markers,
+                index_gated_markers,
+                ..
+            } = &entry_target.unit
             {
                 if !index_gated_markers.is_empty()
                     && index.is_some_and(|c| mod_index::has_game(c, gname))
@@ -818,6 +821,19 @@ pub async fn install_mod(
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let downloaded = download_file(&app, &download_url, &file_type).await?;
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+        Err(e) if e.starts_with("UE4SS_LOADER:") => {
+            let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
+            let settings = read_settings(&app);
+            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+            let result = crate::commands::ue4ss::install_loader(
+                cfg.game_id,
+                &game_path,
+                launcher.as_deref(),
+                &zip_path,
+            );
+            let _ = std::fs::remove_file(&zip_path);
+            return result;
+        }
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") || e.starts_with("HOST_MOD_PACK:") => {
             let prefix = e
                 .split_once(':')
@@ -989,6 +1005,19 @@ pub async fn install_file(
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let downloaded = download_file(&app, &download_url, &file_type).await?;
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+        Err(e) if e.starts_with("UE4SS_LOADER:") => {
+            let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
+            let settings = read_settings(&app);
+            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+            let result = crate::commands::ue4ss::install_loader(
+                cfg.game_id,
+                &game_path,
+                launcher.as_deref(),
+                &zip_path,
+            );
+            let _ = std::fs::remove_file(&zip_path);
+            return result;
+        }
         Err(e) if e.starts_with("ZIP_MULTI_PAK:") || e.starts_with("HOST_MOD_PACK:") => {
             let prefix = e
                 .split_once(':')
