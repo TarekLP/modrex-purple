@@ -1475,7 +1475,7 @@ function DepRow({
             <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{mod.name}</div>
                 <div className="text-xs text-text-subtle mt-0.5">
-                    {t('common.by', { name: mod.user.name })} · v{mod.version} ·{' '}
+                    {t('common.by', { name: mod.user.name })} · {mod.version} ·{' '}
                     <span className={isInstalled ? 'text-success-text' : 'text-danger-text'}>
                         {isInstalled
                             ? t('detail.deps.statusInstalled')

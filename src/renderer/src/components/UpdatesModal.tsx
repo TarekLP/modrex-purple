@@ -127,7 +127,7 @@ export function UpdatesModal({
                                 <div className="min-w-0">
                                     <div className="text-sm font-medium truncate">{mod.name}</div>
                                     <div className="text-xs text-text-subtle">
-                                        v{ins.version} to v{mod.version}
+                                        {ins.version} to {mod.version}
                                     </div>
                                 </div>
                             </button>
