@@ -6,6 +6,14 @@
 //! audience runs. Every send is fire-and-forget and failures are swallowed, so
 //! analytics can never block or break the app.
 //!
+//! Requests go to `https://modrex.net/api/collect`, not Google's domain directly.
+//! Sending from Rust only defeats *in-page* blocking; DNS-level and hosts-file
+//! blocklists (Pi-hole, AdGuard Home, NextDNS, "debloat Windows" scripts) and
+//! outbound firewalls block `google-analytics.com` for every process on the
+//! machine, Rust included, and this audience runs that tooling heavily. A
+//! Cloudflare Pages Function at `modrex-site/functions/api/collect.ts` forwards
+//! the request verbatim to GA4 — see that file for the other half of this.
+//!
 //! Nothing is transmitted unless `analytics_enabled == Some(true)` in settings and
 //! the build was compiled with the GA credentials below. This module is the only
 //! place that knows the backend is GA4 — swapping to another sink later is a
@@ -28,6 +36,19 @@ fn measurement_id() -> Option<&'static str> {
 
 fn api_secret() -> Option<&'static str> {
     option_env!("MODREX_GA_API_SECRET").filter(|s| !s.is_empty())
+}
+
+/// Our own domain, not Google's — see the module doc comment for why. The
+/// Cloudflare Pages Function behind this path forwards verbatim to GA4's real
+/// `mp/collect` endpoint, so the query-string contract (`measurement_id`,
+/// `api_secret`) is unchanged. Overridable at compile time for local testing
+/// (e.g. against `wrangler pages dev`, which doesn't run at the real domain) —
+/// release builds never set this, so they always get the production URL with
+/// zero CI configuration required.
+fn collect_url() -> &'static str {
+    option_env!("MODREX_ANALYTICS_ENDPOINT")
+        .filter(|s| !s.is_empty())
+        .unwrap_or("https://modrex.net/api/collect")
 }
 
 /// One session id per app launch. GA4 needs `session_id` + `engagement_time_msec`
@@ -68,12 +89,11 @@ async fn send_event(app: &AppHandle, name: &str, mut params: Value) {
         "events": [{ "name": name, "params": params }],
     });
 
-    let url = format!(
-        "https://www.google-analytics.com/mp/collect?measurement_id={measurement_id}&api_secret={api_secret}"
-    );
+    let url = format!("{}?measurement_id={measurement_id}&api_secret={api_secret}", collect_url());
     let res = http_client()
         .post(&url)
         .header("User-Agent", user_agent(app))
+        .timeout(std::time::Duration::from_secs(10))
         .json(&body)
         .send()
         .await;
@@ -98,7 +118,7 @@ fn inject_defaults(app: &AppHandle, params: &mut Value) {
     obj.entry("session_id")
         .or_insert_with(|| json!(session_id()));
     obj.entry("engagement_time_msec")
-        .or_insert_with(|| json!("100"));
+        .or_insert_with(|| json!(100));
 }
 
 /// Renderer-origin events route through here; Rust-native events call `track`

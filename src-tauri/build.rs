@@ -5,5 +5,6 @@ fn main() {
     // recompile whenever the values change.
     println!("cargo:rerun-if-env-changed=MODREX_GA_MEASUREMENT_ID");
     println!("cargo:rerun-if-env-changed=MODREX_GA_API_SECRET");
+    println!("cargo:rerun-if-env-changed=MODREX_ANALYTICS_ENDPOINT");
     tauri_build::build()
 }
