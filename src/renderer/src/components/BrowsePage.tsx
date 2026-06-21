@@ -374,10 +374,14 @@ export function BrowsePage({
             if (!gamePath) return
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const allDeps = collectDeps(fullMod)
-                const pdthLoaderModIds: Record<number, boolean | null> =
+                const loaderModIds: Record<number, boolean | null> =
                     activeGame === 'pdth'
                         ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
-                        : {}
+                        : activeGame === 'cb'
+                          ? { 47749: ue4ssInstalled }
+                          : activeGame === 'pd3'
+                            ? { 47771: ue4ssInstalled }
+                            : {}
                 const hasLoader =
                     activeGame === 'pdth'
                         ? allDeps.some(
@@ -390,7 +394,7 @@ export function BrowsePage({
                     allDeps,
                     installed,
                     bltLoaderInstalled,
-                    pdthLoaderModIds
+                    loaderModIds
                 )
                 if (missingRequired.length > 0) {
                     const s = await api.getSettings()
@@ -420,7 +424,15 @@ export function BrowsePage({
             }
             await onRefreshInstalled()
         },
-        [gamePath, installed, activeGame, pdthOverridesInstalled, dahmInstalled, onRefreshInstalled]
+        [
+            gamePath,
+            installed,
+            activeGame,
+            pdthOverridesInstalled,
+            dahmInstalled,
+            ue4ssInstalled,
+            onRefreshInstalled,
+        ]
     )
 
     const handleInstall = useCallback(
@@ -541,14 +553,20 @@ export function BrowsePage({
         return map
     }, [installed])
 
-    const pdthLoaderModIds: Record<number, boolean | null> =
-        activeGame === 'pdth' ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled } : {}
+    const loaderModIds: Record<number, boolean | null> =
+        activeGame === 'pdth'
+            ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
+            : activeGame === 'cb'
+              ? { 47749: ue4ssInstalled }
+              : activeGame === 'pd3'
+                ? { 47771: ue4ssInstalled }
+                : {}
     const missingDepsList = depsWarning
         ? missingRequiredDeps(
               depsWarning.allDeps,
               installed,
               depsWarning.bltLoaderInstalled,
-              pdthLoaderModIds
+              loaderModIds
           )
         : []
 
@@ -614,7 +632,15 @@ export function BrowsePage({
                     missingRequired={missingDepsList}
                     gamePath={gamePath}
                     gameId={activeGame}
-                    loaderModIds={activeGame === 'pdth' ? [53474, 14267] : []}
+                    loaderModIds={
+                        activeGame === 'pdth'
+                            ? [53474, 14267]
+                            : activeGame === 'cb'
+                              ? [47749]
+                              : activeGame === 'pd3'
+                                ? [47771]
+                                : []
+                    }
                     onInstallLoader={async (loaderModId) => {
                         if (!gamePath) return
                         try {
@@ -624,6 +650,9 @@ export function BrowsePage({
                             } else if (loaderModId === 14267) {
                                 await api.installDahm(gamePath)
                                 setDahmInstalled(true)
+                            } else if (loaderModId === 47749 || loaderModId === 47771) {
+                                await api.installMod(loaderModId, gamePath, activeGame)
+                                setUe4ssInstalled(true)
                             } else {
                                 await api.installSuperblt(gamePath)
                                 setDepsWarning((w) => (w ? { ...w, bltLoaderInstalled: true } : w))

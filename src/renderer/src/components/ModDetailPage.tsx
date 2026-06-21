@@ -218,14 +218,20 @@ export function ModDetailPage({
 
     async function doInstall() {
         if (!gamePath || !mod) return
-        const pdthLoaderModIds: Record<number, boolean | null> =
-            activeGame === 'pdth' ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled } : {}
+        const loaderModIds: Record<number, boolean | null> =
+            activeGame === 'pdth'
+                ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
+                : activeGame === 'cb'
+                  ? { 47749: ue4ssInstalled }
+                  : activeGame === 'pd3'
+                    ? { 47771: ue4ssInstalled }
+                    : {}
         let bltOk = loaderInstalled
         if (hasLoaderDep_blt) {
             bltOk = await api.checkSuperblt(gamePath)
             setLoaderInstalled(bltOk)
         }
-        if (missingRequiredDeps(allDeps, installed, bltOk, pdthLoaderModIds).length > 0) {
+        if (missingRequiredDeps(allDeps, installed, bltOk, loaderModIds).length > 0) {
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const s = await api.getSettings()
                 if (!s.dismissedDepsWarnings?.includes(modId)) {
@@ -278,6 +284,11 @@ export function ModDetailPage({
             } else if (loaderModId === 14267) {
                 await api.installDahm(gamePath)
                 setDahmInstalled(true)
+            } else if (loaderModId === 47749 || loaderModId === 47771) {
+                // UE4SS has no dedicated install command — it's routed server-side via the
+                // UE4SS_LOADER sentinel the same way any other mod install resolves.
+                await api.installMod(loaderModId, gamePath, activeGame)
+                setUe4ssInstalled(true)
             } else {
                 await api.installSuperblt(gamePath)
                 setLoaderInstalled(true)
@@ -324,20 +335,25 @@ export function ModDetailPage({
 
     const allDeps: ModDependency[] = collectDeps(mod)
 
-    // Hosted loader mods (PDTHModOverrides 53474, DAHM 14267) install as game-root DLLs
-    // and are checked by DLL presence, not the installed-mods list.
+    // Hosted loader mods (PDTHModOverrides 53474, DAHM 14267, UE4SS-CB 47749, PD3-UE4SS 47771)
+    // install as game-root/Binaries files and are checked by presence, not the installed-mods
+    // list.
     const hasLoaderDep_blt = activeGame !== 'pdth' && allDeps.some(isLoaderDep)
     const hasLoaderDep_pdthOverrides =
         activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 53474)
     const hasLoaderDep_dahm = activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 14267)
-    const pdthLoaderModIds: Record<number, boolean | null> =
-        activeGame === 'pdth' ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled } : {}
-    const missingRequired = missingRequiredDeps(
-        allDeps,
-        installed,
-        loaderInstalled,
-        pdthLoaderModIds
-    )
+    const hasLoaderDep_ue4ss =
+        (activeGame === 'cb' && allDeps.some((d) => d.mod?.id === 47749)) ||
+        (activeGame === 'pd3' && allDeps.some((d) => d.mod?.id === 47771))
+    const loaderModIds: Record<number, boolean | null> =
+        activeGame === 'pdth'
+            ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
+            : activeGame === 'cb'
+              ? { 47749: ue4ssInstalled }
+              : activeGame === 'pd3'
+                ? { 47771: ue4ssInstalled }
+                : {}
+    const missingRequired = missingRequiredDeps(allDeps, installed, loaderInstalled, loaderModIds)
 
     useEffect(() => {
         if (!gamePath) return
@@ -345,7 +361,7 @@ export function ModDetailPage({
         const needsPdthOverrides =
             hasLoaderDep_pdthOverrides || (activeGame === 'pdth' && modId === 53474)
         const needsDahm = hasLoaderDep_dahm || (activeGame === 'pdth' && modId === 14267)
-        const needsUe4ss = isUe4ssMod
+        const needsUe4ss = isUe4ssMod || hasLoaderDep_ue4ss
         if (!needsBlt && !needsPdthOverrides && !needsDahm && !needsUe4ss) return
         let cancelled = false
         if (needsBlt) {
@@ -376,6 +392,7 @@ export function ModDetailPage({
         hasLoaderDep_blt,
         hasLoaderDep_pdthOverrides,
         hasLoaderDep_dahm,
+        hasLoaderDep_ue4ss,
         isUe4ssMod,
         activeGame,
         modId,
@@ -464,7 +481,15 @@ export function ModDetailPage({
                     missingRequired={missingRequired}
                     gamePath={gamePath}
                     gameId={activeGame}
-                    loaderModIds={activeGame === 'pdth' ? [53474, 14267] : []}
+                    loaderModIds={
+                        activeGame === 'pdth'
+                            ? [53474, 14267]
+                            : activeGame === 'cb'
+                              ? [47749]
+                              : activeGame === 'pd3'
+                                ? [47771]
+                                : []
+                    }
                     onInstallLoader={handleInstallLoader}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setShowDepsWarning(false)}
