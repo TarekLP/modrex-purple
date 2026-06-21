@@ -16,9 +16,34 @@ pub enum ModUnit {
         /// user mods. Use when a marker (e.g. `base.lua`) is shared between framework modules
         /// and genuinely installable mods that are distinguishable only via the mod index.
         index_gated_markers: &'static [&'static str],
+        /// Directory names the ambient scan must never treat as a user mod, even though they
+        /// match `scan_markers`/`entry_markers` — known bundled framework internals shipped
+        /// alongside genuinely installable content. Use when `index_gated_markers` can't apply
+        /// (the bundled content's files are never hashed into the mod index — e.g. UE4SS's own
+        /// framework sub-mods under `Mods/`, which are plain `.lua` scripts, not `.pak` files).
+        excluded_names: &'static [&'static str],
         priority_prefix: bool,
     },
 }
+
+/// UE4SS ships these framework-internal sub-mods bundled inside every install's `Mods/` folder
+/// (verified against the real UE4SS-CB and PD3-UE4SS releases) — they carry the exact same
+/// `Scripts/main.lua` shape as a genuine user sub-mod, so the ambient scan must exclude them by
+/// name rather than by marker. `shared` holds Lua libraries the bundled modules import, not a
+/// mod itself.
+const UE4SS_BUNDLED_SUBMODS: &[&str] = &[
+    "ActorDumperMod",
+    "BPML_GenericFunctions",
+    "BPModLoaderMod",
+    "CheatManagerEnablerMod",
+    "ConsoleCommandsMod",
+    "ConsoleEnablerMod",
+    "jsbLuaProfilerMod",
+    "Keybinds",
+    "LineTraceMod",
+    "SplitScreenMod",
+    "shared",
+];
 
 pub struct ScanTarget {
     pub tag: &'static str,
@@ -68,17 +93,34 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "pd3",
     index_game_name: "PAYDAY 3",
     state_filename: ".modrex.json",
-    targets: &[ScanTarget {
-        tag: "paks",
-        unit: ModUnit::File {
-            extension: "pak",
-            disabled_suffix: ".disabled",
-            priority_prefix: true,
+    targets: &[
+        ScanTarget {
+            tag: "paks",
+            unit: ModUnit::File {
+                extension: "pak",
+                disabled_suffix: ".disabled",
+                priority_prefix: true,
+            },
+            mods_subpath: &["PAYDAY3", "Content", "Paks", "~mods"],
+            disabled_subpath: &["PAYDAY3", "Content", "Paks", "~mods", "disabled"],
+            backup_subpath: &["PAYDAY3", "Content", "~mods.bak"],
         },
-        mods_subpath: &["PAYDAY3", "Content", "Paks", "~mods"],
-        disabled_subpath: &["PAYDAY3", "Content", "Paks", "~mods", "disabled"],
-        backup_subpath: &["PAYDAY3", "Content", "~mods.bak"],
-    }],
+        ScanTarget {
+            tag: "ue4ss_mods",
+            unit: ModUnit::Directory {
+                entry_markers: &["Scripts/main.lua"],
+                scan_markers: &["Scripts/main.lua"],
+                index_gated_markers: &[],
+                excluded_names: UE4SS_BUNDLED_SUBMODS,
+                priority_prefix: false,
+            },
+            // game_path already ends in `PAYDAY3` (the Steam installdir) — see ue4ss.rs's
+            // descriptor comment for why this isn't a second copy of it. Steam/Epic only.
+            mods_subpath: &["PAYDAY3", "Binaries", "Win64", "Mods"],
+            disabled_subpath: &["PAYDAY3", "Binaries", "Win64", "Mods", "disabled"],
+            backup_subpath: &["PAYDAY3", "Binaries", "Win64", "Mods.bak"],
+        },
+    ],
 };
 
 // Primary target is `CrimeBoss/Mods/<name>/` (Directory unit) — the official ModKit's install
@@ -103,6 +145,7 @@ pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &[],
                 scan_markers: &[],
                 index_gated_markers: &[],
+                excluded_names: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["CrimeBoss", "Mods"],
@@ -120,6 +163,19 @@ pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
             disabled_subpath: &["CrimeBoss", "Content", "Paks", "~mods", "disabled"],
             backup_subpath: &["CrimeBoss", "Content", "~mods.bak"],
         },
+        ScanTarget {
+            tag: "ue4ss_mods",
+            unit: ModUnit::Directory {
+                entry_markers: &["Scripts/main.lua"],
+                scan_markers: &["Scripts/main.lua"],
+                index_gated_markers: &[],
+                excluded_names: UE4SS_BUNDLED_SUBMODS,
+                priority_prefix: false,
+            },
+            mods_subpath: &["CrimeBoss", "Binaries", "Win64", "Mods"],
+            disabled_subpath: &["CrimeBoss", "Binaries", "Win64", "Mods", "disabled"],
+            backup_subpath: &["CrimeBoss", "Binaries", "Win64", "Mods.bak"],
+        },
     ],
 };
 
@@ -134,6 +190,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &["mod.txt", "main.xml"],
                 scan_markers: &["mod.txt", "main.xml"],
                 index_gated_markers: &[],
+                excluded_names: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["mods"],
@@ -146,6 +203,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &[],
                 scan_markers: &[],
                 index_gated_markers: &[],
+                excluded_names: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["assets", "mod_overrides"],
@@ -171,6 +229,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &["mod.txt", "base.lua"],
                 scan_markers: &["mod.txt"],
                 index_gated_markers: &["base.lua"],
+                excluded_names: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["mods"],
@@ -183,6 +242,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &[],
                 scan_markers: &[],
                 index_gated_markers: &[],
+                excluded_names: &[],
                 priority_prefix: false,
             },
             mods_subpath: &["assets", "mod_overrides"],

@@ -13,7 +13,9 @@ use crate::commands::settings::{game_settings, read_settings};
 ///   `CrimeBoss/Binaries/Win64`. Only Steam verified — Crime Boss has no Xbox/GamePass
 ///   release, and no Epic build of this mod has been confirmed.
 /// - PAYDAY 3 ("PD3 UE4SS V3.01 + Allow Pak Mods", modworkshop id 47771): proxy
-///   `xinput1_3.dll`, installs into `PAYDAY3/PAYDAY3/Binaries/Win64` for Steam/Epic.
+///   `xinput1_3.dll`, installs into `<game_path>/PAYDAY3/Binaries/Win64` for Steam/Epic
+///   (`game_path` already ends in `PAYDAY3`, the Steam installdir name — this is the
+///   *inner* project subfolder, not a second copy of it; verified against a real install).
 ///   The Xbox/GamePass build uses a different destination (`Binaries/WinGDK`) and an
 ///   unverified proxy DLL — intentionally unsupported here rather than guessed.
 struct Ue4ssDescriptor {
@@ -29,7 +31,10 @@ fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssDescript
         }),
         ("pd3", Some("steam")) | ("pd3", Some("epic")) => Some(Ue4ssDescriptor {
             proxy_dll: "xinput1_3.dll",
-            binaries_subpath: &["PAYDAY3", "PAYDAY3", "Binaries", "Win64"],
+            // game_path already ends in `.../PAYDAY3` (the Steam installdir name) — this adds
+            // the *inner* PAYDAY3 project subfolder, not a second copy of the installdir.
+            // Verified against the real install: `<game_path>/PAYDAY3/Binaries/Win64/`.
+            binaries_subpath: &["PAYDAY3", "Binaries", "Win64"],
         }),
         _ => None,
     }

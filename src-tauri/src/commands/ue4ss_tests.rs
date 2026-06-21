@@ -35,12 +35,7 @@ fn cb_unverified_launcher_never_guesses_a_path() {
 #[test]
 fn pd3_steam_detects_proxy_dll() {
     let tmp = TempDir::new().unwrap();
-    let dir = tmp
-        .path()
-        .join("PAYDAY3")
-        .join("PAYDAY3")
-        .join("Binaries")
-        .join("Win64");
+    let dir = tmp.path().join("PAYDAY3").join("Binaries").join("Win64");
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("xinput1_3.dll"), b"").unwrap();
     assert!(is_installed("pd3", &path_str(&tmp), Some("steam")));
@@ -49,12 +44,7 @@ fn pd3_steam_detects_proxy_dll() {
 #[test]
 fn pd3_epic_detects_proxy_dll() {
     let tmp = TempDir::new().unwrap();
-    let dir = tmp
-        .path()
-        .join("PAYDAY3")
-        .join("PAYDAY3")
-        .join("Binaries")
-        .join("Win64");
+    let dir = tmp.path().join("PAYDAY3").join("Binaries").join("Win64");
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("xinput1_3.dll"), b"").unwrap();
     assert!(is_installed("pd3", &path_str(&tmp), Some("epic")));
@@ -63,12 +53,7 @@ fn pd3_epic_detects_proxy_dll() {
 #[test]
 fn pd3_xbox_unverified_never_guesses_a_path() {
     let tmp = TempDir::new().unwrap();
-    let dir = tmp
-        .path()
-        .join("PAYDAY3")
-        .join("PAYDAY3")
-        .join("Binaries")
-        .join("Win64");
+    let dir = tmp.path().join("PAYDAY3").join("Binaries").join("Win64");
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("xinput1_3.dll"), b"").unwrap();
     assert!(!is_installed("pd3", &path_str(&tmp), Some("xbox")));

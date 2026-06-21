@@ -767,6 +767,58 @@ fn classify_ignores_beardlib_internal_overrides() {
     assert_eq!(dirs, vec![("Pack/mods folder/BeardMod".to_string(), None)]);
 }
 
+// ── ue4ss_mods target ──────────────────────────────────────────────────────
+
+#[test]
+fn classify_ue4ss_submod_routes_to_ue4ss_mods_tag() {
+    // Scripts/main.lua is a nested marker — classification must resolve to the mod's own
+    // folder (Mods/CoolMod), not the Scripts/ subfolder the marker actually lives in.
+    let names = vec!["Mods/CoolMod/Scripts/main.lua".to_string()];
+    let dirs = classify_archive_dirs(&names, engine_for_game("cb"));
+    assert_eq!(
+        dirs,
+        vec![("Mods/CoolMod".to_string(), Some("ue4ss_mods".to_string()))]
+    );
+}
+
+#[test]
+fn target_for_ue4ss_mods_resolves_on_both_games() {
+    for game_id in ["cb", "pd3"] {
+        let cfg = engine_for_game(game_id);
+        let target = cfg.target_for(Some("ue4ss_mods"));
+        assert_eq!(target.tag, "ue4ss_mods");
+        assert!(target.is_directory_unit());
+    }
+}
+
+#[tokio::test]
+async fn find_untracked_paks_excludes_bundled_ue4ss_submods() {
+    let tmp = TempDir::new().unwrap();
+    let mods_dir = tmp
+        .path()
+        .join("CrimeBoss")
+        .join("Binaries")
+        .join("Win64")
+        .join("Mods");
+    let make_lua_mod = |name: &str| {
+        let dir = mods_dir.join(name).join("Scripts");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("main.lua"), b"-- mod").unwrap();
+    };
+    make_lua_mod("ActorDumperMod"); // bundled framework internal — must be excluded
+    make_lua_mod("CoolMod"); // a genuine user sub-mod — must be reported
+
+    let cfg = engine_for_game("cb");
+    let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
+    let ue4ss_results: Vec<_> = results
+        .iter()
+        .filter(|(_, _, loc)| loc.as_deref() == Some("ue4ss_mods"))
+        .collect();
+
+    assert_eq!(ue4ss_results.len(), 1);
+    assert_eq!(ue4ss_results[0].0, "CoolMod");
+}
+
 // ── host-mod pack detection ───────────────────────────────────────────────
 
 fn detect_host(names: &[&str]) -> Option<super::host_mods::HostPackMatch> {
