@@ -8,6 +8,7 @@ use super::paths::{
 };
 use super::state::{get_folder_path, read_state, save_state};
 use super::types::{InstalledMod, ModsState};
+use super::ue4ss_modstxt;
 use super::zip::extract_dir_entry;
 use chrono::Utc;
 use std::fs;
@@ -279,6 +280,20 @@ pub fn enable_mod_op(
         return;
     }
     let target = cfg.target_for(m.location.as_deref());
+    // UE4SS reads a central mods.txt to decide which Mods/ folders actually load — moving the
+    // folder itself has no effect (confirmed against the real format: see ue4ss_modstxt.rs), so
+    // enabling here only edits that file, leaving the sub-mod's files exactly where they are.
+    if target.tag == "ue4ss_mods" {
+        let mods_txt = mods_base(game_path, target).join("mods.txt");
+        ue4ss_modstxt::sync_enabled(&mods_txt, &m.filename, true);
+        for m in state.mods.iter_mut() {
+            if m.uid == uid {
+                m.enabled = true;
+            }
+        }
+        save_state(state_path, &state);
+        return;
+    }
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     if let Some(r) = &rel {
         if let Err(e) = fs::create_dir_all(mods_base(game_path, target).join(r)) {
@@ -367,6 +382,17 @@ pub fn disable_mod_op(
         return;
     }
     let target = cfg.target_for(m.location.as_deref());
+    if target.tag == "ue4ss_mods" {
+        let mods_txt = mods_base(game_path, target).join("mods.txt");
+        ue4ss_modstxt::sync_enabled(&mods_txt, &m.filename, false);
+        for m in state.mods.iter_mut() {
+            if m.uid == uid {
+                m.enabled = false;
+            }
+        }
+        save_state(state_path, &state);
+        return;
+    }
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let dis_dir = match &rel {
         Some(r) => disabled_base(game_path, target).join(r),

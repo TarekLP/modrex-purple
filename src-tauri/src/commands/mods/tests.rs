@@ -2183,6 +2183,55 @@ fn set_enabled_in_mods_txt_appends_a_new_line_for_an_unknown_mod() {
 }
 
 #[test]
+fn disable_then_enable_ue4ss_submod_edits_mods_txt_not_files() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+    let target = cfg.target_for(Some("ue4ss_mods"));
+
+    // The source folder a fresh install would extract: Mods/CoolMod/Scripts/main.lua.
+    let src_parent = TempDir::new().unwrap();
+    let src = src_parent.path().join("CoolMod");
+    fs::create_dir_all(src.join("Scripts")).unwrap();
+    fs::write(src.join("Scripts").join("main.lua"), b"-- lua").unwrap();
+
+    let mod_data = InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "Cool Mod".into(),
+        filename: "CoolMod".into(),
+        enabled: true,
+        file_id: Some(1),
+        ..InstalledMod::default()
+    };
+    install_mod_from_path(game, &sp, mod_data, &src, None, cfg, target).unwrap();
+
+    // UE4SS owns mods.txt — simulate it already existing with this mod enabled.
+    let mods_txt = mods_base(game, target).join("mods.txt");
+    fs::write(&mods_txt, "CoolMod : 1\r\n").unwrap();
+    let main_lua = mods_base(game, target)
+        .join("CoolMod")
+        .join("Scripts")
+        .join("main.lua");
+    assert!(main_lua.exists());
+
+    disable_mod_op(game, &sp, "1", cfg, None);
+    // The files never move — only the mods.txt line and the tracked flag change.
+    assert!(main_lua.exists());
+    assert_eq!(
+        read_enabled_from_mods_txt(&mods_txt, "CoolMod"),
+        Some(false)
+    );
+    assert!(!read_state(&sp).mods[0].enabled);
+
+    enable_mod_op(game, &sp, "1", cfg, None);
+    assert!(main_lua.exists());
+    assert_eq!(read_enabled_from_mods_txt(&mods_txt, "CoolMod"), Some(true));
+    assert!(read_state(&sp).mods[0].enabled);
+}
+
+#[test]
 fn read_enabled_from_mods_txt_none_when_missing_or_unknown() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("mods.txt");
