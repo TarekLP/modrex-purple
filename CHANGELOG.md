@@ -19,6 +19,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Fixed empty Installed folders disappearing after their last mod was uninstalled.
 - Fixed mods that ship separate .ucas/.utoc data files alongside their .pak.
+- Fixed mods staying permanently unrecognized after a missed identification.
 
 ## 0.10.0
 

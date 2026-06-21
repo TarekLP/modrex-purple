@@ -256,6 +256,15 @@ pub fn lookup_sha256(app: &AppHandle, sha256: &str, game_name: &str) -> Option<I
     query_sha256(&conn, sha256, game_name)
 }
 
+pub fn lookup_by_name(app: &AppHandle, name: &str, game_name: &str) -> Option<i64> {
+    let path = index_path(app);
+    if !path.exists() {
+        return None;
+    }
+    let conn = open_conn(&path)?;
+    query_by_name(&conn, name, game_name)
+}
+
 #[cfg(test)]
 #[path = "mod_index_tests.rs"]
 mod tests;

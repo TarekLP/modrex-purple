@@ -177,25 +177,44 @@ fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Option<String>
 /// Upgrades negative-id (unidentified) entries whose SHA256 is now present in the index —
 /// e.g. the mod was added to the index after it was first installed locally.
 /// Returns true if any entries were upgraded (caller must persist the change).
-fn upgrade_negative_ids_by_sha(
-    app: &AppHandle,
-    mods: &mut [InstalledMod],
-    game_name: &str,
-) -> bool {
+/// Retries identification for every still-unidentified (negative-id) tracked mod on each
+/// refresh — not just at first ambient discovery. SHA256 is tried first (exact, pins the
+/// file); when a mod's modworkshop file has been updated since install (version drift), the
+/// installed bytes no longer match anything in the index and SHA256 will never hit again, so
+/// name is the only identity left. Without this second pass, a mod that missed both checks
+/// once (e.g. because the local index was still stale at that exact moment) stays "Unknown"
+/// forever — the user would have to wipe state and force a fresh discovery pass to fix it,
+/// defeating the app's promise that nothing needs manual intervention.
+fn upgrade_negative_ids(app: &AppHandle, mods: &mut [InstalledMod], game_name: &str) -> bool {
     let mut any = false;
     for m in mods {
         if m.id >= 0 {
             continue;
         }
-        let Some(ref sha) = m.sha256 else { continue };
-        let Some(hit) = mod_index::lookup_sha256(app, sha, game_name) else {
+        if let Some(hit) = m
+            .sha256
+            .as_deref()
+            .and_then(|sha| mod_index::lookup_sha256(app, sha, game_name))
+        {
+            m.id = hit.mod_remote_id;
+            m.name = hit.mod_name;
+            m.version = hit.version;
+            m.file_id = Some(hit.file_remote_id);
+            any = true;
             continue;
-        };
-        m.id = hit.mod_remote_id;
-        m.name = hit.mod_name;
-        m.version = hit.version;
-        m.file_id = Some(hit.file_remote_id);
-        any = true;
+        }
+        if let Some(remote_id) = mod_index::lookup_by_name(app, &m.name, game_name) {
+            m.id = remote_id;
+            // The SHA256 check above just failed against the index's current file for this
+            // mod, so unlike the embedded-id "no declared version" fallback (which has zero
+            // signal and deliberately reads as up-to-date to avoid an endless false nag),
+            // here we know for a fact the installed bytes are stale. "outdated" is never a
+            // real modworkshop version string, so it reads as different from whatever the
+            // current one turns out to be — surfacing the update instead of hiding it behind
+            // the "unknown version" suppression in `useModData`.
+            m.version = "outdated".to_string();
+            any = true;
+        }
     }
     any
 }
@@ -527,11 +546,15 @@ fn identify_untracked(
                         .and_then(|b| index.and_then(|c| mod_index::query_by_name(c, b, gname)))
                 })
                 .map(|remote_id| {
+                    // A confirmed name hit after the SHA256 check above already missed means
+                    // the installed bytes are known-stale (unlike the numeric/hash_filename
+                    // fallbacks below, which have no such confirmation) — "outdated" surfaces
+                    // the update instead of being suppressed by the "unknown version" guard.
                     (
                         remote_id,
                         stripped_name.trim().to_string(),
                         None,
-                        "unknown".to_string(),
+                        "outdated".to_string(),
                     )
                 })
                 .or_else(|| {
@@ -648,7 +671,7 @@ pub async fn get_installed(
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let mut state = reconcile_state(&game_path, &state_path, cfg);
-    let any_upgraded = upgrade_negative_ids_by_sha(&app, &mut state.mods, cfg.index_game_name);
+    let any_upgraded = upgrade_negative_ids(&app, &mut state.mods, cfg.index_game_name);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     // The player can also toggle mods from Crime Boss's own Options > Mods screen — pull that

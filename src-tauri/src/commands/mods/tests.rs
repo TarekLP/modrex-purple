@@ -1710,7 +1710,9 @@ fn identify_untracked_falls_back_to_name_without_embedded() {
     let m = &mods[0];
     assert_eq!(m.id, 555); // matched by name
     assert_eq!(m.file_id, None);
-    assert_eq!(m.version, "unknown");
+    // SHA256 missed the index's current file, so the installed bytes are known-stale —
+    // "outdated" (not "unknown") surfaces an update instead of being suppressed.
+    assert_eq!(m.version, "outdated");
 }
 
 // ── File-unit install/enable/disable/uninstall carry IoStore sidecars ────────
