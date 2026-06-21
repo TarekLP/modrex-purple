@@ -9,6 +9,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added an in-app News tab per game.
 - Added Crime Boss: Rockay City support.
 - Added search and an installed-only filter to the game picker.
+- Added UE4SS support.
 
 ### Changed
 
