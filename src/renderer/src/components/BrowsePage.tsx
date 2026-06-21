@@ -240,6 +240,7 @@ export function BrowsePage({
     const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
     const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
+    const [ue4ssInstalled, setUe4ssInstalled] = useState<boolean | null>(null)
 
     useEffect(() => {
         return api.onDownloadProgress(({ downloaded, total }) => {
@@ -250,14 +251,21 @@ export function BrowsePage({
     }, [])
 
     useEffect(() => {
-        if (activeGame !== 'pdth' || !gamePath) return
+        if (!gamePath) return
         let cancelled = false
-        api.checkPdthOverrides(gamePath).then((v) => {
-            if (!cancelled) setPdthOverridesInstalled(v)
-        })
-        api.checkDahm(gamePath).then((v) => {
-            if (!cancelled) setDahmInstalled(v)
-        })
+        if (activeGame === 'pdth') {
+            api.checkPdthOverrides(gamePath).then((v) => {
+                if (!cancelled) setPdthOverridesInstalled(v)
+            })
+            api.checkDahm(gamePath).then((v) => {
+                if (!cancelled) setDahmInstalled(v)
+            })
+        }
+        if (activeGame === 'cb' || activeGame === 'pd3') {
+            api.checkUe4ss(gamePath, activeGame).then((v) => {
+                if (!cancelled) setUe4ssInstalled(v)
+            })
+        }
         return () => {
             cancelled = true
         }
@@ -393,6 +401,9 @@ export function BrowsePage({
                     }
                 }
             }
+            const isUe4ssLoader =
+                (activeGame === 'cb' && modId === 47749) ||
+                (activeGame === 'pd3' && modId === 47771)
             if (activeGame === 'pdth' && modId === 53474) {
                 await api.installPdthOverrides(gamePath)
                 setPdthOverridesInstalled(true)
@@ -401,6 +412,11 @@ export function BrowsePage({
                 setDahmInstalled(true)
             } else {
                 await api.installMod(modId, gamePath, activeGame)
+                // The loader package isn't tracked in the installed list — its own install
+                // (routed server-side via the UE4SS_LOADER sentinel) succeeds without an error,
+                // so a successful call here is the confirmation; mirrors the optimistic
+                // pdthOverrides/dahm updates above instead of waiting on a fresh presence check.
+                if (isUe4ssLoader) setUe4ssInstalled(true)
             }
             await onRefreshInstalled()
         },
@@ -703,6 +719,8 @@ export function BrowsePage({
                         new Set([
                             ...(pdthOverridesInstalled ? [53474] : []),
                             ...(dahmInstalled ? [14267] : []),
+                            ...(ue4ssInstalled && activeGame === 'cb' ? [47749] : []),
+                            ...(ue4ssInstalled && activeGame === 'pd3' ? [47771] : []),
                         ])
                     }
                     onOpen={onOpenDetail}

@@ -102,6 +102,7 @@ export function ModDetailPage({
     const [loaderInstalled, setLoaderInstalled] = useState<boolean | null>(null)
     const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
     const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
+    const [ue4ssInstalled, setUe4ssInstalled] = useState<boolean | null>(null)
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
@@ -116,9 +117,18 @@ export function ModDetailPage({
     const installedFiles = installed.filter((m) => m.id === modId)
     const installedMod = installedFiles[0]
     // Not tracked in the installed list — DLL presence drives its button state.
-    const isLoaderMod = activeGame === 'pdth' && (modId === 53474 || modId === 14267)
+    const isUe4ssMod =
+        (activeGame === 'cb' && modId === 47749) || (activeGame === 'pd3' && modId === 47771)
+    const isLoaderMod =
+        (activeGame === 'pdth' && (modId === 53474 || modId === 14267)) || isUe4ssMod
     const loaderModInstalled =
-        modId === 53474 ? pdthOverridesInstalled : modId === 14267 ? dahmInstalled : null
+        modId === 53474
+            ? pdthOverridesInstalled
+            : modId === 14267
+              ? dahmInstalled
+              : isUe4ssMod
+                ? ue4ssInstalled
+                : null
 
     // Full-size banner via the disk cache — the CDN sends no cache headers, so a
     // direct URL costs a download or revalidation round-trip on every page visit.
@@ -335,7 +345,8 @@ export function ModDetailPage({
         const needsPdthOverrides =
             hasLoaderDep_pdthOverrides || (activeGame === 'pdth' && modId === 53474)
         const needsDahm = hasLoaderDep_dahm || (activeGame === 'pdth' && modId === 14267)
-        if (!needsBlt && !needsPdthOverrides && !needsDahm) return
+        const needsUe4ss = isUe4ssMod
+        if (!needsBlt && !needsPdthOverrides && !needsDahm && !needsUe4ss) return
         let cancelled = false
         if (needsBlt) {
             api.checkSuperblt(gamePath).then((v) => {
@@ -352,6 +363,11 @@ export function ModDetailPage({
                 if (!cancelled) setDahmInstalled(v)
             })
         }
+        if (needsUe4ss) {
+            api.checkUe4ss(gamePath, activeGame).then((v) => {
+                if (!cancelled) setUe4ssInstalled(v)
+            })
+        }
         return () => {
             cancelled = true
         }
@@ -360,6 +376,7 @@ export function ModDetailPage({
         hasLoaderDep_blt,
         hasLoaderDep_pdthOverrides,
         hasLoaderDep_dahm,
+        isUe4ssMod,
         activeGame,
         modId,
     ])
