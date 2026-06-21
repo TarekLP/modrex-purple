@@ -76,6 +76,7 @@ pub fn run() {
             commands::pdth_overrides::install_pdth_overrides,
             commands::dahm::check_dahm,
             commands::dahm::install_dahm,
+            commands::ue4ss::check_ue4ss,
             // launchers & system
             commands::launchers::auto_detect_game,
             commands::launchers::installed_launchers,

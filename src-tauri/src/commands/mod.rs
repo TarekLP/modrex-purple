@@ -1,13 +1,14 @@
 pub mod analytics;
 pub mod api;
+pub mod dahm;
 pub mod download;
 pub mod launchers;
 pub mod mod_index;
 pub mod mods;
 pub mod news;
-pub mod settings;
-pub mod dahm;
 pub mod pdth_overrides;
+pub mod settings;
 pub mod superblt;
 pub mod thumbnails;
+pub mod ue4ss;
 pub mod updater;

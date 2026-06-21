@@ -297,6 +297,11 @@ export const api = {
         return invoke('install_dahm', { gamePath })
     },
 
+    // ── UE4SS ────────────────────────────────────────────────────────────────────
+    checkUe4ss(gamePath: string, gameId?: string): Promise<boolean> {
+        return invoke('check_ue4ss', { gamePath, gameId })
+    },
+
     // ── Launchers & system ─────────────────────────────────────────────────────
     isGameRunning(gameId?: string): Promise<boolean> {
         return gameId ? invoke('is_game_running', { gameId }) : invoke('is_game_running')
