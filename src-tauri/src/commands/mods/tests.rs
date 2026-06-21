@@ -2110,6 +2110,88 @@ fn read_enabled_from_file_none_when_missing_or_malformed() {
     assert_eq!(read_enabled_from_file(&no_enabled_entry), None);
 }
 
+// ── ue4ss_modstxt: UE4SS mods.txt sync ────────────────────────────────────────
+// Fixture matches the real UE4SS-CB mods.txt byte-for-byte (BOM, CRLF, blank lines, comment,
+// trailing "do not move up" warning) — verified against the actual downloaded release.
+
+const UE4SS_MODSTXT_FIXTURE: &str = "\u{FEFF}CheatManagerEnablerMod : 1\r\nActorDumperMod : 0\r\nConsoleCommandsMod : 1\r\nConsoleEnablerMod : 1\r\n\r\n\r\n; Built-in keybinds, do not move up!\r\nKeybinds : 1\r\n";
+
+#[test]
+fn entry_name_ignores_bom_blanks_and_comments() {
+    assert_eq!(
+        entry_name("\u{FEFF}CheatManagerEnablerMod : 1"),
+        Some("CheatManagerEnablerMod")
+    );
+    assert_eq!(entry_name("ActorDumperMod : 0"), Some("ActorDumperMod"));
+    assert_eq!(entry_name(""), None);
+    assert_eq!(entry_name("; Built-in keybinds, do not move up!"), None);
+}
+
+#[test]
+fn set_enabled_in_mods_txt_noops_when_file_missing() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mods.txt");
+    set_enabled_in_mods_txt(&path, "Anything", true).unwrap();
+    assert!(!path.exists());
+}
+
+#[test]
+fn set_enabled_in_mods_txt_flips_first_entry_despite_leading_bom() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mods.txt");
+    fs::write(&path, UE4SS_MODSTXT_FIXTURE).unwrap();
+
+    set_enabled_in_mods_txt(&path, "CheatManagerEnablerMod", false).unwrap();
+    assert_eq!(
+        read_enabled_from_mods_txt(&path, "CheatManagerEnablerMod"),
+        Some(false)
+    );
+    // Untouched entries keep their values.
+    assert_eq!(
+        read_enabled_from_mods_txt(&path, "ActorDumperMod"),
+        Some(false)
+    );
+    assert_eq!(
+        read_enabled_from_mods_txt(&path, "ConsoleCommandsMod"),
+        Some(true)
+    );
+}
+
+#[test]
+fn set_enabled_in_mods_txt_preserves_comments_and_blank_lines() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mods.txt");
+    fs::write(&path, UE4SS_MODSTXT_FIXTURE).unwrap();
+
+    set_enabled_in_mods_txt(&path, "Keybinds", false).unwrap();
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(content.contains("; Built-in keybinds, do not move up!"));
+    assert!(content.contains("\r\n\r\n\r\n"));
+    assert_eq!(read_enabled_from_mods_txt(&path, "Keybinds"), Some(false));
+}
+
+#[test]
+fn set_enabled_in_mods_txt_appends_a_new_line_for_an_unknown_mod() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mods.txt");
+    fs::write(&path, UE4SS_MODSTXT_FIXTURE).unwrap();
+
+    set_enabled_in_mods_txt(&path, "MyNewSubMod", true).unwrap();
+    assert_eq!(read_enabled_from_mods_txt(&path, "MyNewSubMod"), Some(true));
+    // Existing entries are still intact.
+    assert_eq!(read_enabled_from_mods_txt(&path, "Keybinds"), Some(true));
+}
+
+#[test]
+fn read_enabled_from_mods_txt_none_when_missing_or_unknown() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("mods.txt");
+    assert_eq!(read_enabled_from_mods_txt(&path, "Anything"), None);
+
+    fs::write(&path, UE4SS_MODSTXT_FIXTURE).unwrap();
+    assert_eq!(read_enabled_from_mods_txt(&path, "NotInFile"), None);
+}
+
 // ── Crime Boss multi-pak bundle archives (ZIP_MULTI_PAK) ──────────────────────
 // Real-world shape verified against modworkshop mod id 56196 ("Career Criminal Janitor Set"):
 // two independent mods ("The Cleaner", "The Sweeper") bundled in one archive, each with its own

@@ -8,6 +8,7 @@ mod paths;
 mod reorder;
 mod state;
 mod types;
+mod ue4ss_modstxt;
 mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
@@ -43,6 +44,10 @@ pub(crate) use self::crimeboss_settings::{
 };
 #[cfg(test)]
 pub(crate) use self::naming::{apply_priority_prefix, make_uid, mod_folder_name};
+#[cfg(test)]
+pub(crate) use self::ue4ss_modstxt::{
+    entry_name, read_enabled_from_mods_txt, set_enabled_in_mods_txt,
+};
 #[cfg(test)]
 pub(crate) use self::zip::{
     classify_archive_dirs, detect_archive, has_ue4ss_loader_signature, is_unplaceable_pack, is_zip,

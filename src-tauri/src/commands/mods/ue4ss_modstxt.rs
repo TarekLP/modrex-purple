@@ -1,0 +1,95 @@
+use std::fs;
+use std::path::Path;
+
+/// Parses a single `mods.txt` line, returning the mod name if it's a real entry line (not blank,
+/// not a `;`-comment) — ignoring a leading UTF-8 BOM, which Rust's string handling treats as an
+/// ordinary character rather than stripping automatically, so the very first entry in the file
+/// would otherwise never match by name. UE4SS's own format: `ModName : 1` or `ModName : 0`.
+pub(crate) fn entry_name(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start_matches('\u{FEFF}').trim_start();
+    if trimmed.is_empty() || trimmed.starts_with(';') {
+        return None;
+    }
+    let colon = line.rfind(':')?;
+    let name = line[..colon].trim_start_matches('\u{FEFF}').trim();
+    (!name.is_empty()).then_some(name)
+}
+
+/// Sets `mod_name`'s `: 1`/`: 0` value in an existing UE4SS `mods.txt`, preserving every other
+/// line (comments, blanks, ordering, other mods' entries) untouched. Appends a new line if the
+/// mod has no entry yet — UE4SS treats a missing entry as enabled by default, so this only needs
+/// to run on an explicit Modrex toggle, never at install time. No-ops if the file doesn't exist:
+/// UE4SS owns and creates this file itself; Modrex never synthesizes one from scratch.
+pub(crate) fn set_enabled_in_mods_txt(
+    path: &Path,
+    mod_name: &str,
+    enabled: bool,
+) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let eol = if content.contains("\r\n") {
+        "\r\n"
+    } else {
+        "\n"
+    };
+    let value = if enabled { "1" } else { "0" };
+
+    let mut found = false;
+    let mut lines: Vec<String> = content
+        .lines()
+        .map(|line| {
+            if !found && entry_name(line) == Some(mod_name) {
+                found = true;
+                let colon = line
+                    .rfind(':')
+                    .expect("entry_name confirmed a colon exists");
+                return format!("{}: {value}", &line[..colon]);
+            }
+            line.to_string()
+        })
+        .collect();
+    if !found {
+        lines.push(format!("{mod_name} : {value}"));
+    }
+
+    let mut out = lines.join(eol);
+    out.push_str(eol);
+    fs::write(path, out).map_err(|e| e.to_string())
+}
+
+/// Reads `mod_name`'s current `: 1`/`: 0` value out of an existing `mods.txt`. `None` covers
+/// "file doesn't exist", "mod has no entry yet" (UE4SS defaults a missing entry to enabled, but
+/// callers must treat this as unknown rather than assume either value), and a malformed value.
+pub(crate) fn read_enabled_from_mods_txt(path: &Path, mod_name: &str) -> Option<bool> {
+    let content = fs::read_to_string(path).ok()?;
+    content.lines().find_map(|line| {
+        if entry_name(line)? != mod_name {
+            return None;
+        }
+        let colon = line.rfind(':')?;
+        match line[colon + 1..].trim() {
+            "1" => Some(true),
+            "0" => Some(false),
+            _ => None,
+        }
+    })
+}
+
+/// Syncs a UE4SS Lua sub-mod's enabled state into `mods.txt` to match a Modrex enable/disable
+/// action — UE4SS reads this file on launch to decide which `Mods/` folders actually load,
+/// independent of where the folder physically sits, so this (not a file move) is what makes
+/// enable/disable actually take effect in-game. Silently no-ops on any I/O failure, the same
+/// tolerance `crimeboss_settings::sync_enabled` has — the Modrex-tracked flag is what the UI
+/// shows either way.
+pub fn sync_enabled(mods_txt_path: &Path, mod_name: &str, enabled: bool) {
+    let _ = set_enabled_in_mods_txt(mods_txt_path, mod_name, enabled);
+}
+
+/// Reads the real enabled value back from `mods.txt` — the player (or UE4SS's own in-game UI,
+/// if it has one) can toggle a sub-mod by editing this file directly, and Modrex's tracked flag
+/// has no way to learn about that on its own.
+pub fn read_enabled(mods_txt_path: &Path, mod_name: &str) -> Option<bool> {
+    read_enabled_from_mods_txt(mods_txt_path, mod_name)
+}
