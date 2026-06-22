@@ -16,6 +16,14 @@ pub fn create_folder_op(
 ) -> Result<ModFolder, String> {
     let mut state = read_state(state_path);
 
+    if let Some(existing) = state
+        .folders
+        .iter()
+        .find(|f| f.parent_id == parent_id && f.display_name == display_name)
+    {
+        return Ok(existing.clone());
+    }
+
     let slug: String = display_name
         .trim()
         .chars()

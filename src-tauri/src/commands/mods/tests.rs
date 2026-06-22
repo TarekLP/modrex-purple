@@ -645,6 +645,21 @@ fn uninstall_mod_keeps_empty_folder() {
     assert!(folder_dir.exists());
 }
 
+#[test]
+fn create_folder_reuses_existing_same_name_sibling() {
+    let temp = TempDir::new().unwrap();
+    let game = temp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let state_path = get_state_path(game, cfg);
+
+    let first = create_folder_op(game, &state_path, "ImprovedRogue", None, cfg).unwrap();
+    let second = create_folder_op(game, &state_path, "ImprovedRogue", None, cfg).unwrap();
+
+    assert_eq!(first.id, second.id);
+    let state = read_state(&state_path);
+    assert_eq!(state.folders.len(), 1);
+}
+
 // ── PD2 multi-target engine ───────────────────────────────────────────────
 
 #[test]

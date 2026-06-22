@@ -155,7 +155,14 @@ export function ZipPickerModal({
         return { prefix: p, grouped: groupEntriesByDir(payload.entries, p) }
     }, [payload.entries])
 
-    const isStructured = grouped.size > 1 || (grouped.size === 1 && !grouped.has(''))
+    // Crime Boss pak entries are always re-wrapped in a fresh Content/Paks/WindowsNoEditor
+    // skeleton by extract_entry_into_crimeboss_skeleton regardless of their path inside the zip
+    // (see install_from_zip_entry) — so any wrapper folder the zip ships (typically the official
+    // ModKit's own <name>/Content/Paks/WindowsNoEditor/ packaging shape) is never real structure
+    // worth recreating as app folders. Treating it as structured double-wraps the skeleton.
+    const isCrimeBossPakArchive = gameId === 'cb' && payload.entryKind !== 'dir'
+    const isStructured =
+        !isCrimeBossPakArchive && (grouped.size > 1 || (grouped.size === 1 && !grouped.has('')))
 
     const rootEntries = grouped.get('') ?? []
     const subdirSections = useMemo(
