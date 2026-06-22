@@ -134,10 +134,10 @@
             "legacyBadge": "Legacy",
             "toLegacy": "Move to ~mods (legacy pak)",
             "toModKit": "Move to Mods/ (ModKit)",
-            "confirmTitleToLegacy": "Move to legacy ~mods?",
-            "confirmBodyToLegacy": "Mods in Mods/ get the official ModKit's Data Table merge, so multiple mods can add rows to the same table (jobs, weapons, etc.) without conflicting. ~mods is plain pak mounting with no merge — only move \"{name}\" there if it wasn't built with the ModKit and needs to load this way.",
-            "confirmTitleToModkit": "Move to Mods/ (ModKit)?",
-            "confirmBodyToModkit": "Move \"{name}\" from the legacy ~mods folder into Mods/, where the official ModKit's Data Table merge applies.",
+            "confirmTitleToLegacy": "Move to ~mods?",
+            "confirmBodyToLegacy": "\"{name}\" will no longer merge with other mods' content. Only do this if it needs the old pak format.",
+            "confirmTitleToModkit": "Move to Mods/?",
+            "confirmBodyToModkit": "Moves \"{name}\" into Mods/, where it can merge with other mods' content.",
             "confirm": "Move",
             "moving": "Moving…",
             "error": "Move failed: {error}"
@@ -242,7 +242,7 @@
     },
     "crimeBossInstallChoice": {
         "title": "Where should \"{name}\" install?",
-        "body": "You've set Crime Boss installs to always ask. Mods/ gets the official ModKit's Data Table merge; ~mods is plain pak mounting with no merge.",
+        "body": "Mods/ merges with other mods' content. ~mods is the older format with no merging.",
         "auto": "Mods/ (ModKit)",
         "legacy": "~mods (legacy pak)",
         "installing": "Installing…",
