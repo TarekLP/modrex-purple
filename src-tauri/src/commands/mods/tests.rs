@@ -2,6 +2,7 @@ use super::*;
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::Write;
+use std::path::Path;
 use tempfile::{NamedTempFile, TempDir};
 
 fn make_zip(entries: &[(&str, &[u8])]) -> NamedTempFile {
@@ -2459,4 +2460,154 @@ fn reorder_applies_priority_prefix_for_targets_that_use_it() {
     let state = read_state(&sp);
     let filenames: Vec<&str> = state.mods.iter().map(|m| m.filename.as_str()).collect();
     assert_eq!(filenames, vec!["001_Foo.pak", "002_Bar.pak"]);
+}
+
+// ── move_crimeboss_mod_target_op ──────────────────────────────────────────────
+
+fn write_skeleton_pak(skeleton_root: &Path, pak_name: &str, content: &[u8]) {
+    let pak_dir = skeleton_root
+        .join("Content")
+        .join("Paks")
+        .join("WindowsNoEditor");
+    fs::create_dir_all(&pak_dir).unwrap();
+    fs::write(pak_dir.join(pak_name), content).unwrap();
+}
+
+#[test]
+fn move_crimeboss_mod_unwraps_skeleton_into_legacy_paks() {
+    let cfg = engine_for_game("cb");
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+
+    let skeleton = tmp.path().join("src-skeleton");
+    write_skeleton_pak(&skeleton, "FooCrimeBoss-WindowsNoEditor.pak", b"pak bytes");
+    install_mod_from_path(
+        game,
+        &sp,
+        InstalledMod {
+            uid: "a".to_string(),
+            name: "Foo".to_string(),
+            filename: mod_folder_name("Foo"),
+            enabled: true,
+            file_id: Some(1),
+            ..InstalledMod::default()
+        },
+        &skeleton,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+
+    move_crimeboss_mod_target_op(game, &sp, "a", cfg, None).unwrap();
+
+    let state = read_state(&sp);
+    let m = state.mods.iter().find(|m| m.uid == "a").unwrap();
+    assert_eq!(m.location.as_deref(), Some("paks"));
+    assert_eq!(m.filename, "001_FooCrimeBoss-WindowsNoEditor.pak");
+    assert!(!tmp
+        .path()
+        .join("CrimeBoss/Mods")
+        .join(mod_folder_name("Foo"))
+        .exists());
+    let moved = tmp
+        .path()
+        .join("CrimeBoss/Content/Paks/~mods")
+        .join(&m.filename);
+    assert_eq!(fs::read(&moved).unwrap(), b"pak bytes");
+}
+
+#[test]
+fn move_crimeboss_mod_wraps_legacy_pak_into_skeleton() {
+    let cfg = engine_for_game("cb");
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+
+    let pak_src = tmp.path().join("FooCrimeBoss-WindowsNoEditor.pak");
+    fs::write(&pak_src, b"pak bytes").unwrap();
+    let paks_target = cfg.targets.iter().find(|t| t.tag == "paks").unwrap();
+    install_mod_from_path(
+        game,
+        &sp,
+        InstalledMod {
+            uid: "a".to_string(),
+            name: "Foo".to_string(),
+            filename: "FooCrimeBoss-WindowsNoEditor.pak".to_string(),
+            enabled: true,
+            file_id: Some(1),
+            ..InstalledMod::default()
+        },
+        &pak_src,
+        None,
+        cfg,
+        paks_target,
+    )
+    .unwrap();
+    // priority_prefix is enabled for the legacy target — confirms the fixture matches real installs.
+    let state = read_state(&sp);
+    assert_eq!(
+        state.mods[0].filename,
+        "001_FooCrimeBoss-WindowsNoEditor.pak"
+    );
+
+    move_crimeboss_mod_target_op(game, &sp, "a", cfg, None).unwrap();
+
+    let state = read_state(&sp);
+    let m = state.mods.iter().find(|m| m.uid == "a").unwrap();
+    assert_eq!(m.location, None);
+    assert_eq!(m.filename, mod_folder_name("Foo"));
+    assert!(!tmp
+        .path()
+        .join("CrimeBoss/Content/Paks/~mods/001_FooCrimeBoss-WindowsNoEditor.pak")
+        .exists());
+    let moved = tmp
+        .path()
+        .join("CrimeBoss/Mods")
+        .join(mod_folder_name("Foo"))
+        .join("Content/Paks/WindowsNoEditor/FooCrimeBoss-WindowsNoEditor.pak");
+    assert_eq!(fs::read(&moved).unwrap(), b"pak bytes");
+}
+
+#[test]
+fn move_crimeboss_mod_preserves_disabled_state() {
+    let cfg = engine_for_game("cb");
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+
+    let skeleton = tmp.path().join("src-skeleton");
+    write_skeleton_pak(&skeleton, "FooCrimeBoss-WindowsNoEditor.pak", b"pak bytes");
+    install_mod_from_path(
+        game,
+        &sp,
+        InstalledMod {
+            uid: "a".to_string(),
+            name: "Foo".to_string(),
+            filename: mod_folder_name("Foo"),
+            enabled: true,
+            file_id: Some(1),
+            ..InstalledMod::default()
+        },
+        &skeleton,
+        None,
+        cfg,
+        cfg.primary(),
+    )
+    .unwrap();
+    disable_mod_op(game, &sp, "a", cfg, None);
+    assert!(!read_state(&sp).mods[0].enabled);
+
+    move_crimeboss_mod_target_op(game, &sp, "a", cfg, None).unwrap();
+
+    let state = read_state(&sp);
+    let m = state.mods.iter().find(|m| m.uid == "a").unwrap();
+    assert!(!m.enabled);
+    assert_eq!(m.location.as_deref(), Some("paks"));
+    let disabled_path = tmp
+        .path()
+        .join("CrimeBoss/Content/Paks/~mods/disabled")
+        .join(format!("{}.disabled", m.filename));
+    assert!(disabled_path.exists());
 }

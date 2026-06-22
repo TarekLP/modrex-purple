@@ -27,6 +27,7 @@ export interface InstalledContextValue {
     handleEnable: (mods: InstalledMod[]) => Promise<void>
     handleDisable: (mods: InstalledMod[]) => Promise<void>
     handleReinstall: (mods: InstalledMod[]) => Promise<void>
+    requestMoveCrimeBossTarget: (mod: InstalledMod) => void
     folderActions: FolderActions
     dragItem: DragItem | null
     dropTarget: DropTarget

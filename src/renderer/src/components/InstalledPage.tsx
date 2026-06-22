@@ -6,6 +6,7 @@ import { ZipPickerModal } from './ZipPickerModal'
 import { HostPackModal } from './HostPackModal'
 import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
 import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
+import { MoveCrimeBossTargetModal } from './MoveCrimeBossTargetModal'
 import { UpdatesModal } from './UpdatesModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
@@ -73,11 +74,17 @@ export function InstalledPage({
         clearUnrecognizedModId,
         cbFlatArchiveData,
         clearCbFlatArchiveData,
+        movingCrimeBossTarget,
+        crimeBossMoveBusy,
+        crimeBossMoveError,
         handleRefresh,
         handleUninstall,
         handleEnable,
         handleDisable,
         handleReinstall,
+        requestMoveCrimeBossTarget,
+        confirmMoveCrimeBossTarget,
+        cancelMoveCrimeBossTarget,
     } = useModActions(gamePath, onRefreshInstalled, activeGame)
 
     const folderActions = useFolderActions(gamePath, onRefreshInstalled, activeGame)
@@ -190,6 +197,7 @@ export function InstalledPage({
         handleEnable,
         handleDisable,
         handleReinstall,
+        requestMoveCrimeBossTarget,
         folderActions,
         dragItem,
         dropTarget,
@@ -243,6 +251,16 @@ export function InstalledPage({
                     <UnrecognizedArchiveModal
                         modId={unrecognizedModId}
                         onClose={clearUnrecognizedModId}
+                    />
+                )}
+                {movingCrimeBossTarget && (
+                    <MoveCrimeBossTargetModal
+                        modName={movingCrimeBossTarget.name}
+                        toLegacy={!movingCrimeBossTarget.location}
+                        busy={crimeBossMoveBusy}
+                        error={crimeBossMoveError}
+                        onConfirm={confirmMoveCrimeBossTarget}
+                        onCancel={cancelMoveCrimeBossTarget}
                     />
                 )}
                 <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">

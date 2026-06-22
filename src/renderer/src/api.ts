@@ -243,6 +243,9 @@ export const api = {
     disableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
         return invoke('disable_mod', { uid, gamePath, gameId })
     },
+    moveCrimeBossModTarget(uid: string, gamePath: string): Promise<void> {
+        return invoke('move_crimeboss_mod_target', { uid, gamePath })
+    },
     reorderModsInFolder(
         folderId: string | null,
         orderedUids: string[],

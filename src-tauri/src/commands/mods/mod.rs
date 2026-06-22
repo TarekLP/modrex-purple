@@ -24,7 +24,8 @@ pub(crate) use self::folders::{
     create_folder_op, delete_folder_op, move_folder_op, rename_folder_op,
 };
 pub(crate) use self::install::{
-    disable_mod_op, enable_mod_op, install_host_pack_op, uninstall_mod_op,
+    disable_mod_op, enable_mod_op, install_host_pack_op, move_crimeboss_mod_target_op,
+    uninstall_mod_op,
 };
 pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
 pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path};
@@ -1577,6 +1578,32 @@ pub fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Opti
         "mod_disabled",
         serde_json::json!({ "game": game_id.as_deref().unwrap_or("pd3") }),
     );
+}
+
+#[tauri::command]
+pub fn move_crimeboss_mod_target(
+    app: AppHandle,
+    game_path: String,
+    uid: String,
+) -> Result<(), String> {
+    let cfg = engine_for_game("cb");
+    let settings = read_settings(&app);
+    let launcher = game_settings(&settings, "cb").and_then(|gs| gs.launcher.clone());
+    let result = move_crimeboss_mod_target_op(
+        &game_path,
+        &get_state_path(&game_path, cfg),
+        &uid,
+        cfg,
+        launcher.as_deref(),
+    );
+    if result.is_ok() {
+        crate::commands::analytics::track(
+            &app,
+            "mod_target_moved",
+            serde_json::json!({ "game": "cb" }),
+        );
+    }
+    result
 }
 
 #[tauri::command]

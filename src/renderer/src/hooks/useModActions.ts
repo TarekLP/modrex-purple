@@ -23,11 +23,17 @@ export interface ModActions {
     clearUnrecognizedModId: () => void
     cbFlatArchiveData: CbFlatArchivePayload | null
     clearCbFlatArchiveData: () => void
+    movingCrimeBossTarget: InstalledMod | null
+    crimeBossMoveBusy: boolean
+    crimeBossMoveError: string | null
     handleRefresh: () => Promise<void>
     handleUninstall: (mods: InstalledMod[]) => Promise<void>
     handleEnable: (mods: InstalledMod[]) => Promise<void>
     handleDisable: (mods: InstalledMod[]) => Promise<void>
     handleReinstall: (mods: InstalledMod[]) => Promise<void>
+    requestMoveCrimeBossTarget: (mod: InstalledMod) => void
+    confirmMoveCrimeBossTarget: () => Promise<void>
+    cancelMoveCrimeBossTarget: () => void
 }
 
 export function useModActions(
@@ -46,6 +52,9 @@ export function useModActions(
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
     const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
+    const [movingCrimeBossTarget, setMovingCrimeBossTarget] = useState<InstalledMod | null>(null)
+    const [crimeBossMoveBusy, setCrimeBossMoveBusy] = useState(false)
+    const [crimeBossMoveError, setCrimeBossMoveError] = useState<string | null>(null)
 
     async function handleRefresh() {
         setRefreshing(true)
@@ -130,6 +139,38 @@ export function useModActions(
         await onRefreshInstalled()
     }
 
+    // Both directions ask for confirmation before moving — Mods/ (ModKit) -> ~mods drops Data
+    // Table merge behavior, ~mods -> Mods/ only gains it, but either way the move is silent
+    // otherwise, so the dialog is also the only feedback that anything happened.
+    function requestMoveCrimeBossTarget(mod: InstalledMod) {
+        setCrimeBossMoveError(null)
+        setMovingCrimeBossTarget(mod)
+    }
+
+    async function doMoveCrimeBossTarget(mod: InstalledMod) {
+        if (!gamePath) return
+        setCrimeBossMoveBusy(true)
+        setCrimeBossMoveError(null)
+        try {
+            await api.moveCrimeBossModTarget(mod.uid, gamePath)
+            await onRefreshInstalled()
+            setMovingCrimeBossTarget(null)
+        } catch (e) {
+            setCrimeBossMoveError(String(e))
+        } finally {
+            setCrimeBossMoveBusy(false)
+        }
+    }
+
+    async function confirmMoveCrimeBossTarget() {
+        if (movingCrimeBossTarget) await doMoveCrimeBossTarget(movingCrimeBossTarget)
+    }
+
+    function cancelMoveCrimeBossTarget() {
+        setMovingCrimeBossTarget(null)
+        setCrimeBossMoveError(null)
+    }
+
     return {
         loadingMod,
         reinstallProgress,
@@ -144,10 +185,16 @@ export function useModActions(
         clearUnrecognizedModId: () => setUnrecognizedModId(null),
         cbFlatArchiveData,
         clearCbFlatArchiveData: () => setCbFlatArchiveData(null),
+        movingCrimeBossTarget,
+        crimeBossMoveBusy,
+        crimeBossMoveError,
         handleRefresh,
         handleUninstall,
         handleEnable,
         handleDisable,
         handleReinstall,
+        requestMoveCrimeBossTarget,
+        confirmMoveCrimeBossTarget,
+        cancelMoveCrimeBossTarget,
     }
 }

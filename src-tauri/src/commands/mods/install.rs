@@ -1,7 +1,10 @@
 use super::crimeboss_settings;
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::host_mods::{host_target_by_id, parse_host_location};
-use super::naming::{apply_priority_prefix, sidecar_path, PAK_SIDECAR_EXTENSIONS};
+use super::naming::{
+    apply_priority_prefix, mod_folder_name, sidecar_path, strip_priority_prefix,
+    PAK_SIDECAR_EXTENSIONS,
+};
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
     mods_base, resolve_host_mod_dir,
@@ -13,6 +16,7 @@ use super::zip::extract_dir_entry;
 use chrono::Utc;
 use std::fs;
 use std::path::Path;
+use uuid::Uuid;
 
 fn is_host_pack(m: &InstalledMod) -> bool {
     m.location
@@ -198,6 +202,121 @@ pub fn install_mod_from_path(
             mods: new_mods,
         },
     );
+    Ok(())
+}
+
+/// Toggles a Crime Boss mod between the primary `mods/<name>/` ModKit skeleton and the legacy
+/// `~mods` flat-pak target. There's no way to tell from file content alone whether a `.pak` was
+/// built by the official ModKit (safe for `Mods/`, gets Data Table additive merge) or is a
+/// pre-ModKit-era loose pak (needs `~mods`, no merge semantics) — see the Crime Boss section of
+/// CLAUDE.md — so this is a user-initiated override rather than something Modrex infers. CB-only:
+/// the other games' secondary targets (`mod_overrides`, `ue4ss_mods`) aren't alternate shapes of
+/// the same content, so there's nothing to toggle there.
+pub fn move_crimeboss_mod_target_op(
+    game_path: &str,
+    state_path: &Path,
+    uid: &str,
+    cfg: &ModEngineConfig,
+    launcher: Option<&str>,
+) -> Result<(), String> {
+    let state = read_state(state_path);
+    let m = state
+        .mods
+        .iter()
+        .find(|m| m.uid == uid)
+        .cloned()
+        .ok_or_else(|| "mod not found".to_string())?;
+
+    let old_target = cfg.target_for(m.location.as_deref());
+    let new_target = if std::ptr::eq(old_target, cfg.primary()) {
+        cfg.targets
+            .iter()
+            .find(|t| t.tag == "paks")
+            .ok_or_else(|| "no legacy paks target for this game".to_string())?
+    } else {
+        cfg.primary()
+    };
+
+    let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
+    let old_path = if m.enabled {
+        active_mod_path(game_path, &m.filename, rel.as_deref(), old_target)
+    } else {
+        disabled_mod_path(game_path, &m.filename, rel.as_deref(), old_target)
+    };
+    if !old_path.exists() {
+        return Err("mod files not found on disk".to_string());
+    }
+
+    // Builds the new target's on-disk shape in a temp location first — unwrapping the skeleton
+    // to a flat pak, or wrapping a flat pak into a fresh skeleton — so install_mod_from_path can
+    // write it exactly like a normal install.
+    let (source, new_filename, tmp_root) = match (&old_target.unit, &new_target.unit) {
+        (ModUnit::Directory { .. }, ModUnit::File { .. }) => {
+            let pak_dir = old_path
+                .join("Content")
+                .join("Paks")
+                .join("WindowsNoEditor");
+            let pak = crimeboss_settings::find_pak_in_dir(&pak_dir)
+                .ok_or_else(|| "no .pak found inside this mod's folder".to_string())?;
+            let filename = pak
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("mod.pak")
+                .to_string();
+            let tmp_root = std::env::temp_dir().join(format!("modrex-move-{}", Uuid::new_v4()));
+            fs::create_dir_all(&tmp_root).map_err(|e| e.to_string())?;
+            let dest = tmp_root.join(&filename);
+            copy_file_with_sidecars(&pak, &dest, "pak")?;
+            (dest, filename, tmp_root)
+        }
+        (ModUnit::File { .. }, ModUnit::Directory { .. }) => {
+            let canonical = strip_priority_prefix(&m.filename).to_string();
+            let tmp_root = std::env::temp_dir().join(format!("modrex-move-{}", Uuid::new_v4()));
+            let skeleton_dir = tmp_root
+                .join("Content")
+                .join("Paks")
+                .join("WindowsNoEditor");
+            fs::create_dir_all(&skeleton_dir).map_err(|e| e.to_string())?;
+            copy_file_with_sidecars(&old_path, &skeleton_dir.join(&canonical), "pak")?;
+            (tmp_root.clone(), mod_folder_name(&m.name), tmp_root)
+        }
+        _ => return Err("unsupported target shapes for this move".to_string()),
+    };
+
+    let mod_data = InstalledMod {
+        filename: new_filename,
+        ..m.clone()
+    };
+    let result = install_mod_from_path(
+        game_path,
+        state_path,
+        mod_data,
+        &source,
+        m.folder_id.clone(),
+        cfg,
+        new_target,
+    );
+    let _ = fs::remove_dir_all(&tmp_root);
+    result?;
+
+    // install_mod_from_path always installs as enabled/active (it's written for fresh installs) —
+    // restore the disabled state here if the mod wasn't active before the move.
+    if !m.enabled {
+        disable_mod_op(game_path, state_path, uid, cfg, launcher);
+    }
+
+    // install_mod_from_path's own "existing" cleanup computes the old path inside the *new*
+    // target's directory using the old filename, which never matches on a cross-target move — the
+    // real old location, under the old target's directory, is removed here instead.
+    match &old_target.unit {
+        ModUnit::File { extension, .. } => {
+            let _ = remove_file_with_sidecars(&old_path, extension);
+        }
+        ModUnit::Directory { .. } => {
+            let _ = fs::remove_dir_all(&old_path);
+        }
+    }
+
     Ok(())
 }
 

@@ -1,9 +1,11 @@
+import { FolderSymlink } from 'lucide-react'
 import { t } from '../i18n'
 import type { InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
+import { Tooltip } from './Tooltip'
 import { syntheticMod } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
@@ -11,6 +13,7 @@ import { ManageFilesModal } from './ManageFilesModal'
 export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const {
         viewMode,
+        activeGame,
         gamePath,
         modData,
         failedIds,
@@ -23,6 +26,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         handleEnable,
         handleDisable,
         handleReinstall,
+        requestMoveCrimeBossTarget,
         onModDragStart,
         onModDragOver,
         onModDrop,
@@ -48,6 +52,38 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         missing: mods.some((m) => m.missing) ? true : undefined,
         archiveBroken: mods.some((m) => m.archiveBroken) ? true : undefined,
     }
+    // CB-only: the primary mods/ (ModKit) and legacy ~mods targets are alternate shapes of the
+    // same content (see CLAUDE.md's Crime Boss section) — ue4ss_mods and host packs aren't.
+    const canMoveCrimeBossTarget =
+        activeGame === 'cb' &&
+        (combined.location === undefined || combined.location === 'paks') &&
+        !combined.missing
+    const moveCrimeBossButton = canMoveCrimeBossTarget ? (
+        <div className="flex items-center gap-1">
+            <span className="px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle">
+                {combined.location === 'paks'
+                    ? t('installed.crimeBossMove.legacyBadge')
+                    : t('installed.crimeBossMove.modkitBadge')}
+            </span>
+            <Tooltip
+                content={
+                    combined.location === 'paks'
+                        ? t('installed.crimeBossMove.toModKit')
+                        : t('installed.crimeBossMove.toLegacy')
+                }
+            >
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        requestMoveCrimeBossTarget(ins)
+                    }}
+                    className="flex items-center justify-center w-6 h-6 rounded bg-surface-raised/80 border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors"
+                >
+                    <FolderSymlink className="w-3.5 h-3.5" />
+                </button>
+            </Tooltip>
+        </div>
+    ) : null
 
     if (!apiMod && !failedIds.has(id) && id >= 0) {
         return viewMode === 'list' ? <SkeletonListRow /> : <SkeletonCard />
@@ -93,6 +129,9 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     >
                         {t('installed.fileCount', { count: mods.length })}
                     </button>
+                )}
+                {moveCrimeBossButton && (
+                    <div className="absolute top-1.5 right-1.5 z-10">{moveCrimeBossButton}</div>
                 )}
                 {showManageFiles && (
                     <ManageFilesModal
@@ -142,6 +181,9 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 >
                     {t('installed.fileCount', { count: mods.length })}
                 </button>
+            )}
+            {moveCrimeBossButton && (
+                <div className="absolute top-2 right-2 z-10">{moveCrimeBossButton}</div>
             )}
             {showManageFiles && (
                 <ManageFilesModal

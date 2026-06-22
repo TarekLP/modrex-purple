@@ -128,6 +128,19 @@
             "updating": "Updating…",
             "updateSelected": "Update Selected ({count})",
             "error": "Update failed. Check your connection and try again."
+        },
+        "crimeBossMove": {
+            "modkitBadge": "ModKit",
+            "legacyBadge": "Legacy",
+            "toLegacy": "Move to ~mods (legacy pak)",
+            "toModKit": "Move to Mods/ (ModKit)",
+            "confirmTitleToLegacy": "Move to legacy ~mods?",
+            "confirmBodyToLegacy": "Mods in Mods/ get the official ModKit's Data Table merge, so multiple mods can add rows to the same table (jobs, weapons, etc.) without conflicting. ~mods is plain pak mounting with no merge — only move \"{name}\" there if it wasn't built with the ModKit and needs to load this way.",
+            "confirmTitleToModkit": "Move to Mods/ (ModKit)?",
+            "confirmBodyToModkit": "Move \"{name}\" from the legacy ~mods folder into Mods/, where the official ModKit's Data Table merge applies.",
+            "confirm": "Move",
+            "moving": "Moving…",
+            "error": "Move failed: {error}"
         }
     },
     "news": {

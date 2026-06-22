@@ -62,6 +62,7 @@ pub fn run() {
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,
+            commands::mods::move_crimeboss_mod_target,
             commands::mods::reorder_in_folder,
             commands::mods::move_to_folder,
             commands::mods::reorder_children,

@@ -89,7 +89,10 @@ async fn send_event(app: &AppHandle, name: &str, mut params: Value) {
         "events": [{ "name": name, "params": params }],
     });
 
-    let url = format!("{}?measurement_id={measurement_id}&api_secret={api_secret}", collect_url());
+    let url = format!(
+        "{}?measurement_id={measurement_id}&api_secret={api_secret}",
+        collect_url()
+    );
     let res = http_client()
         .post(&url)
         .header("User-Agent", user_agent(app))
