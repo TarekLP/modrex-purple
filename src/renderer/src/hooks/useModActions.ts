@@ -5,6 +5,8 @@ import { parseZipMultiPak } from '../components/ZipPickerModal'
 import type { HostPackPayload } from '../components/HostPackModal'
 import { parseHostModPack } from '../components/HostPackModal'
 import { isUnrecognizedArchive } from '../components/UnrecognizedArchiveModal'
+import type { CbFlatArchivePayload } from '../components/CrimeBossFlatArchiveModal'
+import { parseCbFlatArchive } from '../components/CrimeBossFlatArchiveModal'
 import { api } from '../api'
 
 export interface ModActions {
@@ -19,6 +21,8 @@ export interface ModActions {
     clearHostPackData: () => void
     unrecognizedModId: number | null
     clearUnrecognizedModId: () => void
+    cbFlatArchiveData: CbFlatArchivePayload | null
+    clearCbFlatArchiveData: () => void
     handleRefresh: () => Promise<void>
     handleUninstall: (mods: InstalledMod[]) => Promise<void>
     handleEnable: (mods: InstalledMod[]) => Promise<void>
@@ -41,6 +45,7 @@ export function useModActions(
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
+    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
 
     async function handleRefresh() {
         setRefreshing(true)
@@ -105,10 +110,13 @@ export function useModActions(
             const errStr = String(e)
             const zipData = parseZipMultiPak(errStr)
             const hostData = parseHostModPack(errStr)
+            const cbFlatData = parseCbFlatArchive(errStr)
             if (zipData) {
                 setZipPickerData(zipData)
             } else if (hostData) {
                 setHostPackData(hostData)
+            } else if (cbFlatData) {
+                setCbFlatArchiveData(cbFlatData)
             } else if (isUnrecognizedArchive(errStr)) {
                 setUnrecognizedModId(mods[0].id)
             } else {
@@ -134,6 +142,8 @@ export function useModActions(
         clearHostPackData: () => setHostPackData(null),
         unrecognizedModId,
         clearUnrecognizedModId: () => setUnrecognizedModId(null),
+        cbFlatArchiveData,
+        clearCbFlatArchiveData: () => setCbFlatArchiveData(null),
         handleRefresh,
         handleUninstall,
         handleEnable,

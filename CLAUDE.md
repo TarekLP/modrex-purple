@@ -17,7 +17,7 @@ pnpm lint:fix     # ESLint with auto-fix
 pnpm test         # Run all tests: Rust (cargo test) then renderer (vitest)
 pnpm test:renderer # Run only renderer TypeScript tests (vitest)
 pnpm generate-licenses # Regenerate THIRD_PARTY_LICENSES.md (run after adding/updating deps)
-cargo clippy      # Rust lints (run from src-tauri/); a handful of pre-existing warnings are expected (too_many_arguments on install_file/install_from_zip_entry/install_host_pack, plus a few minor style lints) — only treat *new* warnings as signal
+cargo clippy      # Rust lints (run from src-tauri/); a handful of pre-existing warnings are expected (too_many_arguments on install_file/install_from_zip_entry/install_host_pack/install_cb_flat_archive, plus a few minor style lints) — only treat *new* warnings as signal
 cargo fmt         # Format Rust code (run from src-tauri/)
 ```
 

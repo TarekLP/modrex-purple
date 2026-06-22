@@ -216,6 +216,12 @@
         "body": "Modrex couldn't tell where this mod installs — it likely belongs inside another mod. Follow the author's instructions:",
         "noInstructions": "The author didn't include installation instructions. Check the mod's page on ModWorkshop."
     },
+    "cbFlatArchive": {
+        "title": "Install as a mod folder?",
+        "body": "This archive doesn't have its own enclosing folder, so Modrex can't auto-detect a mod name from it. Install all of its contents as \"{name}\" under CrimeBoss/Mods?",
+        "install": "Install",
+        "installing": "Installing…"
+    },
     "depsWarning": {
         "title": "Missing required dependencies",
         "body": "This mod requires the following mods to be installed:",

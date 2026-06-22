@@ -5,6 +5,7 @@ import { Tooltip } from './Tooltip'
 import { ZipPickerModal } from './ZipPickerModal'
 import { HostPackModal } from './HostPackModal'
 import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
+import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
 import { UpdatesModal } from './UpdatesModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
@@ -70,6 +71,8 @@ export function InstalledPage({
         clearHostPackData,
         unrecognizedModId,
         clearUnrecognizedModId,
+        cbFlatArchiveData,
+        clearCbFlatArchiveData,
         handleRefresh,
         handleUninstall,
         handleEnable,
@@ -226,6 +229,14 @@ export function InstalledPage({
                         gameId={activeGame}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={clearHostPackData}
+                    />
+                )}
+                {cbFlatArchiveData && gamePath && (
+                    <CrimeBossFlatArchiveModal
+                        payload={cbFlatArchiveData}
+                        gamePath={gamePath}
+                        onRefreshInstalled={onRefreshInstalled}
+                        onClose={clearCbFlatArchiveData}
                     />
                 )}
                 {unrecognizedModId !== null && (

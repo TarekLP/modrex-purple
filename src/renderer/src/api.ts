@@ -168,7 +168,8 @@ export const api = {
         gamePath: string,
         folderId?: string | null,
         gameId?: string,
-        locationTag?: string
+        locationTag?: string,
+        entryKind?: string
     ): Promise<void> {
         return invoke('install_from_zip_entry', {
             zipPath,
@@ -182,6 +183,28 @@ export const api = {
             folderId,
             gameId,
             locationTag,
+            entryKind,
+        })
+    },
+    installCbFlatArchive(
+        zipPath: string,
+        modId: number,
+        modName: string,
+        fileId: number,
+        fileType: string,
+        modVersion: string,
+        gamePath: string,
+        folderId?: string | null
+    ): Promise<void> {
+        return invoke('install_cb_flat_archive', {
+            zipPath,
+            modId,
+            modName,
+            fileId,
+            fileType,
+            modVersion,
+            gamePath,
+            folderId,
         })
     },
     installHostPack(

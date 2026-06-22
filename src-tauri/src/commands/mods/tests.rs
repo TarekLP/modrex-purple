@@ -154,18 +154,29 @@ fn pd3_standalone_submod_resolves_to_ue4ss_mods_target() {
 }
 
 #[test]
-fn genuinely_unplaceable_archive_still_errors_on_both_games() {
-    // resolve_archive_download deletes the source file on this error path — a fresh zip per
-    // game avoids the second call seeing an already-deleted file.
-    for game_id in ["cb", "pd3"] {
-        let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
-        let cfg = engine_for_game(game_id);
-        let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
-        assert!(
-            err.contains("no .pak files inside"),
-            "game {game_id}: {err}"
-        );
-    }
+fn genuinely_unplaceable_archive_errors_on_pd3() {
+    // PD3 has no marker-less Directory target to fall back to (only ue4ss_mods, which requires
+    // Scripts/main.lua), so a flat archive with nothing installable still hard-errors.
+    let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
+    let cfg = engine_for_game("pd3");
+    let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
+    assert!(err.contains("no .pak files inside"), "{err}");
+}
+
+#[test]
+fn flat_crime_boss_archive_surfaces_confirm_sentinel_not_dead_end() {
+    // Crime Boss's primary `mods` target blanket-accepts any directory, so a flat archive (no
+    // enclosing folder at all) isn't classifiable but also isn't necessarily garbage — surface a
+    // confirm dialog instead of deleting the download outright.
+    let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
+    let cfg = engine_for_game("cb");
+    let zip_path = zip.path().to_path_buf();
+    let err = resolve_archive_download(zip_path.clone(), cfg).unwrap_err();
+    assert!(err.starts_with("CB_FLAT_ARCHIVE:"), "{err}");
+    assert!(
+        zip_path.exists(),
+        "the source archive must survive so the user can confirm install"
+    );
 }
 
 #[test]

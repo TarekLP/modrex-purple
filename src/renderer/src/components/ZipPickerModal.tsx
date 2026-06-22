@@ -20,6 +20,11 @@ export interface ZipMultiPakPayload {
     // that span more than one scan target (e.g. a modpack with both mods/ and mod_overrides/
     // content). `null` = primary target. Absent for single-target archives.
     entryTags?: (string | null)[]
+    // Set to 'dir' when `entries` are directory paths rather than .pak files — only emitted by
+    // classify_archive_dirs's fallback (e.g. Crime Boss ue4ss_mods sub-mods or candidate mod
+    // folders). Forwarded to install_from_zip_entry so Crime Boss doesn't wrap a directory entry
+    // in its pak-only skeleton extractor.
+    entryKind?: 'pak' | 'dir'
 }
 
 export function parseZipMultiPak(error: string): ZipMultiPakPayload | null {
@@ -248,7 +253,8 @@ export function ZipPickerModal({
                         gamePath,
                         null,
                         gameId,
-                        tagByEntry.get(entry) ?? undefined
+                        tagByEntry.get(entry) ?? undefined,
+                        payload.entryKind
                     )
                     await onRefreshInstalled()
                 } catch (e) {
@@ -306,7 +312,8 @@ export function ZipPickerModal({
                     gamePath,
                     folderIdMap.get(dir) ?? null,
                     gameId,
-                    payload.targetTag
+                    payload.targetTag,
+                    payload.entryKind
                 )
                 await onRefreshInstalled()
             } catch (e) {

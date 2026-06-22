@@ -29,6 +29,8 @@ import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { HostPackModal, parseHostModPack } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
 import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
+import { CrimeBossFlatArchiveModal, parseCbFlatArchive } from './CrimeBossFlatArchiveModal'
+import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import {
     collectDeps,
@@ -236,6 +238,7 @@ export function BrowsePage({
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
+    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
@@ -485,6 +488,11 @@ export function BrowsePage({
                     setHostPackData(hostData)
                     return
                 }
+                const cbFlatData = parseCbFlatArchive(errStr)
+                if (cbFlatData) {
+                    setCbFlatArchiveData(cbFlatData)
+                    return
+                }
                 if (isUnrecognizedArchive(errStr)) {
                     setUnrecognizedModId(modId)
                     return
@@ -616,6 +624,14 @@ export function BrowsePage({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setHostPackData(null)}
+                />
+            )}
+            {cbFlatArchiveData && gamePath && (
+                <CrimeBossFlatArchiveModal
+                    payload={cbFlatArchiveData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setCbFlatArchiveData(null)}
                 />
             )}
             {unrecognizedModId !== null && (

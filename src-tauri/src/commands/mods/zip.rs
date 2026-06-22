@@ -831,11 +831,14 @@ fn try_classify_as_directory_target(
     let zip_path = downloaded.to_string_lossy().to_string();
     let entry_names: Vec<&String> = dirs.iter().map(|(d, _)| d).collect();
     let distinct_tags: HashSet<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
+    // These entries are directory paths (from classify_archive_dirs), not .pak files — load-bearing
+    // for Crime Boss, whose install_from_zip_entry otherwise assumes every entry is a single pak
+    // file to wrap in its synthesized skeleton.
     let payload = if distinct_tags.len() == 1 {
-        serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "targetTag": dirs[0].1 })
+        serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "targetTag": dirs[0].1, "entryKind": "dir" })
     } else {
         let entry_tags: Vec<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
-        serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "entryTags": entry_tags, "targetTag": serde_json::Value::Null })
+        serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "entryTags": entry_tags, "targetTag": serde_json::Value::Null, "entryKind": "dir" })
     };
     Some(Err(format!("ZIP_MULTI_PAK:{}", payload)))
 }
@@ -994,8 +997,16 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
             if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
                 return result;
             }
-            let _ = std::fs::remove_file(&downloaded);
-            Err("This mod is packaged as an archive with no .pak files inside.".to_string())
+            // Nothing classified: classify_archive_dirs found no enclosing folder at all (a
+            // genuinely flat archive — every entry sits at the zip root), so there's no folder
+            // name to adopt automatically. Surface a confirm dialog rather than deleting the
+            // download — the renderer can still install the whole archive as one mods/<name>
+            // folder if the user confirms it's the right content.
+            let zip_path = downloaded.to_string_lossy().to_string();
+            Err(format!(
+                "CB_FLAT_ARCHIVE:{}",
+                serde_json::json!({ "zipPath": zip_path })
+            ))
         }
         1 => {
             let tmp = extract_entry_into_crimeboss_skeleton(&downloaded, &entries[0])?;

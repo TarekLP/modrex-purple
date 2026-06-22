@@ -862,7 +862,11 @@ pub async fn install_mod(
             let _ = std::fs::remove_file(&zip_path);
             return result;
         }
-        Err(e) if e.starts_with("ZIP_MULTI_PAK:") || e.starts_with("HOST_MOD_PACK:") => {
+        Err(e)
+            if e.starts_with("ZIP_MULTI_PAK:")
+                || e.starts_with("HOST_MOD_PACK:")
+                || e.starts_with("CB_FLAT_ARCHIVE:") =>
+        {
             let prefix = e
                 .split_once(':')
                 .map(|(p, _)| format!("{p}:"))
@@ -1046,7 +1050,11 @@ pub async fn install_file(
             let _ = std::fs::remove_file(&zip_path);
             return result;
         }
-        Err(e) if e.starts_with("ZIP_MULTI_PAK:") || e.starts_with("HOST_MOD_PACK:") => {
+        Err(e)
+            if e.starts_with("ZIP_MULTI_PAK:")
+                || e.starts_with("HOST_MOD_PACK:")
+                || e.starts_with("CB_FLAT_ARCHIVE:") =>
+        {
             let prefix = e
                 .split_once(':')
                 .map(|(p, _)| format!("{p}:"))
@@ -1211,11 +1219,16 @@ pub async fn install_from_zip_entry(
     folder_id: Option<String>,
     game_id: Option<String>,
     location_tag: Option<String>,
+    entry_kind: Option<String>,
 ) -> Result<(), String> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let target = cfg.target_for(location_tag.as_deref());
     let zip = PathBuf::from(&zip_path);
     let install_format = file_type.clone(); // file_type is moved before the success emit below
+
+    // Set only by classify_archive_dirs's ZIP_MULTI_PAK payload (a ue4ss_mods sub-mod folder, or
+    // a candidate mod folder) — see the (ext, tmp_parent) branch below.
+    let cb_dir_entry = cfg.game_id == "cb" && entry_kind.as_deref() == Some("dir");
 
     // entry_stem / entry_filename are the last path component of entry_name.
     let entry_stem = std::path::Path::new(&entry_name)
@@ -1230,11 +1243,17 @@ pub async fn install_from_zip_entry(
 
     // For File mods: ext is a temp .pak file.
     // For Directory mods: ext is {tmp_parent}/{dir_name} (two-level, consistent with resolve_archive_download).
-    // Crime Boss is neither: the chosen .pak entry (plus its .ucas/.utoc siblings) is wrapped in
-    // a synthesized Content/Paks/WindowsNoEditor skeleton — see extract_entry_into_crimeboss_skeleton.
-    let (ext, tmp_parent) = if cfg.game_id == "cb" {
+    // Crime Boss pak entries are neither: the chosen .pak entry (plus its .ucas/.utoc siblings) is
+    // wrapped in a synthesized Content/Paks/WindowsNoEditor skeleton — see
+    // extract_entry_into_crimeboss_skeleton. Crime Boss directory entries (cb_dir_entry) use the
+    // same two-level scheme as every other Directory-unit game.
+    let (ext, tmp_parent) = if cfg.game_id == "cb" && !cb_dir_entry {
         let skeleton_root = extract_entry_into_crimeboss_skeleton(&zip, &entry_name)?;
         (skeleton_root.clone(), Some(skeleton_root))
+    } else if cb_dir_entry {
+        let parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+        let p = parent.join(&entry_filename);
+        (p, Some(parent))
     } else {
         match &target.unit {
             engine::ModUnit::File { .. } => {
@@ -1258,7 +1277,9 @@ pub async fn install_from_zip_entry(
     };
 
     let result = async {
-        if cfg.game_id != "cb" {
+        if cb_dir_entry {
+            extract_dir_entry(&zip, &entry_name, &ext)?
+        } else if cfg.game_id != "cb" {
             match &target.unit {
                 engine::ModUnit::File { .. } => {
                     extract_entry_with_sidecars(&zip, &entry_name, &ext)?
@@ -1347,6 +1368,95 @@ pub async fn install_from_zip_entry(
                 "game": game_id.as_deref().unwrap_or("pd3"),
                 "mod_id": mod_id,
                 "format": install_format,
+            }),
+        );
+    }
+    result
+}
+
+/// Installs a Crime Boss archive whose content has no enclosing folder (every entry sits at the
+/// zip root) — the renderer reaches this after a user confirms a `CB_FLAT_ARCHIVE` dialog. There's
+/// only one possible destination (the primary `mods` target, which blanket-accepts any directory),
+/// so unlike `install_from_zip_entry` there's no entry to pick: the whole archive is extracted flat
+/// and installed as a single `mods/<name>` folder named from the mod's display name.
+#[tauri::command]
+pub async fn install_cb_flat_archive(
+    app: AppHandle,
+    zip_path: String,
+    mod_id: i64,
+    mod_name: String,
+    file_id: i64,
+    file_type: String,
+    mod_version: String,
+    game_path: String,
+    folder_id: Option<String>,
+) -> Result<(), String> {
+    let cfg = engine_for_game("cb");
+    let target = cfg.primary();
+    let zip = PathBuf::from(&zip_path);
+    let tmp_dir = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
+
+    let result = async {
+        extract_archive_flat(&zip, &tmp_dir)?;
+        let hash_path = hashable_file_for_mod_dir(&tmp_dir)
+            .ok_or_else(|| "mod directory is empty".to_string())?;
+        let sha256 = compute_sha256(&hash_path).await?;
+        let sp = get_state_path(&game_path, cfg);
+        let saved = read_state(&sp);
+        let uid = format!("{}_flat", file_id);
+        let sha256_match = saved
+            .mods
+            .iter()
+            .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
+        let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
+        let filename = naming::mod_folder_name(&mod_name);
+
+        install_mod_from_path(
+            &game_path,
+            &sp,
+            InstalledMod {
+                uid,
+                id: mod_id,
+                name: mod_name,
+                version: mod_version,
+                filename,
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                file_id: Some(file_id),
+                file_type: Some(file_type.clone()),
+                sha256: Some(sha256),
+                ..InstalledMod::default()
+            },
+            &tmp_dir,
+            folder_id,
+            cfg,
+            target,
+        )?;
+
+        let _ = http_client()
+            .post(format!(
+                "https://api.modworkshop.net/files/{}/register-download",
+                file_id
+            ))
+            .header("User-Agent", user_agent(&app))
+            .send()
+            .await;
+
+        Ok::<(), String>(())
+    }
+    .await;
+
+    let _ = tokio::fs::remove_dir_all(&tmp_dir).await;
+    let _ = tokio::fs::remove_file(&zip).await;
+
+    if result.is_ok() {
+        crate::commands::analytics::track(
+            &app,
+            "mod_installed",
+            serde_json::json!({
+                "game": "cb",
+                "mod_id": mod_id,
+                "format": file_type,
             }),
         );
     }

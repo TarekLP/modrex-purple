@@ -1,0 +1,127 @@
+import { useState } from 'react'
+import { X } from 'lucide-react'
+import { Dialog } from './Dialog'
+import { t } from '../i18n'
+import { api } from '../api'
+
+export interface CbFlatArchivePayload {
+    zipPath: string
+    modId: number
+    modName: string
+    fileId: number
+    fileType: string
+    modVersion: string
+}
+
+export function parseCbFlatArchive(error: string): CbFlatArchivePayload | null {
+    const PREFIX = 'CB_FLAT_ARCHIVE:'
+    if (!error.startsWith(PREFIX)) return null
+    try {
+        return JSON.parse(error.slice(PREFIX.length)) as CbFlatArchivePayload
+    } catch {
+        return null
+    }
+}
+
+interface Props {
+    payload: CbFlatArchivePayload
+    gamePath: string
+    folderId?: string | null
+    onRefreshInstalled: () => Promise<void>
+    onClose: () => void
+}
+
+/**
+ * Confirms installing a Crime Boss archive that has no enclosing folder (every entry sits at the
+ * zip root) — there's only one possible destination (the primary mods/ target), so this is a
+ * yes/no confirmation rather than a picker.
+ */
+export function CrimeBossFlatArchiveModal({
+    payload,
+    gamePath,
+    folderId,
+    onRefreshInstalled,
+    onClose,
+}: Props) {
+    const [busy, setBusy] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    async function handleInstall() {
+        setBusy(true)
+        setError(null)
+        try {
+            await api.installCbFlatArchive(
+                payload.zipPath,
+                payload.modId,
+                payload.modName,
+                payload.fileId,
+                payload.fileType,
+                payload.modVersion,
+                gamePath,
+                folderId
+            )
+            await onRefreshInstalled()
+            onClose()
+        } catch (e) {
+            setError(String(e))
+            setBusy(false)
+        }
+    }
+
+    async function handleCancel() {
+        if (busy) return
+        await api.deleteTempFile(payload.zipPath)
+        onClose()
+    }
+
+    return (
+        <Dialog
+            open={true}
+            onOpenChange={(open) => !open && handleCancel()}
+            title={t('cbFlatArchive.title')}
+            className="w-[460px]"
+        >
+            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
+                <div className="min-w-0">
+                    <h2 className="text-sm font-semibold">{t('cbFlatArchive.title')}</h2>
+                    <p className="text-xs text-text-muted mt-0.5 truncate">{payload.modName}</p>
+                </div>
+                <button
+                    onClick={!busy ? handleCancel : undefined}
+                    disabled={busy}
+                    className="text-text-subtle hover:text-text transition-colors shrink-0 mt-0.5 disabled:opacity-40"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+            </div>
+
+            <div className="px-5 py-4 flex flex-col gap-3">
+                {error && (
+                    <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
+                        {error}
+                    </div>
+                )}
+                <p className="text-sm text-text-muted">
+                    {t('cbFlatArchive.body', { name: payload.modName })}
+                </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+                <button
+                    onClick={!busy ? handleCancel : undefined}
+                    disabled={busy}
+                    className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
+                >
+                    {t('common.cancel')}
+                </button>
+                <button
+                    disabled={busy}
+                    onClick={handleInstall}
+                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                    {busy ? t('cbFlatArchive.installing') : t('cbFlatArchive.install')}
+                </button>
+            </div>
+        </Dialog>
+    )
+}

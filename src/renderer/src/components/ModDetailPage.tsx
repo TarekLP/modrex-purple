@@ -41,6 +41,8 @@ import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { HostPackModal, parseHostModPack } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
 import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
+import { CrimeBossFlatArchiveModal, parseCbFlatArchive } from './CrimeBossFlatArchiveModal'
+import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import {
     collectDeps,
@@ -115,6 +117,7 @@ export function ModDetailPage({
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
+    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -266,6 +269,11 @@ export function ModDetailPage({
             const hostData = parseHostModPack(String(e))
             if (hostData) {
                 setHostPackData(hostData)
+                return
+            }
+            const cbFlatData = parseCbFlatArchive(String(e))
+            if (cbFlatData) {
+                setCbFlatArchiveData(cbFlatData)
                 return
             }
             if (isUnrecognizedArchive(String(e))) {
@@ -442,6 +450,14 @@ export function ModDetailPage({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setHostPackData(null)}
+                />
+            )}
+            {cbFlatArchiveData && gamePath && (
+                <CrimeBossFlatArchiveModal
+                    payload={cbFlatArchiveData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setCbFlatArchiveData(null)}
                 />
             )}
             {unrecognizedModId !== null && (
@@ -928,6 +944,7 @@ function DownloadsTab({
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
+    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
 
     async function handleUninstallFile(file: ModFile) {
         if (!gamePath) return
@@ -978,6 +995,11 @@ function DownloadsTab({
                 setHostPackData(hostData)
                 return
             }
+            const cbFlatData = parseCbFlatArchive(errStr)
+            if (cbFlatData) {
+                setCbFlatArchiveData(cbFlatData)
+                return
+            }
             if (isUnrecognizedArchive(errStr)) {
                 setUnrecognizedModId(mod.id)
                 return
@@ -1023,6 +1045,14 @@ function DownloadsTab({
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setHostPackData(null)}
+                />
+            )}
+            {cbFlatArchiveData && gamePath && (
+                <CrimeBossFlatArchiveModal
+                    payload={cbFlatArchiveData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setCbFlatArchiveData(null)}
                 />
             )}
             {unrecognizedModId !== null && (
