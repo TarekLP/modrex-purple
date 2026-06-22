@@ -10,7 +10,7 @@
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/modrexio/modrex/releases/latest)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/tenzpx8JRM)
 
-A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), and [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/) powered by [modworkshop](https://modworkshop.net).
+A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/), and [Crime Boss: Rockay City](https://store.steampowered.com/app/2933080/Crime_Boss_Rockay_City/) powered by [modworkshop](https://modworkshop.net).
 
 </div>
 
@@ -25,29 +25,31 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 ## Features
 
-- Supports PAYDAY 3, PAYDAY 2, and PAYDAY: The Heist — switch games from the sidebar
+- Supports PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City — switch games from a searchable game picker
 - Browse and search mods from modworkshop
+- In-app News tab with the latest posts for each game
 - Full mod detail page: description, images, downloads, changelog, dependencies, and install instructions
 - Rich description rendering: formatted text, tables, collapsible sections, colored text, and inline video embeds (YouTube, Streamable)
-- One-click install, uninstall, enable, and disable — supports `.pak`, `.zip`, `.7z`, and `.rar` mods
+- One-click install, uninstall, enable, and disable — supports `.pak`, `.zip`, `.7z`, `.rar`, and `.tar.gz`/`.tar.xz` mods
 - Organize mods into folders with arbitrary nesting depth and drag-and-drop reordering
-- Mods with multiple installed files grouped as a single card
+- Mods with multiple installed files grouped as a single card, with per-file management
 - Update detection with selective per-mod updates
 - Launch modded or vanilla directly from the app
 - Automatically detects your game installation (Steam, Epic Games Store, Xbox App)
-- One-click install for mod loaders: SuperBLT (PD2), DAHM and PDTHModOverrides (PDTH)
+- One-click install for mod loaders: SuperBLT (PD2), DAHM and PDTHModOverrides (PDTH), UE4SS (PD3, Crime Boss)
 - Identifies manually placed mod files via SHA256 lookup against a live mod index
 - Automatic update checks with one-click in-app updates
 
 ## Requirements
 
-PAYDAY 2 and PAYDAY: The Heist support Steam on Windows and Linux. PAYDAY 3 additionally supports Epic Games Store and Xbox App on Windows.
+Steam works on Windows and Linux for every supported game. Epic Games Store and Xbox App are Windows-only.
 
-| Launcher                                                                                                                                                 | <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows | <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------: |
-| <img src="assets/icons/steam.svg#gh-light-mode-only" width="16"><img src="assets/icons/steam-white.svg#gh-dark-mode-only" width="16"> Steam              |                                               ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |
-| <img src="assets/icons/epicgames.svg#gh-light-mode-only" width="16"><img src="assets/icons/epicgames-white.svg#gh-dark-mode-only" width="16"> Epic Games |                                               ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                |                                                 ![no](https://img.shields.io/badge/No-red)                                                  |
-| <img src="assets/icons/xbox.svg#gh-light-mode-only" width="16"><img src="assets/icons/xbox-white.svg#gh-dark-mode-only" width="16"> Xbox App             |                                               ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                |                                                 ![no](https://img.shields.io/badge/No-red)                                                  |
+| Game                    | <img src="assets/icons/steam.svg#gh-light-mode-only" width="16"><img src="assets/icons/steam-white.svg#gh-dark-mode-only" width="16"> Steam | <img src="assets/icons/epicgames.svg#gh-light-mode-only" width="16"><img src="assets/icons/epicgames-white.svg#gh-dark-mode-only" width="16"> Epic Games | <img src="assets/icons/xbox.svg#gh-light-mode-only" width="16"><img src="assets/icons/xbox-white.svg#gh-dark-mode-only" width="16"> Xbox App |
+| ----------------------- | :-----------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------: |
+| PAYDAY 3                |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                   ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                   |                                             ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |
+| PAYDAY 2                |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                   ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                   |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
+| PAYDAY: The Heist       |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                        ![no](https://img.shields.io/badge/No-red)                                                        |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
+| Crime Boss: Rockay City |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                   ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                   |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
 
 ## Troubleshooting
 
