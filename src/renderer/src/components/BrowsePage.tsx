@@ -31,6 +31,8 @@ import type { HostPackPayload } from './HostPackModal'
 import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
 import { CrimeBossFlatArchiveModal, parseCbFlatArchive } from './CrimeBossFlatArchiveModal'
 import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
+import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
+import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
 import {
     collectDeps,
@@ -239,6 +241,12 @@ export function BrowsePage({
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
     const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
+    const crimeBossInstallTarget = useCrimeBossInstallTarget(
+        activeGame,
+        gamePath,
+        onRefreshInstalled
+    )
+    const { runInstall: runCrimeBossInstall } = crimeBossInstallTarget
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
@@ -475,7 +483,7 @@ export function BrowsePage({
                     setFormatWarning({ modId, mod: fullMod })
                     return
                 }
-                await doInstall(modId, fullMod)
+                await runCrimeBossInstall(modId, fullMod.name, () => doInstall(modId, fullMod))
             } catch (e) {
                 const errStr = String(e)
                 const zipData = parseZipMultiPak(errStr)
@@ -502,7 +510,7 @@ export function BrowsePage({
                 setLoadingMod(null)
             }
         },
-        [gamePath, doInstall]
+        [gamePath, doInstall, runCrimeBossInstall]
     )
 
     const handleUninstall = useCallback(
@@ -585,7 +593,9 @@ export function BrowsePage({
                         setFormatWarning(null)
                         setLoadingMod(modId)
                         try {
-                            await doInstall(modId, fullMod)
+                            await runCrimeBossInstall(modId, fullMod.name, () =>
+                                doInstall(modId, fullMod)
+                            )
                         } catch (e) {
                             setError(String(e))
                         } finally {
@@ -632,6 +642,15 @@ export function BrowsePage({
                     gamePath={gamePath}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setCbFlatArchiveData(null)}
+                />
+            )}
+            {crimeBossInstallTarget.pendingChoice && (
+                <CrimeBossInstallTargetModal
+                    modName={crimeBossInstallTarget.pendingChoice.modName}
+                    busy={crimeBossInstallTarget.relocating}
+                    error={crimeBossInstallTarget.error}
+                    onChoose={crimeBossInstallTarget.confirmChoice}
+                    onCancel={crimeBossInstallTarget.cancelChoice}
                 />
             )}
             {unrecognizedModId !== null && (

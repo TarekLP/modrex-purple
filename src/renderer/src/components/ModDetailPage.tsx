@@ -43,6 +43,8 @@ import type { HostPackPayload } from './HostPackModal'
 import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
 import { CrimeBossFlatArchiveModal, parseCbFlatArchive } from './CrimeBossFlatArchiveModal'
 import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
+import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
+import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
 import {
     collectDeps,
@@ -118,6 +120,11 @@ export function ModDetailPage({
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
     const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
+    const crimeBossInstallTarget = useCrimeBossInstallTarget(
+        activeGame,
+        gamePath,
+        onRefreshInstalled
+    )
     const [downloadProgress, setDownloadProgress] = useState<{
         downloaded: number
         total: number
@@ -219,7 +226,7 @@ export function ModDetailPage({
             return
         }
         try {
-            await doInstall()
+            await crimeBossInstallTarget.runInstall(mod.id, mod.name, doInstall)
         } catch (e) {
             setInstallError(String(e))
         }
@@ -432,6 +439,15 @@ export function ModDetailPage({
 
     return (
         <div className="h-full flex flex-col">
+            {crimeBossInstallTarget.pendingChoice && (
+                <CrimeBossInstallTargetModal
+                    modName={crimeBossInstallTarget.pendingChoice.modName}
+                    busy={crimeBossInstallTarget.relocating}
+                    error={crimeBossInstallTarget.error}
+                    onChoose={crimeBossInstallTarget.confirmChoice}
+                    onCancel={crimeBossInstallTarget.cancelChoice}
+                />
+            )}
             {zipPickerData && gamePath && (
                 <ZipPickerModal
                     payload={zipPickerData}
@@ -482,7 +498,7 @@ export function ModDetailPage({
                     onConfirm={async () => {
                         setShowHeaderFormatWarning(false)
                         try {
-                            await doInstall()
+                            await crimeBossInstallTarget.runInstall(mod!.id, mod!.name, doInstall)
                         } catch (e) {
                             setInstallError(String(e))
                         }
@@ -945,6 +961,11 @@ function DownloadsTab({
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
     const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
+    const crimeBossInstallTarget = useCrimeBossInstallTarget(
+        activeGame ?? 'pd3',
+        gamePath,
+        onRefreshInstalled
+    )
 
     async function handleUninstallFile(file: ModFile) {
         if (!gamePath) return
@@ -964,7 +985,7 @@ function DownloadsTab({
             setFormatWarningFile(file)
             return
         }
-        doInstallFile(file)
+        crimeBossInstallTarget.runInstall(mod.id, mod.name, () => doInstallFile(file))
     }
 
     async function doInstallFile(file: ModFile) {
@@ -1027,6 +1048,15 @@ function DownloadsTab({
 
     return (
         <div className="flex flex-col gap-3">
+            {crimeBossInstallTarget.pendingChoice && (
+                <CrimeBossInstallTargetModal
+                    modName={crimeBossInstallTarget.pendingChoice.modName}
+                    busy={crimeBossInstallTarget.relocating}
+                    error={crimeBossInstallTarget.error}
+                    onChoose={crimeBossInstallTarget.confirmChoice}
+                    onCancel={crimeBossInstallTarget.cancelChoice}
+                />
+            )}
             {zipPickerData && gamePath && (
                 <ZipPickerModal
                     payload={zipPickerData}
@@ -1066,7 +1096,9 @@ function DownloadsTab({
                     onConfirm={() => {
                         const file = formatWarningFile!
                         setFormatWarningFile(null)
-                        doInstallFile(file)
+                        crimeBossInstallTarget.runInstall(mod.id, mod.name, () =>
+                            doInstallFile(file)
+                        )
                     }}
                     onCancel={() => setFormatWarningFile(null)}
                 />

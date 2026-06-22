@@ -63,6 +63,9 @@ export function SettingsPage({
         () => getSettingsCache(activeGame)?.settings.launchOptions ?? ''
     )
     const launchOptionsLoaded = useRef(false)
+    const [crimeBossInstallMode, setCrimeBossInstallMode] = useState(
+        () => getSettingsCache(activeGame)?.settings.crimebossInstallMode ?? 'auto'
+    )
 
     // Controls the reopened consent pop-up. Consent itself is owned by App.tsx so
     // the first-run dialog and this toggle stay in sync.
@@ -88,6 +91,7 @@ export function SettingsPage({
             if (effective !== gs.launcher) api.setLauncher(effective, activeGame)
             setLaunchOptions(gs.launchOptions ?? '')
             launchOptionsLoaded.current = true
+            setCrimeBossInstallMode(gs.crimebossInstallMode ?? 'auto')
         })
         return () => {
             cancelled = true
@@ -139,6 +143,12 @@ export function SettingsPage({
         setLauncher(value)
         patchSettingsCache(activeGame, { launcher: value })
         await api.setLauncher(value, activeGame)
+    }
+
+    async function handleCrimeBossInstallModeChange(value: string) {
+        setCrimeBossInstallMode(value)
+        patchSettingsCache(activeGame, { crimebossInstallMode: value })
+        await api.setCrimeBossInstallMode(value)
     }
 
     // Render once with final values: until the first fetch (usually the prefetch in
@@ -212,6 +222,30 @@ export function SettingsPage({
                         />
                     </div>
                 </section>
+
+                {activeGame === 'cb' && (
+                    <section className="max-w-xl flex flex-col gap-2 mt-6">
+                        <h2 className="text-sm font-semibold">
+                            {t('settings.crimeBossInstallMode.title')}
+                        </h2>
+                        <p className="text-xs text-text-subtle">
+                            {t('settings.crimeBossInstallMode.description')}
+                        </p>
+                        <div className="mt-1">
+                            <Select
+                                value={crimeBossInstallMode}
+                                onChange={handleCrimeBossInstallModeChange}
+                                options={[
+                                    {
+                                        value: 'auto',
+                                        label: t('settings.crimeBossInstallMode.auto'),
+                                    },
+                                    { value: 'ask', label: t('settings.crimeBossInstallMode.ask') },
+                                ]}
+                            />
+                        </div>
+                    </section>
+                )}
 
                 <section className="max-w-xl flex flex-col gap-2 mt-6">
                     <h2 className="text-sm font-semibold">{t('settings.updates.title')}</h2>

@@ -46,6 +46,7 @@ pub fn run() {
             commands::settings::set_game_path,
             commands::settings::set_launcher,
             commands::settings::set_launch_options,
+            commands::settings::set_crimeboss_install_mode,
             commands::settings::set_skip_fileopenlog_warning,
             commands::settings::dismiss_deps_warning,
             commands::settings::get_analytics_consent,

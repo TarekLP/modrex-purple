@@ -10,6 +10,9 @@ pub struct GameSettings {
     pub game_path: Option<String>,
     pub launcher: Option<String>,
     pub launch_options: Option<String>,
+    // Crime Boss only: "auto" (default, every install lands in Mods/) or "ask" (the renderer
+    // shows a Mods/ vs ~mods choice before each new install). `None` behaves as "auto".
+    pub crimeboss_install_mode: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -50,6 +53,7 @@ pub fn migrate_settings(mut s: Settings) -> Settings {
                     game_path: s.game_path.clone(),
                     launcher: s.launcher.clone(),
                     launch_options: s.launch_options.clone(),
+                    ..GameSettings::default()
                 },
             );
         }
@@ -232,6 +236,17 @@ pub fn set_launch_options(app: AppHandle, game_id: Option<String>, launch_option
         .entry(game_id)
         .or_default()
         .launch_options = Some(launch_options);
+    write_settings(&app, &s);
+}
+
+#[tauri::command]
+pub fn set_crimeboss_install_mode(app: AppHandle, mode: String) {
+    let mut s = read_settings(&app);
+    s.games
+        .get_or_insert_with(HashMap::new)
+        .entry("cb".to_string())
+        .or_default()
+        .crimeboss_install_mode = Some(mode);
     write_settings(&app, &s);
 }
 

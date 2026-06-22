@@ -26,6 +26,8 @@ export type GameSettings = {
     gamePath?: string
     launcher?: string
     launchOptions?: string
+    // Crime Boss only: 'auto' (default) or 'ask'. Absent behaves as 'auto'.
+    crimebossInstallMode?: string
 }
 
 function onEvent<T>(eventName: string, callback: (payload: T) => void): () => void {
@@ -79,6 +81,9 @@ export const api = {
     },
     setLaunchOptions(launchOptions: string, gameId?: string): Promise<void> {
         return invoke('set_launch_options', { launchOptions, ...(gameId ? { gameId } : {}) })
+    },
+    setCrimeBossInstallMode(mode: string): Promise<void> {
+        return invoke('set_crimeboss_install_mode', { mode })
     },
     setSkipFileOpenLogWarning(skip: boolean): Promise<void> {
         return invoke('set_skip_fileopenlog_warning', { skip })
