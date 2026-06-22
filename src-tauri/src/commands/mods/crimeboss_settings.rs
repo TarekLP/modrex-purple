@@ -1,3 +1,4 @@
+use super::naming::strip_priority_prefix;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -11,8 +12,11 @@ const PAK_SUFFIX: &str = "CrimeBoss-WindowsNoEditor";
 /// Derives the ModSettings JSON id from a Crime Boss mod's `.pak` filename. Returns `None` for
 /// paks that don't follow the ModKit's standard cook-output naming (e.g. mods authored outside
 /// the official ModKit, like loose pre-ModKit-era paks) — such mods have no UGC object and thus
-/// no in-game `Enabled` toggle to sync.
+/// no in-game `Enabled` toggle to sync. Strips the legacy `~mods` target's load-order prefix
+/// (`NNN_`) first — the in-game id is derived from the ModKit's own package name and has no
+/// awareness of Modrex's filename ordering scheme.
 pub(crate) fn settings_id_from_pak_filename(pak_filename: &str) -> Option<String> {
+    let pak_filename = strip_priority_prefix(pak_filename);
     let stem = pak_filename.strip_suffix(".pak")?;
     let id = stem.strip_suffix(PAK_SUFFIX)?;
     if id.is_empty() {

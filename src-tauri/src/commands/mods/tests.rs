@@ -2016,6 +2016,16 @@ fn settings_id_strips_suffix_and_lowercases() {
 }
 
 #[test]
+fn settings_id_strips_legacy_priority_prefix_first() {
+    // The legacy `~mods` target applies a load-order prefix (e.g. `001_`) that the in-game id has
+    // no awareness of — stripping it must happen before suffix-matching, not after.
+    assert_eq!(
+        settings_id_from_pak_filename("001_DallasPDCrimeBoss-WindowsNoEditor.pak"),
+        Some("dallaspd".to_string())
+    );
+}
+
+#[test]
 fn settings_id_none_for_non_modkit_naming() {
     // "Total Mission Value" — a real mod predating/bypassing the ModKit's standard pipeline.
     assert_eq!(
@@ -2376,4 +2386,77 @@ fn crimeboss_bundle_archive_each_entry_installs_independently_without_cross_cont
     assert!(!sweeper_dir
         .join("Slippery_JanitorCrimeBoss-WindowsNoEditor.pak")
         .exists());
+}
+
+// ── reorder respects each target's priority_prefix flag ──────────────────────
+
+#[test]
+fn reorder_skips_priority_prefix_for_targets_that_dont_use_it() {
+    // Crime Boss's primary `mods` target manages order via ModSettings JSON, not filename
+    // prefixes (engine.rs: priority_prefix: false) — reordering must leave the folder name as-is.
+    let cfg = engine_for_game("cb");
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![
+                InstalledMod {
+                    uid: "a".to_string(),
+                    filename: "Foo".to_string(),
+                    enabled: true,
+                    ..InstalledMod::default()
+                },
+                InstalledMod {
+                    uid: "b".to_string(),
+                    filename: "Bar".to_string(),
+                    enabled: true,
+                    ..InstalledMod::default()
+                },
+            ],
+        },
+    );
+
+    reorder_mods_in_folder_op(game, &sp, None, &["b".to_string(), "a".to_string()], cfg);
+
+    let state = read_state(&sp);
+    let filenames: Vec<&str> = state.mods.iter().map(|m| m.filename.as_str()).collect();
+    assert_eq!(filenames, vec!["Foo", "Bar"]);
+}
+
+#[test]
+fn reorder_applies_priority_prefix_for_targets_that_use_it() {
+    // PD3's `paks` target relies on the numeric prefix for UE5's alphabetical pak load order.
+    let cfg = engine_for_game("pd3");
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let sp = get_state_path(game, cfg);
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![
+                InstalledMod {
+                    uid: "a".to_string(),
+                    filename: "Foo.pak".to_string(),
+                    enabled: true,
+                    ..InstalledMod::default()
+                },
+                InstalledMod {
+                    uid: "b".to_string(),
+                    filename: "Bar.pak".to_string(),
+                    enabled: true,
+                    ..InstalledMod::default()
+                },
+            ],
+        },
+    );
+
+    reorder_mods_in_folder_op(game, &sp, None, &["b".to_string(), "a".to_string()], cfg);
+
+    let state = read_state(&sp);
+    let filenames: Vec<&str> = state.mods.iter().map(|m| m.filename.as_str()).collect();
+    assert_eq!(filenames, vec!["001_Foo.pak", "002_Bar.pak"]);
 }

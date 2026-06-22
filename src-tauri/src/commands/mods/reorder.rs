@@ -25,9 +25,13 @@ pub fn reorder_mods_in_folder_op(
             continue;
         };
         let priority = total - pos as i64;
-        let new_filename = apply_priority_prefix(&m.filename, priority);
+        let target = cfg.target_for(m.location.as_deref());
+        let new_filename = if target.priority_prefix_enabled() {
+            apply_priority_prefix(&m.filename, priority)
+        } else {
+            m.filename.clone()
+        };
         if new_filename != m.filename {
-            let target = cfg.target_for(m.location.as_deref());
             let old = if m.enabled {
                 active_mod_path(game_path, &m.filename, folder_rel.as_deref(), target)
             } else {
@@ -101,7 +105,12 @@ pub fn move_mod_to_folder_op(
             continue;
         };
         let priority = total - p as i64;
-        let new_filename = apply_priority_prefix(&m.filename, priority);
+        let target = cfg.target_for(m.location.as_deref());
+        let new_filename = if target.priority_prefix_enabled() {
+            apply_priority_prefix(&m.filename, priority)
+        } else {
+            m.filename.clone()
+        };
         let cur_rel = if m.uid == uid {
             src_rel.clone()
         } else {
@@ -109,7 +118,6 @@ pub fn move_mod_to_folder_op(
         };
 
         if new_filename != m.filename || (m.uid == uid && src_rel != tgt_rel) {
-            let target = cfg.target_for(m.location.as_deref());
             let old = if m.enabled {
                 active_mod_path(game_path, &m.filename, cur_rel.as_deref(), target)
             } else {
@@ -168,7 +176,11 @@ pub fn reorder_children_op(
             };
             let f = state.folders.iter().find(|f| &f.id == id)?;
             let priority = total - pos as i64;
-            let new = apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority);
+            let new = if cfg.primary().priority_prefix_enabled() {
+                apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority)
+            } else {
+                strip_priority_prefix(&f.disk_name).to_string()
+            };
             if new != f.disk_name {
                 Some(FolderRename {
                     id: id.clone(),
@@ -197,7 +209,12 @@ pub fn reorder_children_op(
             };
             let m = state.mods.iter().find(|m| &m.uid == id)?;
             let priority = total - pos as i64;
-            let new = apply_priority_prefix(&m.filename, priority);
+            let target = cfg.target_for(m.location.as_deref());
+            let new = if target.priority_prefix_enabled() {
+                apply_priority_prefix(&m.filename, priority)
+            } else {
+                m.filename.clone()
+            };
             if new == m.filename {
                 return None;
             }
@@ -267,14 +284,20 @@ pub fn reorder_children_op(
         match item {
             TopLevelItem::Folder { id } => {
                 if let Some(f) = state.folders.iter_mut().find(|f| &f.id == id) {
-                    f.disk_name =
-                        apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority);
+                    f.disk_name = if cfg.primary().priority_prefix_enabled() {
+                        apply_priority_prefix(strip_priority_prefix(&f.disk_name), priority)
+                    } else {
+                        strip_priority_prefix(&f.disk_name).to_string()
+                    };
                     f.priority = priority;
                 }
             }
             TopLevelItem::Mod { id } => {
                 if let Some(m) = state.mods.iter_mut().find(|m| &m.uid == id) {
-                    m.filename = apply_priority_prefix(&m.filename, priority);
+                    let target = cfg.target_for(m.location.as_deref());
+                    if target.priority_prefix_enabled() {
+                        m.filename = apply_priority_prefix(&m.filename, priority);
+                    }
                     m.priority = Some(priority);
                 }
             }

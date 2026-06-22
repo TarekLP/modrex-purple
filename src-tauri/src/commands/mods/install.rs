@@ -128,15 +128,7 @@ pub fn install_mod_from_path(
         .as_ref()
         .and_then(|e| e.priority)
         .unwrap_or(max_mod.max(max_folder) + 1);
-    let priority_prefix_enabled = match &target.unit {
-        ModUnit::File {
-            priority_prefix, ..
-        }
-        | ModUnit::Directory {
-            priority_prefix, ..
-        } => *priority_prefix,
-    };
-    let filename = if priority_prefix_enabled {
+    let filename = if target.priority_prefix_enabled() {
         apply_priority_prefix(&mod_data.filename, priority)
     } else {
         mod_data.filename.clone()

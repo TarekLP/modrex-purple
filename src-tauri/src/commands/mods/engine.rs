@@ -66,6 +66,17 @@ impl ScanTarget {
             ModUnit::Directory { .. } => "",
         }
     }
+
+    pub fn priority_prefix_enabled(&self) -> bool {
+        match &self.unit {
+            ModUnit::File {
+                priority_prefix, ..
+            }
+            | ModUnit::Directory {
+                priority_prefix, ..
+            } => *priority_prefix,
+        }
+    }
 }
 
 pub struct ModEngineConfig {

@@ -35,7 +35,11 @@ pub fn create_folder_op(
         .max()
         .unwrap_or(0);
     let priority = max_folders + 1;
-    let disk_name = apply_priority_prefix(&slug, priority);
+    let disk_name = if cfg.primary().priority_prefix_enabled() {
+        apply_priority_prefix(&slug, priority)
+    } else {
+        slug
+    };
     let id = Uuid::new_v4().to_string();
 
     let parent_rel = get_folder_path(&state.folders, parent_id.as_deref());
@@ -103,8 +107,11 @@ pub fn move_folder_op(
         .max()
         .unwrap_or(0);
     let new_priority = max_f.max(max_m) + 1;
-    let new_disk_name =
-        apply_priority_prefix(strip_priority_prefix(&folder.disk_name), new_priority);
+    let new_disk_name = if cfg.primary().priority_prefix_enabled() {
+        apply_priority_prefix(strip_priority_prefix(&folder.disk_name), new_priority)
+    } else {
+        strip_priority_prefix(&folder.disk_name).to_string()
+    };
 
     for f in state.folders.iter_mut() {
         if f.id == folder_id {
@@ -169,7 +176,11 @@ pub fn rename_folder_op(
     } else {
         slug
     };
-    let new_disk_name = apply_priority_prefix(&slug, folder.priority);
+    let new_disk_name = if cfg.primary().priority_prefix_enabled() {
+        apply_priority_prefix(&slug, folder.priority)
+    } else {
+        slug
+    };
 
     if new_disk_name != folder.disk_name {
         let parent_rel = get_folder_path(&state.folders, folder.parent_id.as_deref());
@@ -259,8 +270,12 @@ pub fn delete_folder_op(
             continue;
         }
         max_p += 1;
-        let new_filename = apply_priority_prefix(&m.filename, max_p);
         let target = cfg.target_for(m.location.as_deref());
+        let new_filename = if target.priority_prefix_enabled() {
+            apply_priority_prefix(&m.filename, max_p)
+        } else {
+            m.filename.clone()
+        };
         let old = if m.enabled {
             active_mod_path(game_path, &m.filename, Some(&folder_rel), target)
         } else {
@@ -306,7 +321,11 @@ pub fn delete_folder_op(
             .cloned()
             .unwrap();
         max_p += 1;
-        let new_disk = apply_priority_prefix(strip_priority_prefix(&cf.disk_name), max_p);
+        let new_disk = if cfg.primary().priority_prefix_enabled() {
+            apply_priority_prefix(strip_priority_prefix(&cf.disk_name), max_p)
+        } else {
+            strip_priority_prefix(&cf.disk_name).to_string()
+        };
         let old_rel = get_folder_path(&state.folders, Some(cf_id)).unwrap_or_default();
 
         let old_a = mods_b.join(&old_rel);

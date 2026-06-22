@@ -87,6 +87,7 @@ fn compact_folder_priorities(
     folders: &[ModFolder],
     mods_base: &Path,
     dis_base: &Path,
+    priority_prefix_enabled: bool,
 ) -> (Vec<ModFolder>, bool) {
     let mut compacted = folders.to_vec();
     let mut any_changed = false;
@@ -117,8 +118,11 @@ fn compact_folder_priorities(
             }
 
             let old_disk_name = f.disk_name.clone();
-            let new_disk_name =
-                apply_priority_prefix(strip_priority_prefix(&old_disk_name), new_priority);
+            let new_disk_name = if priority_prefix_enabled {
+                apply_priority_prefix(strip_priority_prefix(&old_disk_name), new_priority)
+            } else {
+                strip_priority_prefix(&old_disk_name).to_string()
+            };
             let parent_rel = get_folder_path(&compacted, parent_id.as_deref());
 
             let (old_active, new_active) = match &parent_rel {
@@ -337,8 +341,12 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
     };
 
     // Compact folder priorities to sequential (1, 2, 3, ...) — repairs gaps caused by prior bugs
-    let (final_folders, any_compacted) =
-        compact_folder_priorities(&cleaned_folders, &mods_base_path, &dis_dir);
+    let (final_folders, any_compacted) = compact_folder_priorities(
+        &cleaned_folders,
+        &mods_base_path,
+        &dis_dir,
+        cfg.primary().priority_prefix_enabled(),
+    );
 
     if state_changed || !phantom_ids.is_empty() || any_compacted || cleanup_changed {
         save_state(
