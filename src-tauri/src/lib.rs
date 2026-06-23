@@ -3,6 +3,10 @@ mod commands;
 use tauri::Manager;
 
 pub fn run() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        log::error!("PANIC: {panic_info}");
+    }));
+
     #[cfg(target_os = "linux")]
     // WebKit's DMA-BUF renderer breaks under XWayland and some Wayland compositors
     unsafe {

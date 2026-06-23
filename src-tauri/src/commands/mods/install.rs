@@ -185,6 +185,13 @@ pub fn install_mod_from_path(
     } else {
         Some(target.tag.to_string())
     };
+    log::info!(
+        "install: {} ({}) -> {} [{}]",
+        mod_data.name,
+        mod_data.uid,
+        target.tag,
+        filename
+    );
     new_mods.push(InstalledMod {
         filename,
         priority: Some(priority),
@@ -325,6 +332,7 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
     let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
         return;
     };
+    log::info!("uninstall: {} ({})", m.name, m.uid);
     // Host packs live inside another mod's folder (or our disabled area); remove either.
     if is_host_pack(&m) {
         for p in [
@@ -385,6 +393,7 @@ pub fn enable_mod_op(
     else {
         return;
     };
+    log::info!("enable: {} ({})", m.name, m.uid);
     // Host packs move back from our disabled area into the host mod's folder.
     if is_host_pack(&m) {
         move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, true);
@@ -487,6 +496,7 @@ pub fn disable_mod_op(
     else {
         return;
     };
+    log::info!("disable: {} ({})", m.name, m.uid);
     // Host packs move out of the host mod's folder into our disabled area.
     if is_host_pack(&m) {
         move_host_pack(game_path, state_path, &mut state, &m, uid, cfg, false);

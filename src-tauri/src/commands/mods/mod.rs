@@ -1019,6 +1019,8 @@ pub async fn install_mod(
                 "format": file_type,
             }),
         );
+    } else if let Err(e) = &result {
+        log::warn!("install_mod {mod_id}: {e}");
     }
     result
 }
@@ -1202,6 +1204,8 @@ pub async fn install_file(
                 "format": file_type,
             }),
         );
+    } else if let Err(e) = &result {
+        log::warn!("install_file {mod_id} file={file_id}: {e}");
     }
     result
 }
@@ -1371,6 +1375,8 @@ pub async fn install_from_zip_entry(
                 "format": install_format,
             }),
         );
+    } else if let Err(e) = &result {
+        log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}");
     }
     result
 }
@@ -1460,6 +1466,8 @@ pub async fn install_cb_flat_archive(
                 "format": file_type,
             }),
         );
+    } else if let Err(e) = &result {
+        log::warn!("install_cb_flat_archive {mod_id} file={file_id}: {e}");
     }
     result
 }
