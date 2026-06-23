@@ -122,7 +122,7 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
                 </Tooltip>
                 <Tooltip content={t('sidebar.docsTitle')} side="right">
                     <button
-                        onClick={() => api.openExternal('https://modrex.net/docs/getting-started/')}
+                        onClick={() => api.openExternal('https://modrex.net/docs/')}
                         className="w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm text-text-muted hover:bg-surface-hover hover:text-text transition-colors"
                     >
                         <CircleHelp className="w-4 h-4 shrink-0" />
