@@ -18,10 +18,10 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 | Platform                                                                                                                                              | Download                                                                                                    |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows     | [Modrex.Setup.exe](https://github.com/modrexio/modrex/releases/latest/download/Modrex_0.10.0_x64-setup.exe) |
+| <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows     | [Modrex.Setup.exe](https://github.com/modrexio/modrex/releases/latest/download/Modrex_0.11.0_x64-setup.exe) |
 | <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .deb      | [modrex.deb](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.deb)               |
 | <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .rpm      | [modrex.rpm](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.rpm)               |
-| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .AppImage | [modrex.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_0.10.0_amd64.AppImage) |
+| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .AppImage | [modrex.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_0.11.0_amd64.AppImage) |
 
 ## Features
 
