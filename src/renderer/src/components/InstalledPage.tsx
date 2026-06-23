@@ -473,6 +473,7 @@ export function InstalledPage({
                     <UpdatesModal
                         updatable={updatable}
                         modData={modData}
+                        installed={installed}
                         gamePath={gamePath}
                         gameId={activeGame}
                         onRefreshInstalled={onRefreshInstalled}

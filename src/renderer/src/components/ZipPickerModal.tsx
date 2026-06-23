@@ -136,9 +136,33 @@ export function ZipPickerModal({
 
     const selectable = payload.entries.filter((e) => !installedEntries.has(e))
 
-    const [selected, setSelected] = useState<Set<string>>(
-        () => new Set(payload.entries.filter((e) => !installedEntries.has(e)))
+    // Entries already installed under a *different* file (i.e. this is an update, not a fresh
+    // install) — matched by filename rather than fileId, since the new file's id never matches
+    // the old install. Lets the picker default to "what you already have" across a version bump
+    // instead of re-selecting every variant and making the user re-pick from scratch each time.
+    const priorEntriesForMod = useMemo(
+        () => installedFiles.filter((m) => m.id === payload.modId && !m.missing),
+        [installedFiles, payload.modId]
     )
+    const matchedPriorSelection = useMemo(() => {
+        if (priorEntriesForMod.length === 0) return null
+        const set = new Set<string>()
+        for (const entry of payload.entries) {
+            if (installedEntries.has(entry)) continue
+            const filename = entryFilename(entry)
+            if (priorEntriesForMod.some((m) => stripPriorityPrefix(m.filename) === filename)) {
+                set.add(entry)
+            }
+        }
+        return set
+    }, [priorEntriesForMod, payload.entries, installedEntries])
+
+    const [selected, setSelected] = useState<Set<string>>(() => {
+        if (matchedPriorSelection && matchedPriorSelection.size > 0) {
+            return new Set(matchedPriorSelection)
+        }
+        return new Set(payload.entries.filter((e) => !installedEntries.has(e)))
+    })
     const [installingEntry, setInstallingEntry] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<{

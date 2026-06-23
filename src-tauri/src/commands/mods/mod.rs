@@ -817,38 +817,58 @@ pub async fn install_mod(
     folder_id: Option<String>,
     game_id: Option<String>,
 ) -> Result<(), String> {
-    let mod_val = api_get(&app, &format!("/mods/{}", mod_id), vec![]).await?;
+    let prep = async {
+        let mod_val = api_get(&app, &format!("/mods/{}", mod_id), vec![]).await?;
 
-    let mod_name = mod_val["name"].as_str().unwrap_or("").to_string();
-    let mod_version = mod_val["version"].as_str().unwrap_or("").to_string();
-    let remote_id = mod_val["id"].as_i64().unwrap_or(0);
+        let mod_name = mod_val["name"].as_str().unwrap_or("").to_string();
+        let mod_version = mod_val["version"].as_str().unwrap_or("").to_string();
+        let remote_id = mod_val["id"].as_i64().unwrap_or(0);
 
-    let (file_id, download_url, file_type) = if !mod_val["download"].is_null() {
-        let dl = &mod_val["download"];
-        (
-            dl["id"].as_i64().unwrap_or(0),
-            dl["download_url"]
-                .as_str()
-                .ok_or("no download_url")?
-                .to_string(),
-            dl["type"].as_str().unwrap_or("pak").to_string(),
-        )
-    } else if mod_val["has_download"].as_bool().unwrap_or(false) {
-        let f = api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?;
-        (
-            f["id"].as_i64().unwrap_or(0),
-            f["download_url"]
-                .as_str()
-                .ok_or("no download_url")?
-                .to_string(),
-            f["type"].as_str().unwrap_or("pak").to_string(),
-        )
-    } else {
-        return Err("Mod has no download".to_string());
+        let (file_id, download_url, file_type) = if !mod_val["download"].is_null() {
+            let dl = &mod_val["download"];
+            (
+                dl["id"].as_i64().unwrap_or(0),
+                dl["download_url"]
+                    .as_str()
+                    .ok_or("no download_url")?
+                    .to_string(),
+                dl["type"].as_str().unwrap_or("pak").to_string(),
+            )
+        } else if mod_val["has_download"].as_bool().unwrap_or(false) {
+            let f = api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?;
+            (
+                f["id"].as_i64().unwrap_or(0),
+                f["download_url"]
+                    .as_str()
+                    .ok_or("no download_url")?
+                    .to_string(),
+                f["type"].as_str().unwrap_or("pak").to_string(),
+            )
+        } else {
+            return Err("Mod has no download".to_string());
+        };
+
+        let downloaded = download_file(&app, &download_url, &file_type).await?;
+        Ok::<_, String>((
+            mod_name,
+            mod_version,
+            remote_id,
+            file_id,
+            file_type,
+            downloaded,
+        ))
+    }
+    .await;
+
+    let (mod_name, mod_version, remote_id, file_id, file_type, downloaded) = match prep {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("install_mod {mod_id}: {e}");
+            return Err(e);
+        }
     };
 
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    let downloaded = download_file(&app, &download_url, &file_type).await?;
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
         Err(e) if e.starts_with("UE4SS_LOADER:") => {
             let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
@@ -882,7 +902,13 @@ pub async fn install_mod(
             }
             return Err(e);
         }
-        result => result?,
+        result => match result {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!("install_mod {mod_id}: {e}");
+                return Err(e);
+            }
+        },
     };
     let target = cfg.target_for(location_tag.as_deref());
 
@@ -1038,7 +1064,13 @@ pub async fn install_file(
     game_id: Option<String>,
 ) -> Result<(), String> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    let downloaded = download_file(&app, &download_url, &file_type).await?;
+    let downloaded = match download_file(&app, &download_url, &file_type).await {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("install_file {mod_id}/{file_id}: {e}");
+            return Err(e);
+        }
+    };
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
         Err(e) if e.starts_with("UE4SS_LOADER:") => {
             let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
@@ -1072,7 +1104,13 @@ pub async fn install_file(
             }
             return Err(e);
         }
-        result => result?,
+        result => match result {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!("install_file {mod_id}/{file_id}: {e}");
+                return Err(e);
+            }
+        },
     };
     let target = cfg.target_for(location_tag.as_deref());
 
