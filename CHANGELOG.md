@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Fixed
+
+- Fixed updating multi-pak mods always failing instead of showing the file picker.
+
 ## 0.11.0
 
 ### Added
