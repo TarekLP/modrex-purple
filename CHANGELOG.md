@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.11.1
+
 ### Added
 
 - Added an Xbox PAYDAY 3 setting to remove BugSplat crash reporter files before launch.
