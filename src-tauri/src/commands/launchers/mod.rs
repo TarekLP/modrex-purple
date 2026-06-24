@@ -11,7 +11,7 @@ use types::{GameDef, Launcher};
 use xbox::Xbox;
 
 use crate::commands::mods::{backup_dir, engine_for_game, mods_base};
-use crate::commands::settings::{game_settings, read_settings, write_settings};
+use crate::commands::settings::{game_settings, read_settings, write_settings, GameSettings};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
@@ -21,6 +21,8 @@ use tauri::AppHandle;
 static STEAM: Steam = Steam;
 static EPIC: Epic = Epic;
 static XBOX: Xbox = Xbox;
+
+const PD3_XBOX_CRASH_REPORTER_FILES: &[&str] = &["BsSndRpt64.exe", "BugSplatRc64.dll"];
 
 fn all_launchers() -> [&'static dyn Launcher; 3] {
     [&STEAM, &EPIC, &XBOX]
@@ -94,6 +96,39 @@ fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts:
         if let Err(e) = std::process::Command::new(&exe).args(&args).spawn() {
             log::warn!("launch_game: spawn {exe:?}: {e}");
         }
+    }
+}
+
+fn pd3_xbox_crash_reporter_dir(game_path: &Path) -> std::path::PathBuf {
+    game_path.join("PAYDAY3").join("Binaries").join("WinGDK")
+}
+
+fn remove_pd3_xbox_crash_reporter_files(game_path: &str) {
+    let game_path = Path::new(game_path);
+    let dir = pd3_xbox_crash_reporter_dir(game_path);
+
+    for filename in PD3_XBOX_CRASH_REPORTER_FILES {
+        let file = dir.join(filename);
+        if !file.starts_with(game_path) || !file.exists() {
+            continue;
+        }
+        match fs::remove_file(&file) {
+            Ok(()) => log::info!("removed PAYDAY 3 Xbox crash reporter file {file:?}"),
+            Err(e) => log::warn!("remove PAYDAY 3 Xbox crash reporter file {file:?}: {e}"),
+        }
+    }
+}
+
+fn maybe_suppress_crash_reporter(game_id: &str, settings: &GameSettings) {
+    if game_id != "pd3"
+        || settings.launcher.as_deref() != Some("xbox")
+        || settings.suppress_crash_reporter != Some(true)
+    {
+        return;
+    }
+
+    if let Some(game_path) = settings.game_path.as_deref() {
+        remove_pd3_xbox_crash_reporter_files(game_path);
     }
 }
 
@@ -224,6 +259,7 @@ pub fn launch_game(app: AppHandle, game_id: Option<String>) {
     };
     let cfg = engine_for_game(game_id);
     let _ = do_restore(game_path, cfg);
+    maybe_suppress_crash_reporter(game_id, gs);
     crate::commands::analytics::track(
         &app,
         "game_launched",
@@ -295,6 +331,7 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
         "launch_without_mods",
         serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
     );
+    maybe_suppress_crash_reporter(game_id, gs);
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
         game_def_for_id(game_id),

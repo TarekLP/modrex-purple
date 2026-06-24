@@ -26,6 +26,7 @@ export type GameSettings = {
     gamePath?: string
     launcher?: string
     launchOptions?: string
+    suppressCrashReporter?: boolean
     // Crime Boss only: 'auto' (default) or 'ask'. Absent behaves as 'auto'.
     crimebossInstallMode?: string
 }
@@ -84,6 +85,9 @@ export const api = {
     },
     setCrimeBossInstallMode(mode: string): Promise<void> {
         return invoke('set_crimeboss_install_mode', { mode })
+    },
+    setSuppressCrashReporter(suppress: boolean, gameId?: string): Promise<void> {
+        return invoke('set_suppress_crash_reporter', { suppress, ...(gameId ? { gameId } : {}) })
     },
     setSkipFileOpenLogWarning(skip: boolean): Promise<void> {
         return invoke('set_skip_fileopenlog_warning', { skip })

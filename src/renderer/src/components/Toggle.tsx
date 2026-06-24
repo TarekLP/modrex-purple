@@ -13,7 +13,7 @@ export function Toggle({ checked, onChange, disabled, title }: Props) {
             disabled={disabled}
             title={title}
             onClick={() => onChange(!checked)}
-            className={`relative w-9 h-5 rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none ${
+            className={`relative shrink-0 w-9 h-5 rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none ${
                 checked ? 'bg-accent' : 'bg-surface-active'
             }`}
         >

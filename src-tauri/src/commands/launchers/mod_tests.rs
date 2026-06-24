@@ -140,6 +140,75 @@ fn identify_launcher_steam_takes_precedence() {
     );
 }
 
+#[test]
+fn pd3_xbox_crash_reporter_dir_uses_wingdk_subdir() {
+    let dir = TempDir::new().unwrap();
+    assert_eq!(
+        pd3_xbox_crash_reporter_dir(dir.path()),
+        dir.path().join("PAYDAY3").join("Binaries").join("WinGDK")
+    );
+}
+
+#[test]
+fn suppress_crash_reporter_removes_only_known_files() {
+    let dir = TempDir::new().unwrap();
+    let crash_dir = pd3_xbox_crash_reporter_dir(dir.path());
+    std::fs::create_dir_all(&crash_dir).unwrap();
+    for name in PD3_XBOX_CRASH_REPORTER_FILES {
+        std::fs::write(crash_dir.join(name), "placeholder").unwrap();
+    }
+    std::fs::write(crash_dir.join("PAYDAY3-WinGDK-Shipping.exe"), "game").unwrap();
+
+    maybe_suppress_crash_reporter(
+        "pd3",
+        &GameSettings {
+            game_path: Some(dir.path().to_string_lossy().into_owned()),
+            launcher: Some("xbox".to_string()),
+            suppress_crash_reporter: Some(true),
+            ..Default::default()
+        },
+    );
+
+    for name in PD3_XBOX_CRASH_REPORTER_FILES {
+        assert!(!crash_dir.join(name).exists());
+    }
+    assert!(crash_dir.join("PAYDAY3-WinGDK-Shipping.exe").exists());
+}
+
+#[test]
+fn suppress_crash_reporter_requires_pd3_xbox_opt_in() {
+    let dir = TempDir::new().unwrap();
+    let crash_dir = pd3_xbox_crash_reporter_dir(dir.path());
+    std::fs::create_dir_all(&crash_dir).unwrap();
+    std::fs::write(
+        crash_dir.join(PD3_XBOX_CRASH_REPORTER_FILES[0]),
+        "placeholder",
+    )
+    .unwrap();
+
+    maybe_suppress_crash_reporter(
+        "pd3",
+        &GameSettings {
+            game_path: Some(dir.path().to_string_lossy().into_owned()),
+            launcher: Some("steam".to_string()),
+            suppress_crash_reporter: Some(true),
+            ..Default::default()
+        },
+    );
+    assert!(crash_dir.join(PD3_XBOX_CRASH_REPORTER_FILES[0]).exists());
+
+    maybe_suppress_crash_reporter(
+        "pd3",
+        &GameSettings {
+            game_path: Some(dir.path().to_string_lossy().into_owned()),
+            launcher: Some("xbox".to_string()),
+            suppress_crash_reporter: Some(false),
+            ..Default::default()
+        },
+    );
+    assert!(crash_dir.join(PD3_XBOX_CRASH_REPORTER_FILES[0]).exists());
+}
+
 // ── sanitize_external_url ─────────────────────────────────────────────────
 
 #[test]

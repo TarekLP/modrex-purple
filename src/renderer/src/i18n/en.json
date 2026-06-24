@@ -278,6 +278,10 @@
             "xboxNotePre": "Launch options are not supported on Microsoft Store. To enable mod logging, add",
             "xboxNotePost": "in the Xbox app under PAYDAY 3 > Manage > Launch options."
         },
+        "crashReporter": {
+            "title": "Crash reporter cleanup",
+            "description": "Work around an empty crash-report window for games that ship a buggy reporter by removing its crash reporter files before launch. This is off by default and may not be needed for every game."
+        },
         "updates": {
             "title": "Updates",
             "check": "Check for updates",

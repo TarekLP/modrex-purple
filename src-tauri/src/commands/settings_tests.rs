@@ -25,6 +25,7 @@ fn roundtrip_all_fields_set() {
             game_path: Some("C:\\Games\\PAYDAY3".to_string()),
             launcher: Some("steam".to_string()),
             launch_options: Some("-fileopenlog".to_string()),
+            suppress_crash_reporter: Some(true),
             ..Default::default()
         },
     );
@@ -47,6 +48,7 @@ fn roundtrip_all_fields_set() {
     assert_eq!(pd3.game_path.as_deref(), Some("C:\\Games\\PAYDAY3"));
     assert_eq!(pd3.launcher.as_deref(), Some("steam"));
     assert_eq!(pd3.launch_options.as_deref(), Some("-fileopenlog"));
+    assert_eq!(pd3.suppress_crash_reporter, Some(true));
     let cb = loaded.games.as_ref().unwrap().get("cb").unwrap();
     assert_eq!(cb.crimeboss_install_mode.as_deref(), Some("ask"));
     assert_eq!(loaded.skip_file_open_log_warning, Some(true));

@@ -10,6 +10,7 @@ pub struct GameSettings {
     pub game_path: Option<String>,
     pub launcher: Option<String>,
     pub launch_options: Option<String>,
+    pub suppress_crash_reporter: Option<bool>,
     // Crime Boss only: "auto" (default, every install lands in Mods/) or "ask" (the renderer
     // shows a Mods/ vs ~mods choice before each new install). `None` behaves as "auto".
     pub crimeboss_install_mode: Option<String>,
@@ -247,6 +248,18 @@ pub fn set_crimeboss_install_mode(app: AppHandle, mode: String) {
         .entry("cb".to_string())
         .or_default()
         .crimeboss_install_mode = Some(mode);
+    write_settings(&app, &s);
+}
+
+#[tauri::command]
+pub fn set_suppress_crash_reporter(app: AppHandle, game_id: Option<String>, suppress: bool) {
+    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+    let mut s = read_settings(&app);
+    s.games
+        .get_or_insert_with(HashMap::new)
+        .entry(game_id)
+        .or_default()
+        .suppress_crash_reporter = Some(suppress);
     write_settings(&app, &s);
 }
 

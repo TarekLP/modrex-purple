@@ -66,6 +66,9 @@ export function SettingsPage({
     const [crimeBossInstallMode, setCrimeBossInstallMode] = useState(
         () => getSettingsCache(activeGame)?.settings.crimebossInstallMode ?? 'auto'
     )
+    const [suppressCrashReporter, setSuppressCrashReporter] = useState(
+        () => getSettingsCache(activeGame)?.settings.suppressCrashReporter === true
+    )
 
     // Controls the reopened consent pop-up. Consent itself is owned by App.tsx so
     // the first-run dialog and this toggle stay in sync.
@@ -92,6 +95,7 @@ export function SettingsPage({
             setLaunchOptions(gs.launchOptions ?? '')
             launchOptionsLoaded.current = true
             setCrimeBossInstallMode(gs.crimebossInstallMode ?? 'auto')
+            setSuppressCrashReporter(gs.suppressCrashReporter === true)
         })
         return () => {
             cancelled = true
@@ -149,6 +153,12 @@ export function SettingsPage({
         setCrimeBossInstallMode(value)
         patchSettingsCache(activeGame, { crimebossInstallMode: value })
         await api.setCrimeBossInstallMode(value)
+    }
+
+    async function handleSuppressCrashReporterChange(value: boolean) {
+        setSuppressCrashReporter(value)
+        patchSettingsCache(activeGame, { suppressCrashReporter: value })
+        await api.setSuppressCrashReporter(value, activeGame)
     }
 
     // Render once with final values: until the first fetch (usually the prefetch in
@@ -242,6 +252,24 @@ export function SettingsPage({
                                     },
                                     { value: 'ask', label: t('settings.crimeBossInstallMode.ask') },
                                 ]}
+                            />
+                        </div>
+                    </section>
+                )}
+
+                {activeGame === 'pd3' && launcher === 'xbox' && (
+                    <section className="max-w-xl flex flex-col gap-2 mt-6">
+                        <h2 className="text-sm font-semibold">
+                            {t('settings.crashReporter.title')}
+                        </h2>
+                        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                            <span className="text-sm text-text-muted pr-4">
+                                {t('settings.crashReporter.description')}
+                            </span>
+                            <Toggle
+                                checked={suppressCrashReporter}
+                                onChange={handleSuppressCrashReporterChange}
+                                title={t('settings.crashReporter.title')}
                             />
                         </div>
                     </section>
