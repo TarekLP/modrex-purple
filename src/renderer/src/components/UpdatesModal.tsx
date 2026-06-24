@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import type { GameId, InstalledMod, Mod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { api } from '../api'
-import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import {
+    ZipPickerModal,
+    parseZipMultiPak,
+    computeAutoUpdateSelection,
+    installZipPickerEntries,
+} from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { HostPackModal, parseHostModPack } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
@@ -45,6 +50,10 @@ export function UpdatesModal({
     const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
 
+    // Remaining mods for the in-progress batch update; lets processQueue resume after a
+    // picker modal closes instead of abandoning the rest of the selection.
+    const queueRef = useRef<InstalledMod[]>([])
+
     function toggleSelected(id: number) {
         setSelectedIds((prev) => {
             const next = new Set(prev)
@@ -54,31 +63,54 @@ export function UpdatesModal({
         })
     }
 
-    // Returns true when the error was a routing sentinel handled by one of the picker
-    // modals above (ZIP_MULTI_PAK/HOST_MOD_PACK/CB_FLAT_ARCHIVE/UNRECOGNIZED_ARCHIVE) —
-    // callers should show the generic error banner only when this returns false.
-    function handleInstallSentinel(e: unknown, modId: number): boolean {
+    // On a ZIP_MULTI_PAK sentinel, this mod is always already installed (it came from the
+    // updatable list), so re-apply its previously selected file variants instead of asking
+    // again — only falls back to the picker when nothing matches.
+    // 'resolved' = handled silently, caller continues; 'manual' = a picker is now open and the
+    // caller must pause; 'none' = not a sentinel.
+    async function resolveInstallSentinel(
+        e: unknown,
+        modId: number
+    ): Promise<'resolved' | 'manual' | 'none'> {
         const errStr = String(e)
         const zipData = parseZipMultiPak(errStr)
         if (zipData) {
+            if (gamePath) {
+                const autoEntries = computeAutoUpdateSelection(zipData, installed)
+                if (autoEntries) {
+                    try {
+                        await installZipPickerEntries(
+                            zipData,
+                            autoEntries,
+                            gamePath,
+                            gameId,
+                            null,
+                            onRefreshInstalled
+                        )
+                        return 'resolved'
+                    } catch {
+                        // Auto-apply failed — fall back to the picker below.
+                    }
+                }
+            }
             setZipPickerData(zipData)
-            return true
+            return 'manual'
         }
         const hostData = parseHostModPack(errStr)
         if (hostData) {
             setHostPackData(hostData)
-            return true
+            return 'manual'
         }
         const cbFlatData = parseCbFlatArchive(errStr)
         if (cbFlatData) {
             setCbFlatArchiveData(cbFlatData)
-            return true
+            return 'manual'
         }
         if (isUnrecognizedArchive(errStr)) {
             setUnrecognizedModId(modId)
-            return true
+            return 'manual'
         }
-        return false
+        return 'none'
     }
 
     async function handleUpdate(uid: string, modId: number) {
@@ -89,36 +121,49 @@ export function UpdatesModal({
             await api.installMod(modId, gamePath, gameId)
             await onRefreshInstalled()
         } catch (e) {
-            if (!handleInstallSentinel(e, modId)) {
-                setUpdateError(t('installed.updatesModal.error'))
-            }
+            const outcome = await resolveInstallSentinel(e, modId)
+            if (outcome === 'none') setUpdateError(t('installed.updatesModal.error'))
         } finally {
             setLoadingMod(null)
         }
     }
 
+    // Stops without finishing the batch when a sentinel needs a manual picker; the picker's
+    // onClose calls this again to resume with the next mod.
+    async function processQueue() {
+        if (!gamePath) return
+        while (queueRef.current.length > 0) {
+            const ins = queueRef.current[0]
+            queueRef.current = queueRef.current.slice(1)
+            try {
+                await api.installMod(ins.id, gamePath, gameId)
+            } catch (e) {
+                const outcome = await resolveInstallSentinel(e, ins.id)
+                if (outcome === 'manual') return
+                if (outcome === 'none') {
+                    setUpdateError(t('installed.updatesModal.error'))
+                    setUpdatingAll(false)
+                    queueRef.current = []
+                    return
+                }
+                // 'resolved' — auto-applied silently, continue with the next mod.
+            }
+        }
+        await onRefreshInstalled()
+        setUpdatingAll(false)
+        onClose()
+    }
+
+    function resumeQueueIfBatch() {
+        if (updatingAll) void processQueue()
+    }
+
     async function handleUpdateSelected() {
         if (!gamePath) return
-        setUpdatingAll(true)
         setUpdateError(null)
-        try {
-            for (const ins of updatable.filter((m) => selectedIds.has(m.id))) {
-                try {
-                    await api.installMod(ins.id, gamePath, gameId)
-                } catch (e) {
-                    // Stop the batch and surface the picker — the remaining selected
-                    // mods stay in the list for the user to retry after.
-                    if (handleInstallSentinel(e, ins.id)) return
-                    throw e
-                }
-            }
-            await onRefreshInstalled()
-            onClose()
-        } catch {
-            setUpdateError(t('installed.updatesModal.error'))
-        } finally {
-            setUpdatingAll(false)
-        }
+        setUpdatingAll(true)
+        queueRef.current = updatable.filter((m) => selectedIds.has(m.id))
+        await processQueue()
     }
 
     return (
@@ -227,7 +272,10 @@ export function UpdatesModal({
                     installedFiles={installed}
                     gameId={gameId}
                     onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setZipPickerData(null)}
+                    onClose={() => {
+                        setZipPickerData(null)
+                        resumeQueueIfBatch()
+                    }}
                 />
             )}
             {hostPackData && gamePath && (
@@ -237,7 +285,10 @@ export function UpdatesModal({
                     installed={installed}
                     gameId={gameId as GameId | undefined}
                     onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setHostPackData(null)}
+                    onClose={() => {
+                        setHostPackData(null)
+                        resumeQueueIfBatch()
+                    }}
                 />
             )}
             {cbFlatArchiveData && gamePath && (
@@ -245,13 +296,19 @@ export function UpdatesModal({
                     payload={cbFlatArchiveData}
                     gamePath={gamePath}
                     onRefreshInstalled={onRefreshInstalled}
-                    onClose={() => setCbFlatArchiveData(null)}
+                    onClose={() => {
+                        setCbFlatArchiveData(null)
+                        resumeQueueIfBatch()
+                    }}
                 />
             )}
             {unrecognizedModId !== null && (
                 <UnrecognizedArchiveModal
                     modId={unrecognizedModId}
-                    onClose={() => setUnrecognizedModId(null)}
+                    onClose={() => {
+                        setUnrecognizedModId(null)
+                        resumeQueueIfBatch()
+                    }}
                 />
             )}
         </>

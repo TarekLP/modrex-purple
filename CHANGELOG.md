@@ -10,7 +10,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
-- Fixed updating multi-pak mods always failing instead of showing the file picker.
+- Fixed updating multi-pak mods unnecessarily re-prompting to pick files instead of reinstalling the previously selected ones, and fixed "Update All" stalling until manually resumed whenever that prompt did appear.
 
 ## 0.11.0
 

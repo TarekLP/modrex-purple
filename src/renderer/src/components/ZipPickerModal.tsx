@@ -95,6 +95,144 @@ function targetLabel(tag: string | null): string {
     return tag === 'mod_overrides' ? t('zipPicker.targetOverrides') : t('zipPicker.targetMods')
 }
 
+// Entries already installed from this archive (uid is {fileId}_{stem}; the prefix-stripped
+// filename match covers entries whose uid was reassigned by SHA256 reconciliation — installed
+// filenames carry the NNN_ disk prefix).
+function computeInstalledEntries(
+    payload: ZipMultiPakPayload,
+    installedFiles: InstalledMod[]
+): Set<string> {
+    const set = new Set<string>()
+    for (const entry of payload.entries) {
+        const uid = `${payload.fileId}_${entryStem(entry)}`
+        const filename = entryFilename(entry)
+        const isInstalled = installedFiles.some(
+            (m) =>
+                !m.missing &&
+                (m.uid === uid ||
+                    (m.fileId === payload.fileId && stripPriorityPrefix(m.filename) === filename))
+        )
+        if (isInstalled) set.add(entry)
+    }
+    return set
+}
+
+// Matches this archive's entries against an existing install's filenames (the new file's id
+// never matches the old install) so an update can silently re-apply the prior selection.
+// Returns null when there's no prior install or nothing matched — caller should show the
+// picker in that case.
+export function computeAutoUpdateSelection(
+    payload: ZipMultiPakPayload,
+    installedFiles: InstalledMod[]
+): string[] | null {
+    const installedEntries = computeInstalledEntries(payload, installedFiles)
+    const priorEntriesForMod = installedFiles.filter((m) => m.id === payload.modId && !m.missing)
+    if (priorEntriesForMod.length === 0) return null
+    const matched: string[] = []
+    for (const entry of payload.entries) {
+        if (installedEntries.has(entry)) continue
+        const filename = entryFilename(entry)
+        if (priorEntriesForMod.some((m) => stripPriorityPrefix(m.filename) === filename)) {
+            matched.push(entry)
+        }
+    }
+    return matched.length > 0 ? matched : null
+}
+
+// Shared install loop for a resolved set of archive entries, used both by the picker's own
+// confirm button and by callers (e.g. computeAutoUpdateSelection's auto-resolve path) that
+// already know what to install and never show the picker UI at all.
+export async function installZipPickerEntries(
+    payload: ZipMultiPakPayload,
+    toInstall: string[],
+    gamePath: string,
+    gameId: string | undefined,
+    folderId: string | null | undefined,
+    onRefreshInstalled: () => Promise<void>,
+    onProgress?: (entry: string | null) => void
+): Promise<void> {
+    const tagByEntry = new Map<string, string | null>()
+    if (payload.entryTags && payload.entryTags.length === payload.entries.length) {
+        payload.entries.forEach((e, i) => tagByEntry.set(e, payload.entryTags![i] ?? null))
+    }
+    const multiTarget = tagByEntry.size > 0 && new Set(tagByEntry.values()).size > 1
+
+    if (multiTarget) {
+        for (const entry of toInstall) {
+            onProgress?.(entry)
+            await api.installFromZipEntry(
+                payload.zipPath,
+                entry,
+                payload.modId,
+                payload.modName,
+                payload.fileId,
+                payload.fileType,
+                payload.modVersion,
+                gamePath,
+                null,
+                gameId,
+                tagByEntry.get(entry) ?? undefined,
+                payload.entryKind
+            )
+            await onRefreshInstalled()
+        }
+        onProgress?.(null)
+        await api.deleteTempFile(payload.zipPath)
+        return
+    }
+
+    const prefix = stripWrapperPrefix(payload.entries)
+    const isCrimeBossPakArchive = gameId === 'cb' && payload.entryKind !== 'dir'
+    const grouped = groupEntriesByDir(payload.entries, prefix)
+    const isStructured =
+        !isCrimeBossPakArchive && (grouped.size > 1 || (grouped.size === 1 && !grouped.has('')))
+
+    const folderIdMap = new Map<string, string | null>([
+        ['', payload.targetTag ? null : (folderId ?? null)],
+    ])
+
+    if (isStructured && !payload.targetTag) {
+        const normalizedToInstall = toInstall.map((e) => e.slice(prefix.length))
+        for (const dir of getRequiredDirs(normalizedToInstall)) {
+            const lastSlash = dir.lastIndexOf('/')
+            const parentDir = lastSlash === -1 ? '' : dir.slice(0, lastSlash)
+            const dirName = lastSlash === -1 ? dir : dir.slice(lastSlash + 1)
+            const folder = await api.createFolder(
+                dirName,
+                folderIdMap.get(parentDir) ?? null,
+                gamePath,
+                gameId
+            )
+            folderIdMap.set(dir, folder.id)
+        }
+        await onRefreshInstalled()
+    }
+
+    for (const entry of toInstall) {
+        const rel = entry.slice(prefix.length)
+        const lastSlash = rel.lastIndexOf('/')
+        const dir = lastSlash === -1 ? '' : rel.slice(0, lastSlash)
+        onProgress?.(entry)
+        await api.installFromZipEntry(
+            payload.zipPath,
+            entry,
+            payload.modId,
+            payload.modName,
+            payload.fileId,
+            payload.fileType,
+            payload.modVersion,
+            gamePath,
+            folderIdMap.get(dir) ?? null,
+            gameId,
+            payload.targetTag,
+            payload.entryKind
+        )
+        await onRefreshInstalled()
+    }
+    onProgress?.(null)
+    await api.deleteTempFile(payload.zipPath)
+}
+
 interface Props {
     payload: ZipMultiPakPayload
     gamePath: string
@@ -114,51 +252,23 @@ export function ZipPickerModal({
     onRefreshInstalled,
     onClose,
 }: Props) {
-    // Entries already installed from this archive (uid is {fileId}_{stem}; the
-    // prefix-stripped filename match covers entries whose uid was reassigned by
-    // SHA256 reconciliation — installed filenames carry the NNN_ disk prefix).
-    const installedEntries = useMemo(() => {
-        const set = new Set<string>()
-        for (const entry of payload.entries) {
-            const uid = `${payload.fileId}_${entryStem(entry)}`
-            const filename = entryFilename(entry)
-            const isInstalled = installedFiles.some(
-                (m) =>
-                    !m.missing &&
-                    (m.uid === uid ||
-                        (m.fileId === payload.fileId &&
-                            stripPriorityPrefix(m.filename) === filename))
-            )
-            if (isInstalled) set.add(entry)
-        }
-        return set
-    }, [payload, installedFiles])
+    const installedEntries = useMemo(
+        () => computeInstalledEntries(payload, installedFiles),
+        [payload, installedFiles]
+    )
 
     const selectable = payload.entries.filter((e) => !installedEntries.has(e))
 
-    // Entries already installed under a *different* file (i.e. this is an update, not a fresh
-    // install) — matched by filename rather than fileId, since the new file's id never matches
-    // the old install. Lets the picker default to "what you already have" across a version bump
-    // instead of re-selecting every variant and making the user re-pick from scratch each time.
-    const priorEntriesForMod = useMemo(
-        () => installedFiles.filter((m) => m.id === payload.modId && !m.missing),
-        [installedFiles, payload.modId]
+    // Defaults the picker to "what you already have" across a version bump (matched by
+    // filename, since the new file's id never matches the old install) instead of re-selecting
+    // every variant and making the user re-pick from scratch each time.
+    const matchedPriorSelection = useMemo(
+        () => computeAutoUpdateSelection(payload, installedFiles),
+        [payload, installedFiles]
     )
-    const matchedPriorSelection = useMemo(() => {
-        if (priorEntriesForMod.length === 0) return null
-        const set = new Set<string>()
-        for (const entry of payload.entries) {
-            if (installedEntries.has(entry)) continue
-            const filename = entryFilename(entry)
-            if (priorEntriesForMod.some((m) => stripPriorityPrefix(m.filename) === filename)) {
-                set.add(entry)
-            }
-        }
-        return set
-    }, [priorEntriesForMod, payload.entries, installedEntries])
 
     const [selected, setSelected] = useState<Set<string>>(() => {
-        if (matchedPriorSelection && matchedPriorSelection.size > 0) {
+        if (matchedPriorSelection && matchedPriorSelection.length > 0) {
             return new Set(matchedPriorSelection)
         }
         return new Set(payload.entries.filter((e) => !installedEntries.has(e)))
@@ -265,97 +375,22 @@ export function ZipPickerModal({
         if (selected.size === 0) return
         setError(null)
         const toInstall = payload.entries.filter((e) => selected.has(e))
-
-        // Mixed-target archive: route each entry to its own scan target. No app folders are
-        // created — secondary-target mods can't live in primary-target folders, and the
-        // packaging folders ("mods"/"overrides") are destinations, not user-facing folders.
-        if (multiTarget) {
-            for (const entry of toInstall) {
-                setInstallingEntry(entry)
-                try {
-                    await api.installFromZipEntry(
-                        payload.zipPath,
-                        entry,
-                        payload.modId,
-                        payload.modName,
-                        payload.fileId,
-                        payload.fileType,
-                        payload.modVersion,
-                        gamePath,
-                        null,
-                        gameId,
-                        tagByEntry.get(entry) ?? undefined,
-                        payload.entryKind
-                    )
-                    await onRefreshInstalled()
-                } catch (e) {
-                    setInstallingEntry(null)
-                    setError(String(e))
-                    return
-                }
-            }
+        try {
+            await installZipPickerEntries(
+                payload,
+                toInstall,
+                gamePath,
+                gameId,
+                folderId,
+                onRefreshInstalled,
+                setInstallingEntry
+            )
+        } catch (e) {
             setInstallingEntry(null)
-            await api.deleteTempFile(payload.zipPath)
-            onClose()
+            setError(String(e))
             return
         }
-
-        const folderIdMap = new Map<string, string | null>([
-            ['', payload.targetTag ? null : (folderId ?? null)],
-        ])
-
-        if (isStructured && !payload.targetTag) {
-            const normalizedToInstall = toInstall.map((e) => e.slice(prefix.length))
-            for (const dir of getRequiredDirs(normalizedToInstall)) {
-                const lastSlash = dir.lastIndexOf('/')
-                const parentDir = lastSlash === -1 ? '' : dir.slice(0, lastSlash)
-                const dirName = lastSlash === -1 ? dir : dir.slice(lastSlash + 1)
-                try {
-                    const folder = await api.createFolder(
-                        dirName,
-                        folderIdMap.get(parentDir) ?? null,
-                        gamePath,
-                        gameId
-                    )
-                    folderIdMap.set(dir, folder.id)
-                } catch (e) {
-                    setError(String(e))
-                    return
-                }
-            }
-            await onRefreshInstalled()
-        }
-
-        for (const entry of toInstall) {
-            const rel = entry.slice(prefix.length)
-            const lastSlash = rel.lastIndexOf('/')
-            const dir = lastSlash === -1 ? '' : rel.slice(0, lastSlash)
-            setInstallingEntry(entry)
-            try {
-                await api.installFromZipEntry(
-                    payload.zipPath,
-                    entry,
-                    payload.modId,
-                    payload.modName,
-                    payload.fileId,
-                    payload.fileType,
-                    payload.modVersion,
-                    gamePath,
-                    folderIdMap.get(dir) ?? null,
-                    gameId,
-                    payload.targetTag,
-                    payload.entryKind
-                )
-                await onRefreshInstalled()
-            } catch (e) {
-                setInstallingEntry(null)
-                setError(String(e))
-                return
-            }
-        }
-
         setInstallingEntry(null)
-        await api.deleteTempFile(payload.zipPath)
         onClose()
     }
 
