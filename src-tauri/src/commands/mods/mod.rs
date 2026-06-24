@@ -1356,6 +1356,16 @@ pub async fn install_from_zip_entry(
             .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
         let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
 
+        // If the mod had a single previously-installed entry under a different uid (e.g. an
+        // older version that shipped as a bare file rather than this archive entry's uid scheme),
+        // remove it first so install_mod_from_path doesn't produce two entries for the same mod.
+        if saved.mods.iter().all(|m| m.uid != uid) && mod_id > 0 {
+            let same: Vec<_> = saved.mods.iter().filter(|m| m.id == mod_id).collect();
+            if same.len() == 1 {
+                uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg);
+            }
+        }
+
         // Never inherit folderId from existing entries; callers always supply the target folder.
         let effective_folder_id = folder_id;
 
