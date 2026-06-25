@@ -244,7 +244,7 @@ export function ModDetailPage({
                       ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled])
                   )
         let bltOk = loaderInstalled
-        if (hasLoaderDep_blt) {
+        if (hasLoaderDepBlt) {
             bltOk = await api.checkSuperblt(gamePath)
             setLoaderInstalled(bltOk)
         }
@@ -359,11 +359,11 @@ export function ModDetailPage({
 
     // Hosted loader mods (PDTHModOverrides, DAHM, UE4SS) install as game-root/Binaries
     // files and are checked by presence, not the installed-mods list.
-    const hasLoaderDep_blt = activeGame !== 'pdth' && allDeps.some(isLoaderDep)
-    const hasLoaderDep_pdthOverrides =
+    const hasLoaderDepBlt = activeGame !== 'pdth' && allDeps.some(isLoaderDep)
+    const hasLoaderDepPdthOverrides =
         activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === PDTH_OVERRIDES_ID)
-    const hasLoaderDep_dahm = activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === DAHM_ID)
-    const hasLoaderDep_ue4ss = allDeps.some(
+    const hasLoaderDepDahm = activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === DAHM_ID)
+    const hasLoaderDepUe4ss = allDeps.some(
         (d) => d.mod !== null && isUe4ssLoaderId(activeGame, d.mod.id)
     )
     const loaderModIds: Record<number, boolean | null> =
@@ -374,11 +374,11 @@ export function ModDetailPage({
 
     useEffect(() => {
         if (!gamePath) return
-        const needsBlt = hasLoaderDep_blt
+        const needsBlt = hasLoaderDepBlt
         const needsPdthOverrides =
-            hasLoaderDep_pdthOverrides || (activeGame === 'pdth' && modId === PDTH_OVERRIDES_ID)
-        const needsDahm = hasLoaderDep_dahm || (activeGame === 'pdth' && modId === DAHM_ID)
-        const needsUe4ss = isUe4ssMod || hasLoaderDep_ue4ss
+            hasLoaderDepPdthOverrides || (activeGame === 'pdth' && modId === PDTH_OVERRIDES_ID)
+        const needsDahm = hasLoaderDepDahm || (activeGame === 'pdth' && modId === DAHM_ID)
+        const needsUe4ss = isUe4ssMod || hasLoaderDepUe4ss
         if (!needsBlt && !needsPdthOverrides && !needsDahm && !needsUe4ss) return
         let cancelled = false
         if (needsBlt) {
@@ -406,10 +406,10 @@ export function ModDetailPage({
         }
     }, [
         gamePath,
-        hasLoaderDep_blt,
-        hasLoaderDep_pdthOverrides,
-        hasLoaderDep_dahm,
-        hasLoaderDep_ue4ss,
+        hasLoaderDepBlt,
+        hasLoaderDepPdthOverrides,
+        hasLoaderDepDahm,
+        hasLoaderDepUe4ss,
         isUe4ssMod,
         activeGame,
         modId,
