@@ -1,5 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
-import { FolderOpen, Loader, RefreshCw, ScrollText } from 'lucide-react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import {
+    FolderOpen,
+    Loader,
+    RefreshCw,
+    ScrollText,
+    Gamepad2,
+    AppWindow,
+    Wrench,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { t } from '../i18n'
 import { Select } from './Select'
 import { Toggle } from './Toggle'
@@ -21,6 +30,32 @@ const LAUNCHER_OPTIONS = [
     { value: 'xbox', label: 'Xbox', icon: <XboxIcon className={iconClass} /> },
 ]
 
+type SettingsTab = 'game' | 'application' | 'advanced'
+
+const NAV_ITEMS: { id: SettingsTab; label: string; icon: LucideIcon }[] = [
+    { id: 'game', label: t('settings.nav.game'), icon: Gamepad2 },
+    { id: 'application', label: t('settings.nav.application'), icon: AppWindow },
+    { id: 'advanced', label: t('settings.nav.advanced'), icon: Wrench },
+]
+
+function Section({
+    title,
+    description,
+    children,
+}: {
+    title: string
+    description?: ReactNode
+    children: ReactNode
+}) {
+    return (
+        <section className="flex flex-col gap-2">
+            <h2 className="text-sm font-semibold">{title}</h2>
+            {description && <p className="text-xs text-text-subtle">{description}</p>}
+            {children}
+        </section>
+    )
+}
+
 interface Props {
     activeGame: GameId
     gamePath: string | null
@@ -28,6 +63,7 @@ interface Props {
     onGamePathChange: () => Promise<void>
     analyticsConsent: boolean | null
     onAnalyticsConsent: (enabled: boolean) => void
+    globalOnly?: boolean
 }
 
 function effectiveLauncher(gs: GameSettings, installed: string[]): string {
@@ -42,10 +78,8 @@ export function SettingsPage({
     onGamePathChange,
     analyticsConsent,
     onAnalyticsConsent,
+    globalOnly = false,
 }: Props) {
-    // The component remounts per game (key={activeGame} in App.tsx), so cache reads
-    // in the initializers always belong to the right game. Warm cache = instant
-    // correct values; the effect below revalidates in the background.
     const [settings, setSettings] = useState<GameSettings | null>(
         () => getSettingsCache(activeGame)?.settings ?? null
     )
@@ -69,17 +103,21 @@ export function SettingsPage({
     const [suppressCrashReporter, setSuppressCrashReporter] = useState(
         () => getSettingsCache(activeGame)?.settings.suppressCrashReporter === true
     )
-
-    // Controls the reopened consent pop-up. Consent itself is owned by App.tsx so
-    // the first-run dialog and this toggle stay in sync.
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
+    const [activeTab, setActiveTabState] = useState<SettingsTab>(() => {
+        if (globalOnly) return 'application'
+        const saved = localStorage.getItem('modrex:settings-tab')
+        return saved === 'game' || saved === 'application' || saved === 'advanced' ? saved : 'game'
+    })
+
+    function setActiveTab(tab: SettingsTab) {
+        setActiveTabState(tab)
+        localStorage.setItem('modrex:settings-tab', tab)
+    }
 
     useEffect(() => {
         launchOptionsLoaded.current = false
         let cancelled = false
-        // installed_launchers probes the registry/manifests on every call (slow)
-        // and its result only changes if the user installs a launcher mid-session
-        // — reuse the session cache and only revalidate the cheap settings read.
         const cached = getSettingsCache(activeGame)
         const launchers = cached
             ? Promise.resolve(cached.installedLaunchers)
@@ -161,211 +199,253 @@ export function SettingsPage({
         await api.setSuppressCrashReporter(value, activeGame)
     }
 
-    // Render once with final values: until the first fetch (usually the prefetch in
-    // App.tsx's warmSettingsCache) lands, render nothing. A sub-100 ms blank reads
-    // as instant; values flipping in place after render reads as a glitch.
     if (settings === null) return null
+
+    const visibleTabs = globalOnly ? NAV_ITEMS.filter((item) => item.id !== 'game') : NAV_ITEMS
 
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0">
                 <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
-                <p className="text-xs text-text-subtle mt-0.5">{GAMES[activeGame].name}</p>
+                {!globalOnly && (
+                    <p className="text-xs text-text-subtle mt-0.5">{GAMES[activeGame].name}</p>
+                )}
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6">
-                <section className="max-w-xl flex flex-col gap-2">
-                    <h2 className="text-sm font-semibold">{t('settings.gamePath.title')}</h2>
-                    <p className="text-xs text-text-subtle">
-                        {t('settings.gamePath.description', { game: GAMES[activeGame].name })}
-                    </p>
+            <div className="flex-1 flex overflow-hidden">
+                <nav className="w-44 border-r border-border shrink-0 flex flex-col gap-1 p-2">
+                    {visibleTabs.map(({ id, label, icon: Icon }) => (
+                        <button
+                            key={id}
+                            onClick={() => setActiveTab(id)}
+                            className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
+                                activeTab === id
+                                    ? 'bg-surface-active text-text'
+                                    : 'text-text-muted hover:bg-surface-hover hover:text-text'
+                            }`}
+                        >
+                            <Icon className="w-4 h-4 shrink-0" />
+                            <span className="truncate">{label}</span>
+                        </button>
+                    ))}
+                </nav>
 
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
-                        {!gamePathReady ? (
-                            <span className="text-sm flex-1 text-text-muted flex items-center gap-2">
-                                <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
-                                {t('settings.gamePath.detecting')}
-                            </span>
-                        ) : (
-                            <span className="text-sm font-mono truncate flex-1 text-text-muted">
-                                {gamePath ?? t('settings.gamePath.notFound')}
-                            </span>
+                <div className="flex-1 overflow-y-auto px-6 py-6">
+                    <div className="max-w-xl flex flex-col gap-6">
+                        {activeTab === 'game' && (
+                            <>
+                                <Section
+                                    title={t('settings.gamePath.title')}
+                                    description={t('settings.gamePath.description', {
+                                        game: GAMES[activeGame].name,
+                                    })}
+                                >
+                                    <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
+                                        {!gamePathReady ? (
+                                            <span className="text-sm flex-1 text-text-muted flex items-center gap-2">
+                                                <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                                {t('settings.gamePath.detecting')}
+                                            </span>
+                                        ) : (
+                                            <span className="text-sm font-mono truncate flex-1 text-text-muted">
+                                                {gamePath ?? t('settings.gamePath.notFound')}
+                                            </span>
+                                        )}
+                                        <div className="flex gap-2 shrink-0">
+                                            <button
+                                                disabled={picking}
+                                                onClick={handleBrowse}
+                                                className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                            >
+                                                <FolderOpen className="w-3.5 h-3.5" />
+                                                {picking
+                                                    ? t('settings.gamePath.picking')
+                                                    : t('settings.gamePath.browse')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {pathError ? (
+                                        <p className="text-xs text-danger-text">{pathError}</p>
+                                    ) : !gamePathReady ? null : gamePath ? (
+                                        <p className="text-xs text-success-text">
+                                            {t('settings.gamePath.autoDetected')}
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-danger-text">
+                                            {t('settings.gamePath.notDetected', {
+                                                game: GAMES[activeGame].name,
+                                            })}
+                                        </p>
+                                    )}
+                                </Section>
+
+                                <Section
+                                    title={t('settings.launcher.title')}
+                                    description={t('settings.launcher.description', {
+                                        game: GAMES[activeGame].name,
+                                    })}
+                                >
+                                    <div className="mt-1">
+                                        <Select
+                                            value={launcher}
+                                            onChange={handleLauncherChange}
+                                            options={availableLaunchers}
+                                            disabled={availableLaunchers.length <= 1}
+                                        />
+                                    </div>
+                                </Section>
+
+                                {activeGame === 'cb' && (
+                                    <Section
+                                        title={t('settings.crimeBossInstallMode.title')}
+                                        description={t('settings.crimeBossInstallMode.description')}
+                                    >
+                                        <div className="mt-1">
+                                            <Select
+                                                value={crimeBossInstallMode}
+                                                onChange={handleCrimeBossInstallModeChange}
+                                                options={[
+                                                    {
+                                                        value: 'auto',
+                                                        label: t(
+                                                            'settings.crimeBossInstallMode.auto'
+                                                        ),
+                                                    },
+                                                    {
+                                                        value: 'ask',
+                                                        label: t(
+                                                            'settings.crimeBossInstallMode.ask'
+                                                        ),
+                                                    },
+                                                ]}
+                                            />
+                                        </div>
+                                    </Section>
+                                )}
+
+                                {activeGame === 'pd3' && launcher === 'xbox' && (
+                                    <Section title={t('settings.crashReporter.title')}>
+                                        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                                            <span className="text-sm text-text-muted pr-4">
+                                                {t('settings.crashReporter.description')}
+                                            </span>
+                                            <Toggle
+                                                checked={suppressCrashReporter}
+                                                onChange={handleSuppressCrashReporterChange}
+                                                title={t('settings.crashReporter.title')}
+                                            />
+                                        </div>
+                                    </Section>
+                                )}
+
+                                <Section title={t('settings.launchOptions.title')}>
+                                    {activeGame === 'pd3' &&
+                                        (launcher === 'xbox' ? (
+                                            <p className="text-xs text-text-subtle">
+                                                {t('settings.launchOptions.xboxNotePre')}{' '}
+                                                <span className="font-mono text-text">
+                                                    -fileopenlog
+                                                </span>{' '}
+                                                {t('settings.launchOptions.xboxNotePost')}
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-text-subtle">
+                                                {t('settings.launchOptions.descriptionPre')}{' '}
+                                                <span className="font-mono text-text">
+                                                    -fileopenlog
+                                                </span>{' '}
+                                                {t('settings.launchOptions.descriptionPost')}
+                                            </p>
+                                        ))}
+                                    <input
+                                        type="text"
+                                        value={launchOptions}
+                                        onChange={(e) => setLaunchOptions(e.target.value)}
+                                        placeholder={
+                                            activeGame === 'pd3'
+                                                ? t('settings.launchOptions.placeholder')
+                                                : ''
+                                        }
+                                        disabled={launcher === 'xbox'}
+                                        className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+                                    />
+                                </Section>
+                            </>
                         )}
-                        <div className="flex gap-2 shrink-0">
-                            <button
-                                disabled={picking}
-                                onClick={handleBrowse}
-                                className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+
+                        {activeTab === 'application' && (
+                            <>
+                                <Section title={t('settings.updates.title')}>
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <button
+                                            disabled={checkState === 'checking'}
+                                            onClick={handleCheckForUpdates}
+                                            className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                        >
+                                            <RefreshCw
+                                                className={`w-3.5 h-3.5 ${checkState === 'checking' ? 'animate-spin' : ''}`}
+                                            />
+                                            {checkState === 'checking'
+                                                ? t('settings.updates.checking')
+                                                : t('settings.updates.check')}
+                                        </button>
+                                        {checkState === 'upToDate' && (
+                                            <span className="text-xs text-success-text">
+                                                {t('settings.updates.upToDate')}
+                                            </span>
+                                        )}
+                                    </div>
+                                </Section>
+
+                                <Section title={t('telemetry.settingsTitle')}>
+                                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                                        <span className="text-sm text-text-muted pr-4">
+                                            {t('telemetry.settingsDescription')}
+                                        </span>
+                                        <Toggle
+                                            checked={analyticsConsent === true}
+                                            onChange={onAnalyticsConsent}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={() => setShowAnalyticsDetails(true)}
+                                        className="text-xs text-accent hover:underline self-start"
+                                    >
+                                        {t('telemetry.detailsToggle')}
+                                    </button>
+                                </Section>
+                            </>
+                        )}
+
+                        {activeTab === 'advanced' && (
+                            <Section
+                                title={t('settings.logs.title')}
+                                description={t('settings.logs.description')}
                             >
-                                <FolderOpen className="w-3.5 h-3.5" />
-                                {picking
-                                    ? t('settings.gamePath.picking')
-                                    : t('settings.gamePath.browse')}
-                            </button>
-                        </div>
-                    </div>
-
-                    {pathError ? (
-                        <p className="text-xs text-danger-text">{pathError}</p>
-                    ) : !gamePathReady ? null : gamePath ? (
-                        <p className="text-xs text-success-text">
-                            {t('settings.gamePath.autoDetected')}
-                        </p>
-                    ) : (
-                        <p className="text-xs text-danger-text">
-                            {t('settings.gamePath.notDetected', { game: GAMES[activeGame].name })}
-                        </p>
-                    )}
-                </section>
-
-                <section className="max-w-xl flex flex-col gap-2 mt-6">
-                    <h2 className="text-sm font-semibold">{t('settings.launcher.title')}</h2>
-                    <p className="text-xs text-text-subtle">
-                        {t('settings.launcher.description', { game: GAMES[activeGame].name })}
-                    </p>
-                    <div className="mt-1">
-                        <Select
-                            value={launcher}
-                            onChange={handleLauncherChange}
-                            options={availableLaunchers}
-                            disabled={availableLaunchers.length <= 1}
-                        />
-                    </div>
-                </section>
-
-                {activeGame === 'cb' && (
-                    <section className="max-w-xl flex flex-col gap-2 mt-6">
-                        <h2 className="text-sm font-semibold">
-                            {t('settings.crimeBossInstallMode.title')}
-                        </h2>
-                        <p className="text-xs text-text-subtle">
-                            {t('settings.crimeBossInstallMode.description')}
-                        </p>
-                        <div className="mt-1">
-                            <Select
-                                value={crimeBossInstallMode}
-                                onChange={handleCrimeBossInstallModeChange}
-                                options={[
-                                    {
-                                        value: 'auto',
-                                        label: t('settings.crimeBossInstallMode.auto'),
-                                    },
-                                    { value: 'ask', label: t('settings.crimeBossInstallMode.ask') },
-                                ]}
-                            />
-                        </div>
-                    </section>
-                )}
-
-                {activeGame === 'pd3' && launcher === 'xbox' && (
-                    <section className="max-w-xl flex flex-col gap-2 mt-6">
-                        <h2 className="text-sm font-semibold">
-                            {t('settings.crashReporter.title')}
-                        </h2>
-                        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
-                            <span className="text-sm text-text-muted pr-4">
-                                {t('settings.crashReporter.description')}
-                            </span>
-                            <Toggle
-                                checked={suppressCrashReporter}
-                                onChange={handleSuppressCrashReporterChange}
-                                title={t('settings.crashReporter.title')}
-                            />
-                        </div>
-                    </section>
-                )}
-
-                <section className="max-w-xl flex flex-col gap-2 mt-6">
-                    <h2 className="text-sm font-semibold">{t('settings.updates.title')}</h2>
-                    <div className="flex items-center gap-3 mt-1">
-                        <button
-                            disabled={checkState === 'checking'}
-                            onClick={handleCheckForUpdates}
-                            className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-                        >
-                            <RefreshCw
-                                className={`w-3.5 h-3.5 ${checkState === 'checking' ? 'animate-spin' : ''}`}
-                            />
-                            {checkState === 'checking'
-                                ? t('settings.updates.checking')
-                                : t('settings.updates.check')}
-                        </button>
-                        {checkState === 'upToDate' && (
-                            <span className="text-xs text-success-text">
-                                {t('settings.updates.upToDate')}
-                            </span>
+                                <div className="mt-1">
+                                    <button
+                                        onClick={() => api.openLog()}
+                                        className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors flex items-center gap-1.5"
+                                    >
+                                        <ScrollText className="w-3.5 h-3.5" />
+                                        {t('settings.logs.open')}
+                                    </button>
+                                </div>
+                            </Section>
                         )}
                     </div>
-                </section>
-
-                <section className="max-w-xl flex flex-col gap-2 mt-6">
-                    <h2 className="text-sm font-semibold">{t('settings.logs.title')}</h2>
-                    <p className="text-xs text-text-subtle">{t('settings.logs.description')}</p>
-                    <div className="mt-1">
-                        <button
-                            onClick={() => api.openLog()}
-                            className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors flex items-center gap-1.5"
-                        >
-                            <ScrollText className="w-3.5 h-3.5" />
-                            {t('settings.logs.open')}
-                        </button>
-                    </div>
-                </section>
-
-                <section className="max-w-xl flex flex-col gap-2 mt-6">
-                    <h2 className="text-sm font-semibold">{t('settings.launchOptions.title')}</h2>
-                    {activeGame === 'pd3' &&
-                        (launcher === 'xbox' ? (
-                            <p className="text-xs text-text-subtle">
-                                {t('settings.launchOptions.xboxNotePre')}{' '}
-                                <span className="font-mono text-text">-fileopenlog</span>{' '}
-                                {t('settings.launchOptions.xboxNotePost')}
-                            </p>
-                        ) : (
-                            <p className="text-xs text-text-subtle">
-                                {t('settings.launchOptions.descriptionPre')}{' '}
-                                <span className="font-mono text-text">-fileopenlog</span>{' '}
-                                {t('settings.launchOptions.descriptionPost')}
-                            </p>
-                        ))}
-                    <input
-                        type="text"
-                        value={launchOptions}
-                        onChange={(e) => setLaunchOptions(e.target.value)}
-                        placeholder={
-                            activeGame === 'pd3' ? t('settings.launchOptions.placeholder') : ''
-                        }
-                        disabled={launcher === 'xbox'}
-                        className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
-                    />
-                </section>
-
-                <section className="max-w-xl flex flex-col gap-2 mt-6">
-                    <h2 className="text-sm font-semibold">{t('telemetry.settingsTitle')}</h2>
-                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
-                        <span className="text-sm text-text-muted pr-4">
-                            {t('telemetry.settingsDescription')}
-                        </span>
-                        <Toggle checked={analyticsConsent === true} onChange={onAnalyticsConsent} />
-                    </div>
-                    <button
-                        onClick={() => setShowAnalyticsDetails(true)}
-                        className="text-xs text-accent hover:underline self-start"
-                    >
-                        {t('telemetry.detailsToggle')}
-                    </button>
-                </section>
-
-                <TelemetryConsentDialog
-                    open={showAnalyticsDetails}
-                    dismissable
-                    onClose={() => setShowAnalyticsDetails(false)}
-                    onChoice={(enabled) => {
-                        onAnalyticsConsent(enabled)
-                        setShowAnalyticsDetails(false)
-                    }}
-                />
+                </div>
             </div>
+
+            <TelemetryConsentDialog
+                open={showAnalyticsDetails}
+                dismissable
+                onClose={() => setShowAnalyticsDetails(false)}
+                onChoice={(enabled) => {
+                    onAnalyticsConsent(enabled)
+                    setShowAnalyticsDetails(false)
+                }}
+            />
         </div>
     )
 }

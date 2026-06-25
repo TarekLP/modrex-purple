@@ -50,6 +50,7 @@
         "installed": "Installed",
         "news": "News",
         "settings": "Settings",
+        "back": "Back",
         "collapse": "Collapse menu",
         "expandTitle": "Expand sidebar",
         "collapseTitle": "Collapse sidebar",
@@ -325,6 +326,11 @@
             "description": "Where new Crime Boss mods go by default. You can also move an already-installed mod later from the Installed list.",
             "auto": "Automatic",
             "ask": "Always ask"
+        },
+        "nav": {
+            "game": "Game",
+            "application": "Application",
+            "advanced": "Advanced"
         }
     },
     "telemetry": {

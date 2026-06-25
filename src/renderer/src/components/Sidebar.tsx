@@ -31,7 +31,6 @@ const navItems: { id: NavView; labelKey: StringKey; icon: LucideIcon }[] = [
     { id: 'browse', labelKey: 'sidebar.browse', icon: Compass },
     { id: 'installed', labelKey: 'sidebar.installed', icon: Package },
     { id: 'news', labelKey: 'sidebar.news', icon: Newspaper },
-    { id: 'settings', labelKey: 'sidebar.settings', icon: Settings },
 ]
 
 export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 'app' }: Props) {
@@ -47,8 +46,7 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
         <aside
             className={`${collapsed ? 'w-12' : 'w-48'} shrink-0 flex flex-col bg-surface-raised border-r border-border transition-[width] duration-200 overflow-hidden`}
         >
-            {/* Game switcher */}
-            {!isPicker && (
+            {!isPicker ? (
                 <div className="p-2 border-b border-border shrink-0">
                     <Tooltip
                         content={`${GAMES[activeGame].name} — ${t('sidebar.changeGame')}`}
@@ -67,7 +65,23 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
                         </button>
                     </Tooltip>
                 </div>
-            )}
+            ) : view === 'settings' ? (
+                <div className="p-2 border-b border-border shrink-0">
+                    <Tooltip content={t('sidebar.back')} disabled={!collapsed} side="right">
+                        <button
+                            onClick={onShowWelcome}
+                            className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs hover:bg-surface-hover text-text-muted hover:text-text transition-colors"
+                        >
+                            <ChevronLeft className="w-3.5 h-3.5 shrink-0" />
+                            <span
+                                className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                            >
+                                {t('sidebar.back')}
+                            </span>
+                        </button>
+                    </Tooltip>
+                </div>
+            ) : null}
 
             <nav className="flex flex-col gap-1 p-2 flex-1">
                 {!isPicker &&
@@ -101,6 +115,23 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
             </nav>
 
             <div className="p-2 flex flex-col gap-1">
+                <Tooltip content={t('sidebar.settings')} disabled={!collapsed} side="right">
+                    <button
+                        onClick={() => onViewChange('settings')}
+                        className={`w-full px-2 py-2 gap-2.5 flex items-center rounded text-sm transition-colors ${
+                            view === 'settings'
+                                ? 'bg-surface-active text-text'
+                                : 'text-text-muted hover:bg-surface-hover hover:text-text'
+                        }`}
+                    >
+                        <Settings className="w-4 h-4 shrink-0" />
+                        <span
+                            className={`truncate transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                        >
+                            {t('sidebar.settings')}
+                        </span>
+                    </button>
+                </Tooltip>
                 <Tooltip content={t('sidebar.discordTitle')} side="right">
                     <button
                         onClick={() => api.openExternal('https://discord.gg/tenzpx8JRM')}

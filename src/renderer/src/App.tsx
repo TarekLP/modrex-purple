@@ -84,6 +84,12 @@ export default function App() {
     } | null>(null)
     const [showUpdateModal, setShowUpdateModal] = useState(false)
 
+    // Kept in sync with view so handleSidebarChange can read it without taking view as a dep.
+    const viewRef = useRef<View>(view)
+    useLayoutEffect(() => {
+        viewRef.current = view
+    }, [view])
+
     // Kept in sync with activeGame after every commit so async callbacks can detect staleness.
     const activeGameRef = useRef<GameId>(activeGame)
     // Guards against two concurrent get_installed Tauri commands — a second in-flight
@@ -166,6 +172,7 @@ export default function App() {
         // janky frames (a newer switch cancels the in-progress render).
         startTransition(() => {
             setActiveGame(g)
+            setSettingsGlobalOnly(false)
             // Restore the last-known path for this game so the UI never flashes
             // "not found" while refreshGamePath re-validates in the background.
             setGamePath(cachedPath !== undefined ? cachedPath : null)
@@ -327,11 +334,20 @@ export default function App() {
         }
     }
 
-    const handleSidebarChange = useCallback((v: 'browse' | 'installed' | 'news' | 'settings') => {
-        localStorage.setItem('modrex:active-view', v)
-        setDetailStack([])
-        setView(v)
-    }, [])
+    const [settingsGlobalOnly, setSettingsGlobalOnly] = useState(false)
+
+    const handleSidebarChange = useCallback(
+        (v: 'browse' | 'installed' | 'news' | 'settings') => {
+            const isGlobalOnly = v === 'settings' && viewRef.current === 'welcome'
+            if (v === 'settings') setSettingsGlobalOnly(isGlobalOnly)
+            // Don't persist global-only settings to localStorage — it's a transient
+            // overlay on the picker, not the user's intended destination after game select.
+            if (!isGlobalOnly) localStorage.setItem('modrex:active-view', v)
+            setDetailStack([])
+            setView(v)
+        },
+        [setSettingsGlobalOnly]
+    )
 
     const openDetailFromBrowse = useCallback(
         (modId: number, initialMod?: Mod) => openDetail(modId, 'browse', initialMod),
@@ -400,7 +416,11 @@ export default function App() {
                             onViewChange={handleSidebarChange}
                             activeGame={activeGame}
                             onShowWelcome={handleShowWelcome}
-                            mode={view === 'welcome' ? 'picker' : 'app'}
+                            mode={
+                                view === 'welcome' || (view === 'settings' && settingsGlobalOnly)
+                                    ? 'picker'
+                                    : 'app'
+                            }
                         />
                         {/* Pages are stacked absolute panes toggled with visibility, not
                                 display:none — un-hiding a display:none subtree re-layouts it
@@ -462,6 +482,7 @@ export default function App() {
                                     onGamePathChange={handleGamePathSet}
                                     analyticsConsent={analyticsConsent ?? null}
                                     onAnalyticsConsent={handleAnalyticsConsent}
+                                    globalOnly={settingsGlobalOnly}
                                 />
                             </div>
                             {detailStack.map(({ modId, initialMod }, i) => (
