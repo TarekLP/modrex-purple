@@ -441,6 +441,7 @@ export default function App() {
                                     installed={installed}
                                     folders={folders}
                                     installedReady={readyGames.has(activeGame)}
+                                    isActive={view === 'installed'}
                                     onRefreshInstalled={refreshInstalled}
                                     onOpenDetail={openDetailFromInstalled}
                                 />

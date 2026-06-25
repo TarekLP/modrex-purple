@@ -92,6 +92,7 @@ describe('UpdatesModal batch update', () => {
                 installed={[]}
                 gamePath="/game"
                 gameId="pd3"
+                visible={true}
                 onRefreshInstalled={onRefreshInstalled}
                 onClose={onClose}
                 onOpenDetail={vi.fn()}

@@ -101,6 +101,39 @@ export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
     return mods.map((m) => (overrides.has(m.uid) ? { ...m, folderId: overrides.get(m.uid) } : m))
 }
 
+export interface InstalledGroup {
+    key: string
+    id: number
+    mods: InstalledMod[]
+}
+
+export function groupInstalledByIdentity(mods: InstalledMod[]): InstalledGroup[] {
+    const groups = new Map<string, InstalledGroup>()
+    for (const m of mods) {
+        const key = m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`
+        const g = groups.get(key)
+        if (g) g.mods.push(m)
+        else groups.set(key, { key, id: m.id, mods: [m] })
+    }
+    return [...groups.values()]
+}
+
+export interface HealthSummary {
+    missing: InstalledGroup[]
+    archiveBroken: InstalledGroup[]
+    unidentified: InstalledGroup[]
+}
+
+// Free-tier health categories — purely local, no network.
+export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
+    const groups = groupInstalledByIdentity(mods)
+    return {
+        missing: groups.filter((g) => g.mods.some((m) => m.missing)),
+        archiveBroken: groups.filter((g) => g.mods.some((m) => m.archiveBroken)),
+        unidentified: groups.filter((g) => g.id < 0),
+    }
+}
+
 export interface SuspectFileGroup {
     fileId: number
     bareUid: string

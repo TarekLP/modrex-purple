@@ -12,6 +12,8 @@ import {
     groupChildren,
     findSuspectDuplicateGroups,
     resolveStaleDuplicates,
+    groupInstalledByIdentity,
+    computeHealthSummary,
     type ChildEntry,
     type ChildGroup,
 } from './installedUtils'
@@ -260,6 +262,56 @@ describe('normalizeModScopes', () => {
         ]
         const result = normalizeModScopes(mods)
         expect(result.find((m) => m.uid === 'b')!.folderId).toBe('f2')
+    })
+})
+
+describe('groupInstalledByIdentity', () => {
+    it('collapses multi-file mods sharing one positive id into one group', () => {
+        const mods = [makeMod('a', 5, 'Mod'), makeMod('b', 5, 'Mod'), makeMod('c', 5, 'Mod')]
+        const groups = groupInstalledByIdentity(mods)
+        expect(groups).toHaveLength(1)
+        expect(groups[0]).toEqual({ key: 'id:5', id: 5, mods })
+    })
+
+    it('keeps negative-id mods in separate groups keyed by uid', () => {
+        const mods = [makeMod('a', -1, 'A'), makeMod('b', -1, 'B')]
+        const groups = groupInstalledByIdentity(mods)
+        expect(groups).toHaveLength(2)
+        expect(groups.map((g) => g.key).sort()).toEqual(['uid:a', 'uid:b'])
+    })
+
+    it('keeps distinct positive ids in separate groups', () => {
+        const mods = [makeMod('a', 1, 'A'), makeMod('b', 2, 'B')]
+        expect(groupInstalledByIdentity(mods)).toHaveLength(2)
+    })
+})
+
+describe('computeHealthSummary', () => {
+    it('flags a group as missing when any of its files is missing', () => {
+        const mods = [makeMod('a', 1, 'A', { missing: true }), makeMod('b', 1, 'A')]
+        const summary = computeHealthSummary(mods)
+        expect(summary.missing).toHaveLength(1)
+        expect(summary.missing[0].id).toBe(1)
+    })
+
+    it('flags a group as archiveBroken when any of its files is broken', () => {
+        const mods = [makeMod('a', 1, 'A', { archiveBroken: true })]
+        expect(computeHealthSummary(mods).archiveBroken).toHaveLength(1)
+    })
+
+    it('flags negative-id groups as unidentified', () => {
+        const mods = [makeMod('a', -1, 'A'), makeMod('b', 2, 'B')]
+        const summary = computeHealthSummary(mods)
+        expect(summary.unidentified).toHaveLength(1)
+        expect(summary.unidentified[0].id).toBe(-1)
+    })
+
+    it('returns empty categories for a clean pack', () => {
+        const mods = [makeMod('a', 1, 'A', { enabled: true })]
+        const summary = computeHealthSummary(mods)
+        expect(summary.missing).toEqual([])
+        expect(summary.archiveBroken).toEqual([])
+        expect(summary.unidentified).toEqual([])
     })
 })
 

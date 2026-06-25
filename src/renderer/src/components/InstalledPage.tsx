@@ -1,5 +1,14 @@
 import { useState, useMemo } from 'react'
-import { X, Search, LayoutGrid, List, FolderOpen, FolderPlus, RefreshCw } from 'lucide-react'
+import {
+    X,
+    Search,
+    LayoutGrid,
+    List,
+    FolderOpen,
+    FolderPlus,
+    RefreshCw,
+    Stethoscope,
+} from 'lucide-react'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { ZipPickerModal } from './ZipPickerModal'
@@ -8,6 +17,7 @@ import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
 import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
 import { MoveCrimeBossTargetModal } from './MoveCrimeBossTargetModal'
 import { UpdatesModal } from './UpdatesModal'
+import { HealthCheckModal } from './HealthCheckModal'
 import { DeleteFolderModal } from './DeleteFolderModal'
 import { FolderSection, NewFolderInput } from './FolderSection'
 import { InstalledModItem } from './InstalledModItem'
@@ -23,7 +33,10 @@ import {
     groupChildren,
     normalizeModScopes,
     filterInstalled,
+    computeHealthSummary,
+    groupInstalledByIdentity,
 } from '../hooks/installedUtils'
+import { checkMissingDependencies, type HealthItem } from '../hooks/healthCheck'
 import { api } from '../api'
 
 type ViewMode = 'grid' | 'list'
@@ -39,6 +52,7 @@ interface Props {
     installed: InstalledMod[]
     folders: ModFolder[]
     installedReady: boolean
+    isActive: boolean
     onRefreshInstalled: () => Promise<void>
     onOpenDetail: (modId: number) => void
 }
@@ -49,12 +63,62 @@ export function InstalledPage({
     installed,
     folders,
     installedReady,
+    isActive,
     onRefreshInstalled,
     onOpenDetail,
 }: Props) {
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const { modData, failedIds, updatable } = useModData(installed, GAMES[activeGame].workshopId)
     const [showUpdates, setShowUpdates] = useState(false)
+    const [showHealth, setShowHealth] = useState(false)
+    const [checkingHealth, setCheckingHealth] = useState(false)
+    const [healthMissingDeps, setHealthMissingDeps] = useState<HealthItem[]>([])
+    const healthSummary = useMemo(() => computeHealthSummary(installed), [installed])
+    const healthIssueCount =
+        healthSummary.missing.length +
+        healthSummary.archiveBroken.length +
+        healthSummary.unidentified.length
+    const showDepsTab = !!gamePath && installed.some((m) => m.id >= 0)
+
+    // Runs eagerly on click rather than lazily inside the modal — the dependency check costs
+    // a network fetch per mod, so the modal only opens once the full report is ready.
+    async function runHealthCheck() {
+        if (checkingHealth) return
+        setCheckingHealth(true)
+        try {
+            const positiveIds = [
+                ...new Set(
+                    groupInstalledByIdentity(installed)
+                        .filter((g) => g.id >= 0)
+                        .map((g) => g.id)
+                ),
+            ]
+            const deps = gamePath
+                ? await checkMissingDependencies(installed, positiveIds, gamePath, activeGame)
+                : []
+            setHealthMissingDeps(deps)
+        } finally {
+            setCheckingHealth(false)
+            setShowHealth(true)
+        }
+    }
+    // Two api.getInstalled calls: onRefreshInstalled updates App state but doesn't
+    // return the fresh list, so we fetch once more (local filesystem, ~2ms).
+    async function handleDepInstalled() {
+        if (!gamePath) return
+        await onRefreshInstalled()
+        const fresh = await api.getInstalled(activeGame)
+        const positiveIds = [
+            ...new Set(
+                groupInstalledByIdentity(fresh.mods)
+                    .filter((g) => g.id >= 0)
+                    .map((g) => g.id)
+            ),
+        ]
+        const deps = await checkMissingDependencies(fresh.mods, positiveIds, gamePath, activeGame)
+        setHealthMissingDeps(deps)
+    }
+
     const [filterQuery, setFilterQuery] = useState('')
     // Which group's ManageFilesModal is open. Lives here (not in InstalledModItem)
     // because items remount when their uid-derived keys shift after a deletion.
@@ -288,6 +352,28 @@ export function InstalledPage({
                                     />
                                 </button>
                             </Tooltip>
+                            <Tooltip content={t('installed.health.title')}>
+                                <button
+                                    onClick={() => void runHealthCheck()}
+                                    disabled={checkingHealth}
+                                    className={`flex items-center gap-1.5 p-1 rounded transition-colors disabled:cursor-not-allowed ${
+                                        healthIssueCount > 0
+                                            ? 'bg-warning/20 hover:bg-warning/30 text-warning'
+                                            : 'bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text'
+                                    }`}
+                                >
+                                    {checkingHealth ? (
+                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Stethoscope className="w-3.5 h-3.5" />
+                                    )}
+                                    {!checkingHealth && healthIssueCount > 0 && (
+                                        <span className="pr-1 text-[10px] font-medium leading-none">
+                                            {healthIssueCount}
+                                        </span>
+                                    )}
+                                </button>
+                            </Tooltip>
                         </div>
                         <div className="flex items-center gap-3">
                             {installed.length > 0 && (
@@ -476,9 +562,31 @@ export function InstalledPage({
                         installed={installed}
                         gamePath={gamePath}
                         gameId={activeGame}
+                        visible={isActive}
                         onRefreshInstalled={onRefreshInstalled}
                         onClose={() => setShowUpdates(false)}
                         onOpenDetail={onOpenDetail}
+                    />
+                )}
+
+                {showHealth && (
+                    <HealthCheckModal
+                        installed={installed}
+                        updatable={updatable}
+                        modData={modData}
+                        missingDeps={healthMissingDeps}
+                        showDepsTab={showDepsTab}
+                        gamePath={gamePath}
+                        gameId={activeGame}
+                        visible={isActive}
+                        onOpenDetail={onOpenDetail}
+                        onReinstall={handleReinstall}
+                        onDepInstalled={handleDepInstalled}
+                        onReviewUpdates={() => {
+                            setShowHealth(false)
+                            setShowUpdates(true)
+                        }}
+                        onClose={() => setShowHealth(false)}
                     />
                 )}
 

@@ -143,6 +143,28 @@
             "confirm": "Move",
             "moving": "Moving…",
             "error": "Move failed: {error}"
+        },
+        "health": {
+            "title": "Health Check",
+            "missingFilesCount": "Missing files ({count})",
+            "brokenArchivesCount": "Broken archives ({count})",
+            "unidentifiedCount": "Unidentified ({count})",
+            "unidentifiedHint": "Not recognized on modworkshop — may be identified later after a mod index update.",
+            "updatesCount": "Updates ({count})",
+            "dependenciesCount": "Dependencies ({count})",
+            "noMissingFiles": "No missing files.",
+            "noBrokenArchives": "No broken archives.",
+            "noUnidentified": "Every installed mod is recognized.",
+            "noUpdates": "Everything is up to date.",
+            "noMissingDeps": "Every installed mod has its dependencies met.",
+            "missingFileHint": "File missing from disk",
+            "brokenArchiveHint": "Archive could not be verified",
+            "unidentifiedRowHint": "Not found on modworkshop",
+            "missingDepsHint": "Missing: {deps}",
+            "installDep": "Install",
+            "installAllDeps": "Install All Dependencies",
+            "installDepFailed": "Some dependencies couldn't be installed automatically.",
+            "reinstallAll": "Reinstall All"
         }
     },
     "news": {

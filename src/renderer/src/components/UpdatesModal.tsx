@@ -24,6 +24,7 @@ interface Props {
     installed: InstalledMod[]
     gamePath: string | null
     gameId?: string
+    visible: boolean
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
     onOpenDetail: (modId: number) => void
@@ -35,6 +36,7 @@ export function UpdatesModal({
     installed,
     gamePath,
     gameId,
+    visible,
     onRefreshInstalled,
     onClose,
     onOpenDetail,
@@ -169,7 +171,7 @@ export function UpdatesModal({
     return (
         <>
             <Dialog
-                open={true}
+                open={visible}
                 onOpenChange={(open) => !open && onClose()}
                 title={t('installed.updatesModal.title', { count: updatable.length })}
                 className="w-[32rem]"
@@ -204,10 +206,7 @@ export function UpdatesModal({
                                     className="accent-[oklch(0.65_0.18_47)] w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
                                 />
                                 <button
-                                    onClick={() => {
-                                        onClose()
-                                        onOpenDetail(ins.id)
-                                    }}
+                                    onClick={() => onOpenDetail(ins.id)}
                                     className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
                                 >
                                     {mod.thumbnail ? (
