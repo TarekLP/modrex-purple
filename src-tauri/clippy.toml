@@ -1,0 +1,10 @@
+# Enforces the HTTP_CLIENT invariant (see ../CLAUDE.md): every outgoing request must go
+# through http_client() in commands::api so it shares the connection pool and carries the
+# modworkshop User-Agent. These two forms build a zero-config client with no User-Agent at
+# all, which is always wrong. Client::builder is intentionally NOT disallowed: http_client
+# uses it, as do the deliberate non-modworkshop downloaders in mod_index.rs and thumbnails.rs
+# (different hosts, their own User-Agent and timeout).
+disallowed-methods = [
+    { path = "reqwest::Client::new", reason = "use http_client() from commands::api" },
+    { path = "reqwest::get", reason = "use http_client() from commands::api" },
+]
