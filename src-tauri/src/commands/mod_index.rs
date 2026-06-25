@@ -63,23 +63,23 @@ async fn refresh_index(app: &AppHandle) -> &'static str {
     let resp = match client.get(INDEX_URL).send().await {
         Ok(r) if r.status().is_success() => r,
         Ok(r) => {
-            eprintln!("[mod-index] download failed: HTTP {}", r.status());
+            log::warn!("mod_index: download failed: HTTP {}", r.status());
             return "http_error";
         }
         Err(e) => {
-            eprintln!("[mod-index] download failed: {}", e);
+            log::warn!("mod_index: download failed: {e}");
             return "network_error";
         }
     };
     let bytes = match resp.bytes().await {
         Ok(b) => b,
         Err(e) => {
-            eprintln!("[mod-index] read response body failed: {}", e);
+            log::warn!("mod_index: read response body failed: {e}");
             return "read_error";
         }
     };
     if let Err(e) = std::fs::write(&path, &bytes) {
-        eprintln!("[mod-index] write failed: {}", e);
+        log::warn!("mod_index: write failed: {e}");
         return "write_error";
     }
     "updated"
