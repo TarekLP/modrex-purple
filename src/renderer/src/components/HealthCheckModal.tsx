@@ -172,6 +172,7 @@ export function HealthCheckModal({
 
     const missingItems = toItems(summary.missing)
     const brokenItems = toItems(summary.archiveBroken)
+    const outdatedItems = toItems(summary.outdated)
     const unidentifiedItems = toItems(summary.unidentified)
 
     // Lifted out of Tabs.Root (which Radix unmounts along with the rest of Dialog.Content
@@ -196,6 +197,10 @@ export function HealthCheckModal({
             label: t('installed.health.brokenArchivesCount', { count: brokenItems.length }),
         },
         {
+            id: 'outdated',
+            label: t('installed.health.outdatedCount', { count: outdatedItems.length }),
+        },
+        {
             id: 'unidentified',
             label: t('installed.health.unidentifiedCount', { count: unidentifiedItems.length }),
         },
@@ -210,7 +215,7 @@ export function HealthCheckModal({
             open={visible}
             onOpenChange={(open) => !open && onClose()}
             title={t('installed.health.title')}
-            className="w-[38rem] max-h-[70vh]"
+            className="w-[48rem] max-h-[60vh]"
         >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
                 <h2 className="text-sm font-semibold">{t('installed.health.title')}</h2>
@@ -349,6 +354,33 @@ export function HealthCheckModal({
                         )}
                     </Tabs.Content>
                     <Tabs.Content
+                        value="outdated"
+                        className="focus:outline-none flex flex-col gap-0.5"
+                    >
+                        {outdatedItems.length === 0 ? (
+                            <EmptyTab>{t('installed.health.noOutdated')}</EmptyTab>
+                        ) : (
+                            outdatedItems.map((item) => (
+                                <HealthRow
+                                    key={item.uid}
+                                    thumbnailFile={modData.get(item.id)?.thumbnail?.file}
+                                    name={item.name}
+                                    secondary={t('installed.health.outdatedHint')}
+                                    clickable
+                                    onOpen={() => onOpenDetail(item.id)}
+                                    action={
+                                        <button
+                                            onClick={() => onReinstall(item.mods)}
+                                            className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors"
+                                        >
+                                            {t('common.reinstall')}
+                                        </button>
+                                    }
+                                />
+                            ))
+                        )}
+                    </Tabs.Content>
+                    <Tabs.Content
                         value="unidentified"
                         className="focus:outline-none flex flex-col gap-0.5"
                     >
@@ -422,6 +454,17 @@ export function HealthCheckModal({
                     <button
                         onClick={() => {
                             brokenItems.forEach((item) => onReinstall(item.mods))
+                            onClose()
+                        }}
+                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
+                    >
+                        {t('installed.health.reinstallAll')}
+                    </button>
+                )}
+                {activeTab === 'outdated' && outdatedItems.length > 0 && (
+                    <button
+                        onClick={() => {
+                            outdatedItems.forEach((item) => onReinstall(item.mods))
                             onClose()
                         }}
                         className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"

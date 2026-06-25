@@ -121,15 +121,23 @@ export function groupInstalledByIdentity(mods: InstalledMod[]): InstalledGroup[]
 export interface HealthSummary {
     missing: InstalledGroup[]
     archiveBroken: InstalledGroup[]
+    outdated: InstalledGroup[]
     unidentified: InstalledGroup[]
 }
 
 // Free-tier health categories — purely local, no network.
 export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
     const groups = groupInstalledByIdentity(mods)
+    const suspectFileIds = new Set(findSuspectDuplicateGroups(mods).map((s) => s.fileId))
     return {
         missing: groups.filter((g) => g.mods.some((m) => m.missing)),
         archiveBroken: groups.filter((g) => g.mods.some((m) => m.archiveBroken)),
+        outdated: groups.filter(
+            (g) =>
+                g.id >= 0 &&
+                (g.mods.some((m) => m.version === 'outdated') ||
+                    g.mods.some((m) => m.fileId != null && suspectFileIds.has(m.fileId)))
+        ),
         unidentified: groups.filter((g) => g.id < 0),
     }
 }

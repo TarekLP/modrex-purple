@@ -306,11 +306,34 @@ describe('computeHealthSummary', () => {
         expect(summary.unidentified[0].id).toBe(-1)
     })
 
+    it('flags positive-id groups as outdated when any file has version "outdated"', () => {
+        const mods = [makeMod('a', 1, 'A', { version: 'outdated' })]
+        const summary = computeHealthSummary(mods)
+        expect(summary.outdated).toHaveLength(1)
+        expect(summary.outdated[0].id).toBe(1)
+    })
+
+    it('does not flag negative-id mods as outdated', () => {
+        const mods = [makeMod('a', -1, 'A', { version: 'outdated' })]
+        expect(computeHealthSummary(mods).outdated).toEqual([])
+    })
+
+    it('flags groups with a stale duplicate (bare-uid + archive-scheme uid for same fileId)', () => {
+        const mods = [
+            makeMod('81999', 5, 'Real Weapon Names', { fileId: 81999 }),
+            makeMod('81999_zRealWeaponNames_P', 5, 'Real Weapon Names', { fileId: 81999 }),
+        ]
+        const summary = computeHealthSummary(mods)
+        expect(summary.outdated).toHaveLength(1)
+        expect(summary.outdated[0].id).toBe(5)
+    })
+
     it('returns empty categories for a clean pack', () => {
         const mods = [makeMod('a', 1, 'A', { enabled: true })]
         const summary = computeHealthSummary(mods)
         expect(summary.missing).toEqual([])
         expect(summary.archiveBroken).toEqual([])
+        expect(summary.outdated).toEqual([])
         expect(summary.unidentified).toEqual([])
     })
 })
