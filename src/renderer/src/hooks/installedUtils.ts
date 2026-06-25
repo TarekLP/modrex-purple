@@ -1,4 +1,4 @@
-import type { Mod, InstalledMod, ModFolder } from '../../../shared/types'
+import type { Mod, InstalledMod, ModFolder, ModFile } from '../../../shared/types'
 
 export type ChildEntry =
     | { type: 'folder'; folder: ModFolder }
@@ -99,6 +99,62 @@ export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
 
     if (overrides.size === 0) return mods
     return mods.map((m) => (overrides.has(m.uid) ? { ...m, folderId: overrides.get(m.uid) } : m))
+}
+
+export interface SuspectFileGroup {
+    fileId: number
+    bareUid: string
+    archiveUids: string[]
+}
+
+// A bare single-file install (install_mod/install_file in mod.rs) uses uid === String(fileId).
+// An archive-entry install (install_from_zip_entry/install_cb_flat_archive) uses a uid prefixed
+// with "{fileId}_". These two schemes coexisting for the same fileId can only happen when that
+// exact file's packaging changed between a plain .pak and an archive at some point, orphaning
+// whichever side is no longer current — see install_from_zip_entry's pre-removal fix in mod.rs.
+// This does NOT fire for legitimate multi-pak archives (several wanted paks sharing one fileId,
+// all archive-scheme) or ambient multi-pak discovery (mod.rs:620-630's filename-uid fallback,
+// which never collides with the "{fileId}_" prefix) — both are real, common, and intentional.
+export function findSuspectDuplicateGroups(mods: InstalledMod[]): SuspectFileGroup[] {
+    const byFileId = new Map<number, InstalledMod[]>()
+    for (const m of mods) {
+        if (m.id < 0 || m.location || m.fileId == null) continue
+        const g = byFileId.get(m.fileId)
+        if (g) g.push(m)
+        else byFileId.set(m.fileId, [m])
+    }
+    const suspects: SuspectFileGroup[] = []
+    for (const [fileId, group] of byFileId) {
+        if (group.length < 2) continue
+        const bareUid = String(fileId)
+        if (!group.some((m) => m.uid === bareUid)) continue
+        const archiveUids = group
+            .filter((m) => m.uid !== bareUid && m.uid.startsWith(`${fileId}_`))
+            .map((m) => m.uid)
+        if (archiveUids.length > 0) suspects.push({ fileId, bareUid, archiveUids })
+    }
+    return suspects
+}
+
+// Resolves which side of a suspect group is actually stale using the mod's current file list —
+// the live "type" field (e.g. "pak" vs "zip"/"7z"/"rar") says definitively whether that fileId is
+// presently a bare file or an archive, rather than guessing from install timestamps. A fileId no
+// longer present in the live list (file deleted upstream) can't be resolved, so it's left unflagged.
+export function resolveStaleDuplicates(
+    suspects: SuspectFileGroup[],
+    files: Pick<ModFile, 'id' | 'type'>[]
+): Set<string> {
+    const stale = new Set<string>()
+    for (const s of suspects) {
+        const file = files.find((f) => f.id === s.fileId)
+        if (!file) continue
+        if (file.type != null && file.type !== 'pak') {
+            stale.add(s.bareUid)
+        } else {
+            for (const uid of s.archiveUids) stale.add(uid)
+        }
+    }
+    return stale
 }
 
 export function computeChildren(

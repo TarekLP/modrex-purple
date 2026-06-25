@@ -6,7 +6,13 @@ import { Dialog } from './Dialog'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
-import { displayFilename, entryFilename, stripPriorityPrefix } from '../hooks/installedUtils'
+import {
+    displayFilename,
+    entryFilename,
+    stripPriorityPrefix,
+    findSuspectDuplicateGroups,
+    resolveStaleDuplicates,
+} from '../hooks/installedUtils'
 import { getCachedModFiles } from '../modCache'
 import { getArchiveEntries, mergeArchiveEntries, setArchiveEntries } from '../archiveEntriesCache'
 import { parseZipMultiPak } from './ZipPickerModal'
@@ -63,8 +69,32 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     const [installError, setInstallError] = useState<string | null>(null)
     // Bumped when the SHA256 index lands in the cache so ghosts recompute
     const [, setIndexSynced] = useState(0)
+    const [staleUids, setStaleUids] = useState<Set<string>>(new Set())
 
     const rawById = new Map(installed.map((m) => [m.uid, m]))
+
+    // Resolves suspect bare/archive-uid collisions against the mod's live file list — the
+    // current file "type" (pak vs zip/7z/rar) says definitively which side is the leftover,
+    // rather than guessing from install timestamps. See findSuspectDuplicateGroups in
+    // installedUtils.ts for why a structural collision is required before this even runs.
+    useEffect(() => {
+        const suspects = findSuspectDuplicateGroups(mods)
+        if (suspects.length === 0 || mods[0].id < 0) {
+            setStaleUids(new Set())
+            return
+        }
+        let cancelled = false
+        getCachedModFiles(mods[0].id)
+            .then((files) => {
+                if (!cancelled) setStaleUids(resolveStaleDuplicates(suspects, files))
+            })
+            .catch(() => {
+                // best-effort: leave staleUids empty rather than guess
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [mods])
 
     // Seed the cache from what's installed right now, so deletions show up as
     // installable rows even for mods installed before the cache existed.
@@ -404,6 +434,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                             key={row.mod.uid}
                             mod={row.mod}
                             loadingMod={loadingMod}
+                            stale={staleUids.has(row.mod.uid)}
                             onToggle={() => handleToggleMod(row.mod)}
                             onRemove={() => handleRemove([row.mod])}
                         />
@@ -474,6 +505,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                                 key={row.mod.uid}
                                                 mod={row.mod}
                                                 loadingMod={loadingMod}
+                                                stale={staleUids.has(row.mod.uid)}
                                                 onToggle={() => handleToggleMod(row.mod)}
                                                 onRemove={() => handleRemove([row.mod])}
                                             />
@@ -548,11 +580,13 @@ function GhostRow({
 function FileRow({
     mod,
     loadingMod,
+    stale,
     onToggle,
     onRemove,
 }: {
     mod: InstalledMod
     loadingMod: string | null
+    stale: boolean
     onToggle: () => void
     onRemove: () => void
 }) {
@@ -564,6 +598,13 @@ function FileRow({
             >
                 {mod.filename}
             </span>
+            {stale && (
+                <Tooltip content={t('installed.manageFiles.staleDuplicateHint')}>
+                    <span className="px-1.5 py-0.5 rounded bg-warning/20 border border-warning/40 text-[10px] text-warning shrink-0">
+                        {t('installed.manageFiles.staleDuplicateBadge')}
+                    </span>
+                </Tooltip>
+            )}
             <div className="flex items-center gap-2 shrink-0">
                 <Toggle checked={mod.enabled} disabled={!!loadingMod} onChange={onToggle} />
                 <Tooltip content={t('common.remove')}>

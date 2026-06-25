@@ -120,7 +120,9 @@
             "enableAll": "Enable all",
             "disableAll": "Disable all",
             "noMatches": "No files match \"{query}\"",
-            "fileUnavailable": "This file is no longer available on modworkshop."
+            "fileUnavailable": "This file is no longer available on modworkshop.",
+            "staleDuplicateBadge": "Outdated",
+            "staleDuplicateHint": "This is a leftover from before this file's download was repackaged — safe to remove."
         },
         "updatesModal": {
             "title": "Available updates ({count})",

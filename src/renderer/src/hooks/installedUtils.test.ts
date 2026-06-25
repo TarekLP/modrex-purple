@@ -10,6 +10,8 @@ import {
     normalizeModScopes,
     computeChildren,
     groupChildren,
+    findSuspectDuplicateGroups,
+    resolveStaleDuplicates,
     type ChildEntry,
     type ChildGroup,
 } from './installedUtils'
@@ -258,6 +260,112 @@ describe('normalizeModScopes', () => {
         ]
         const result = normalizeModScopes(mods)
         expect(result.find((m) => m.uid === 'b')!.folderId).toBe('f2')
+    })
+})
+
+describe('findSuspectDuplicateGroups', () => {
+    it('flags a bare-uid entry coexisting with an archive-scheme entry for the same fileId', () => {
+        // Real Weapon Names shape: install_mod's bare uid, then install_from_zip_entry's
+        // "{fileId}_{stem}" uid for the same fileId after the file's packaging changed.
+        const mods = [
+            makeMod('81999', 5, 'Mod', { fileId: 81999 }),
+            makeMod('81999_zRealWeaponNames_P', 5, 'Mod', { fileId: 81999 }),
+        ]
+        const suspects = findSuspectDuplicateGroups(mods)
+        expect(suspects).toEqual([
+            { fileId: 81999, bareUid: '81999', archiveUids: ['81999_zRealWeaponNames_P'] },
+        ])
+    })
+
+    it('does not flag multiple distinct files under one mod id (Custom FOV shape)', () => {
+        // Each file is its own standalone .pak with a different fileId — never a duplicate.
+        const mods = [
+            makeMod('93530', 55702, 'FOV', { fileId: 93530 }),
+            makeMod('93537', 55702, 'FOV', { fileId: 93537 }),
+            makeMod('93536', 55702, 'FOV', { fileId: 93536 }),
+            makeMod('93533', 55702, 'FOV', { fileId: 93533 }),
+        ]
+        expect(findSuspectDuplicateGroups(mods)).toEqual([])
+    })
+
+    it('does not flag several wanted variants extracted from one multi-pak archive', () => {
+        // All entries share the archive's fileId but use the archive-scheme uid — no bare uid.
+        const mods = [
+            makeMod('12345_FOV_100', 9, 'Mod', { fileId: 12345 }),
+            makeMod('12345_FOV_120', 9, 'Mod', { fileId: 12345 }),
+            makeMod('12345_FOV_140', 9, 'Mod', { fileId: 12345 }),
+        ]
+        expect(findSuspectDuplicateGroups(mods)).toEqual([])
+    })
+
+    it('does not flag ambient multi-pak discovery (filename-uid fallback sibling)', () => {
+        // mod.rs:620-630: first untracked pak matching a fileId gets the bare uid, the rest get
+        // a filename-based uid that never collides with the "{fileId}_" archive-scheme prefix.
+        const mods = [
+            makeMod('81999', 5, 'Mod', { fileId: 81999 }),
+            makeMod('OtherBundledPak.pak', 5, 'Mod', { fileId: 81999 }),
+        ]
+        expect(findSuspectDuplicateGroups(mods)).toEqual([])
+    })
+
+    it('bundles multiple archive-scheme siblings into one suspect entry', () => {
+        const mods = [
+            makeMod('81999', 5, 'Mod', { fileId: 81999 }),
+            makeMod('81999_a', 5, 'Mod', { fileId: 81999 }),
+            makeMod('81999_b', 5, 'Mod', { fileId: 81999 }),
+        ]
+        const suspects = findSuspectDuplicateGroups(mods)
+        expect(suspects).toHaveLength(1)
+        expect(suspects[0].archiveUids.sort()).toEqual(['81999_a', '81999_b'])
+    })
+
+    it('ignores a single entry', () => {
+        const mods = [makeMod('81999', 5, 'Mod', { fileId: 81999 })]
+        expect(findSuspectDuplicateGroups(mods)).toEqual([])
+    })
+
+    it('ignores entries with no fileId', () => {
+        const mods = [makeMod('a', 5, 'Mod'), makeMod('b', 5, 'Mod')]
+        expect(findSuspectDuplicateGroups(mods)).toEqual([])
+    })
+
+    it('ignores negative-id (unrecognized) mods', () => {
+        const mods = [
+            makeMod('81999', -1, 'Mod', { fileId: 81999 }),
+            makeMod('81999_x', -1, 'Mod', { fileId: 81999 }),
+        ]
+        expect(findSuspectDuplicateGroups(mods)).toEqual([])
+    })
+
+    it('ignores entries with a location tag (host packs, secondary targets)', () => {
+        const mods = [
+            makeMod('81999', 5, 'Mod', { fileId: 81999, location: 'host:1:Assets' }),
+            makeMod('81999_x', 5, 'Mod', { fileId: 81999, location: 'host:1:Assets' }),
+        ]
+        expect(findSuspectDuplicateGroups(mods)).toEqual([])
+    })
+})
+
+describe('resolveStaleDuplicates', () => {
+    const suspect = { fileId: 81999, bareUid: '81999', archiveUids: ['81999_stem'] }
+
+    it('flags the bare uid when the live file is currently an archive type', () => {
+        const stale = resolveStaleDuplicates([suspect], [{ id: 81999, type: '7z' }])
+        expect(stale).toEqual(new Set(['81999']))
+    })
+
+    it('flags the archive uids when the live file is currently a bare pak', () => {
+        const stale = resolveStaleDuplicates([suspect], [{ id: 81999, type: 'pak' }])
+        expect(stale).toEqual(new Set(['81999_stem']))
+    })
+
+    it('flags nothing when the fileId no longer exists in the live file list', () => {
+        const stale = resolveStaleDuplicates([suspect], [{ id: 99999, type: 'pak' }])
+        expect(stale.size).toBe(0)
+    })
+
+    it('flags nothing when given no suspects', () => {
+        expect(resolveStaleDuplicates([], [{ id: 81999, type: '7z' }]).size).toBe(0)
     })
 })
 

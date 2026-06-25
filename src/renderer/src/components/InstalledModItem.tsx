@@ -6,7 +6,7 @@ import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
 import { Tooltip } from './Tooltip'
-import { syntheticMod } from '../hooks/installedUtils'
+import { syntheticMod, findSuspectDuplicateGroups } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
 
@@ -44,6 +44,10 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const groupKey = id >= 0 ? `id:${id}` : `uid:${repUid}`
     const showManageFiles = manageFilesKey === groupKey
     const apiMod = modData.get(id)
+    // Cheap structural pre-filter only (no network) — see findSuspectDuplicateGroups in
+    // installedUtils.ts. ManageFilesModal does the live-data check before badging a specific
+    // file "Outdated"; this just hints that one of this group's files is worth checking there.
+    const hasSuspectDuplicate = mods.length > 1 && findSuspectDuplicateGroups(mods).length > 0
     const isBusy = mods.some((m) => loadingMod === m.uid)
     const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
     const combined: InstalledMod = {
@@ -123,12 +127,21 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     />
                 </div>
                 {mods.length > 1 && (
-                    <button
-                        onClick={() => setManageFilesKey(groupKey)}
-                        className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle hover:text-text hover:border-accent/60 transition-colors"
+                    <Tooltip
+                        content={t('installed.manageFiles.staleDuplicateHint')}
+                        disabled={!hasSuspectDuplicate}
                     >
-                        {t('installed.fileCount', { count: mods.length })}
-                    </button>
+                        <button
+                            onClick={() => setManageFilesKey(groupKey)}
+                            className={`absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded border text-[10px] transition-colors ${
+                                hasSuspectDuplicate
+                                    ? 'bg-warning/20 border-warning/40 text-warning hover:border-warning'
+                                    : 'bg-surface-raised/80 border-border text-text-subtle hover:text-text hover:border-accent/60'
+                            }`}
+                        >
+                            {t('installed.fileCount', { count: mods.length })}
+                        </button>
+                    </Tooltip>
                 )}
                 {moveCrimeBossButton && (
                     <div className="absolute top-1.5 right-1.5 z-10">{moveCrimeBossButton}</div>
@@ -175,12 +188,21 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
             )}
             {mods.length > 1 && (
-                <button
-                    onClick={() => setManageFilesKey(groupKey)}
-                    className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle hover:text-text hover:border-accent/60 transition-colors"
+                <Tooltip
+                    content={t('installed.manageFiles.staleDuplicateHint')}
+                    disabled={!hasSuspectDuplicate}
                 >
-                    {t('installed.fileCount', { count: mods.length })}
-                </button>
+                    <button
+                        onClick={() => setManageFilesKey(groupKey)}
+                        className={`absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded border text-[10px] transition-colors ${
+                            hasSuspectDuplicate
+                                ? 'bg-warning/20 border-warning/40 text-warning hover:border-warning'
+                                : 'bg-surface-raised/80 border-border text-text-subtle hover:text-text hover:border-accent/60'
+                        }`}
+                    >
+                        {t('installed.fileCount', { count: mods.length })}
+                    </button>
+                </Tooltip>
             )}
             {moveCrimeBossButton && (
                 <div className="absolute top-2 right-2 z-10">{moveCrimeBossButton}</div>
