@@ -7,7 +7,7 @@ import {
     FolderOpen,
     FolderPlus,
     RefreshCw,
-    Stethoscope,
+    Activity,
 } from 'lucide-react'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
@@ -77,6 +77,7 @@ export function InstalledPage({
     const healthIssueCount =
         healthSummary.missing.length +
         healthSummary.archiveBroken.length +
+        healthSummary.outdated.length +
         healthSummary.unidentified.length
     const showDepsTab = !!gamePath && installed.some((m) => m.id >= 0)
 
@@ -365,7 +366,7 @@ export function InstalledPage({
                                     {checkingHealth ? (
                                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                     ) : (
-                                        <Stethoscope className="w-3.5 h-3.5" />
+                                        <Activity className="w-3.5 h-3.5" />
                                     )}
                                     {!checkingHealth && healthIssueCount > 0 && (
                                         <span className="pr-1 text-[10px] font-medium leading-none">
