@@ -50,9 +50,13 @@ import {
     collectDeps,
     isLoaderDep,
     isUe4ssLoaderId,
+    isPdthLoaderId,
     missingRequiredDeps,
     offsiteDepHost,
     ue4ssLoaderIdsFor,
+    PDTH_OVERRIDES_ID,
+    DAHM_ID,
+    PDTH_LOADER_IDS,
 } from '../deps'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
@@ -135,12 +139,11 @@ export function ModDetailPage({
     const installedMod = installedFiles[0]
     // Not tracked in the installed list — DLL presence drives its button state.
     const isUe4ssMod = isUe4ssLoaderId(activeGame, modId)
-    const isLoaderMod =
-        (activeGame === 'pdth' && (modId === 53474 || modId === 14267)) || isUe4ssMod
+    const isLoaderMod = isPdthLoaderId(activeGame, modId) || isUe4ssMod
     const loaderModInstalled =
-        modId === 53474
+        modId === PDTH_OVERRIDES_ID
             ? pdthOverridesInstalled
-            : modId === 14267
+            : modId === DAHM_ID
               ? dahmInstalled
               : isUe4ssMod
                 ? ue4ssInstalled
@@ -236,7 +239,7 @@ export function ModDetailPage({
         if (!gamePath || !mod) return
         const loaderModIds: Record<number, boolean | null> =
             activeGame === 'pdth'
-                ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
+                ? { [PDTH_OVERRIDES_ID]: pdthOverridesInstalled, [DAHM_ID]: dahmInstalled }
                 : Object.fromEntries(
                       ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled])
                   )
@@ -257,10 +260,10 @@ export function ModDetailPage({
         setInstallError(null)
         setActionLoading(true)
         try {
-            if (activeGame === 'pdth' && mod.id === 53474) {
+            if (activeGame === 'pdth' && mod.id === PDTH_OVERRIDES_ID) {
                 await api.installPdthOverrides(gamePath)
                 setPdthOverridesInstalled(true)
-            } else if (activeGame === 'pdth' && mod.id === 14267) {
+            } else if (activeGame === 'pdth' && mod.id === DAHM_ID) {
                 await api.installDahm(gamePath)
                 setDahmInstalled(true)
             } else {
@@ -297,10 +300,10 @@ export function ModDetailPage({
         if (!gamePath) return
         setInstallError(null)
         try {
-            if (loaderModId === 53474) {
+            if (loaderModId === PDTH_OVERRIDES_ID) {
                 await api.installPdthOverrides(gamePath)
                 setPdthOverridesInstalled(true)
-            } else if (loaderModId === 14267) {
+            } else if (loaderModId === DAHM_ID) {
                 await api.installDahm(gamePath)
                 setDahmInstalled(true)
             } else if (loaderModId !== null && isUe4ssLoaderId(activeGame, loaderModId)) {
@@ -354,18 +357,18 @@ export function ModDetailPage({
 
     const allDeps: ModDependency[] = collectDeps(mod)
 
-    // Hosted loader mods (PDTHModOverrides 53474, DAHM 14267, UE4SS) install as
-    // game-root/Binaries files and are checked by presence, not the installed-mods list.
+    // Hosted loader mods (PDTHModOverrides, DAHM, UE4SS) install as game-root/Binaries
+    // files and are checked by presence, not the installed-mods list.
     const hasLoaderDep_blt = activeGame !== 'pdth' && allDeps.some(isLoaderDep)
     const hasLoaderDep_pdthOverrides =
-        activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 53474)
-    const hasLoaderDep_dahm = activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === 14267)
+        activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === PDTH_OVERRIDES_ID)
+    const hasLoaderDep_dahm = activeGame === 'pdth' && allDeps.some((d) => d.mod?.id === DAHM_ID)
     const hasLoaderDep_ue4ss = allDeps.some(
         (d) => d.mod !== null && isUe4ssLoaderId(activeGame, d.mod.id)
     )
     const loaderModIds: Record<number, boolean | null> =
         activeGame === 'pdth'
-            ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
+            ? { [PDTH_OVERRIDES_ID]: pdthOverridesInstalled, [DAHM_ID]: dahmInstalled }
             : Object.fromEntries(ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled]))
     const missingRequired = missingRequiredDeps(allDeps, installed, loaderInstalled, loaderModIds)
 
@@ -373,8 +376,8 @@ export function ModDetailPage({
         if (!gamePath) return
         const needsBlt = hasLoaderDep_blt
         const needsPdthOverrides =
-            hasLoaderDep_pdthOverrides || (activeGame === 'pdth' && modId === 53474)
-        const needsDahm = hasLoaderDep_dahm || (activeGame === 'pdth' && modId === 14267)
+            hasLoaderDep_pdthOverrides || (activeGame === 'pdth' && modId === PDTH_OVERRIDES_ID)
+        const needsDahm = hasLoaderDep_dahm || (activeGame === 'pdth' && modId === DAHM_ID)
         const needsUe4ss = isUe4ssMod || hasLoaderDep_ue4ss
         if (!needsBlt && !needsPdthOverrides && !needsDahm && !needsUe4ss) return
         let cancelled = false
@@ -513,7 +516,7 @@ export function ModDetailPage({
                     gamePath={gamePath}
                     gameId={activeGame}
                     loaderModIds={
-                        activeGame === 'pdth' ? [53474, 14267] : ue4ssLoaderIdsFor(activeGame)
+                        activeGame === 'pdth' ? PDTH_LOADER_IDS : ue4ssLoaderIdsFor(activeGame)
                     }
                     onInstallLoader={handleInstallLoader}
                     onRefreshInstalled={onRefreshInstalled}

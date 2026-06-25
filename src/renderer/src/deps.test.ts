@@ -4,9 +4,13 @@ import {
     isOffsiteDep,
     isLoaderDep,
     isUe4ssLoaderId,
+    isPdthLoaderId,
     missingRequiredDeps,
     offsiteDepHost,
     ue4ssLoaderIdsFor,
+    PDTH_OVERRIDES_ID,
+    DAHM_ID,
+    PDTH_LOADER_IDS,
 } from './deps'
 import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
 
@@ -87,6 +91,24 @@ describe('isUe4ssLoaderId / ue4ssLoaderIdsFor', () => {
         expect(ue4ssLoaderIdsFor('cb')).toEqual([47749])
         expect(ue4ssLoaderIdsFor('pdth')).toEqual([])
         expect(ue4ssLoaderIdsFor(undefined)).toEqual([])
+    })
+})
+
+describe('isPdthLoaderId / PDTH_LOADER_IDS', () => {
+    it('recognizes PDTHModOverrides and DAHM only for pdth', () => {
+        expect(isPdthLoaderId('pdth', PDTH_OVERRIDES_ID)).toBe(true)
+        expect(isPdthLoaderId('pdth', DAHM_ID)).toBe(true)
+        expect(isPdthLoaderId('pdth', 12345)).toBe(false)
+    })
+
+    it('returns false for non-pdth games and undefined', () => {
+        expect(isPdthLoaderId('pd3', PDTH_OVERRIDES_ID)).toBe(false)
+        expect(isPdthLoaderId('cb', DAHM_ID)).toBe(false)
+        expect(isPdthLoaderId(undefined, PDTH_OVERRIDES_ID)).toBe(false)
+    })
+
+    it('lists both loader ids', () => {
+        expect(PDTH_LOADER_IDS).toEqual([53474, 14267])
     })
 })
 

@@ -33,6 +33,21 @@ export function ue4ssLoaderIdsFor(gameId: string | undefined): number[] {
 }
 
 /**
+ * PDTH mod loaders hosted on modworkshop (real mod pages) but installed as game-root
+ * DLLs rather than tracked mods — PDTHModOverrides and DAHM. Like the UE4SS ids, a
+ * dependency on one of these is checked via `loaderModIds` (per-id install state) instead
+ * of the installed-mods list, and install dispatches to a dedicated command. Centralized
+ * here so call sites reference one source — add a new PDTH loader id here, not inline.
+ */
+export const PDTH_OVERRIDES_ID = 53474
+export const DAHM_ID = 14267
+export const PDTH_LOADER_IDS: number[] = [PDTH_OVERRIDES_ID, DAHM_ID]
+
+export function isPdthLoaderId(gameId: string | undefined, id: number): boolean {
+    return gameId === 'pdth' && PDTH_LOADER_IDS.includes(id)
+}
+
+/**
  * BLT-family mod loaders (SuperBLT, PDTH BLT) are declared on modworkshop as
  * offsite dependencies. They live in the game root as a loader DLL, so their
  * install state comes from `api.checkSuperblt`, not the installed-mods list.

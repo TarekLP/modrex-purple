@@ -38,8 +38,12 @@ import {
     collectDeps,
     isLoaderDep,
     isUe4ssLoaderId,
+    isPdthLoaderId,
     missingRequiredDeps,
     ue4ssLoaderIdsFor,
+    PDTH_OVERRIDES_ID,
+    DAHM_ID,
+    PDTH_LOADER_IDS,
 } from '../deps'
 import { t } from '../i18n'
 import { api } from '../api'
@@ -393,14 +397,14 @@ export function BrowsePage({
                 const allDeps = collectDeps(fullMod)
                 const loaderModIds: Record<number, boolean | null> =
                     activeGame === 'pdth'
-                        ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
+                        ? { [PDTH_OVERRIDES_ID]: pdthOverridesInstalled, [DAHM_ID]: dahmInstalled }
                         : Object.fromEntries(
                               ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled])
                           )
                 const hasLoader =
                     activeGame === 'pdth'
                         ? allDeps.some(
-                              (d) => d.mod !== null && (d.mod.id === 53474 || d.mod.id === 14267)
+                              (d) => d.mod !== null && isPdthLoaderId(activeGame, d.mod.id)
                           )
                         : allDeps.some(isLoaderDep)
                 const bltLoaderInstalled =
@@ -421,10 +425,10 @@ export function BrowsePage({
                 }
             }
             const isUe4ssLoader = isUe4ssLoaderId(activeGame, modId)
-            if (activeGame === 'pdth' && modId === 53474) {
+            if (activeGame === 'pdth' && modId === PDTH_OVERRIDES_ID) {
                 await api.installPdthOverrides(gamePath)
                 setPdthOverridesInstalled(true)
-            } else if (activeGame === 'pdth' && modId === 14267) {
+            } else if (activeGame === 'pdth' && modId === DAHM_ID) {
                 await api.installDahm(gamePath)
                 setDahmInstalled(true)
             } else {
@@ -573,7 +577,7 @@ export function BrowsePage({
 
     const loaderModIds: Record<number, boolean | null> =
         activeGame === 'pdth'
-            ? { 53474: pdthOverridesInstalled, 14267: dahmInstalled }
+            ? { [PDTH_OVERRIDES_ID]: pdthOverridesInstalled, [DAHM_ID]: dahmInstalled }
             : Object.fromEntries(ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled]))
     const missingDepsList = depsWarning
         ? missingRequiredDeps(
@@ -666,15 +670,15 @@ export function BrowsePage({
                     gamePath={gamePath}
                     gameId={activeGame}
                     loaderModIds={
-                        activeGame === 'pdth' ? [53474, 14267] : ue4ssLoaderIdsFor(activeGame)
+                        activeGame === 'pdth' ? PDTH_LOADER_IDS : ue4ssLoaderIdsFor(activeGame)
                     }
                     onInstallLoader={async (loaderModId) => {
                         if (!gamePath) return
                         try {
-                            if (loaderModId === 53474) {
+                            if (loaderModId === PDTH_OVERRIDES_ID) {
                                 await api.installPdthOverrides(gamePath)
                                 setPdthOverridesInstalled(true)
-                            } else if (loaderModId === 14267) {
+                            } else if (loaderModId === DAHM_ID) {
                                 await api.installDahm(gamePath)
                                 setDahmInstalled(true)
                             } else if (
@@ -776,8 +780,8 @@ export function BrowsePage({
                     downloadProgress={downloadProgress}
                     loaderInstalledIds={
                         new Set([
-                            ...(pdthOverridesInstalled ? [53474] : []),
-                            ...(dahmInstalled ? [14267] : []),
+                            ...(pdthOverridesInstalled ? [PDTH_OVERRIDES_ID] : []),
+                            ...(dahmInstalled ? [DAHM_ID] : []),
                             ...(ue4ssInstalled ? ue4ssLoaderIdsFor(activeGame) : []),
                         ])
                     }
