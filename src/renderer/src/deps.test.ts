@@ -8,6 +8,8 @@ import {
     missingRequiredDeps,
     offsiteDepHost,
     ue4ssLoaderIdsFor,
+    loaderIdsForGame,
+    buildLoaderModIds,
     PDTH_OVERRIDES_ID,
     DAHM_ID,
     PDTH_LOADER_IDS,
@@ -109,6 +111,48 @@ describe('isPdthLoaderId / PDTH_LOADER_IDS', () => {
 
     it('lists both loader ids', () => {
         expect(PDTH_LOADER_IDS).toEqual([53474, 14267])
+    })
+})
+
+describe('loaderIdsForGame', () => {
+    it('returns PDTH loaders for pdth, UE4SS pages otherwise, [] for pd2/undefined', () => {
+        expect(loaderIdsForGame('pdth')).toEqual([53474, 14267])
+        expect(loaderIdsForGame('pd3')).toEqual([47771, 44048])
+        expect(loaderIdsForGame('cb')).toEqual([47749])
+        expect(loaderIdsForGame('pd2')).toEqual([])
+        expect(loaderIdsForGame(undefined)).toEqual([])
+    })
+})
+
+describe('buildLoaderModIds', () => {
+    const flags = (
+        o: Partial<
+            Record<'pdthOverridesInstalled' | 'dahmInstalled' | 'ue4ssInstalled', boolean | null>
+        > = {}
+    ) => ({
+        pdthOverridesInstalled: null,
+        dahmInstalled: null,
+        ue4ssInstalled: null,
+        ...o,
+    })
+
+    it('maps PDTH to its two loaders using their flags', () => {
+        expect(
+            buildLoaderModIds('pdth', flags({ pdthOverridesInstalled: true, dahmInstalled: false }))
+        ).toEqual({ 53474: true, 14267: false })
+    })
+
+    it('maps PD3/CB UE4SS pages to the shared ue4ss flag', () => {
+        expect(buildLoaderModIds('pd3', flags({ ue4ssInstalled: true }))).toEqual({
+            47771: true,
+            44048: true,
+        })
+        expect(buildLoaderModIds('cb', flags({ ue4ssInstalled: false }))).toEqual({ 47749: false })
+    })
+
+    it('returns empty for games without hosted loaders', () => {
+        expect(buildLoaderModIds('pd2', flags())).toEqual({})
+        expect(buildLoaderModIds(undefined, flags())).toEqual({})
     })
 })
 

@@ -48,6 +48,36 @@ export function isPdthLoaderId(gameId: string | undefined, id: number): boolean 
 }
 
 /**
+ * The loader mod ids the dep-warning UI can offer to install for `gameId`: PDTH's two
+ * hosted loaders, or the UE4SS page(s) for PD3/Crime Boss (empty for PD2).
+ */
+export function loaderIdsForGame(gameId: string | undefined): number[] {
+    return gameId === 'pdth' ? PDTH_LOADER_IDS : ue4ssLoaderIdsFor(gameId)
+}
+
+/**
+ * Per-id install state for `gameId`'s hosted loaders, in the `Record<id, installed?>` shape
+ * `missingRequiredDeps` expects. The flags are the caller's own presence-check results
+ * (`null` = not yet checked): PDTH maps to PDTHModOverrides + DAHM; PD3/Crime Boss map their
+ * UE4SS page(s) to the single `ue4ssInstalled` flag; other games map to `{}`.
+ */
+export function buildLoaderModIds(
+    gameId: string | undefined,
+    flags: {
+        pdthOverridesInstalled: boolean | null
+        dahmInstalled: boolean | null
+        ue4ssInstalled: boolean | null
+    }
+): Record<number, boolean | null> {
+    if (gameId === 'pdth') {
+        return { [PDTH_OVERRIDES_ID]: flags.pdthOverridesInstalled, [DAHM_ID]: flags.dahmInstalled }
+    }
+    return Object.fromEntries(
+        ue4ssLoaderIdsFor(gameId).map((id): [number, boolean | null] => [id, flags.ue4ssInstalled])
+    )
+}
+
+/**
  * BLT-family mod loaders (SuperBLT, PDTH BLT) are declared on modworkshop as
  * offsite dependencies. They live in the game root as a loader DLL, so their
  * install state comes from `api.checkSuperblt`, not the installed-mods list.

@@ -42,9 +42,10 @@ import {
     isPdthLoaderId,
     missingRequiredDeps,
     ue4ssLoaderIdsFor,
+    buildLoaderModIds,
+    loaderIdsForGame,
     PDTH_OVERRIDES_ID,
     DAHM_ID,
-    PDTH_LOADER_IDS,
 } from '../deps'
 import { t } from '../i18n'
 import { api } from '../api'
@@ -396,12 +397,11 @@ export function BrowsePage({
             if (!gamePath) return
             if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
                 const allDeps = collectDeps(fullMod)
-                const loaderModIds: Record<number, boolean | null> =
-                    activeGame === 'pdth'
-                        ? { [PDTH_OVERRIDES_ID]: pdthOverridesInstalled, [DAHM_ID]: dahmInstalled }
-                        : Object.fromEntries(
-                              ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled])
-                          )
+                const loaderModIds = buildLoaderModIds(activeGame, {
+                    pdthOverridesInstalled,
+                    dahmInstalled,
+                    ue4ssInstalled,
+                })
                 const hasLoader =
                     activeGame === 'pdth'
                         ? allDeps.some(
@@ -563,10 +563,11 @@ export function BrowsePage({
         return map
     }, [installed])
 
-    const loaderModIds: Record<number, boolean | null> =
-        activeGame === 'pdth'
-            ? { [PDTH_OVERRIDES_ID]: pdthOverridesInstalled, [DAHM_ID]: dahmInstalled }
-            : Object.fromEntries(ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled]))
+    const loaderModIds = buildLoaderModIds(activeGame, {
+        pdthOverridesInstalled,
+        dahmInstalled,
+        ue4ssInstalled,
+    })
     const missingDepsList = depsWarning
         ? missingRequiredDeps(
               depsWarning.allDeps,
@@ -657,9 +658,7 @@ export function BrowsePage({
                     missingRequired={missingDepsList}
                     gamePath={gamePath}
                     gameId={activeGame}
-                    loaderModIds={
-                        activeGame === 'pdth' ? PDTH_LOADER_IDS : ue4ssLoaderIdsFor(activeGame)
-                    }
+                    loaderModIds={loaderIdsForGame(activeGame)}
                     onInstallLoader={async (loaderModId) => {
                         if (!gamePath) return
                         try {

@@ -1,13 +1,6 @@
 import { api } from '../api'
 import { getCachedMod } from '../modCache'
-import {
-    collectDeps,
-    missingRequiredDeps,
-    ue4ssLoaderIdsFor,
-    offsiteDepHost,
-    PDTH_OVERRIDES_ID,
-    DAHM_ID,
-} from '../deps'
+import { collectDeps, missingRequiredDeps, offsiteDepHost, buildLoaderModIds } from '../deps'
 import type { GameId, InstalledMod } from '../../../shared/types'
 
 export interface MissingDepRef {
@@ -35,12 +28,23 @@ async function checkLoaders(
             api.checkPdthOverrides(gamePath),
             api.checkDahm(gamePath),
         ])
-        return { bltOk, loaderModIds: { [PDTH_OVERRIDES_ID]: pdthOk, [DAHM_ID]: dahmOk } }
+        return {
+            bltOk,
+            loaderModIds: buildLoaderModIds('pdth', {
+                pdthOverridesInstalled: pdthOk,
+                dahmInstalled: dahmOk,
+                ue4ssInstalled: null,
+            }),
+        }
     }
     const ue4ssOk = await api.checkUe4ss(gamePath, gameId)
     return {
         bltOk: null,
-        loaderModIds: Object.fromEntries(ue4ssLoaderIdsFor(gameId).map((id) => [id, ue4ssOk])),
+        loaderModIds: buildLoaderModIds(gameId, {
+            pdthOverridesInstalled: null,
+            dahmInstalled: null,
+            ue4ssInstalled: ue4ssOk,
+        }),
     }
 }
 

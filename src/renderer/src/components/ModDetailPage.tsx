@@ -54,10 +54,10 @@ import {
     isPdthLoaderId,
     missingRequiredDeps,
     offsiteDepHost,
-    ue4ssLoaderIdsFor,
+    buildLoaderModIds,
+    loaderIdsForGame,
     PDTH_OVERRIDES_ID,
     DAHM_ID,
-    PDTH_LOADER_IDS,
 } from '../deps'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
@@ -238,12 +238,11 @@ export function ModDetailPage({
 
     async function doInstall() {
         if (!gamePath || !mod) return
-        const loaderModIds: Record<number, boolean | null> =
-            activeGame === 'pdth'
-                ? { [PDTH_OVERRIDES_ID]: pdthOverridesInstalled, [DAHM_ID]: dahmInstalled }
-                : Object.fromEntries(
-                      ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled])
-                  )
+        const loaderModIds = buildLoaderModIds(activeGame, {
+            pdthOverridesInstalled,
+            dahmInstalled,
+            ue4ssInstalled,
+        })
         let bltOk = loaderInstalled
         if (hasLoaderDepBlt) {
             bltOk = await api.checkSuperblt(gamePath)
@@ -354,10 +353,11 @@ export function ModDetailPage({
     const hasLoaderDepUe4ss = allDeps.some(
         (d) => d.mod !== null && isUe4ssLoaderId(activeGame, d.mod.id)
     )
-    const loaderModIds: Record<number, boolean | null> =
-        activeGame === 'pdth'
-            ? { [PDTH_OVERRIDES_ID]: pdthOverridesInstalled, [DAHM_ID]: dahmInstalled }
-            : Object.fromEntries(ue4ssLoaderIdsFor(activeGame).map((id) => [id, ue4ssInstalled]))
+    const loaderModIds = buildLoaderModIds(activeGame, {
+        pdthOverridesInstalled,
+        dahmInstalled,
+        ue4ssInstalled,
+    })
     const missingRequired = missingRequiredDeps(allDeps, installed, loaderInstalled, loaderModIds)
 
     useEffect(() => {
@@ -503,9 +503,7 @@ export function ModDetailPage({
                     missingRequired={missingRequired}
                     gamePath={gamePath}
                     gameId={activeGame}
-                    loaderModIds={
-                        activeGame === 'pdth' ? PDTH_LOADER_IDS : ue4ssLoaderIdsFor(activeGame)
-                    }
+                    loaderModIds={loaderIdsForGame(activeGame)}
                     onInstallLoader={handleInstallLoader}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setShowDepsWarning(false)}
