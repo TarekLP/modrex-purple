@@ -6,7 +6,19 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
+- Added a Health Check on the Installed page, scans all mods and groups issues by category, with bulk actions to fix them:
+    - Missing files
+    - Broken archives
+    - Outdated installs
+    - Unrecognized mods
+    - Missing dependencies
+    - Available updates
+- Added Settings access from the Game Picker Window.
 - Added an "Outdated" badge in Manage Files for leftover duplicate files left behind when a mod's download switched between a plain file and an archive.
+
+### Changed
+
+- Settings is now organized into three tabs.
 
 ### Fixed
 
