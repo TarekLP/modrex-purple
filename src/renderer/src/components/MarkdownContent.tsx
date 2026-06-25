@@ -163,6 +163,7 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         a: ({ href, children }) => {
             if (!href || !/^(https?|mailto):/i.test(href)) return <>{children}</>
             return (
+                // eslint-disable-next-line no-restricted-syntax -- gated markdown link: scheme allowlisted above; click routed through api.openExternal (shell_open_external)
                 <a
                     onClick={(e) => {
                         e.preventDefault()
