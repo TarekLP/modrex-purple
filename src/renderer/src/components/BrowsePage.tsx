@@ -24,13 +24,14 @@ import { Select } from './Select'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
-import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import { ZipPickerModal } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
-import { HostPackModal, parseHostModPack } from './HostPackModal'
+import { HostPackModal } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
-import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
-import { CrimeBossFlatArchiveModal, parseCbFlatArchive } from './CrimeBossFlatArchiveModal'
+import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
+import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
 import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
+import { handleInstallSentinel } from '../installSentinels'
 import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
 import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
@@ -490,26 +491,13 @@ export function BrowsePage({
                 await runCrimeBossInstall(modId, fullMod.name, () => doInstall(modId, fullMod))
             } catch (e) {
                 const errStr = String(e)
-                const zipData = parseZipMultiPak(errStr)
-                if (zipData) {
-                    setZipPickerData(zipData)
-                    return
-                }
-                const hostData = parseHostModPack(errStr)
-                if (hostData) {
-                    setHostPackData(hostData)
-                    return
-                }
-                const cbFlatData = parseCbFlatArchive(errStr)
-                if (cbFlatData) {
-                    setCbFlatArchiveData(cbFlatData)
-                    return
-                }
-                if (isUnrecognizedArchive(errStr)) {
-                    setUnrecognizedModId(modId)
-                    return
-                }
-                setError(errStr)
+                const handled = handleInstallSentinel(errStr, {
+                    onZipMultiPak: setZipPickerData,
+                    onHostModPack: setHostPackData,
+                    onCbFlatArchive: setCbFlatArchiveData,
+                    onUnrecognizedArchive: () => setUnrecognizedModId(modId),
+                })
+                if (!handled) setError(errStr)
             } finally {
                 setLoadingMod(null)
             }

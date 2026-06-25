@@ -1,12 +1,9 @@
 import { useState } from 'react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
-import { parseZipMultiPak } from '../components/ZipPickerModal'
 import type { HostPackPayload } from '../components/HostPackModal'
-import { parseHostModPack } from '../components/HostPackModal'
-import { isUnrecognizedArchive } from '../components/UnrecognizedArchiveModal'
 import type { CbFlatArchivePayload } from '../components/CrimeBossFlatArchiveModal'
-import { parseCbFlatArchive } from '../components/CrimeBossFlatArchiveModal'
+import { handleInstallSentinel } from '../installSentinels'
 import { api } from '../api'
 
 export interface ModActions {
@@ -117,20 +114,13 @@ export function useModActions(
             await api.installMod(mods[0].id, gamePath, activeGame)
         } catch (e) {
             const errStr = String(e)
-            const zipData = parseZipMultiPak(errStr)
-            const hostData = parseHostModPack(errStr)
-            const cbFlatData = parseCbFlatArchive(errStr)
-            if (zipData) {
-                setZipPickerData(zipData)
-            } else if (hostData) {
-                setHostPackData(hostData)
-            } else if (cbFlatData) {
-                setCbFlatArchiveData(cbFlatData)
-            } else if (isUnrecognizedArchive(errStr)) {
-                setUnrecognizedModId(mods[0].id)
-            } else {
-                setReinstallError(errStr)
-            }
+            const handled = handleInstallSentinel(errStr, {
+                onZipMultiPak: setZipPickerData,
+                onHostModPack: setHostPackData,
+                onCbFlatArchive: setCbFlatArchiveData,
+                onUnrecognizedArchive: () => setUnrecognizedModId(mods[0].id),
+            })
+            if (!handled) setReinstallError(errStr)
         } finally {
             unsub()
             setReinstallProgress(null)
