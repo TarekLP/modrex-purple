@@ -379,10 +379,11 @@ export function SettingsPage({
                             <>
                                 <Section title={t('settings.updates.title')}>
                                     <div className="flex items-center gap-3 mt-1">
-                                        <button
+                                        <Button
+                                            variant="secondary"
+                                            size="md"
                                             disabled={checkState === 'checking'}
                                             onClick={handleCheckForUpdates}
-                                            className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                         >
                                             <RefreshCw
                                                 className={`w-3.5 h-3.5 ${checkState === 'checking' ? 'animate-spin' : ''}`}
@@ -390,7 +391,7 @@ export function SettingsPage({
                                             {checkState === 'checking'
                                                 ? t('settings.updates.checking')
                                                 : t('settings.updates.check')}
-                                        </button>
+                                        </Button>
                                         {checkState === 'upToDate' && (
                                             <span className="text-xs text-success-text">
                                                 {t('settings.updates.upToDate')}
@@ -425,13 +426,14 @@ export function SettingsPage({
                                 description={t('settings.logs.description')}
                             >
                                 <div className="mt-1">
-                                    <button
+                                    <Button
+                                        variant="secondary"
+                                        size="md"
                                         onClick={() => api.openLog()}
-                                        className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors flex items-center gap-1.5"
                                     >
                                         <ScrollText className="w-3.5 h-3.5" />
                                         {t('settings.logs.open')}
-                                    </button>
+                                    </Button>
                                 </div>
                             </Section>
                         )}

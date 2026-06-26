@@ -599,13 +599,14 @@ export function ZipPickerModal({
             </div>
 
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
-                <button
+                <Button
+                    variant="secondary"
+                    size="md"
                     onClick={!isBusy ? onClose : undefined}
                     disabled={isBusy}
-                    className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
                 >
                     {t('common.cancel')}
-                </button>
+                </Button>
                 <Button
                     variant="accent"
                     size="lg"

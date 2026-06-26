@@ -212,10 +212,11 @@ export function TopBar({
                                 </button>
                             ) : (
                                 <>
-                                    <button
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
                                         disabled={!gamePath || !!launching}
                                         onClick={launchWithoutMods}
-                                        className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                     >
                                         {launching === 'vanilla' ? (
                                             <Loader className="w-3.5 h-3.5 animate-spin" />
@@ -225,7 +226,7 @@ export function TopBar({
                                         {launching === 'vanilla'
                                             ? t('topBar.launching')
                                             : t('topBar.launchWithoutMods')}
-                                    </button>
+                                    </Button>
                                     <Button
                                         variant="accent"
                                         size="sm"
@@ -289,12 +290,13 @@ export function TopBar({
                             </span>
                         </label>
                         <div className="flex gap-2">
-                            <button
+                            <Button
+                                variant="secondary"
+                                size="md"
                                 onClick={() => setShowWarning(false)}
-                                className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
                             >
                                 {t('common.cancel')}
-                            </button>
+                            </Button>
                             <Button variant="accent" size="md" onClick={confirmLaunch}>
                                 {t('topBar.missingLaunchOption.launchAnyway')}
                             </Button>

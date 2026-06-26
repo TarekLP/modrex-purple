@@ -7,6 +7,7 @@ import {
     useRef,
     startTransition,
 } from 'react'
+import { Button } from './components/ui/Button'
 import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId, Mod } from '../../shared/types'
@@ -540,12 +541,13 @@ export default function App() {
                                     {t('app.updateViewOnGithub')}
                                 </button>
                                 <div className="flex items-center gap-2">
-                                    <button
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
                                         onClick={() => setShowUpdateModal(false)}
-                                        className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
                                     >
                                         {t('app.updateLater')}
-                                    </button>
+                                    </Button>
                                     {update.strategy !== 'browser' ? (
                                         <button
                                             onClick={handleUpdate}

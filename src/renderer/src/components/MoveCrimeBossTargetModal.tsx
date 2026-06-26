@@ -50,13 +50,14 @@ export function MoveCrimeBossTargetModal({
                 </div>
             )}
             <div className="flex items-center justify-end gap-2 px-5 py-4 shrink-0">
-                <button
+                <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={!busy ? onCancel : undefined}
                     disabled={busy}
-                    className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
                 >
                     {t('common.cancel')}
-                </button>
+                </Button>
                 <Button
                     variant="accent"
                     size="sm"

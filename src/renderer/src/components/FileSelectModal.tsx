@@ -274,13 +274,9 @@ export function FileSelectModal({
                 </div>
 
                 <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
-                    <button
-                        onClick={onClose}
-                        disabled={isBusy}
-                        className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 transition-colors"
-                    >
+                    <Button variant="secondary" size="md" onClick={onClose} disabled={isBusy}>
                         {t('common.close')}
-                    </button>
+                    </Button>
                     {mod.disable_mod_managers ? (
                         <span className="text-xs text-text-muted">
                             {t('common.modManagerDisabled')}

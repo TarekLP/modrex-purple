@@ -484,12 +484,9 @@ export function HealthCheckModal({
                         {t('installed.reviewUpdates')}
                     </Button>
                 )}
-                <button
-                    onClick={onClose}
-                    className="ml-auto text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
-                >
+                <Button variant="secondary" size="sm" onClick={onClose} className="ml-auto">
                     {t('common.close')}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )

@@ -49,15 +49,17 @@ export function CrimeBossInstallTargetModal({ modName, busy, error, onChoose, on
                         ? t('crimeBossInstallChoice.installing')
                         : t('crimeBossInstallChoice.auto')}
                 </Button>
-                <button
+                <Button
+                    variant="secondary"
+                    size="md"
                     onClick={() => !busy && onChoose('legacy')}
                     disabled={busy}
-                    className="text-xs px-3 py-2 rounded border border-border bg-surface-hover hover:bg-surface-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="py-2"
                 >
                     {busy
                         ? t('crimeBossInstallChoice.installing')
                         : t('crimeBossInstallChoice.legacy')}
-                </button>
+                </Button>
                 <button
                     onClick={!busy ? onCancel : undefined}
                     disabled={busy}

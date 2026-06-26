@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
+import { Button } from './ui/Button'
 
 interface Props {
     onConfirm: () => void
@@ -26,12 +27,9 @@ export function NonPakConfirmModal({ onConfirm, onCancel }: Props) {
                     </div>
                 </div>
                 <div className="flex items-center justify-end gap-2">
-                    <button
-                        onClick={onCancel}
-                        className="text-xs px-3 py-1.5 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
-                    >
+                    <Button variant="secondary" size="md" onClick={onCancel}>
                         {t('common.cancel')}
-                    </button>
+                    </Button>
                     <button
                         onClick={onConfirm}
                         className="text-xs px-3 py-1.5 rounded bg-warning/20 hover:bg-warning/30 text-warning border border-warning/40 transition-colors"

@@ -246,12 +246,9 @@ export function UpdatesModal({
                     {updateError && (
                         <span className="text-xs text-danger-text mr-auto">{updateError}</span>
                     )}
-                    <button
-                        onClick={onClose}
-                        className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
-                    >
+                    <Button variant="secondary" size="sm" onClick={onClose}>
                         {t('common.close')}
-                    </button>
+                    </Button>
                     <Button
                         variant="accent"
                         size="sm"

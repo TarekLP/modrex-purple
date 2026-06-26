@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from './ui/Button'
 import { X, Trash2, ChevronDown, ChevronRight, Search, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
@@ -531,12 +532,9 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             </div>
 
             <div className="flex justify-end px-5 py-4 border-t border-border shrink-0">
-                <button
-                    onClick={onClose}
-                    className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
-                >
+                <Button variant="secondary" size="sm" onClick={onClose}>
                     {t('common.close')}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )

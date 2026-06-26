@@ -1,5 +1,6 @@
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
+import { Button } from './ui/Button'
 
 interface Props {
     onConfirm: () => void
@@ -21,12 +22,9 @@ export function DeleteFolderModal({ onConfirm, onCancel }: Props) {
                 </p>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 shrink-0">
-                <button
-                    onClick={onCancel}
-                    className="text-xs px-3 py-1 rounded border border-border bg-surface-hover hover:bg-surface-active transition-colors"
-                >
+                <Button variant="secondary" size="sm" onClick={onCancel}>
                     {t('common.cancel')}
-                </button>
+                </Button>
                 <button
                     onClick={onConfirm}
                     className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors"
