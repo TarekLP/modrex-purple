@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from './ui/Button'
 import { X } from 'lucide-react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 import { Dialog } from './Dialog'
@@ -160,17 +161,18 @@ export function HostPackModal({
                 >
                     {t('common.cancel')}
                 </button>
-                <button
+                <Button
+                    variant="accent"
+                    size="lg"
                     disabled={busy}
                     onClick={hostInstalled ? handleInstall : handleInstallHost}
-                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                     {busy
                         ? t('hostPack.installing')
                         : hostInstalled
                           ? t('hostPack.install', { count: payload.entries.length })
                           : t('hostPack.installHost', { hostName: payload.hostName })}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )

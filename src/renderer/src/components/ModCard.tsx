@@ -5,6 +5,7 @@ import type { Mod, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
+import { Button } from './ui/Button'
 
 function formatCount(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -140,13 +141,14 @@ export function ModCard({
                     </span>
                 )}
                 {!installed && !loaderInstalled && (
-                    <button
+                    <Button
+                        variant="accent"
+                        size="sm"
                         disabled={!canAct || !mod.has_download || !!mod.disable_mod_managers}
                         title={
                             mod.disable_mod_managers ? t('common.modManagerDisabled') : undefined
                         }
                         onClick={onInstall}
-                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                     >
                         {!loading && <Download className="w-3.5 h-3.5" />}
                         {loading
@@ -156,7 +158,7 @@ export function ModCard({
                                   ? t('common.downloading')
                                   : t('common.installing')
                             : t('common.install')}
-                    </button>
+                    </Button>
                 )}
                 {installed && (
                     <div className="flex items-center gap-2">

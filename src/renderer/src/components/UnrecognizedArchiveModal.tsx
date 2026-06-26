@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from './ui/Button'
 import { X } from 'lucide-react'
 import { Dialog } from './Dialog'
 import { MarkdownContent } from './MarkdownContent'
@@ -69,12 +70,9 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
             </div>
 
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
-                <button
-                    onClick={onClose}
-                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
-                >
+                <Button variant="accent" size="lg" onClick={onClose}>
                     {t('common.close')}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )

@@ -1,5 +1,6 @@
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
+import { Button } from './ui/Button'
 
 interface Props {
     modName: string
@@ -56,15 +57,16 @@ export function MoveCrimeBossTargetModal({
                 >
                     {t('common.cancel')}
                 </button>
-                <button
+                <Button
+                    variant="accent"
+                    size="sm"
                     onClick={!busy ? onConfirm : undefined}
                     disabled={busy}
-                    className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                     {busy
                         ? t('installed.crimeBossMove.moving')
                         : t('installed.crimeBossMove.confirm')}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )

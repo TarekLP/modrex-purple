@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Download, ExternalLink } from 'lucide-react'
+import { Button } from '../ui/Button'
 import type { Mod, ModDependency, InstalledMod, GameId } from '../../../../shared/types'
 import { MarkdownContent } from '../MarkdownContent'
 import { Tooltip } from '../Tooltip'
@@ -171,14 +172,16 @@ function DepRow({
                 </span>
                 {canInstallLoader ? (
                     <>
-                        <button
+                        <Button
+                            variant="accent"
+                            size="md"
                             disabled={installing}
                             onClick={handleInstallLoader}
-                            className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 flex items-center gap-1.5"
+                            className="shrink-0"
                         >
                             {!installing && <Download className="w-3.5 h-3.5" />}
                             {installing ? t('common.installing') : t('common.install')}
-                        </button>
+                        </Button>
                         <Tooltip content={offsiteDepHost(dep.url)}>
                             <button
                                 onClick={() => api.openExternal(dep.url!)}
@@ -189,13 +192,15 @@ function DepRow({
                         </Tooltip>
                     </>
                 ) : (
-                    <button
+                    <Button
+                        variant="accent"
+                        size="md"
                         onClick={() => api.openExternal(dep.url!)}
-                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0 flex items-center gap-1.5"
+                        className="shrink-0"
                     >
                         <ExternalLink className="w-3.5 h-3.5" />
                         {t('common.openLink')}
-                    </button>
+                    </Button>
                 )}
             </div>
         )
@@ -257,14 +262,16 @@ function DepRow({
                 {dep.optional ? t('detail.deps.badgeOptional') : t('detail.deps.badgeRequired')}
             </span>
             {!isInstalled && mod.has_download && !mod.disable_mod_managers && gamePath && (
-                <button
+                <Button
+                    variant="accent"
+                    size="md"
                     disabled={installing}
                     onClick={handleInstall}
-                    className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 flex items-center gap-1.5"
+                    className="shrink-0"
                 >
                     {!installing && <Download className="w-3.5 h-3.5" />}
                     {installing ? t('common.installing') : t('common.install')}
-                </button>
+                </Button>
             )}
             <Tooltip content={t('detail.deps.openOnSite')}>
                 <button

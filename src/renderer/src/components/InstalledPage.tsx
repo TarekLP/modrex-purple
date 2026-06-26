@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Button } from './ui/Button'
 import {
     X,
     Search,
@@ -484,12 +485,13 @@ export function InstalledPage({
                                             { count: updatable.length }
                                         )}
                                     </span>
-                                    <button
+                                    <Button
+                                        variant="accent"
+                                        size="sm"
                                         onClick={() => setShowUpdates(true)}
-                                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright transition-colors"
                                     >
                                         {t('installed.reviewUpdates')}
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Button } from './ui/Button'
 import { X, TriangleAlert, ExternalLink } from 'lucide-react'
 import type { ModDependency } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
@@ -89,23 +90,27 @@ export function DepsWarningModal({
                                     </div>
                                 </div>
                                 {isLoaderDep(dep) && gamePath && onInstallLoader ? (
-                                    <button
+                                    <Button
+                                        variant="accent"
+                                        size="md"
                                         disabled={installingLoader}
                                         onClick={() => handleInstallLoader(null)}
-                                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                                        className="shrink-0"
                                     >
                                         {installingLoader
                                             ? t('common.installing')
                                             : t('common.install')}
-                                    </button>
+                                    </Button>
                                 ) : (
-                                    <button
+                                    <Button
+                                        variant="accent"
+                                        size="md"
                                         onClick={() => api.openExternal(dep.url!)}
-                                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors shrink-0 flex items-center gap-1.5"
+                                        className="shrink-0"
                                     >
                                         <ExternalLink className="w-3.5 h-3.5" />
                                         {t('common.openLink')}
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         ))}
@@ -164,15 +169,17 @@ export function DepsWarningModal({
                                         </div>
                                     </div>
                                     {dep.mod!.has_download && gamePath && (
-                                        <button
+                                        <Button
+                                            variant="accent"
+                                            size="md"
                                             disabled={isInstalling}
                                             onClick={handleInstallDep}
-                                            className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                                            className="shrink-0"
                                         >
                                             {isInstalling
                                                 ? t('common.installing')
                                                 : t('common.install')}
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                             )
@@ -191,12 +198,9 @@ export function DepsWarningModal({
                         />
                         <span className="text-xs text-text-muted">{t('common.dontShowAgain')}</span>
                     </div>
-                    <button
-                        onClick={() => onGotIt(dontShowAgain)}
-                        className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
-                    >
+                    <Button variant="accent" size="lg" onClick={() => onGotIt(dontShowAgain)}>
                         {t('depsWarning.gotIt')}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Dialog>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Button } from './ui/Button'
 import { X, Tag, Download, Clock, AlertTriangle } from 'lucide-react'
 import type { Mod, ModFile, InstalledMod } from '../../../shared/types'
 import { Dialog } from './Dialog'
@@ -285,13 +286,14 @@ export function FileSelectModal({
                             {t('common.modManagerDisabled')}
                         </span>
                     ) : (
-                        <button
+                        <Button
+                            variant="accent"
+                            size="lg"
                             disabled={!gamePath || isBusy || pendingCount === 0}
                             onClick={handleInstallSelected}
-                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                             {t('fileSelect.installSelected', { count: pendingCount })}
-                        </button>
+                        </Button>
                     )}
                 </div>
             </Dialog>

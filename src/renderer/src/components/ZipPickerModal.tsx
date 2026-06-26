@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { Button } from './ui/Button'
 import { X, Folder } from 'lucide-react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 import { Dialog } from './Dialog'
@@ -605,15 +606,16 @@ export function ZipPickerModal({
                 >
                     {t('common.cancel')}
                 </button>
-                <button
+                <Button
+                    variant="accent"
+                    size="lg"
                     disabled={pendingCount === 0 || isBusy}
                     onClick={handleInstall}
-                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                     {isBusy
                         ? t('common.installing')
                         : t('zipPicker.installSelected', { count: pendingCount })}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, Tag, Download, Clock, ExternalLink, Trash2 } from 'lucide-react'
+import { Button } from '../ui/Button'
 import type { Mod, ModFile, ModLink, InstalledMod, GameId } from '../../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../../shared/types'
 import { api } from '../../api'
@@ -251,13 +252,15 @@ export function DownloadsTab({
 
                         <div className="flex items-center gap-2 shrink-0">
                             {file.url && !file.download_url ? (
-                                <button
+                                <Button
+                                    variant="accent"
+                                    size="lg"
                                     onClick={() => api.openExternal(file.url!)}
-                                    className="text-xs px-4 py-2 rounded-lg bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
+                                    className="py-2 rounded-lg"
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                     {t('common.openLink')}
-                                </button>
+                                </Button>
                             ) : (
                                 <>
                                     <button
@@ -369,13 +372,15 @@ export function DownloadsTab({
                                         )}
                                     </div>
                                 </div>
-                                <button
+                                <Button
+                                    variant="accent"
+                                    size="lg"
                                     onClick={() => api.openExternal(link.url)}
-                                    className="text-xs px-4 py-2 rounded-lg bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5 shrink-0"
+                                    className="py-2 rounded-lg shrink-0"
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                     {t('common.openLink')}
-                                </button>
+                                </Button>
                             </div>
                         )
                     })}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
 import {
     ArrowLeft,
@@ -547,18 +548,20 @@ export function ModDetailPage({
                             ) : mod.has_download ? (
                                 <>
                                     {mod.download?.url && !mod.download.download_url ? (
-                                        <button
+                                        <Button
+                                            variant="accent"
+                                            size="lg"
                                             onClick={() => api.openExternal(mod.download!.url!)}
-                                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
                                         >
                                             <ExternalLink className="w-3.5 h-3.5" />
                                             {t('common.openLink')}
-                                        </button>
+                                        </Button>
                                     ) : (
-                                        <button
+                                        <Button
+                                            variant="accent"
+                                            size="lg"
                                             disabled={!canAct}
                                             onClick={handleInstall}
-                                            className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                         >
                                             {!actionLoading && <Download className="w-3.5 h-3.5" />}
                                             {actionLoading
@@ -568,7 +571,7 @@ export function ModDetailPage({
                                                         : t('common.downloading')
                                                     : t('common.installing')
                                                 : t('common.install')}
-                                        </button>
+                                        </Button>
                                     )}
                                     {isUnsupportedFormat(
                                         mod.download?.type,

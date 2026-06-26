@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from './ui/Button'
 import { X } from 'lucide-react'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
@@ -114,13 +115,9 @@ export function CrimeBossFlatArchiveModal({
                 >
                     {t('common.cancel')}
                 </button>
-                <button
-                    disabled={busy}
-                    onClick={handleInstall}
-                    className="text-xs px-4 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
+                <Button variant="accent" size="lg" disabled={busy} onClick={handleInstall}>
                     {busy ? t('cbFlatArchive.installing') : t('cbFlatArchive.install')}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { Button } from './ui/Button'
 import {
     FolderOpen,
     Loader,
@@ -252,16 +253,17 @@ export function SettingsPage({
                                             </span>
                                         )}
                                         <div className="flex gap-2 shrink-0">
-                                            <button
+                                            <Button
+                                                variant="accent"
+                                                size="md"
                                                 disabled={picking}
                                                 onClick={handleBrowse}
-                                                className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                             >
                                                 <FolderOpen className="w-3.5 h-3.5" />
                                                 {picking
                                                     ? t('settings.gamePath.picking')
                                                     : t('settings.gamePath.browse')}
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                     {pathError ? (

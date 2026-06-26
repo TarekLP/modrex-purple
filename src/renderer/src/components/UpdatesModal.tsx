@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Button } from './ui/Button'
 import { X } from 'lucide-react'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
@@ -251,17 +252,18 @@ export function UpdatesModal({
                     >
                         {t('common.close')}
                     </button>
-                    <button
+                    <Button
+                        variant="accent"
+                        size="sm"
                         disabled={!gamePath || updatingAll || selectedIds.size === 0}
                         onClick={handleUpdateSelected}
-                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                         {updatingAll
                             ? t('installed.updatesModal.updating')
                             : t('installed.updatesModal.updateSelected', {
                                   count: selectedIds.size,
                               })}
-                    </button>
+                    </Button>
                 </div>
             </Dialog>
             {zipPickerData && gamePath && (

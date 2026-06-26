@@ -1,6 +1,7 @@
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import type { CrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
+import { Button } from './ui/Button'
 
 interface Props {
     modName: string
@@ -37,15 +38,17 @@ export function CrimeBossInstallTargetModal({ modName, busy, error, onChoose, on
                 </div>
             )}
             <div className="flex flex-col gap-2 px-5 py-4 shrink-0">
-                <button
+                <Button
+                    variant="accent"
+                    size="md"
                     onClick={() => !busy && onChoose('auto')}
                     disabled={busy}
-                    className="text-xs px-3 py-2 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="py-2"
                 >
                     {busy
                         ? t('crimeBossInstallChoice.installing')
                         : t('crimeBossInstallChoice.auto')}
-                </button>
+                </Button>
                 <button
                     onClick={() => !busy && onChoose('legacy')}
                     disabled={busy}

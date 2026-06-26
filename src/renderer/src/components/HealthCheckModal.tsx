@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
 import { X } from 'lucide-react'
 import { Dialog } from './Dialog'
@@ -276,7 +277,9 @@ export function HealthCheckModal({
                                             onOpen={() => onOpenDetail(item.id)}
                                             action={
                                                 resolvable ? (
-                                                    <button
+                                                    <Button
+                                                        variant="accent"
+                                                        size="sm"
                                                         disabled={
                                                             !gamePath ||
                                                             isInstalling ||
@@ -285,12 +288,12 @@ export function HealthCheckModal({
                                                         onClick={() =>
                                                             void installDep(resolvable.id)
                                                         }
-                                                        className="text-xs px-2.5 py-1 rounded bg-accent hover:bg-accent-bright shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        className="px-2.5 shrink-0"
                                                     >
                                                         {isInstalling
                                                             ? t('common.installing')
                                                             : t('installed.health.installDep')}
-                                                    </button>
+                                                    </Button>
                                                 ) : undefined
                                             }
                                         />
@@ -428,57 +431,58 @@ export function HealthCheckModal({
                                     {depInstallError}
                                 </span>
                             )}
-                            <button
+                            <Button
+                                variant="accent"
+                                size="md"
                                 disabled={!gamePath || installingAll || installingDepId !== null}
                                 onClick={() => void installAllDeps()}
-                                className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {installingAll
                                     ? t('common.installing')
                                     : t('installed.health.installAllDeps')}
-                            </button>
+                            </Button>
                         </>
                     )}
                 {activeTab === 'missing' && missingItems.length > 0 && (
-                    <button
+                    <Button
+                        variant="accent"
+                        size="md"
                         onClick={() => {
                             missingItems.forEach((item) => onReinstall(item.mods))
                             onClose()
                         }}
-                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
                     >
                         {t('installed.health.reinstallAll')}
-                    </button>
+                    </Button>
                 )}
                 {activeTab === 'broken' && brokenItems.length > 0 && (
-                    <button
+                    <Button
+                        variant="accent"
+                        size="md"
                         onClick={() => {
                             brokenItems.forEach((item) => onReinstall(item.mods))
                             onClose()
                         }}
-                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
                     >
                         {t('installed.health.reinstallAll')}
-                    </button>
+                    </Button>
                 )}
                 {activeTab === 'outdated' && outdatedItems.length > 0 && (
-                    <button
+                    <Button
+                        variant="accent"
+                        size="md"
                         onClick={() => {
                             outdatedItems.forEach((item) => onReinstall(item.mods))
                             onClose()
                         }}
-                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
                     >
                         {t('installed.health.reinstallAll')}
-                    </button>
+                    </Button>
                 )}
                 {activeTab === 'updates' && updatable.length > 0 && (
-                    <button
-                        onClick={onReviewUpdates}
-                        className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
-                    >
+                    <Button variant="accent" size="md" onClick={onReviewUpdates}>
                         {t('installed.reviewUpdates')}
-                    </button>
+                    </Button>
                 )}
                 <button
                     onClick={onClose}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { Button } from './ui/Button'
 import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
 import { Dialog } from './Dialog'
 import { Tooltip } from './Tooltip'
@@ -225,10 +226,11 @@ export function TopBar({
                                             ? t('topBar.launching')
                                             : t('topBar.launchWithoutMods')}
                                     </button>
-                                    <button
+                                    <Button
+                                        variant="accent"
+                                        size="sm"
                                         disabled={!gamePath || !!launching}
                                         onClick={handleLaunchModded}
-                                        className="text-xs px-3 py-1 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                     >
                                         {launching === 'modded' ? (
                                             <Loader className="w-3.5 h-3.5 animate-spin" />
@@ -238,7 +240,7 @@ export function TopBar({
                                         {launching === 'modded'
                                             ? t('topBar.launching')
                                             : t('topBar.launchModded')}
-                                    </button>
+                                    </Button>
                                 </>
                             ))}
                     </div>
@@ -293,12 +295,9 @@ export function TopBar({
                             >
                                 {t('common.cancel')}
                             </button>
-                            <button
-                                onClick={confirmLaunch}
-                                className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
-                            >
+                            <Button variant="accent" size="md" onClick={confirmLaunch}>
                                 {t('topBar.missingLaunchOption.launchAnyway')}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
