@@ -182,7 +182,7 @@ export function UpdatesModal({
                     </h2>
                     <button
                         onClick={onClose}
-                        className="text-text-subtle hover:text-text transition-colors"
+                        className="-m-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
                     >
                         <X className="w-4 h-4" />
                     </button>

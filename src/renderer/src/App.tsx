@@ -521,7 +521,7 @@ export default function App() {
                                 </h2>
                                 <button
                                     onClick={() => setShowUpdateModal(false)}
-                                    className="text-text-subtle hover:text-text transition-colors"
+                                    className="-m-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -534,7 +534,7 @@ export default function App() {
                             <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
                                 <button
                                     onClick={() => api.openExternal(update.releaseUrl)}
-                                    className="flex items-center gap-1.5 text-xs text-text-subtle hover:text-text transition-colors"
+                                    className="-mx-2 px-2 py-1 rounded flex items-center gap-1.5 text-xs text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                     {t('app.updateViewOnGithub')}

@@ -405,7 +405,7 @@ export function InstalledPage({
                                 <Tooltip content={t('installed.gridView')}>
                                     <button
                                         onClick={() => setView('grid')}
-                                        className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                                        className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text hover:bg-surface-active/50'}`}
                                     >
                                         <LayoutGrid className="w-3.5 h-3.5" />
                                     </button>
@@ -413,7 +413,7 @@ export function InstalledPage({
                                 <Tooltip content={t('installed.listView')}>
                                     <button
                                         onClick={() => setView('list')}
-                                        className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text'}`}
+                                        className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-surface-active text-text' : 'text-text-subtle hover:text-text hover:bg-surface-active/50'}`}
                                     >
                                         <List className="w-3.5 h-3.5" />
                                     </button>
@@ -433,7 +433,7 @@ export function InstalledPage({
                             {filterQuery && (
                                 <button
                                     onClick={() => setFilterQuery('')}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text transition-colors"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-text-subtle hover:text-text hover:bg-surface-active transition-colors"
                                 >
                                     <X className="w-3.5 h-3.5" />
                                 </button>

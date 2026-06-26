@@ -32,7 +32,7 @@ export function NewFolderInput() {
             />
             <button
                 onClick={handleCreateFolder}
-                className="p-1 text-accent hover:text-accent-bright transition-colors shrink-0"
+                className="p-1 rounded text-accent hover:text-accent-bright hover:bg-surface-hover transition-colors shrink-0"
             >
                 <Check className="w-3.5 h-3.5" />
             </button>
@@ -120,7 +120,7 @@ export function FolderSection({ folder }: Props) {
                 <button
                     onClick={() => toggleCollapse(folder.id)}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className="text-text-subtle hover:text-text transition-colors shrink-0"
+                    className="-m-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0"
                 >
                     {isCollapsed ? (
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -145,7 +145,7 @@ export function FolderSection({ folder }: Props) {
                         />
                         <button
                             onClick={() => commitRename(folder.id)}
-                            className="p-1 text-accent hover:text-accent-bright transition-colors shrink-0"
+                            className="p-1 rounded text-accent hover:text-accent-bright hover:bg-surface-hover transition-colors shrink-0"
                         >
                             <Check className="w-3.5 h-3.5" />
                         </button>
@@ -165,7 +165,7 @@ export function FolderSection({ folder }: Props) {
                                     startRename(folder)
                                 }}
                                 onMouseDown={(e) => e.stopPropagation()}
-                                className="p-0.5 text-text-subtle hover:text-text transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                                className="p-0.5 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0 opacity-0 group-hover:opacity-100"
                             >
                                 <Pencil className="w-3 h-3" />
                             </button>

@@ -49,7 +49,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
                 <h2 className="text-sm font-semibold">{t('unrecognized.title')}</h2>
                 <button
                     onClick={onClose}
-                    className="text-text-subtle hover:text-text transition-colors shrink-0 mt-0.5"
+                    className="-mr-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0 mt-0.5"
                 >
                     <X className="w-4 h-4" />
                 </button>

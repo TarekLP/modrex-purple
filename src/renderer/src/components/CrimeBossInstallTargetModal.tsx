@@ -58,7 +58,7 @@ export function CrimeBossInstallTargetModal({ modName, busy, error, onChoose, on
                 <button
                     onClick={!busy ? onCancel : undefined}
                     disabled={busy}
-                    className="text-xs px-3 py-1.5 text-text-subtle hover:text-text disabled:opacity-40 transition-colors"
+                    className="text-xs px-3 py-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-hover disabled:opacity-40 transition-colors"
                 >
                     {t('common.cancel')}
                 </button>

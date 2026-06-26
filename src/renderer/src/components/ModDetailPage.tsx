@@ -504,7 +504,7 @@ export function ModDetailPage({
             <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3 relative">
                 <button
                     onClick={onBack}
-                    className="text-sm text-text-muted hover:text-text transition-colors flex items-center gap-1.5 shrink-0"
+                    className="-mx-2 px-2 py-1 rounded text-sm text-text-muted hover:text-text hover:bg-surface-hover transition-colors flex items-center gap-1.5 shrink-0"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     {t('detail.back')}
@@ -605,7 +605,7 @@ export function ModDetailPage({
                     <span>{installError}</span>
                     <button
                         onClick={() => setInstallError(null)}
-                        className="ml-2 shrink-0 text-danger-text/70 hover:text-danger-text transition-colors"
+                        className="ml-2 shrink-0 p-1 rounded text-danger-text/70 hover:text-danger-text hover:bg-danger/20 transition-colors"
                     >
                         <X className="w-3.5 h-3.5" />
                     </button>
@@ -732,9 +732,9 @@ export function ModDetailPage({
                                 <Tabs.Trigger
                                     key={tabItem.id}
                                     value={tabItem.id}
-                                    className="text-xs px-4 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none"
+                                    className="relative text-xs px-4 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted before:content-[''] before:absolute before:inset-x-1 before:inset-y-1.5 before:rounded before:transition-colors hover:before:bg-surface-hover data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none"
                                 >
-                                    {tabItem.label}
+                                    <span className="relative">{tabItem.label}</span>
                                 </Tabs.Trigger>
                             ))}
                         </Tabs.List>
@@ -808,7 +808,7 @@ export function ModDetailPage({
 
                     <button
                         onClick={() => setLightboxIndex(null)}
-                        className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+                        className="absolute top-4 right-4 p-1 rounded-full text-white/70 hover:text-white hover:bg-black/40 transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>

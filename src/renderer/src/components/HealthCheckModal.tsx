@@ -221,7 +221,7 @@ export function HealthCheckModal({
                 <h2 className="text-sm font-semibold">{t('installed.health.title')}</h2>
                 <button
                     onClick={onClose}
-                    className="text-text-subtle hover:text-text transition-colors"
+                    className="-m-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
                 >
                     <X className="w-4 h-4" />
                 </button>
@@ -237,9 +237,9 @@ export function HealthCheckModal({
                         <Tabs.Trigger
                             key={tabItem.id}
                             value={tabItem.id}
-                            className="text-xs px-2.5 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none whitespace-nowrap"
+                            className="relative text-xs px-2.5 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted before:content-[''] before:absolute before:inset-x-1 before:inset-y-1.5 before:rounded before:transition-colors hover:before:bg-surface-hover data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none whitespace-nowrap"
                         >
-                            {tabItem.label}
+                            <span className="relative">{tabItem.label}</span>
                         </Tabs.Trigger>
                     ))}
                 </Tabs.List>
