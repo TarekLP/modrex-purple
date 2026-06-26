@@ -89,6 +89,13 @@ t('browse.modCount', { total: 42 })
 
 All colors are semantic tokens in `src/renderer/src/index.css` via Tailwind v4's `@theme` block — never use hardcoded Tailwind color classes like `zinc-*` or `red-*`. Token names: `surface`, `surface-raised`, `surface-hover`, `surface-active`, `surface-light`, `border`, `text`, `text-muted`, `text-subtle`, `accent`, `accent-bright`, `danger`, `danger-hover`, `danger-text`, `success`, `success-text`, `warning`.
 
+**Button component** (`components/ui/Button.tsx`): all interactive buttons must use `<Button>` instead of a raw `<button>` with inline Tailwind classes. Backed by `class-variance-authority`; the `cn()` utility (`lib/cn.ts`, combines clsx + tailwind-merge) is used internally and available for any conditional className construction elsewhere in the renderer.
+
+Variants: `accent` (primary CTA), `secondary` (cancel/close/neutral), `danger` (destructive), `ghost` (subdued text action), `ghost-accent` (subdued accent-colored action).
+Sizes: `sm` (py-1 px-3), `md` (py-1.5 px-3), `lg` (py-1.5 px-4), `icon` (p-1, for icon-only ghost buttons), `icon-md` (p-1.5, for icon-only danger buttons).
+
+Non-standard padding, `rounded-lg`, or layout classes (`shrink-0`, `-mx-2`, `ml-auto`) go in the `className` prop — twMerge resolves them against the variant base without conflict. Never hand-roll button styles inline.
+
 `createDragImage` in `useDragDrop.ts` builds DOM nodes outside React's render tree — use CSS custom properties in inline styles (`var(--color-surface-raised)` etc.), not Tailwind classes.
 
 **Radix UI primitives** in use — always prefer these over hand-rolled equivalents:
