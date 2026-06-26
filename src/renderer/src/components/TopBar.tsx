@@ -203,13 +203,10 @@ export function TopBar({
                         )}
                         {!hideGameActions &&
                             (gameRunning ? (
-                                <button
-                                    onClick={stopGame}
-                                    className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors flex items-center gap-1.5"
-                                >
+                                <Button variant="danger" size="sm" onClick={stopGame}>
                                     <Square className="w-3.5 h-3.5" fill="currentColor" />
                                     {t('topBar.stopGame')}
-                                </button>
+                                </Button>
                             ) : (
                                 <>
                                     <Button

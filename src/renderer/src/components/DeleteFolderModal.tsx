@@ -25,12 +25,9 @@ export function DeleteFolderModal({ onConfirm, onCancel }: Props) {
                 <Button variant="secondary" size="sm" onClick={onCancel}>
                     {t('common.cancel')}
                 </Button>
-                <button
-                    onClick={onConfirm}
-                    className="text-xs px-3 py-1 rounded bg-danger hover:bg-danger-hover transition-colors"
-                >
+                <Button variant="danger" size="sm" onClick={onConfirm}>
                     {t('installed.folder.delete')}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )

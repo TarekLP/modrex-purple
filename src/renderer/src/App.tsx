@@ -533,13 +533,15 @@ export default function App() {
                                 </div>
                             )}
                             <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between">
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => api.openExternal(update.releaseUrl)}
-                                    className="-mx-2 px-2 py-1 rounded flex items-center gap-1.5 text-xs text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
+                                    className="-mx-2 px-2"
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                     {t('app.updateViewOnGithub')}
-                                </button>
+                                </Button>
                                 <div className="flex items-center gap-2">
                                     <Button
                                         variant="secondary"

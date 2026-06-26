@@ -60,13 +60,14 @@ export function CrimeBossInstallTargetModal({ modName, busy, error, onChoose, on
                         ? t('crimeBossInstallChoice.installing')
                         : t('crimeBossInstallChoice.legacy')}
                 </Button>
-                <button
+                <Button
+                    variant="ghost"
+                    size="md"
                     onClick={!busy ? onCancel : undefined}
                     disabled={busy}
-                    className="text-xs px-3 py-1.5 rounded text-text-subtle hover:text-text hover:bg-surface-hover disabled:opacity-40 transition-colors"
                 >
                     {t('common.cancel')}
-                </button>
+                </Button>
             </div>
         </Dialog>
     )
