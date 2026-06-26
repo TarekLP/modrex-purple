@@ -33,6 +33,17 @@ const LAUNCHER_OPTIONS = [
 
 type SettingsTab = 'game' | 'application' | 'advanced'
 
+const GAME_TAB_KEY = 'modrex:settings-tab'
+const GLOBAL_TAB_KEY = 'modrex:settings-tab:global'
+
+function readSavedTab(globalOnly: boolean): SettingsTab {
+    const saved = localStorage.getItem(globalOnly ? GLOBAL_TAB_KEY : GAME_TAB_KEY)
+    if (globalOnly) {
+        return saved === 'application' || saved === 'advanced' ? saved : 'application'
+    }
+    return saved === 'game' || saved === 'application' || saved === 'advanced' ? saved : 'game'
+}
+
 const NAV_ITEMS: { id: SettingsTab; label: string; icon: LucideIcon }[] = [
     { id: 'game', label: t('settings.nav.game'), icon: Gamepad2 },
     { id: 'application', label: t('settings.nav.application'), icon: AppWindow },
@@ -105,15 +116,15 @@ export function SettingsPage({
         () => getSettingsCache(activeGame)?.settings.suppressCrashReporter === true
     )
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
-    const [activeTab, setActiveTabState] = useState<SettingsTab>(() => {
-        if (globalOnly) return 'application'
-        const saved = localStorage.getItem('modrex:settings-tab')
-        return saved === 'game' || saved === 'application' || saved === 'advanced' ? saved : 'game'
-    })
+    const [activeTab, setActiveTabState] = useState<SettingsTab>(() => readSavedTab(globalOnly))
+
+    useEffect(() => {
+        setActiveTabState(readSavedTab(globalOnly))
+    }, [globalOnly])
 
     function setActiveTab(tab: SettingsTab) {
         setActiveTabState(tab)
-        localStorage.setItem('modrex:settings-tab', tab)
+        localStorage.setItem(globalOnly ? GLOBAL_TAB_KEY : GAME_TAB_KEY, tab)
     }
 
     useEffect(() => {
