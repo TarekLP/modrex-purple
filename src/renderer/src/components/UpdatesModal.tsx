@@ -181,12 +181,9 @@ export function UpdatesModal({
                     <h2 className="text-sm font-semibold">
                         {t('installed.updatesModal.title', { count: updatable.length })}
                     </h2>
-                    <button
-                        onClick={onClose}
-                        className="-m-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
-                    >
+                    <Button variant="ghost" size="icon" onClick={onClose} className="-m-1">
                         <X className="w-4 h-4" />
-                    </button>
+                    </Button>
                 </div>
 
                 <div className="overflow-y-auto max-h-96">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from './ui/Button'
 import { Trash2, RotateCcw } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { Mod, InstalledMod } from '../../../shared/types'
@@ -130,13 +131,15 @@ export function ModListRow({
                         disabled={!canAct || !!installed.missing}
                     />
                     <Tooltip content={t('common.remove')}>
-                        <button
+                        <Button
+                            variant="danger"
+                            size="icon-md"
                             disabled={!canAct}
                             onClick={onUninstall}
-                            className="p-2 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="p-2"
                         >
                             <Trash2 className="w-4 h-4" />
-                        </button>
+                        </Button>
                     </Tooltip>
                 </div>
             </div>

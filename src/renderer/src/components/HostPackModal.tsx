@@ -112,13 +112,15 @@ export function HostPackModal({
                     <h2 className="text-sm font-semibold">{t('hostPack.title')}</h2>
                     <p className="text-xs text-text-muted mt-0.5 truncate">{payload.modName}</p>
                 </div>
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={!busy ? onClose : undefined}
                     disabled={busy}
-                    className="-mr-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0 mt-0.5 disabled:opacity-40"
+                    className="-mr-1 shrink-0 mt-0.5"
                 >
                     <X className="w-4 h-4" />
-                </button>
+                </Button>
             </div>
 
             <div className="px-5 py-4 flex flex-col gap-3">

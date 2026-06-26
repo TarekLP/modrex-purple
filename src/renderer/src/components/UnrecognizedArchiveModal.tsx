@@ -48,12 +48,14 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
         >
             <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
                 <h2 className="text-sm font-semibold">{t('unrecognized.title')}</h2>
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={onClose}
-                    className="-mr-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0 mt-0.5"
+                    className="-mr-1 shrink-0 mt-0.5"
                 >
                     <X className="w-4 h-4" />
-                </button>
+                </Button>
             </div>
 
             <div className="px-5 py-4 overflow-y-auto flex flex-col gap-3">

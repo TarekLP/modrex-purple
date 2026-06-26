@@ -520,12 +520,14 @@ export default function App() {
                                 <h2 className="text-sm font-semibold">
                                     {t('app.updateNotesTitle', { version: update.version })}
                                 </h2>
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => setShowUpdateModal(false)}
-                                    className="-m-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
+                                    className="-m-1"
                                 >
                                     <X className="w-4 h-4" />
-                                </button>
+                                </Button>
                             </div>
                             {update.body && (
                                 <div className="overflow-y-auto px-5 py-4 flex-1">

@@ -292,13 +292,15 @@ export function DownloadsTab({
                                     </button>
                                     {isInstalled && (
                                         <Tooltip content={t('common.remove')}>
-                                            <button
+                                            <Button
+                                                variant="danger"
+                                                size="icon-md"
                                                 disabled={!gamePath || isUninstalling}
                                                 onClick={() => handleUninstallFile(file)}
-                                                className="p-2 rounded-lg bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                                className="p-2 rounded-lg"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
+                                            </Button>
                                         </Tooltip>
                                     )}
                                     <Tooltip content={t('detail.downloads.external')}>

@@ -451,13 +451,15 @@ export function ZipPickerModal({
                         {t('zipPicker.subtitle', { modName: payload.modName })}
                     </p>
                 </div>
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={!isBusy ? onClose : undefined}
                     disabled={isBusy}
-                    className="-mr-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0 mt-0.5 disabled:opacity-40"
+                    className="-mr-1 shrink-0 mt-0.5"
                 >
                     <X className="w-4 h-4" />
-                </button>
+                </Button>
             </div>
 
             {downloadProgress !== null && (

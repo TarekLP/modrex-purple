@@ -1,4 +1,5 @@
 import { FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check } from 'lucide-react'
+import { Button } from './ui/Button'
 import { InstalledModItem } from './InstalledModItem'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
@@ -117,17 +118,19 @@ export function FolderSection({ folder }: Props) {
                     !isRenaming ? 'cursor-grab active:cursor-grabbing' : ''
                 } ${isDropInto ? 'border-accent bg-accent/10' : 'border-border bg-surface-raised'}`}
             >
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => toggleCollapse(folder.id)}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className="-m-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0"
+                    className="-m-1 shrink-0"
                 >
                     {isCollapsed ? (
                         <ChevronRight className="w-3.5 h-3.5" />
                     ) : (
                         <ChevronDown className="w-3.5 h-3.5" />
                     )}
-                </button>
+                </Button>
 
                 {isRenaming ? (
                     <>
@@ -159,16 +162,18 @@ export function FolderSection({ folder }: Props) {
                             {folder.displayName}
                         </span>
                         <Tooltip content={t('installed.folder.rename')}>
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={(e) => {
                                     e.stopPropagation()
                                     startRename(folder)
                                 }}
                                 onMouseDown={(e) => e.stopPropagation()}
-                                className="p-0.5 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                                className="p-0.5 shrink-0 opacity-0 group-hover:opacity-100"
                             >
                                 <Pencil className="w-3 h-3" />
-                            </button>
+                            </Button>
                         </Tooltip>
                     </div>
                 )}
@@ -215,16 +220,18 @@ export function FolderSection({ folder }: Props) {
 
                 {!isRenaming && (
                     <Tooltip content={t('installed.folder.delete')}>
-                        <button
+                        <Button
+                            variant="danger"
+                            size="icon-md"
                             onClick={(e) => {
                                 e.stopPropagation()
                                 handleDeleteFolder(folder.id)
                             }}
                             onMouseDown={(e) => e.stopPropagation()}
-                            className="p-1.5 rounded bg-danger hover:bg-danger-hover transition-colors shrink-0"
+                            className="shrink-0"
                         >
                             <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                     </Tooltip>
                 )}
             </div>

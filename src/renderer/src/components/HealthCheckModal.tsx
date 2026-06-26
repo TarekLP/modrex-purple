@@ -220,12 +220,9 @@ export function HealthCheckModal({
         >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
                 <h2 className="text-sm font-semibold">{t('installed.health.title')}</h2>
-                <button
-                    onClick={onClose}
-                    className="-m-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
-                >
+                <Button variant="ghost" size="icon" onClick={onClose} className="-m-1">
                     <X className="w-4 h-4" />
-                </button>
+                </Button>
             </div>
 
             <Tabs.Root

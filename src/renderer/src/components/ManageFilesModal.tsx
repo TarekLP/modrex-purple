@@ -380,12 +380,9 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                         {t('installed.fileCount', { count: mods.length })}
                     </p>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="-mr-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0"
-                >
+                <Button variant="ghost" size="icon" onClick={onClose} className="-mr-1 shrink-0">
                     <X className="w-4 h-4" />
-                </button>
+                </Button>
             </div>
 
             <div className="flex items-center gap-2 px-3 pt-3 shrink-0">
@@ -484,13 +481,14 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                                         onChange={() => handleToggleGroup(groupMods)}
                                     />
                                     <Tooltip content={t('common.remove')}>
-                                        <button
+                                        <Button
+                                            variant="danger"
+                                            size="icon-md"
                                             onClick={() => handleRemove(groupMods)}
                                             disabled={!!loadingMod}
-                                            className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                         >
                                             <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
+                                        </Button>
                                     </Tooltip>
                                 </div>
                             </div>

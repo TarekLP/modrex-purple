@@ -65,12 +65,14 @@ export function DepsWarningModal({
                         </h2>
                         <p className="text-xs text-text-muted">{t('depsWarning.body')}</p>
                     </div>
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={onClose}
-                        className="-mr-1 p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors shrink-0 mt-0.5"
+                        className="-mr-1 shrink-0 mt-0.5"
                     >
                         <X className="w-4 h-4" />
-                    </button>
+                    </Button>
                 </div>
                 <div className="flex flex-col gap-2">
                     {missingRequired

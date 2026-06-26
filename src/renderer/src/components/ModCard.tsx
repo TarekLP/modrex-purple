@@ -200,13 +200,14 @@ export function ModCard({
                             disabled={!canAct || !!installed.missing}
                         />
                         <Tooltip content={t('common.remove')}>
-                            <button
+                            <Button
+                                variant="danger"
+                                size="icon-md"
                                 disabled={!canAct}
                                 onClick={onUninstall}
-                                className="p-1.5 rounded bg-danger hover:bg-danger-hover disabled:opacity-40 transition-colors"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            </Button>
                         </Tooltip>
                     </div>
                 )}

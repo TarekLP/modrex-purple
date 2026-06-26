@@ -191,12 +191,9 @@ export function TopBar({
                                     {t('app.updateInstall')}
                                 </button>
                                 <Tooltip content={t('common.dismiss')}>
-                                    <button
-                                        onClick={onDismissUpdate}
-                                        className="p-1 rounded text-text-subtle hover:text-text hover:bg-surface-hover transition-colors"
-                                    >
+                                    <Button variant="ghost" size="icon" onClick={onDismissUpdate}>
                                         <X className="w-3.5 h-3.5" />
-                                    </button>
+                                    </Button>
                                 </Tooltip>
                                 <div className="w-px h-4 bg-border mx-1" />
                             </>
