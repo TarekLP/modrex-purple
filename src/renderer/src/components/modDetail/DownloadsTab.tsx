@@ -1,0 +1,386 @@
+import { useState } from 'react'
+import { AlertTriangle, Tag, Download, Clock, ExternalLink, Trash2 } from 'lucide-react'
+import type { Mod, ModFile, ModLink, InstalledMod, GameId } from '../../../../shared/types'
+import { THUMBNAIL_BASE_URL } from '../../../../shared/types'
+import { api } from '../../api'
+import { t } from '../../i18n'
+import { isUnsupportedFormat } from '../../formatCheck'
+import { handleInstallSentinel } from '../../installSentinels'
+import { useCrimeBossInstallTarget } from '../../hooks/useCrimeBossInstallTarget'
+import { MarkdownContent } from '../MarkdownContent'
+import { Tooltip } from '../Tooltip'
+import { CrimeBossInstallTargetModal } from '../CrimeBossInstallTargetModal'
+import { ZipPickerModal } from '../ZipPickerModal'
+import type { ZipMultiPakPayload } from '../ZipPickerModal'
+import { HostPackModal } from '../HostPackModal'
+import type { HostPackPayload } from '../HostPackModal'
+import { CrimeBossFlatArchiveModal } from '../CrimeBossFlatArchiveModal'
+import type { CbFlatArchivePayload } from '../CrimeBossFlatArchiveModal'
+import { UnrecognizedArchiveModal } from '../UnrecognizedArchiveModal'
+import { NonPakConfirmModal } from '../NonPakConfirmModal'
+import { formatBytes, formatDate } from './format'
+
+export function DownloadsTab({
+    files,
+    links,
+    loading,
+    mod,
+    gamePath,
+    installed,
+    installedFiles,
+    downloadProgress,
+    activeGame,
+    onRefreshInstalled,
+}: {
+    files: ModFile[]
+    links: ModLink[]
+    loading: boolean
+    mod: Mod
+    gamePath: string | null
+    installed: InstalledMod[]
+    installedFiles: InstalledMod[]
+    downloadProgress: { downloaded: number; total: number } | null
+    activeGame?: GameId
+    onRefreshInstalled: () => Promise<void>
+}) {
+    const [installingId, setInstallingId] = useState<number | null>(null)
+    const [uninstallingId, setUninstallingId] = useState<number | null>(null)
+    const [installError, setInstallError] = useState<string | null>(null)
+    const [formatWarningFile, setFormatWarningFile] = useState<ModFile | null>(null)
+    const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
+    const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
+    const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
+    const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
+    const crimeBossInstallTarget = useCrimeBossInstallTarget(
+        activeGame ?? 'pd3',
+        gamePath,
+        onRefreshInstalled
+    )
+
+    async function handleUninstallFile(file: ModFile) {
+        if (!gamePath) return
+        const installedMod = installedFiles.find((m) => m.fileId === file.id)
+        if (!installedMod) return
+        setUninstallingId(file.id)
+        try {
+            await api.uninstallMod(installedMod.uid, gamePath, activeGame)
+            await onRefreshInstalled()
+        } finally {
+            setUninstallingId(null)
+        }
+    }
+
+    function handleInstallFile(file: ModFile) {
+        if (isUnsupportedFormat(file.type, file.download_url)) {
+            setFormatWarningFile(file)
+            return
+        }
+        crimeBossInstallTarget.runInstall(mod.id, mod.name, () => doInstallFile(file))
+    }
+
+    async function doInstallFile(file: ModFile) {
+        if (!gamePath) return
+        setInstallingId(file.id)
+        setInstallError(null)
+        try {
+            await api.installModFile(
+                mod.id,
+                mod.name,
+                file.id,
+                file.download_url,
+                file.type ?? '',
+                mod.version,
+                gamePath,
+                activeGame
+            )
+            await onRefreshInstalled()
+        } catch (e) {
+            const errStr = String(e)
+            const handled = handleInstallSentinel(errStr, {
+                onZipMultiPak: setZipPickerData,
+                onHostModPack: setHostPackData,
+                onCbFlatArchive: setCbFlatArchiveData,
+                onUnrecognizedArchive: () => setUnrecognizedModId(mod.id),
+            })
+            if (!handled) setInstallError(errStr)
+        } finally {
+            setInstallingId(null)
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-10 text-text-subtle text-sm">
+                {t('common.loading')}
+            </div>
+        )
+    }
+
+    if (files.length === 0 && links.length === 0) {
+        return <p className="text-sm text-text-subtle">{t('detail.downloads.none')}</p>
+    }
+
+    const modThumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
+    const imageMap = new Map((mod.images ?? []).map((img) => [img.id, img]))
+
+    return (
+        <div className="flex flex-col gap-3">
+            {crimeBossInstallTarget.pendingChoice && (
+                <CrimeBossInstallTargetModal
+                    modName={crimeBossInstallTarget.pendingChoice.modName}
+                    busy={crimeBossInstallTarget.relocating}
+                    error={crimeBossInstallTarget.error}
+                    onChoose={crimeBossInstallTarget.confirmChoice}
+                    onCancel={crimeBossInstallTarget.cancelChoice}
+                />
+            )}
+            {zipPickerData && gamePath && (
+                <ZipPickerModal
+                    payload={zipPickerData}
+                    gamePath={gamePath}
+                    installedFiles={installedFiles}
+                    gameId={activeGame}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setZipPickerData(null)}
+                />
+            )}
+            {hostPackData && gamePath && (
+                <HostPackModal
+                    payload={hostPackData}
+                    gamePath={gamePath}
+                    installed={installed}
+                    gameId={activeGame}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setHostPackData(null)}
+                />
+            )}
+            {cbFlatArchiveData && gamePath && (
+                <CrimeBossFlatArchiveModal
+                    payload={cbFlatArchiveData}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setCbFlatArchiveData(null)}
+                />
+            )}
+            {unrecognizedModId !== null && (
+                <UnrecognizedArchiveModal
+                    modId={unrecognizedModId}
+                    onClose={() => setUnrecognizedModId(null)}
+                />
+            )}
+            {formatWarningFile && (
+                <NonPakConfirmModal
+                    onConfirm={() => {
+                        const file = formatWarningFile!
+                        setFormatWarningFile(null)
+                        crimeBossInstallTarget.runInstall(mod.id, mod.name, () =>
+                            doInstallFile(file)
+                        )
+                    }}
+                    onCancel={() => setFormatWarningFile(null)}
+                />
+            )}
+            {installError && (
+                <div className="px-4 py-3 rounded-lg bg-danger/30 border border-danger-hover text-sm text-danger-text">
+                    {installError}
+                </div>
+            )}
+            {files.map((file) => {
+                const isInstalled = installedFiles.some((m) => m.fileId === file.id)
+                const isInstalling = installingId === file.id
+                const isUninstalling = uninstallingId === file.id
+                const fileImage = file.image_id != null ? imageMap.get(file.image_id) : undefined
+                const thumbUrl = fileImage ? `${THUMBNAIL_BASE_URL}/${fileImage.file}` : modThumbUrl
+                return (
+                    <div
+                        key={file.id}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-surface-hover border border-border"
+                    >
+                        <div className="relative shrink-0">
+                            {thumbUrl ? (
+                                <img
+                                    src={thumbUrl}
+                                    alt=""
+                                    className="w-14 h-14 rounded-lg object-cover"
+                                />
+                            ) : (
+                                <div className="w-14 h-14 rounded-lg bg-surface-active" />
+                            )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                                {file.label && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/15 border border-accent/30 text-accent font-medium uppercase tracking-wide shrink-0">
+                                        {file.label}
+                                    </span>
+                                )}
+                                <span className="text-sm font-semibold truncate">{file.name}</span>
+                            </div>
+                            {file.desc && (
+                                <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
+                                    <MarkdownContent text={file.desc} />
+                                </div>
+                            )}
+                            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
+                                {isUnsupportedFormat(file.type, file.download_url) && (
+                                    <span className="flex items-center gap-1 text-warning">
+                                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                                        {t('common.nonPakWarning')}
+                                    </span>
+                                )}
+                                {file.version && (
+                                    <span className="flex items-center gap-1">
+                                        <Tag className="w-3 h-3 shrink-0" />
+                                        {file.version}
+                                    </span>
+                                )}
+                                {file.downloads != null && (
+                                    <span className="flex items-center gap-1">
+                                        <Download className="w-3 h-3 shrink-0" />
+                                        {file.downloads.toLocaleString()}
+                                    </span>
+                                )}
+                                {file.created_at && (
+                                    <span className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3 shrink-0" />
+                                        {formatDate(file.created_at)}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            {file.url && !file.download_url ? (
+                                <button
+                                    onClick={() => api.openExternal(file.url!)}
+                                    className="text-xs px-4 py-2 rounded-lg bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    {t('common.openLink')}
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        disabled={
+                                            !gamePath ||
+                                            isInstalling ||
+                                            isInstalled ||
+                                            !!mod.disable_mod_managers
+                                        }
+                                        onClick={() => handleInstallFile(file)}
+                                        className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
+                                            isInstalled
+                                                ? 'bg-success/20 border border-success/40 text-success-text'
+                                                : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
+                                        }`}
+                                    >
+                                        {!isInstalling && !isInstalled && (
+                                            <Download className="w-3.5 h-3.5" />
+                                        )}
+                                        {isInstalling
+                                            ? downloadProgress
+                                                ? downloadProgress.total > 0
+                                                    ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                                    : t('common.downloading')
+                                                : t('common.installing')
+                                            : isInstalled
+                                              ? t('common.installed')
+                                              : `${t('common.install')}${file.type ? ` ${file.type.toUpperCase()}` : ''} (${formatBytes(file.size)})`}
+                                    </button>
+                                    {isInstalled && (
+                                        <Tooltip content={t('common.remove')}>
+                                            <button
+                                                disabled={!gamePath || isUninstalling}
+                                                onClick={() => handleUninstallFile(file)}
+                                                className="p-2 rounded-lg bg-danger hover:bg-danger-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </Tooltip>
+                                    )}
+                                    <Tooltip content={t('detail.downloads.external')}>
+                                        <button
+                                            onClick={() =>
+                                                api.openExternal(file.url ?? file.download_url)
+                                            }
+                                            className="p-2 rounded-lg bg-surface-active hover:bg-surface-light transition-colors"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                        </button>
+                                    </Tooltip>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )
+            })}
+            {links.length > 0 && (
+                <>
+                    {files.length > 0 && <hr className="border-border" />}
+                    {links.map((link) => {
+                        const linkImage =
+                            link.image_id != null ? imageMap.get(link.image_id) : undefined
+                        const thumbUrl = linkImage
+                            ? `${THUMBNAIL_BASE_URL}/${linkImage.file}`
+                            : modThumbUrl
+                        return (
+                            <div
+                                key={link.id}
+                                className="flex items-center gap-3 p-3 rounded-xl bg-surface-hover border border-border"
+                            >
+                                <div className="relative shrink-0">
+                                    {thumbUrl ? (
+                                        <img
+                                            src={thumbUrl}
+                                            alt=""
+                                            className="w-14 h-14 rounded-lg object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-lg bg-surface-active" />
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <span className="text-sm font-semibold truncate block">
+                                        {link.name}
+                                    </span>
+                                    {link.desc && (
+                                        <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
+                                            <MarkdownContent text={link.desc} />
+                                        </div>
+                                    )}
+                                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
+                                        {link.version && (
+                                            <span className="flex items-center gap-1">
+                                                <Tag className="w-3 h-3 shrink-0" />
+                                                {link.version}
+                                            </span>
+                                        )}
+                                        {link.downloads != null && (
+                                            <span className="flex items-center gap-1">
+                                                <Download className="w-3 h-3 shrink-0" />
+                                                {link.downloads.toLocaleString()}
+                                            </span>
+                                        )}
+                                        {link.created_at && (
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3 shrink-0" />
+                                                {formatDate(link.created_at)}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => api.openExternal(link.url)}
+                                    className="text-xs px-4 py-2 rounded-lg bg-accent hover:bg-accent-bright transition-colors flex items-center gap-1.5 shrink-0"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    {t('common.openLink')}
+                                </button>
+                            </div>
+                        )
+                    })}
+                </>
+            )}
+        </div>
+    )
+}
