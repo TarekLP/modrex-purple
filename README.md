@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/icon.png" style="width: 10%" alt="Modrex icon" />
+<img src="assets/icon.png" width="96" alt="Modrex icon" />
 
 # Modrex
 
@@ -11,6 +11,8 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/tenzpx8JRM)
 
 A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/), and [Crime Boss: Rockay City](https://store.steampowered.com/app/2933080/Crime_Boss_Rockay_City/) powered by [modworkshop](https://modworkshop.net).
+
+<img src="assets/example.png" width="900" alt="Modrex app screenshot" />
 
 </div>
 
@@ -25,12 +27,12 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 ## Features
 
-- Supports PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City — switch games from a searchable game picker
+- Supports PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City, with a searchable game picker
 - Browse and search mods from modworkshop
 - In-app News tab with the latest posts for each game
 - Full mod detail page: description, images, downloads, changelog, dependencies, and install instructions
 - Rich description rendering: formatted text, tables, collapsible sections, colored text, and inline video embeds (YouTube, Streamable)
-- One-click install, uninstall, enable, and disable — supports `.pak`, `.zip`, `.7z`, `.rar`, and `.tar.gz`/`.tar.xz` mods
+- One-click install, uninstall, enable, and disable for `.pak`, `.zip`, `.7z`, `.rar`, and `.tar.gz`/`.tar.xz` mods
 - Organize mods into folders with arbitrary nesting depth and drag-and-drop reordering
 - Mods with multiple installed files grouped as a single card, with per-file management
 - Update detection with selective per-mod updates
