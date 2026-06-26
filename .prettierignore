@@ -4,3 +4,7 @@ dist
 package-lock.json
 src-tauri/
 THIRD_PARTY_LICENSES.md
+CHANGELOG.md
+CLAUDE.md
+AGENTS.md
+.agents/

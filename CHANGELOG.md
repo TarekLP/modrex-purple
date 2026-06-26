@@ -7,12 +7,12 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added a Health Check on the Installed page, scans all mods and groups issues by category, with bulk actions to fix them:
-    - Missing files
-    - Broken archives
-    - Outdated installs
-    - Unrecognized mods
-    - Missing dependencies
-    - Available updates
+  - Missing files
+  - Broken archives
+  - Outdated installs
+  - Unrecognized mods
+  - Missing dependencies
+  - Available updates
 - Added Settings access from the Game Picker Window.
 - Added an "Outdated" badge in Manage Files for leftover duplicate files left behind when a mod's download switched between a plain file and an archive.
 
@@ -23,6 +23,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Fixed
 
 - Fixed updates not being detected for mods whose download switched between a plain file and an archive, which could leave an old copy installed alongside the new one.
+- Fixed Settings remembering the wrong tab when switching between the game picker's global settings and per-game settings.
+- Fixed ghost buttons and navigation tabs showing no hover feedback, making their click targets unclear.
 
 ## 0.11.1
 
