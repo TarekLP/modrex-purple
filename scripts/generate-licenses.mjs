@@ -71,6 +71,50 @@ const header = [
 
 const rustHeader = ['## Rust / C Dependencies', '']
 
-const output = [...header, ...npmLines, ...rustHeader, ...rustLines].join('\n')
+// Reference implementations whose code/data is embedded but not managed by a package manager.
+const referenceHeader = ['## Reference Implementations', '']
+const referenceLines = [
+    '### PDModExtractor (HW12Dev)',
+    '',
+    '**Repository:** https://github.com/HW12Dev/PDModExtractor  ',
+    '**License:** MIT  ',
+    '**Used for:** The `.pdmod` extraction algorithm in `src-tauri/src/commands/mods/pdmod.rs` and the',
+    'bundled asset hashlist (`pdmod_hashlist.txt`) are both derived from this project. The Bob Jenkins',
+    'lookup8 hash function is a Rust port of `src/hash.cpp`; the extraction logic mirrors `src/main.cpp`.',
+    '',
+    '```',
+    'MIT License',
+    '',
+    'Copyright (c) HW12Dev',
+    '',
+    'Permission is hereby granted, free of charge, to any person obtaining a copy',
+    'of this software and associated documentation files (the "Software"), to deal',
+    'in the Software without restriction, including without limitation the rights',
+    'to use, copy, modify, merge, publish, distribute, sublicense, and/or sell',
+    'copies of the Software, and to permit persons to whom the Software is',
+    'furnished to do so, subject to the following conditions:',
+    '',
+    'The above copyright notice and this permission notice shall be included in all',
+    'copies or substantial portions of the Software.',
+    '',
+    'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR',
+    'IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,',
+    'FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE',
+    'AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER',
+    'LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,',
+    'OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE',
+    'SOFTWARE.',
+    '```',
+    '',
+]
+
+const output = [
+    ...header,
+    ...npmLines,
+    ...rustHeader,
+    ...rustLines,
+    ...referenceHeader,
+    ...referenceLines,
+].join('\n')
 writeFileSync(join(rootDir, 'THIRD_PARTY_LICENSES.md'), output)
 console.log('Written THIRD_PARTY_LICENSES.md')
