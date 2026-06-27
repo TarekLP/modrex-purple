@@ -124,7 +124,7 @@ export default function App() {
         void api.setDiscordPresenceEnabled(enabled)
     }, [])
     useEffect(() => {
-        void api.updateDiscordPresence(`Managing ${GAMES[activeGame].name} mods`)
+        void api.updateDiscordPresence(GAMES[activeGame].name)
     }, [activeGame])
 
     // Per-session cache: last resolved path for each game. undefined = not yet loaded.

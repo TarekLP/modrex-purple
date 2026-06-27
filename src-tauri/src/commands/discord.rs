@@ -11,9 +11,10 @@ const APP_ID: &str = "1520216355792490626";
 const RETRY_INTERVAL: Duration = Duration::from_secs(15);
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(30);
 
-fn build_activity<'a>(state: &'a str, start_ts: i64) -> activity::Activity<'a> {
+fn build_activity<'a>(game: &'a str, start_ts: i64) -> activity::Activity<'a> {
     activity::Activity::new()
-        .state(state)
+        .details(game)
+        .state("Managing mods")
         .assets(
             activity::Assets::new()
                 .large_image("logo")
@@ -30,7 +31,7 @@ pub fn start(enabled: Arc<AtomicBool>, rx: mpsc::Receiver<String>) {
             .unwrap_or_default()
             .as_secs() as i64;
 
-        let mut current_state = "Managing mods".to_string();
+        let mut current_game = String::new();
         let mut client: Option<DiscordIpcClient> = None;
 
         loop {
@@ -43,7 +44,7 @@ pub fn start(enabled: Arc<AtomicBool>, rx: mpsc::Receiver<String>) {
                     }
                 }
                 if let Some(ref mut c) = client {
-                    if c.set_activity(build_activity(&current_state, start_ts)).is_err() {
+                    if c.set_activity(build_activity(&current_game, start_ts)).is_err() {
                         let _ = c.close();
                         client = None;
                     }
@@ -56,7 +57,7 @@ pub fn start(enabled: Arc<AtomicBool>, rx: mpsc::Receiver<String>) {
 
             let timeout = if client.is_none() { RETRY_INTERVAL } else { KEEPALIVE_INTERVAL };
             match rx.recv_timeout(timeout) {
-                Ok(new_state) => current_state = new_state,
+                Ok(new_state) => current_game = new_state,
                 Err(RecvTimeoutError::Disconnected) => break,
                 Err(RecvTimeoutError::Timeout) => {}
             }
