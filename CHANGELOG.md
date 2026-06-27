@@ -6,6 +6,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
+- Added Discord Rich Presence showing the active game on profile.
 - Added a Health Check on the Installed page, scans all mods and groups issues by category, with bulk actions to fix them:
   - Missing files
   - Broken archives
