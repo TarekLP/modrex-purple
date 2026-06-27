@@ -1,4 +1,5 @@
 pub mod analytics;
+pub mod discord;
 pub mod api;
 pub mod dahm;
 pub mod download;

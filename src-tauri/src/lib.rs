@@ -129,6 +129,12 @@ pub fn run() {
         serde_json::json!({ "games_configured": games_configured }),
     );
 
+    let discord_enabled = commands::settings::read_settings(app.handle())
+        .discord_rich_presence_enabled
+        .unwrap_or(true);
+    let discord_flag = commands::discord::make_enabled_flag(discord_enabled);
+    commands::discord::start(discord_flag);
+
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(commands::mod_index::ensure_index(handle));
 

@@ -28,6 +28,7 @@ pub struct Settings {
     // never transmitted unless the user has enabled analytics.
     pub analytics_enabled: Option<bool>,
     pub analytics_id: Option<String>,
+    pub discord_rich_presence_enabled: Option<bool>,
     // Legacy flat fields: deserialized from old files but never written back.
     #[serde(skip_serializing, default)]
     pub game_path: Option<String>,
