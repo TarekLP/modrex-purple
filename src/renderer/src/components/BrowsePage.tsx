@@ -143,26 +143,26 @@ const GridCard = memo(function GridCard(p: GridCardProps) {
 })
 
 interface ModGridProps extends CardHandlers {
-    loadingMods: boolean
+    gridLoading: boolean
     result: Paginated<Mod> | null
     installedByModId: Map<number, InstalledMod[]>
     gamePath: string | null
-    loadingMod: number | null
-    downloadProgress: { downloaded: number; total: number } | null
+    installingMods: ReadonlySet<number>
+    downloadMap: ReadonlyMap<string, { downloaded: number; total: number }>
     loaderInstalledIds: Set<number>
 }
 
 const ModGrid = memo(function ModGrid({
-    loadingMods,
+    gridLoading,
     result,
     installedByModId,
     gamePath,
-    loadingMod,
-    downloadProgress,
+    installingMods,
+    downloadMap,
     loaderInstalledIds,
     ...handlers
 }: ModGridProps) {
-    if (loadingMods) {
+    if (gridLoading) {
         return (
             <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                 {Array.from({ length: 24 }, (_, i) => (
@@ -198,8 +198,8 @@ const ModGrid = memo(function ModGrid({
                     installedCount={installedByModId.get(mod.id)?.length || undefined}
                     loaderInstalled={loaderInstalledIds.has(mod.id) ? true : undefined}
                     gamePath={gamePath}
-                    loading={loadingMod === mod.id}
-                    progress={loadingMod === mod.id ? downloadProgress : null}
+                    loading={installingMods.has(mod.id) || downloadMap.has(`mod:${mod.id}`)}
+                    progress={downloadMap.get(`mod:${mod.id}`) ?? null}
                     {...handlers}
                 />
             ))}
@@ -234,7 +234,10 @@ export function BrowsePage({
         () => getCategoriesCache(workshopId) ?? []
     )
     const [loadingMods, setLoadingMods] = useState(!initialCache)
-    const [loadingMod, setLoadingMod] = useState<number | null>(null)
+    const [installingMods, setInstallingMods] = useState<ReadonlySet<number>>(new Set())
+    const [downloadMap, setDownloadMap] = useState<
+        ReadonlyMap<string, { downloaded: number; total: number }>
+    >(new Map())
     const [error, setError] = useState<string | null>(null)
     const [depsWarning, setDepsWarning] = useState<{
         modId: number
@@ -256,20 +259,13 @@ export function BrowsePage({
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
-    const [downloadProgress, setDownloadProgress] = useState<{
-        downloaded: number
-        total: number
-    } | null>(null)
-    const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
     const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
     const [ue4ssInstalled, setUe4ssInstalled] = useState<boolean | null>(null)
 
     useEffect(() => {
-        return api.onDownloadProgress(({ downloaded, total }) => {
-            setDownloadProgress({ downloaded, total })
-            if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
-            progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
+        return api.onDownloadProgress(({ download_id, downloaded, total }) => {
+            setDownloadMap((prev) => new Map(prev).set(download_id, { downloaded, total }))
         })
     }, [])
 
@@ -392,6 +388,27 @@ export function BrowsePage({
         }, 150)
     }, [])
 
+    const addInstalling = useCallback((id: number) => {
+        setInstallingMods((prev) => {
+            const s = new Set(prev)
+            s.add(id)
+            return s
+        })
+    }, [])
+
+    const removeInstalling = useCallback((id: number) => {
+        setInstallingMods((prev) => {
+            const s = new Set(prev)
+            s.delete(id)
+            return s
+        })
+        setDownloadMap((prev) => {
+            const m = new Map(prev)
+            m.delete(`mod:${id}`)
+            return m
+        })
+    }, [])
+
     const doInstall = useCallback(
         async (modId: number, fullMod: Mod) => {
             if (!gamePath) return
@@ -419,7 +436,7 @@ export function BrowsePage({
                 if (missingRequired.length > 0) {
                     const s = await api.getSettings()
                     if (!s.dismissedDepsWarnings?.includes(modId)) {
-                        setLoadingMod(null)
+                        removeInstalling(modId)
                         setDepsWarning({ modId, allDeps, bltLoaderInstalled })
                         return
                     }
@@ -450,6 +467,7 @@ export function BrowsePage({
             dahmInstalled,
             ue4ssInstalled,
             onRefreshInstalled,
+            removeInstalling,
         ]
     )
 
@@ -457,7 +475,7 @@ export function BrowsePage({
         async (modId: number) => {
             if (!gamePath) return
             setError(null)
-            setLoadingMod(modId)
+            addInstalling(modId)
             try {
                 const fullMod = await getCachedMod(modId)
                 if (fullMod.disable_mod_managers) {
@@ -473,7 +491,7 @@ export function BrowsePage({
                 if (fullMod.download === null) {
                     const files = await getCachedModFiles(modId)
                     if (files.length > 1) {
-                        setLoadingMod(null)
+                        removeInstalling(modId)
                         setFileSelect({ mod: fullMod, files })
                         return
                     }
@@ -484,7 +502,7 @@ export function BrowsePage({
                     checkUrl = fullMod.download.download_url ?? undefined
                 }
                 if (isUnsupportedFormat(checkType, checkUrl)) {
-                    setLoadingMod(null)
+                    removeInstalling(modId)
                     setFormatWarning({ modId, mod: fullMod })
                     return
                 }
@@ -499,10 +517,10 @@ export function BrowsePage({
                 })
                 if (!handled) setError(errStr)
             } finally {
-                setLoadingMod(null)
+                removeInstalling(modId)
             }
         },
-        [gamePath, doInstall, runCrimeBossInstall]
+        [gamePath, doInstall, runCrimeBossInstall, addInstalling, removeInstalling]
     )
 
     const handleUninstall = useCallback(
@@ -510,15 +528,15 @@ export function BrowsePage({
             if (!gamePath) return
             const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
             if (uids.length === 0) return
-            setLoadingMod(modId)
+            addInstalling(modId)
             try {
                 for (const uid of uids) await api.uninstallMod(uid, gamePath, activeGame)
                 await onRefreshInstalled()
             } finally {
-                setLoadingMod(null)
+                removeInstalling(modId)
             }
         },
-        [gamePath, installed, activeGame, onRefreshInstalled]
+        [gamePath, installed, activeGame, onRefreshInstalled, addInstalling, removeInstalling]
     )
 
     const handleEnable = useCallback(
@@ -526,15 +544,15 @@ export function BrowsePage({
             if (!gamePath) return
             const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
             if (uids.length === 0) return
-            setLoadingMod(modId)
+            addInstalling(modId)
             try {
                 for (const uid of uids) await api.enableMod(uid, gamePath, activeGame)
                 await onRefreshInstalled()
             } finally {
-                setLoadingMod(null)
+                removeInstalling(modId)
             }
         },
-        [gamePath, installed, activeGame, onRefreshInstalled]
+        [gamePath, installed, activeGame, onRefreshInstalled, addInstalling, removeInstalling]
     )
 
     const handleDisable = useCallback(
@@ -542,15 +560,15 @@ export function BrowsePage({
             if (!gamePath) return
             const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
             if (uids.length === 0) return
-            setLoadingMod(modId)
+            addInstalling(modId)
             try {
                 for (const uid of uids) await api.disableMod(uid, gamePath, activeGame)
                 await onRefreshInstalled()
             } finally {
-                setLoadingMod(null)
+                removeInstalling(modId)
             }
         },
-        [gamePath, installed, activeGame, onRefreshInstalled]
+        [gamePath, installed, activeGame, onRefreshInstalled, addInstalling, removeInstalling]
     )
 
     const installedByModId = useMemo(() => {
@@ -584,7 +602,7 @@ export function BrowsePage({
                     onConfirm={async () => {
                         const { modId, mod: fullMod } = formatWarning
                         setFormatWarning(null)
-                        setLoadingMod(modId)
+                        addInstalling(modId)
                         try {
                             await runCrimeBossInstall(modId, fullMod.name, () =>
                                 doInstall(modId, fullMod)
@@ -592,7 +610,7 @@ export function BrowsePage({
                         } catch (e) {
                             setError(String(e))
                         } finally {
-                            setLoadingMod(null)
+                            removeInstalling(modId)
                         }
                     }}
                     onCancel={() => setFormatWarning(null)}
@@ -759,12 +777,12 @@ export function BrowsePage({
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
                 <ModGrid
-                    loadingMods={loadingMods}
+                    gridLoading={loadingMods}
                     result={result}
                     installedByModId={installedByModId}
                     gamePath={gamePath}
-                    loadingMod={loadingMod}
-                    downloadProgress={downloadProgress}
+                    installingMods={installingMods}
+                    downloadMap={downloadMap}
                     loaderInstalledIds={
                         new Set([
                             ...(pdthOverridesInstalled ? [PDTH_OVERRIDES_ID] : []),

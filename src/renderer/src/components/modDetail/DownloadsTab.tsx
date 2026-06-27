@@ -29,7 +29,7 @@ export function DownloadsTab({
     gamePath,
     installed,
     installedFiles,
-    downloadProgress,
+    downloadMap,
     activeGame,
     onRefreshInstalled,
 }: {
@@ -40,7 +40,7 @@ export function DownloadsTab({
     gamePath: string | null
     installed: InstalledMod[]
     installedFiles: InstalledMod[]
-    downloadProgress: { downloaded: number; total: number } | null
+    downloadMap: ReadonlyMap<string, { downloaded: number; total: number }>
     activeGame?: GameId
     onRefreshInstalled: () => Promise<void>
 }) {
@@ -189,6 +189,7 @@ export function DownloadsTab({
             {files.map((file) => {
                 const isInstalled = installedFiles.some((m) => m.fileId === file.id)
                 const isInstalling = installingId === file.id
+                const fileProgress = downloadMap.get(`file:${mod.id}:${file.id}`)
                 const isUninstalling = uninstallingId === file.id
                 const fileImage = file.image_id != null ? imageMap.get(file.image_id) : undefined
                 const thumbUrl = fileImage ? `${THUMBNAIL_BASE_URL}/${fileImage.file}` : modThumbUrl
@@ -281,9 +282,9 @@ export function DownloadsTab({
                                             <Download className="w-3.5 h-3.5" />
                                         )}
                                         {isInstalling
-                                            ? downloadProgress
-                                                ? downloadProgress.total > 0
-                                                    ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                                            ? fileProgress
+                                                ? fileProgress.total > 0
+                                                    ? `${Math.round((fileProgress.downloaded / fileProgress.total) * 100)}%`
                                                     : t('common.downloading')
                                                 : t('common.installing')
                                             : isInstalled

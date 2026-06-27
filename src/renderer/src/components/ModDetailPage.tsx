@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
 import {
@@ -118,11 +118,9 @@ export function ModDetailPage({
         gamePath,
         onRefreshInstalled
     )
-    const [downloadProgress, setDownloadProgress] = useState<{
-        downloaded: number
-        total: number
-    } | null>(null)
-    const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [downloadMap, setDownloadMap] = useState<
+        ReadonlyMap<string, { downloaded: number; total: number }>
+    >(new Map())
 
     const installedFiles = installed.filter((m) => m.id === modId)
     const installedMod = installedFiles[0]
@@ -174,10 +172,8 @@ export function ModDetailPage({
 
     useEffect(() => {
         if (!isActive) return
-        return api.onDownloadProgress(({ downloaded, total }) => {
-            setDownloadProgress({ downloaded, total })
-            if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
-            progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
+        return api.onDownloadProgress(({ download_id, downloaded, total }) => {
+            setDownloadMap((prev) => new Map(prev).set(download_id, { downloaded, total }))
         })
     }, [isActive])
 
@@ -566,11 +562,14 @@ export function ModDetailPage({
                                         >
                                             {!actionLoading && <Download className="w-3.5 h-3.5" />}
                                             {actionLoading
-                                                ? downloadProgress
-                                                    ? downloadProgress.total > 0
-                                                        ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                                                        : t('common.downloading')
-                                                    : t('common.installing')
+                                                ? (() => {
+                                                      const p = downloadMap.get(`mod:${modId}`)
+                                                      return p
+                                                          ? p.total > 0
+                                                              ? `${Math.round((p.downloaded / p.total) * 100)}%`
+                                                              : t('common.downloading')
+                                                          : t('common.installing')
+                                                  })()
                                                 : t('common.install')}
                                         </Button>
                                     )}
@@ -589,20 +588,23 @@ export function ModDetailPage({
                     )}
                 </div>
             </div>
-            {downloadProgress !== null && (
-                <div className="h-0.5 bg-surface-active shrink-0">
-                    {downloadProgress.total > 0 ? (
-                        <div
-                            className="h-full bg-accent transition-[width] duration-100"
-                            style={{
-                                width: `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`,
-                            }}
-                        />
-                    ) : (
-                        <div className="h-full bg-accent animate-pulse w-full" />
-                    )}
-                </div>
-            )}
+            {(() => {
+                const p = downloadMap.get(`mod:${modId}`)
+                return p ? (
+                    <div className="h-0.5 bg-surface-active shrink-0">
+                        {p.total > 0 ? (
+                            <div
+                                className="h-full bg-accent transition-[width] duration-100"
+                                style={{
+                                    width: `${Math.round((p.downloaded / p.total) * 100)}%`,
+                                }}
+                            />
+                        ) : (
+                            <div className="h-full bg-accent animate-pulse w-full" />
+                        )}
+                    </div>
+                ) : null
+            })()}
 
             {installError && (
                 <div className="px-6 py-2 bg-danger/20 border-b border-danger/30 text-xs text-danger-text flex items-center justify-between shrink-0">
@@ -761,7 +763,7 @@ export function ModDetailPage({
                                 gamePath={gamePath}
                                 installed={installed}
                                 installedFiles={installedFiles}
-                                downloadProgress={downloadProgress}
+                                downloadMap={downloadMap}
                                 activeGame={activeGame}
                                 onRefreshInstalled={onRefreshInstalled}
                             />

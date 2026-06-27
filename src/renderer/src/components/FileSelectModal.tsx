@@ -49,15 +49,16 @@ export function FileSelectModal({
         downloaded: number
         total: number
     } | null>(null)
-    const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const installingIdRef = useRef<number | null>(null)
 
     useEffect(() => {
-        return api.onDownloadProgress(({ downloaded, total }) => {
-            setDownloadProgress({ downloaded, total })
-            if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
-            progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
+        return api.onDownloadProgress(({ download_id, downloaded, total }) => {
+            const id = installingIdRef.current
+            if (id !== null && download_id === `file:${mod.id}:${id}`) {
+                setDownloadProgress({ downloaded, total })
+            }
         })
-    }, [])
+    }, [mod.id])
 
     function toggleFile(fileId: number) {
         setSelectedIds((prev) => {
@@ -88,6 +89,8 @@ export function FileSelectModal({
         )
         for (const file of toInstall) {
             setInstallingId(file.id)
+            installingIdRef.current = file.id
+            setDownloadProgress(null)
             try {
                 await api.installModFile(
                     mod.id,

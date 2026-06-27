@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button } from './ui/Button'
 import { X, Folder } from 'lucide-react'
 import type { GameId, InstalledMod } from '../../../shared/types'
@@ -276,11 +276,6 @@ export function ZipPickerModal({
     })
     const [installingEntry, setInstallingEntry] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
-    const [downloadProgress, setDownloadProgress] = useState<{
-        downloaded: number
-        total: number
-    } | null>(null)
-    const progressClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const isBusy = installingEntry !== null
     const pendingCount = selected.size
@@ -339,14 +334,6 @@ export function ZipPickerModal({
     useEffect(() => {
         setArchiveEntries((gameId ?? 'pd3') as GameId, payload.fileId, payload.entries)
     }, [payload, gameId])
-
-    useEffect(() => {
-        return api.onDownloadProgress(({ downloaded, total }) => {
-            setDownloadProgress({ downloaded, total })
-            if (progressClearTimer.current) clearTimeout(progressClearTimer.current)
-            progressClearTimer.current = setTimeout(() => setDownloadProgress(null), 800)
-        })
-    }, [])
 
     function toggle(entry: string) {
         setSelected((prev) => {
@@ -424,9 +411,7 @@ export function ZipPickerModal({
                 <span className="text-sm font-medium truncate flex-1">{name}</span>
                 {isInstalling ? (
                     <span className="text-xs text-text-muted shrink-0">
-                        {downloadProgress && downloadProgress.total > 0
-                            ? `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`
-                            : t('common.installing')}
+                        {t('common.installing')}
                     </span>
                 ) : isInstalled ? (
                     <span className="text-xs text-success-text shrink-0">
@@ -461,21 +446,6 @@ export function ZipPickerModal({
                     <X className="w-4 h-4" />
                 </Button>
             </div>
-
-            {downloadProgress !== null && (
-                <div className="h-0.5 bg-surface-active shrink-0">
-                    {downloadProgress.total > 0 ? (
-                        <div
-                            className="h-full bg-accent transition-[width] duration-100"
-                            style={{
-                                width: `${Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)}%`,
-                            }}
-                        />
-                    ) : (
-                        <div className="h-full bg-accent animate-pulse w-full" />
-                    )}
-                </div>
-            )}
 
             <div className="overflow-y-auto flex-1 px-4 py-3 flex flex-col gap-2">
                 {error && (

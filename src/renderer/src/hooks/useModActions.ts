@@ -109,7 +109,10 @@ export function useModActions(
             await api.uninstallMod(m.uid, gamePath, activeGame)
         }
 
-        const unsub = api.onDownloadProgress(setReinstallProgress)
+        const targetId = `mod:${mods[0].id}`
+        const unsub = api.onDownloadProgress(({ download_id, downloaded, total }) => {
+            if (download_id === targetId) setReinstallProgress({ downloaded, total })
+        })
         try {
             await api.installMod(mods[0].id, gamePath, activeGame)
         } catch (e) {
