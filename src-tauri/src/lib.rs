@@ -13,9 +13,11 @@ pub fn run() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
+    let (discord_state, discord_rx) = commands::discord::DiscordState::new(true);
+
     let app = tauri::Builder::default()
         .manage(commands::updater::UpdaterState::new())
-        .manage(commands::discord::DiscordState::default())
+        .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {
             commands::thumbnails::handle_thumb_protocol(ctx.app_handle(), request)
         })
@@ -47,6 +49,7 @@ pub fn run() {
             commands::api::register_download,
             // discord
             commands::discord::set_discord_presence_enabled,
+            commands::discord::update_discord_presence,
             // settings
             commands::settings::get_settings,
             commands::settings::get_game_settings,
@@ -137,8 +140,13 @@ pub fn run() {
             .discord_rich_presence_enabled
             .unwrap_or(true);
         let discord_state = app.state::<commands::discord::DiscordState>();
-        discord_state.0.store(discord_enabled, std::sync::atomic::Ordering::Relaxed);
-        commands::discord::start(std::sync::Arc::clone(&discord_state.0));
+        discord_state
+            .enabled
+            .store(discord_enabled, std::sync::atomic::Ordering::Relaxed);
+        commands::discord::start(
+            std::sync::Arc::clone(&discord_state.enabled),
+            discord_rx,
+        );
     }
 
     let handle = app.handle().clone();

@@ -1,6 +1,7 @@
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
+    mpsc::{self, RecvTimeoutError, Sender},
     Arc,
 };
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -10,9 +11,9 @@ const APP_ID: &str = "1520216355792490626";
 const RETRY_INTERVAL: Duration = Duration::from_secs(15);
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(30);
 
-fn build_activity(start_ts: i64) -> activity::Activity<'static> {
+fn build_activity<'a>(state: &'a str, start_ts: i64) -> activity::Activity<'a> {
     activity::Activity::new()
-        .state("Managing mods")
+        .state(state)
         .assets(
             activity::Assets::new()
                 .large_image("logo")
@@ -22,63 +23,62 @@ fn build_activity(start_ts: i64) -> activity::Activity<'static> {
         .timestamps(activity::Timestamps::new().start(start_ts))
 }
 
-pub fn start(enabled: Arc<AtomicBool>) {
+pub fn start(enabled: Arc<AtomicBool>, rx: mpsc::Receiver<String>) {
     std::thread::spawn(move || {
         let start_ts = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
 
+        let mut current_state = "Managing mods".to_string();
         let mut client: Option<DiscordIpcClient> = None;
 
         loop {
-            if !enabled.load(Ordering::Relaxed) {
-                if let Some(ref mut c) = client {
-                    let _ = c.clear_activity();
-                    let _ = c.close();
-                    client = None;
-                }
-                std::thread::sleep(KEEPALIVE_INTERVAL);
-                continue;
-            }
-
-            if client.is_none() {
-                match DiscordIpcClient::new(APP_ID) {
-                    Ok(mut c) => match c.connect() {
-                        Ok(()) => {
+            if enabled.load(Ordering::Relaxed) {
+                if client.is_none() {
+                    if let Ok(mut c) = DiscordIpcClient::new(APP_ID) {
+                        if c.connect().is_ok() {
                             client = Some(c);
                         }
-                        Err(_) => {
-                            std::thread::sleep(RETRY_INTERVAL);
-                            continue;
-                        }
-                    },
-                    Err(_) => {
-                        std::thread::sleep(RETRY_INTERVAL);
-                        continue;
                     }
                 }
-            }
-
-            if let Some(ref mut c) = client {
-                if c.set_activity(build_activity(start_ts)).is_err() {
-                    let _ = c.close();
-                    client = None;
-                    std::thread::sleep(RETRY_INTERVAL);
-                    continue;
+                if let Some(ref mut c) = client {
+                    if c.set_activity(build_activity(&current_state, start_ts)).is_err() {
+                        let _ = c.close();
+                        client = None;
+                    }
                 }
+            } else if let Some(ref mut c) = client {
+                let _ = c.clear_activity();
+                let _ = c.close();
+                client = None;
             }
 
-            std::thread::sleep(KEEPALIVE_INTERVAL);
+            let timeout = if client.is_none() { RETRY_INTERVAL } else { KEEPALIVE_INTERVAL };
+            match rx.recv_timeout(timeout) {
+                Ok(new_state) => current_state = new_state,
+                Err(RecvTimeoutError::Disconnected) => break,
+                Err(RecvTimeoutError::Timeout) => {}
+            }
         }
     });
 }
 
-pub struct DiscordState(pub Arc<AtomicBool>);
+pub struct DiscordState {
+    pub enabled: Arc<AtomicBool>,
+    pub game_tx: Sender<String>,
+}
 
-impl Default for DiscordState {
-    fn default() -> Self {
-        DiscordState(Arc::new(AtomicBool::new(true)))
+impl DiscordState {
+    pub fn new(enabled: bool) -> (Self, mpsc::Receiver<String>) {
+        let (tx, rx) = mpsc::channel();
+        (
+            DiscordState {
+                enabled: Arc::new(AtomicBool::new(enabled)),
+                game_tx: tx,
+            },
+            rx,
+        )
     }
 }
 
@@ -88,8 +88,13 @@ pub fn set_discord_presence_enabled(
     state: tauri::State<DiscordState>,
     enabled: bool,
 ) {
-    state.0.store(enabled, Ordering::Relaxed);
+    state.enabled.store(enabled, Ordering::Relaxed);
     let mut s = crate::commands::settings::read_settings(&app);
     s.discord_rich_presence_enabled = Some(enabled);
     crate::commands::settings::write_settings(&app, &s);
+}
+
+#[tauri::command]
+pub fn update_discord_presence(state: tauri::State<DiscordState>, game: String) {
+    let _ = state.game_tx.send(game);
 }

@@ -118,6 +118,9 @@ export const api = {
     setDiscordPresenceEnabled(enabled: boolean): Promise<void> {
         return invoke('set_discord_presence_enabled', { enabled })
     },
+    updateDiscordPresence(game: string): Promise<void> {
+        return invoke('update_discord_presence', { game })
+    },
 
     // ── Installed mods ─────────────────────────────────────────────────────────
     getInstalled(
