@@ -259,6 +259,8 @@ export function BrowsePage({
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
+    const fetchIdRef = useRef(0)
+    const [lastMeta, setLastMeta] = useState<{ last_page: number; total: number } | null>(null)
     const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
     const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
     const [ue4ssInstalled, setUe4ssInstalled] = useState<boolean | null>(null)
@@ -292,6 +294,7 @@ export function BrowsePage({
 
     const fetchMods = useCallback(
         async (p: number, q: string, cat: number | undefined, s: SortOption) => {
+            const id = ++fetchIdRef.current
             const cached = getBrowseCache(workshopId, p, q, s, cat)
             if (cached) {
                 setResult(cached.result)
@@ -308,6 +311,7 @@ export function BrowsePage({
                     query: q || undefined,
                     category_id: cat,
                 })
+                if (fetchIdRef.current !== id) return
                 setBrowseCache(workshopId, p, q, s, cat, data)
                 if (q) trackSearch(activeGame, q.length, data.meta.total)
                 startTransition(() => {
@@ -315,6 +319,7 @@ export function BrowsePage({
                     setLoadingMods(false)
                 })
             } catch (e) {
+                if (fetchIdRef.current !== id) return
                 setError(String(e))
                 setLoadingMods(false)
             } finally {
@@ -346,6 +351,9 @@ export function BrowsePage({
     // debounce window. On isActive re-entry with unchanged params we deliberately
     // keep showing the cached result during the background refresh (SWR behaviour).
     const lastFiltersRef = useRef('')
+    useEffect(() => {
+        if (result) setLastMeta({ last_page: result.meta.last_page, total: result.meta.total })
+    }, [result])
     useEffect(() => {
         if (!isActive) return
         const filters = JSON.stringify([page, query, categoryId, sort])
@@ -806,38 +814,42 @@ export function BrowsePage({
                 />
             </div>
 
-            {result && result.meta.last_page > 1 && (
-                <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
-                    <span className="text-xs text-text-subtle">
-                        {result.meta.total > 0 &&
-                            t('browse.modCount', { total: result.meta.total })}
-                    </span>
-                    <div className="flex gap-1">
-                        {buildPages(page, result.meta.last_page).map((p, i) =>
-                            p === '...' ? (
-                                <span
-                                    key={`ellipsis-${i}`}
-                                    className="text-xs px-2 py-1 text-text-subtle"
-                                >
-                                    …
-                                </span>
-                            ) : (
-                                <button
-                                    key={p}
-                                    onClick={() => setPage(p as number)}
-                                    className={`text-xs px-3 py-1 rounded transition-colors ${
-                                        p === page
-                                            ? 'bg-accent text-white'
-                                            : 'bg-surface-hover hover:bg-surface-active'
-                                    }`}
-                                >
-                                    {p}
-                                </button>
-                            )
-                        )}
+            {(() => {
+                const footerMeta = result?.meta ?? lastMeta
+                if (!footerMeta || footerMeta.last_page <= 1) return null
+                return (
+                    <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
+                        <span className="text-xs text-text-subtle">
+                            {footerMeta.total > 0 &&
+                                t('browse.modCount', { total: footerMeta.total })}
+                        </span>
+                        <div className="flex gap-1">
+                            {buildPages(page, footerMeta.last_page).map((p, i) =>
+                                p === '...' ? (
+                                    <span
+                                        key={`ellipsis-${i}`}
+                                        className="text-xs px-2 py-1 text-text-subtle"
+                                    >
+                                        …
+                                    </span>
+                                ) : (
+                                    <button
+                                        key={p}
+                                        onClick={() => setPage(p as number)}
+                                        className={`text-xs px-3 py-1 rounded transition-colors ${
+                                            p === page
+                                                ? 'bg-accent text-white'
+                                                : 'bg-surface-hover hover:bg-surface-active'
+                                        }`}
+                                    >
+                                        {p}
+                                    </button>
+                                )
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            })()}
         </div>
     )
 }
