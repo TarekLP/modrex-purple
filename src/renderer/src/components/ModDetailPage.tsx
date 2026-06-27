@@ -171,11 +171,10 @@ export function ModDetailPage({
     }, [fetchData])
 
     useEffect(() => {
-        if (!isActive) return
         return api.onDownloadProgress(({ download_id, downloaded, total }) => {
             setDownloadMap((prev) => new Map(prev).set(download_id, { downloaded, total }))
         })
-    }, [isActive])
+    }, [])
 
     const images = mod?.images ?? []
 
