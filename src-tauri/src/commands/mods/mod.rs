@@ -69,10 +69,17 @@ use crate::commands::download::download_file;
 use crate::commands::mod_index;
 use crate::commands::settings::{game_settings, read_settings};
 use chrono::Utc;
+use serde::Serialize;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
+
+#[derive(Clone, Serialize)]
+struct ScanEvent {
+    phase: &'static str,
+    total: usize,
+}
 
 // Mod identification (get_installed pipeline) lives in identify.rs
 #[tauri::command]
@@ -205,6 +212,13 @@ pub async fn get_installed(
     }
 
     let folder_path_to_id = ensure_untracked_folders(&mut state, &untracked);
+    let _ = app.emit(
+        "installed:scan",
+        ScanEvent {
+            phase: "hashing",
+            total: untracked.len(),
+        },
+    );
     let sha256s = hash_untracked(&game_path, &untracked, cfg).await;
     let index = mod_index::open_index(&app);
     let mods = identify_untracked(

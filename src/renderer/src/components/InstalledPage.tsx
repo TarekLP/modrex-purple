@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button } from './ui/Button'
 import {
     X,
@@ -69,6 +69,7 @@ export function InstalledPage({
     onOpenDetail,
 }: Props) {
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
+    const [scanPhase, setScanPhase] = useState<{ phase: string; total: number } | null>(null)
     const { modData, failedIds, updatable } = useModData(installed, GAMES[activeGame].workshopId)
     const [showUpdates, setShowUpdates] = useState(false)
     const [showHealth, setShowHealth] = useState(false)
@@ -84,6 +85,10 @@ export function InstalledPage({
         healthSummary.outdated.length +
         healthSummary.unidentified.length
     const showDepsTab = !!gamePath && installed.some((m) => m.id >= 0)
+
+    useEffect(() => {
+        return api.onInstallScan((info) => setScanPhase(info))
+    }, [])
 
     // Runs eagerly on click rather than lazily inside the modal — the dependency check costs
     // a network fetch per mod, so the modal only opens once the full report is ready.
@@ -483,7 +488,9 @@ export function InstalledPage({
                 >
                     {!installedReady ? (
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
-                            {t('common.loading')}
+                            {scanPhase?.phase === 'hashing'
+                                ? t('installed.identifyingNew', { count: scanPhase.total })
+                                : t('common.loading')}
                         </div>
                     ) : installed.length === 0 && folders.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">

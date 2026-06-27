@@ -378,6 +378,9 @@ export const api = {
             callback
         )
     },
+    onInstallScan(callback: (info: { phase: string; total: number }) => void): () => void {
+        return onEvent<{ phase: string; total: number }>('installed:scan', callback)
+    },
     onUpdateAvailable(
         callback: (info: {
             version: string

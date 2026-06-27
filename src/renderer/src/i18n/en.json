@@ -94,6 +94,7 @@
         "modCountSingle": "{count} mod",
         "modCountFiltered": "{count} of {total} mods",
         "empty": "No mods installed yet",
+        "identifyingNew": "Identifying {count} new mods…",
         "filterPlaceholder": "Search mods…",
         "filterEmpty": "No mods match \"{query}\"",
         "reinstallFailed": "Reinstall failed: {error}",
