@@ -118,6 +118,12 @@ export default function App() {
         void api.setAnalyticsConsent(enabled)
     }, [])
 
+    const [discordPresenceEnabled, setDiscordPresenceEnabled] = useState(true)
+    const handleDiscordPresenceEnabled = useCallback((enabled: boolean) => {
+        setDiscordPresenceEnabled(enabled)
+        void api.setDiscordPresenceEnabled(enabled)
+    }, [])
+
     // Per-session cache: last resolved path for each game. undefined = not yet loaded.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
 
@@ -483,6 +489,8 @@ export default function App() {
                                     onGamePathChange={handleGamePathSet}
                                     analyticsConsent={analyticsConsent ?? null}
                                     onAnalyticsConsent={handleAnalyticsConsent}
+                                    discordPresenceEnabled={discordPresenceEnabled}
+                                    onDiscordPresenceEnabled={handleDiscordPresenceEnabled}
                                     globalOnly={settingsGlobalOnly}
                                 />
                             </div>

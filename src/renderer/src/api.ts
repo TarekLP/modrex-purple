@@ -115,6 +115,9 @@ export const api = {
     setAnalyticsConsent(enabled: boolean): Promise<void> {
         return invoke('set_analytics_consent', { enabled })
     },
+    setDiscordPresenceEnabled(enabled: boolean): Promise<void> {
+        return invoke('set_discord_presence_enabled', { enabled })
+    },
 
     // ── Installed mods ─────────────────────────────────────────────────────────
     getInstalled(

@@ -75,6 +75,8 @@ interface Props {
     onGamePathChange: () => Promise<void>
     analyticsConsent: boolean | null
     onAnalyticsConsent: (enabled: boolean) => void
+    discordPresenceEnabled: boolean
+    onDiscordPresenceEnabled: (enabled: boolean) => void
     globalOnly?: boolean
 }
 
@@ -90,6 +92,8 @@ export function SettingsPage({
     onGamePathChange,
     analyticsConsent,
     onAnalyticsConsent,
+    discordPresenceEnabled,
+    onDiscordPresenceEnabled,
     globalOnly = false,
 }: Props) {
     const [settings, setSettings] = useState<GameSettings | null>(
@@ -427,6 +431,18 @@ export function SettingsPage({
                                     >
                                         {t('telemetry.detailsToggle')}
                                     </button>
+                                </Section>
+
+                                <Section title={t('telemetry.discordPresenceTitle')}>
+                                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                                        <span className="text-sm text-text-muted pr-4">
+                                            {t('telemetry.discordPresenceDescription')}
+                                        </span>
+                                        <Toggle
+                                            checked={discordPresenceEnabled}
+                                            onChange={onDiscordPresenceEnabled}
+                                        />
+                                    </div>
                                 </Section>
                             </>
                         )}
