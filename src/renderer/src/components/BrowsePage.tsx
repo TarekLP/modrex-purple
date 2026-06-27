@@ -295,9 +295,8 @@ export function BrowsePage({
             const cached = getBrowseCache(workshopId, p, q, s, cat)
             if (cached) {
                 setResult(cached.result)
+                setLoadingMods(false)
                 if (!cached.stale) return
-            } else {
-                setLoadingMods(true)
             }
             setError(null)
             markForegroundActivity()
@@ -341,13 +340,21 @@ export function BrowsePage({
     // false → true) so stale cache entries get a background refresh — fresh ones
     // early-return inside fetchMods. Scroll resets only on a filter change, not
     // on activation, so the position survives tab switches.
+    //
+    // When filter params change, the stale result is cleared immediately so the
+    // skeleton grid shows at once instead of old content hanging around for the
+    // debounce window. On isActive re-entry with unchanged params we deliberately
+    // keep showing the cached result during the background refresh (SWR behaviour).
     const lastFiltersRef = useRef('')
     useEffect(() => {
         if (!isActive) return
         const filters = JSON.stringify([page, query, categoryId, sort])
-        if (filters !== lastFiltersRef.current) {
+        const filtersChanged = filters !== lastFiltersRef.current
+        if (filtersChanged) {
             lastFiltersRef.current = filters
             if (scrollRef.current) scrollRef.current.scrollTop = 0
+            setResult(null)
+            setLoadingMods(true)
         }
         if (debounceRef.current) clearTimeout(debounceRef.current)
         debounceRef.current = setTimeout(
