@@ -6,6 +6,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
+- Added support for `.pdmod`.
 - Added Discord Rich Presence showing the active game on profile.
 - Added a Health Check on the Installed page, scans all mods and groups issues by category, with bulk actions to fix them:
   - Missing files
@@ -19,7 +20,6 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Install button on Browse Mods now shows download percentage and a progress bar while a mod is downloading.
 - Loading screen now shows how many mods have been scanned during the identification phase.
 - "Update All" button now shows progress counter during a batch update.
-- Health Check dependency scan now shows progress counter while checking.
 
 ### Changed
 
