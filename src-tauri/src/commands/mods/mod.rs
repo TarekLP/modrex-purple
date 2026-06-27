@@ -6,6 +6,7 @@ mod identify;
 mod install;
 mod naming;
 mod paths;
+mod pdmod;
 mod reorder;
 mod state;
 mod types;

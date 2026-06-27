@@ -847,6 +847,25 @@ fn try_classify_as_directory_target(
 /// Returns `(extracted_path, original_archive, location_tag)` where `location_tag` is `None`
 /// for the primary target and `Some(tag)` for any secondary target (e.g. `"mod_overrides"`).
 pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
+    // Must run before detect_archive: .pdmod is a ZIP by magic bytes and would fall through to
+    // the Directory-unit path without this early check.
+    if cfg.game_id == "pdth"
+        && downloaded
+            .extension()
+            .map(|e| e.eq_ignore_ascii_case("pdmod"))
+            .unwrap_or(false)
+    {
+        let temp_dir =
+            std::env::temp_dir().join(format!("modrex-pdmod-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+        return match super::pdmod::extract_pdmod(&downloaded, &temp_dir) {
+            Ok(()) => Ok((temp_dir, Some(downloaded), Some("mod_overrides".to_string()))),
+            Err(e) => {
+                let _ = std::fs::remove_dir_all(&temp_dir);
+                Err(e)
+            }
+        };
+    }
     if cfg.game_id == "cb" {
         return resolve_crimeboss_archive(downloaded, cfg);
     }

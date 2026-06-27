@@ -3,15 +3,19 @@ import { isUnsupportedFormat } from './formatCheck'
 
 describe('isUnsupportedFormat', () => {
     describe('when type is provided', () => {
-        it.each(['pak', 'zip', '7z', 'rar'])('returns false for supported type "%s"', (type) => {
-            expect(isUnsupportedFormat(type)).toBe(false)
-        })
+        it.each(['pak', 'zip', '7z', 'rar', 'pdmod'])(
+            'returns false for supported type "%s"',
+            (type) => {
+                expect(isUnsupportedFormat(type)).toBe(false)
+            }
+        )
 
         it('is case-insensitive', () => {
             expect(isUnsupportedFormat('PAK')).toBe(false)
             expect(isUnsupportedFormat('ZIP')).toBe(false)
             expect(isUnsupportedFormat('7Z')).toBe(false)
             expect(isUnsupportedFormat('RAR')).toBe(false)
+            expect(isUnsupportedFormat('PDMOD')).toBe(false)
         })
 
         it.each(['exe', 'dll', 'txt'])('returns true for unsupported type "%s"', (type) => {
@@ -34,6 +38,7 @@ describe('isUnsupportedFormat', () => {
             'https://cdn.example.com/mods/mod.zip',
             'https://cdn.example.com/mods/mod.7z',
             'https://cdn.example.com/mods/mod.rar',
+            'https://cdn.example.com/mods/mod.pdmod',
         ])('returns false for supported URL extension: %s', (url) => {
             expect(isUnsupportedFormat(undefined, url)).toBe(false)
         })
