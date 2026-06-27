@@ -18,7 +18,7 @@ pub fn check_dahm(game_path: String) -> bool {
 /// Downloads the DAHM ZIP and extracts all entries flat into the game root.
 #[tauri::command]
 pub async fn install_dahm(app: tauri::AppHandle, game_path: String) -> Result<(), String> {
-    let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip").await?;
+    let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip", "loader:dahm").await?;
     let dest_dir = Path::new(&game_path).to_path_buf();
     let zip = zip_path.clone();
     let result = tokio::task::spawn_blocking(move || extract_zip_to_dir(&zip, &dest_dir))

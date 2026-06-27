@@ -7,13 +7,19 @@ use uuid::Uuid;
 
 #[derive(Clone, Serialize)]
 pub struct DownloadProgress {
+    pub download_id: String,
     pub downloaded: u64,
     pub total: u64,
 }
 
 /// Downloads `url` to a temp file with the given extension, emitting
 /// `download:progress` events as chunks arrive. Returns the temp file path.
-pub async fn download_file(app: &AppHandle, url: &str, ext: &str) -> Result<PathBuf, String> {
+pub async fn download_file(
+    app: &AppHandle,
+    url: &str,
+    ext: &str,
+    download_id: &str,
+) -> Result<PathBuf, String> {
     let dest = std::env::temp_dir().join(format!("modrex-{}.{}", Uuid::new_v4(), ext));
 
     let res = crate::commands::api::http_client()
@@ -38,7 +44,14 @@ pub async fn download_file(app: &AppHandle, url: &str, ext: &str) -> Result<Path
         let chunk = chunk.map_err(|e| e.to_string())?;
         downloaded += chunk.len() as u64;
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
-        let _ = app.emit("download:progress", DownloadProgress { downloaded, total });
+        let _ = app.emit(
+            "download:progress",
+            DownloadProgress {
+                download_id: download_id.to_string(),
+                downloaded,
+                total,
+            },
+        );
     }
 
     file.flush().await.map_err(|e| e.to_string())?;

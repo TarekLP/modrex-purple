@@ -371,9 +371,12 @@ export const api = {
 
     // ── Events ─────────────────────────────────────────────────────────────────
     onDownloadProgress(
-        callback: (info: { downloaded: number; total: number }) => void
+        callback: (info: { download_id: string; downloaded: number; total: number }) => void
     ): () => void {
-        return onEvent<{ downloaded: number; total: number }>('download:progress', callback)
+        return onEvent<{ download_id: string; downloaded: number; total: number }>(
+            'download:progress',
+            callback
+        )
     },
     onUpdateAvailable(
         callback: (info: {

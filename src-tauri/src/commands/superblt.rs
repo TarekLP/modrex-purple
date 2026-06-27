@@ -25,7 +25,7 @@ pub fn check_superblt(game_path: String) -> bool {
 /// download it if missing.
 #[tauri::command]
 pub async fn install_superblt(app: tauri::AppHandle, game_path: String) -> Result<(), String> {
-    let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip").await?;
+    let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip", "loader:superblt").await?;
     let dest = Path::new(&game_path).join(LOADER_FILES[0]);
     let zip = zip_path.clone();
     let result = tokio::task::spawn_blocking(move || extract_entry(&zip, LOADER_FILES[0], &dest))

@@ -21,7 +21,7 @@ pub async fn install_pdth_overrides(
     app: tauri::AppHandle,
     game_path: String,
 ) -> Result<(), String> {
-    let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip").await?;
+    let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip", "loader:pdth").await?;
     let dir = Path::new(&game_path).to_path_buf();
     for name in LOADER_FILES {
         let dest = dir.join(name);

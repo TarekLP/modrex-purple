@@ -272,7 +272,8 @@ pub async fn install_mod(
             return Err("Mod has no download".to_string());
         };
 
-        let downloaded = download_file(&app, &download_url, &file_type).await?;
+        let download_id = format!("mod:{mod_id}");
+        let downloaded = download_file(&app, &download_url, &file_type, &download_id).await?;
         Ok::<_, String>((
             mod_name,
             mod_version,
@@ -488,7 +489,8 @@ pub async fn install_file(
     game_id: Option<String>,
 ) -> Result<(), String> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    let downloaded = match download_file(&app, &download_url, &file_type).await {
+    let download_id = format!("file:{mod_id}:{file_id}");
+    let downloaded = match download_file(&app, &download_url, &file_type, &download_id).await {
         Ok(v) => v,
         Err(e) => {
             log::warn!("install_file {mod_id}/{file_id}: {e}");
