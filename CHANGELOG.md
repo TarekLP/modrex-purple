@@ -16,6 +16,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
   - Available updates
 - Added Settings access from the Game Picker Window.
 - Added an "Outdated" badge in Manage Files for leftover duplicate files left behind when a mod's download switched between a plain file and an archive.
+- Install button on Browse Mods now shows download percentage and a progress bar while a mod is downloading.
+- Loading screen now shows how many mods have been scanned during the identification phase.
+- "Update All" button now shows progress counter during a batch update.
+- Health Check dependency scan now shows progress counter while checking.
 
 ### Changed
 
@@ -27,6 +31,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed updates not being detected for mods whose download switched between a plain file and an archive, which could leave an old copy installed alongside the new one.
 - Fixed Settings remembering the wrong tab when switching between the game picker's global settings and per-game settings.
 - Fixed ghost buttons and navigation tabs showing no hover feedback, making their click targets unclear.
+- Fixed Browse Mods page numbers disappearing briefly when changing the search, sort, or category filter.
+- Fixed old Browse Mods results briefly flashing when changing filters before the new page loaded.
+- Fixed download progress stopping to update when switching away from the mod detail page and back during a download.
 
 ## 0.11.1
 
