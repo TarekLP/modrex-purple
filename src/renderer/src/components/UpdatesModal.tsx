@@ -47,6 +47,9 @@ export function UpdatesModal({
     )
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [updatingAll, setUpdatingAll] = useState(false)
+    const [updateProgress, setUpdateProgress] = useState<{ done: number; total: number } | null>(
+        null
+    )
     const [updateError, setUpdateError] = useState<string | null>(null)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
@@ -140,20 +143,28 @@ export function UpdatesModal({
             queueRef.current = queueRef.current.slice(1)
             try {
                 await api.installMod(ins.id, gamePath, gameId)
+                setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
             } catch (e) {
                 const outcome = await resolveInstallSentinel(e, ins.id)
-                if (outcome === 'manual') return
+                if (outcome === 'manual') {
+                    // Picker handles this mod; count it done so the counter advances when we pause.
+                    setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
+                    return
+                }
                 if (outcome === 'none') {
                     setUpdateError(t('installed.updatesModal.error'))
                     setUpdatingAll(false)
+                    setUpdateProgress(null)
                     queueRef.current = []
                     return
                 }
                 // 'resolved' — auto-applied silently, continue with the next mod.
+                setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
             }
         }
         await onRefreshInstalled()
         setUpdatingAll(false)
+        setUpdateProgress(null)
         onClose()
     }
 
@@ -165,7 +176,9 @@ export function UpdatesModal({
         if (!gamePath) return
         setUpdateError(null)
         setUpdatingAll(true)
-        queueRef.current = updatable.filter((m) => selectedIds.has(m.id))
+        const queue = updatable.filter((m) => selectedIds.has(m.id))
+        queueRef.current = queue
+        setUpdateProgress({ done: 0, total: queue.length })
         await processQueue()
     }
 
@@ -252,11 +265,16 @@ export function UpdatesModal({
                         disabled={!gamePath || updatingAll || selectedIds.size === 0}
                         onClick={handleUpdateSelected}
                     >
-                        {updatingAll
-                            ? t('installed.updatesModal.updating')
-                            : t('installed.updatesModal.updateSelected', {
-                                  count: selectedIds.size,
-                              })}
+                        {updatingAll && updateProgress
+                            ? t('installed.updatesModal.updatingProgress', {
+                                  done: updateProgress.done,
+                                  total: updateProgress.total,
+                              })
+                            : updatingAll
+                              ? t('installed.updatesModal.updating')
+                              : t('installed.updatesModal.updateSelected', {
+                                    count: selectedIds.size,
+                                })}
                     </Button>
                 </div>
             </Dialog>

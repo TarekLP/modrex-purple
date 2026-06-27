@@ -129,6 +129,7 @@
             "title": "Available updates ({count})",
             "update": "Update",
             "updating": "Updating…",
+            "updatingProgress": "Updating {done} / {total}",
             "updateSelected": "Update Selected ({count})",
             "error": "Update failed. Check your connection and try again."
         },
