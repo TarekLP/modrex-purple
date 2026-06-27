@@ -15,6 +15,7 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .manage(commands::updater::UpdaterState::new())
+        .manage(commands::discord::DiscordState::default())
         .register_uri_scheme_protocol("thumb", |ctx, request| {
             commands::thumbnails::handle_thumb_protocol(ctx.app_handle(), request)
         })
@@ -44,6 +45,8 @@ pub fn run() {
             commands::api::list_mod_links,
             commands::api::list_categories,
             commands::api::register_download,
+            // discord
+            commands::discord::set_discord_presence_enabled,
             // settings
             commands::settings::get_settings,
             commands::settings::get_game_settings,
@@ -129,11 +132,14 @@ pub fn run() {
         serde_json::json!({ "games_configured": games_configured }),
     );
 
-    let discord_enabled = commands::settings::read_settings(app.handle())
-        .discord_rich_presence_enabled
-        .unwrap_or(true);
-    let discord_flag = commands::discord::make_enabled_flag(discord_enabled);
-    commands::discord::start(discord_flag);
+    {
+        let discord_enabled = commands::settings::read_settings(app.handle())
+            .discord_rich_presence_enabled
+            .unwrap_or(true);
+        let discord_state = app.state::<commands::discord::DiscordState>();
+        discord_state.0.store(discord_enabled, std::sync::atomic::Ordering::Relaxed);
+        commands::discord::start(std::sync::Arc::clone(&discord_state.0));
+    }
 
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(commands::mod_index::ensure_index(handle));

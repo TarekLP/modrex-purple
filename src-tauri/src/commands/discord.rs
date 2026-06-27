@@ -4,6 +4,7 @@ use std::sync::{
     Arc,
 };
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::AppHandle;
 
 const APP_ID: &str = "1520216355792490626";
 const RETRY_INTERVAL: Duration = Duration::from_secs(15);
@@ -73,6 +74,22 @@ pub fn start(enabled: Arc<AtomicBool>) {
     });
 }
 
-pub fn make_enabled_flag(enabled: bool) -> Arc<AtomicBool> {
-    Arc::new(AtomicBool::new(enabled))
+pub struct DiscordState(pub Arc<AtomicBool>);
+
+impl Default for DiscordState {
+    fn default() -> Self {
+        DiscordState(Arc::new(AtomicBool::new(true)))
+    }
+}
+
+#[tauri::command]
+pub fn set_discord_presence_enabled(
+    app: AppHandle,
+    state: tauri::State<DiscordState>,
+    enabled: bool,
+) {
+    state.0.store(enabled, Ordering::Relaxed);
+    let mut s = crate::commands::settings::read_settings(&app);
+    s.discord_rich_presence_enabled = Some(enabled);
+    crate::commands::settings::write_settings(&app, &s);
 }
