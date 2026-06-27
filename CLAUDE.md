@@ -96,7 +96,7 @@ Deep per-file architecture and invariants live in path-scoped rule files under
 - `ModDependency.mod` is `Mod | null` — the modworkshop API returns `null` when a dependency mod has been deleted. Always guard with `d.mod !== null` before accessing any field. `allDeps` arrays must be filtered with `.filter((d) => d.mod !== null)` at the source before being passed downstream.
 - **modworkshop has two distinct version fields**: `/mods/{id}` returns a `version` field (e.g. `"2.11"`) and `/mods/{id}/files/latest` returns its own `version` field (e.g. `"1.9.4"`). `InstalledMod.version` must store the **mod-level** value so it matches what `getCachedMod` returns and `useModData` can compare them. Never store the file-level version.
 - **Mod folders**: arbitrary nesting. `ModFolder.parentId` is `string | null` (null = root). Disk paths built by `get_folder_path` walking the `parentId` chain. Priority scoped to siblings within the same parent.
-- Tauri `identifier` is `io.github.shulhaoleh.pd3modmanager` — must match old Electron `appId` so NSIS upgrades over existing installs. `productName` is `Modrex` — Tauri uses this for `userData` path on Windows.
+- Tauri `identifier` is `modrex` (changed from `io.github.shulhaoleh.pd3modmanager` in v0.10.0). `productName` is `Modrex` — Tauri uses this for `userData` path on Windows. The full upgrade chain (Electron → old Tauri identifier → current) is handled by `nsis/installer-hooks.nsi` (removes the old install via its registry uninstall key) and `migrate_from_old_identifier()` / `migrate_from_electron()` in `settings.rs` (migrates app data on first launch).
 
 ### Companion repo: modrex-index
 
