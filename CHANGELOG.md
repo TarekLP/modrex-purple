@@ -20,6 +20,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Changed
 
 - Settings is now organized into three tabs.
+- Release artifact filenames now include an architecture suffix (`modrex_x86_64.exe`, `modrex_x86_64.deb`, `modrex_x86_64.rpm`, `modrex_x86_64.AppImage`).
 
 ### Fixed
 
