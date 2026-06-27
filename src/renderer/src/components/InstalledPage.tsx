@@ -73,6 +73,9 @@ export function InstalledPage({
     const [showUpdates, setShowUpdates] = useState(false)
     const [showHealth, setShowHealth] = useState(false)
     const [checkingHealth, setCheckingHealth] = useState(false)
+    const [healthProgress, setHealthProgress] = useState<{ checked: number; total: number } | null>(
+        null
+    )
     const [healthMissingDeps, setHealthMissingDeps] = useState<HealthItem[]>([])
     const healthSummary = useMemo(() => computeHealthSummary(installed), [installed])
     const healthIssueCount =
@@ -87,19 +90,27 @@ export function InstalledPage({
     async function runHealthCheck() {
         if (checkingHealth) return
         setCheckingHealth(true)
+        const positiveIds = [
+            ...new Set(
+                groupInstalledByIdentity(installed)
+                    .filter((g) => g.id >= 0)
+                    .map((g) => g.id)
+            ),
+        ]
+        setHealthProgress(positiveIds.length > 0 ? { checked: 0, total: positiveIds.length } : null)
         try {
-            const positiveIds = [
-                ...new Set(
-                    groupInstalledByIdentity(installed)
-                        .filter((g) => g.id >= 0)
-                        .map((g) => g.id)
-                ),
-            ]
             const deps = gamePath
-                ? await checkMissingDependencies(installed, positiveIds, gamePath, activeGame)
+                ? await checkMissingDependencies(
+                      installed,
+                      positiveIds,
+                      gamePath,
+                      activeGame,
+                      (checked, total) => setHealthProgress({ checked, total })
+                  )
                 : []
             setHealthMissingDeps(deps)
         } finally {
+            setHealthProgress(null)
             setCheckingHealth(false)
             setShowHealth(true)
         }
@@ -365,14 +376,23 @@ export function InstalledPage({
                                     }`}
                                 >
                                     {checkingHealth ? (
-                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                        <>
+                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                            {healthProgress && (
+                                                <span className="pr-1 text-[10px] font-medium leading-none tabular-nums">
+                                                    {healthProgress.checked}/{healthProgress.total}
+                                                </span>
+                                            )}
+                                        </>
                                     ) : (
-                                        <Activity className="w-3.5 h-3.5" />
-                                    )}
-                                    {!checkingHealth && healthIssueCount > 0 && (
-                                        <span className="pr-1 text-[10px] font-medium leading-none">
-                                            {healthIssueCount}
-                                        </span>
+                                        <>
+                                            <Activity className="w-3.5 h-3.5" />
+                                            {healthIssueCount > 0 && (
+                                                <span className="pr-1 text-[10px] font-medium leading-none">
+                                                    {healthIssueCount}
+                                                </span>
+                                            )}
+                                        </>
                                     )}
                                 </button>
                             </Tooltip>

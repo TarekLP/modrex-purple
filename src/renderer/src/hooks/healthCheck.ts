@@ -54,10 +54,13 @@ export async function checkMissingDependencies(
     installed: InstalledMod[],
     positiveIds: number[],
     gamePath: string,
-    gameId: GameId
+    gameId: GameId,
+    onProgress?: (checked: number, total: number) => void
 ): Promise<HealthItem[]> {
     if (positiveIds.length === 0) return []
     const { bltOk, loaderModIds } = await checkLoaders(gamePath, gameId)
+    let checked = 0
+    const total = positiveIds.length
     const results = await Promise.all(
         positiveIds.map(async (id): Promise<HealthItem | null> => {
             try {
@@ -72,6 +75,8 @@ export async function checkMissingDependencies(
                 return { id: mod.id, uid: `dep:${mod.id}`, name: mod.name, missingDeps }
             } catch {
                 return null
+            } finally {
+                onProgress?.(++checked, total)
             }
         })
     )
