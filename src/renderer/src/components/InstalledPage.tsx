@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Button } from './ui/Button'
+import { SearchClearButton } from './ui/SearchClearButton'
 import {
     X,
     Search,
@@ -457,12 +458,7 @@ export function InstalledPage({
                                 className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${filterQuery ? 'pr-7' : 'pr-3'}`}
                             />
                             {filterQuery && (
-                                <button
-                                    onClick={() => setFilterQuery('')}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-text-subtle hover:text-text hover:bg-surface-active transition-colors"
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                </button>
+                                <SearchClearButton onClick={() => setFilterQuery('')} />
                             )}
                         </div>
                     )}

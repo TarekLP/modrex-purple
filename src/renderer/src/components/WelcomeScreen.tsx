@@ -5,6 +5,7 @@ import { GAMES } from '../../../shared/types'
 import { t } from '../i18n'
 import { api } from '../api'
 import { Toggle } from './Toggle'
+import { SearchClearButton } from './ui/SearchClearButton'
 
 const INSTALLED_ONLY_KEY = 'modrex:show-installed-games-only'
 
@@ -83,8 +84,9 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={t('gamePicker.searchPlaceholder')}
-                        className="w-full text-sm pl-8 pr-3 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors"
+                        className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : 'pr-3'}`}
                     />
+                    {query && <SearchClearButton onClick={() => setQuery('')} />}
                 </label>
             </div>
 

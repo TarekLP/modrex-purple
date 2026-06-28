@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo, startTransition } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type {
     Mod,
     ModFile,
@@ -18,6 +18,7 @@ import {
     getCategoriesCache,
     setCategoriesCache,
 } from '../browseCache'
+import { SearchClearButton } from './ui/SearchClearButton'
 import { ModCard } from './ModCard'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
@@ -753,14 +754,7 @@ export function BrowsePage({
                             onChange={(e) => handleQueryChange(e.target.value)}
                             className={`w-full text-sm pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : 'pr-3'}`}
                         />
-                        {query && (
-                            <button
-                                onClick={() => handleQueryChange('')}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-text-subtle hover:text-text hover:bg-surface-active transition-colors"
-                            >
-                                <X className="w-3.5 h-3.5" />
-                            </button>
-                        )}
+                        {query && <SearchClearButton onClick={() => handleQueryChange('')} />}
                     </div>
                     <Select
                         value={categoryId?.toString() ?? ''}

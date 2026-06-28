@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from './ui/Button'
+import { SearchClearButton } from './ui/SearchClearButton'
 import { X, Trash2, ChevronDown, ChevronRight, Search, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
@@ -394,14 +395,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                         placeholder={t('installed.manageFiles.searchPlaceholder')}
                         className={`w-full text-xs pl-8 py-1.5 rounded bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent transition-colors ${query ? 'pr-7' : 'pr-3'}`}
                     />
-                    {query && (
-                        <button
-                            onClick={() => setQuery('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-text-subtle hover:text-text hover:bg-surface-active transition-colors"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </button>
-                    )}
+                    {query && <SearchClearButton onClick={() => setQuery('')} />}
                 </div>
                 <Toggle
                     checked={anyVisibleEnabled}
