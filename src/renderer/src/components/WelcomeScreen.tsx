@@ -137,7 +137,7 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                         })}
                     </div>
                 ) : (
-                    <div className="flex h-48 items-center justify-center rounded border border-border bg-surface-raised text-sm text-text-muted">
+                    <div className="flex h-full items-center justify-center text-sm text-text-subtle">
                         {t('gamePicker.noMatches')}
                     </div>
                 )}
