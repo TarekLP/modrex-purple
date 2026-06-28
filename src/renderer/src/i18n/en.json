@@ -272,7 +272,9 @@
     "depsWarning": {
         "title": "Missing required dependencies",
         "body": "This mod requires the following mods to be installed:",
-        "gotIt": "Got it"
+        "gotIt": "Got it",
+        "installAll": "Install all",
+        "installFailed": "Install failed"
     },
     "crimeBossInstallChoice": {
         "title": "Where should \"{name}\" install?",

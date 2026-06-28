@@ -506,6 +506,14 @@ export function ModDetailPage({
                         if (permanent) await api.dismissDepsWarning(modId)
                         setShowDepsWarning(false)
                     }}
+                    onOpenDetail={
+                        onOpenDetail
+                            ? (depModId) => {
+                                  setShowDepsWarning(false)
+                                  onOpenDetail(depModId)
+                              }
+                            : undefined
+                    }
                 />
             )}
             <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3 relative">
