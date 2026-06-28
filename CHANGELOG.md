@@ -30,6 +30,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed the missing-dependency warning not appearing when installing a mod that has multiple downloadable files.
 - Fixed updates not being detected for mods whose download switched between a plain file and an archive, which could leave an old copy installed alongside the new one.
 - Fixed Settings remembering the wrong tab when switching between the game picker's global settings and per-game settings.
 - Fixed ghost buttons and navigation tabs showing no hover feedback, making their click targets unclear.
