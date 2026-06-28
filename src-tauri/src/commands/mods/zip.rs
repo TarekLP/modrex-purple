@@ -583,13 +583,12 @@ fn extract_dir_7z(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<
                 return Ok(true);
             }
         }
-        match File::create(&dest_path).and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ())) {
-            Ok(_) => Ok(true),
-            Err(e) => {
-                *write_err.borrow_mut() = Some(e.to_string());
-                Ok(true)
-            }
+        if let Err(e) =
+            File::create(&dest_path).and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ()))
+        {
+            *write_err.borrow_mut() = Some(e.to_string());
         }
+        Ok(true)
     })
     .map_err(|e| e.to_string())?;
     if let Some(e) = write_err.into_inner() {
@@ -710,13 +709,12 @@ fn extract_flat_7z(archive_path: &Path, dest: &Path) -> Result<(), String> {
                 return Ok(true);
             }
         }
-        match File::create(&dest_path).and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ())) {
-            Ok(_) => Ok(true),
-            Err(e) => {
-                *write_err.borrow_mut() = Some(e.to_string());
-                Ok(true)
-            }
+        if let Err(e) =
+            File::create(&dest_path).and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ()))
+        {
+            *write_err.borrow_mut() = Some(e.to_string());
         }
+        Ok(true)
     })
     .map_err(|e| e.to_string())?;
     if let Some(e) = write_err.into_inner() {
@@ -1090,9 +1088,8 @@ fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resu
                         return std::fs::copy(&extracted, dest)
                             .map(|_| ())
                             .map_err(|e| e.to_string());
-                    } else {
-                        archive = header.skip().map_err(|e| e.to_string())?;
                     }
+                    archive = header.skip().map_err(|e| e.to_string())?;
                 }
             }
         }

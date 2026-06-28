@@ -180,11 +180,7 @@ pub fn install_mod_from_path(
         })
         .collect();
 
-    let location = if std::ptr::eq(target, cfg.primary()) {
-        None
-    } else {
-        Some(target.tag.to_string())
-    };
+    let location = (!std::ptr::eq(target, cfg.primary())).then(|| target.tag.to_string());
     log::info!(
         "install: {} ({}) -> {} [{}]",
         mod_data.name,
