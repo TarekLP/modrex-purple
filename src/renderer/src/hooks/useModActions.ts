@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
+import { parseZipMultiPak, installZipPickerEntries } from '../components/ZipPickerModal'
 import type { HostPackPayload } from '../components/HostPackModal'
 import type { CbFlatArchivePayload } from '../components/CrimeBossFlatArchiveModal'
 import { handleInstallSentinel } from '../installSentinels'
+import { entryFilename, stripPriorityPrefix } from './installedUtils'
 import { api } from '../api'
 
 export interface ModActions {
@@ -117,13 +119,44 @@ export function useModActions(
             await api.installMod(mods[0].id, gamePath, activeGame)
         } catch (e) {
             const errStr = String(e)
-            const handled = handleInstallSentinel(errStr, {
-                onZipMultiPak: setZipPickerData,
-                onHostModPack: setHostPackData,
-                onCbFlatArchive: setCbFlatArchiveData,
-                onUnrecognizedArchive: () => setUnrecognizedModId(mods[0].id),
-            })
-            if (!handled) setReinstallError(errStr)
+            const zipPayload = parseZipMultiPak(errStr)
+            if (zipPayload) {
+                // install_from_zip_entry's pre-removal only fires when exactly one other entry
+                // shares the mod id; for multi-pak mods (2+ entries) stale entries survive and
+                // keep the group outdated. missingMods were already removed above.
+                // ZipPickerModal is also blocked by Radix's focus trap when HealthCheckModal is open.
+                const priorMods = mods.filter((m) => !m.missing)
+                for (const m of priorMods) {
+                    await api.uninstallMod(m.uid, gamePath, activeGame)
+                }
+                const toReinstall = zipPayload.entries.filter((entry) =>
+                    priorMods.some((m) => stripPriorityPrefix(m.filename) === entryFilename(entry))
+                )
+                if (toReinstall.length > 0) {
+                    try {
+                        await installZipPickerEntries(
+                            zipPayload,
+                            toReinstall,
+                            gamePath,
+                            activeGame,
+                            mods[0].folderId ?? null,
+                            onRefreshInstalled
+                        )
+                    } catch (installErr) {
+                        setReinstallError(String(installErr))
+                    }
+                } else {
+                    setZipPickerData(zipPayload)
+                }
+            } else {
+                const handled = handleInstallSentinel(errStr, {
+                    onZipMultiPak: setZipPickerData, // unreachable: parseZipMultiPak already returned null
+                    onHostModPack: setHostPackData,
+                    onCbFlatArchive: setCbFlatArchiveData,
+                    onUnrecognizedArchive: () => setUnrecognizedModId(mods[0].id),
+                })
+                if (!handled) setReinstallError(errStr)
+            }
         } finally {
             unsub()
             setReinstallProgress(null)

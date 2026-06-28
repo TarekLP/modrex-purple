@@ -26,6 +26,7 @@ interface Props {
     showDepsTab: boolean
     gamePath: string | null
     gameId: string
+    loadingMod: string | null
     visible: boolean
     onOpenDetail: (modId: number) => void
     onReinstall: (mods: InstalledMod[]) => void
@@ -110,6 +111,7 @@ export function HealthCheckModal({
     showDepsTab,
     gamePath,
     gameId,
+    loadingMod,
     visible,
     onOpenDetail,
     onReinstall,
@@ -306,24 +308,36 @@ export function HealthCheckModal({
                         {missingItems.length === 0 ? (
                             <EmptyTab>{t('installed.health.noMissingFiles')}</EmptyTab>
                         ) : (
-                            missingItems.map((item) => (
-                                <HealthRow
-                                    key={item.uid}
-                                    thumbnailFile={modData.get(item.id)?.thumbnail?.file}
-                                    name={item.name}
-                                    secondary={t('installed.health.missingFileHint')}
-                                    clickable={item.id >= 0}
-                                    onOpen={item.id >= 0 ? () => onOpenDetail(item.id) : undefined}
-                                    action={
-                                        <button
-                                            onClick={() => onReinstall(item.mods)}
-                                            className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors"
-                                        >
-                                            {t('common.reinstall')}
-                                        </button>
-                                    }
-                                />
-                            ))
+                            missingItems.map((item) => {
+                                const isLoading =
+                                    loadingMod !== null &&
+                                    item.mods.some((m) => m.uid === loadingMod)
+                                return (
+                                    <HealthRow
+                                        key={item.uid}
+                                        thumbnailFile={modData.get(item.id)?.thumbnail?.file}
+                                        name={item.name}
+                                        secondary={t('installed.health.missingFileHint')}
+                                        clickable={item.id >= 0}
+                                        onOpen={
+                                            item.id >= 0 ? () => onOpenDetail(item.id) : undefined
+                                        }
+                                        action={
+                                            item.id >= 0 ? (
+                                                <button
+                                                    onClick={() => onReinstall(item.mods)}
+                                                    disabled={isLoading}
+                                                    className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                >
+                                                    {isLoading
+                                                        ? t('common.installing')
+                                                        : t('common.reinstall')}
+                                                </button>
+                                            ) : undefined
+                                        }
+                                    />
+                                )
+                            })
                         )}
                     </Tabs.Content>
                     <Tabs.Content
@@ -333,24 +347,36 @@ export function HealthCheckModal({
                         {brokenItems.length === 0 ? (
                             <EmptyTab>{t('installed.health.noBrokenArchives')}</EmptyTab>
                         ) : (
-                            brokenItems.map((item) => (
-                                <HealthRow
-                                    key={item.uid}
-                                    thumbnailFile={modData.get(item.id)?.thumbnail?.file}
-                                    name={item.name}
-                                    secondary={t('installed.health.brokenArchiveHint')}
-                                    clickable={item.id >= 0}
-                                    onOpen={item.id >= 0 ? () => onOpenDetail(item.id) : undefined}
-                                    action={
-                                        <button
-                                            onClick={() => onReinstall(item.mods)}
-                                            className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors"
-                                        >
-                                            {t('common.reinstall')}
-                                        </button>
-                                    }
-                                />
-                            ))
+                            brokenItems.map((item) => {
+                                const isLoading =
+                                    loadingMod !== null &&
+                                    item.mods.some((m) => m.uid === loadingMod)
+                                return (
+                                    <HealthRow
+                                        key={item.uid}
+                                        thumbnailFile={modData.get(item.id)?.thumbnail?.file}
+                                        name={item.name}
+                                        secondary={t('installed.health.brokenArchiveHint')}
+                                        clickable={item.id >= 0}
+                                        onOpen={
+                                            item.id >= 0 ? () => onOpenDetail(item.id) : undefined
+                                        }
+                                        action={
+                                            item.id >= 0 ? (
+                                                <button
+                                                    onClick={() => onReinstall(item.mods)}
+                                                    disabled={isLoading}
+                                                    className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                >
+                                                    {isLoading
+                                                        ? t('common.installing')
+                                                        : t('common.reinstall')}
+                                                </button>
+                                            ) : undefined
+                                        }
+                                    />
+                                )
+                            })
                         )}
                     </Tabs.Content>
                     <Tabs.Content
@@ -360,24 +386,32 @@ export function HealthCheckModal({
                         {outdatedItems.length === 0 ? (
                             <EmptyTab>{t('installed.health.noOutdated')}</EmptyTab>
                         ) : (
-                            outdatedItems.map((item) => (
-                                <HealthRow
-                                    key={item.uid}
-                                    thumbnailFile={modData.get(item.id)?.thumbnail?.file}
-                                    name={item.name}
-                                    secondary={t('installed.health.outdatedHint')}
-                                    clickable
-                                    onOpen={() => onOpenDetail(item.id)}
-                                    action={
-                                        <button
-                                            onClick={() => onReinstall(item.mods)}
-                                            className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors"
-                                        >
-                                            {t('common.reinstall')}
-                                        </button>
-                                    }
-                                />
-                            ))
+                            outdatedItems.map((item) => {
+                                const isLoading =
+                                    loadingMod !== null &&
+                                    item.mods.some((m) => m.uid === loadingMod)
+                                return (
+                                    <HealthRow
+                                        key={item.uid}
+                                        thumbnailFile={modData.get(item.id)?.thumbnail?.file}
+                                        name={item.name}
+                                        secondary={t('installed.health.outdatedHint')}
+                                        clickable
+                                        onOpen={() => onOpenDetail(item.id)}
+                                        action={
+                                            <button
+                                                onClick={() => onReinstall(item.mods)}
+                                                disabled={isLoading}
+                                                className="text-xs px-2.5 py-1 rounded bg-surface-active hover:bg-surface-light shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                {isLoading
+                                                    ? t('common.installing')
+                                                    : t('common.reinstall')}
+                                            </button>
+                                        }
+                                    />
+                                )
+                            })
                         )}
                     </Tabs.Content>
                     <Tabs.Content
@@ -440,24 +474,30 @@ export function HealthCheckModal({
                             </Button>
                         </>
                     )}
-                {activeTab === 'missing' && missingItems.length > 0 && (
+                {activeTab === 'missing' && missingItems.some((item) => item.id >= 0) && (
                     <Button
                         variant="accent"
                         size="md"
+                        disabled={loadingMod !== null}
                         onClick={() => {
-                            missingItems.forEach((item) => onReinstall(item.mods))
+                            missingItems
+                                .filter((item) => item.id >= 0)
+                                .forEach((item) => onReinstall(item.mods))
                             onClose()
                         }}
                     >
                         {t('installed.health.reinstallAll')}
                     </Button>
                 )}
-                {activeTab === 'broken' && brokenItems.length > 0 && (
+                {activeTab === 'broken' && brokenItems.some((item) => item.id >= 0) && (
                     <Button
                         variant="accent"
                         size="md"
+                        disabled={loadingMod !== null}
                         onClick={() => {
-                            brokenItems.forEach((item) => onReinstall(item.mods))
+                            brokenItems
+                                .filter((item) => item.id >= 0)
+                                .forEach((item) => onReinstall(item.mods))
                             onClose()
                         }}
                     >
@@ -468,9 +508,9 @@ export function HealthCheckModal({
                     <Button
                         variant="accent"
                         size="md"
+                        disabled={loadingMod !== null}
                         onClick={() => {
                             outdatedItems.forEach((item) => onReinstall(item.mods))
-                            onClose()
                         }}
                     >
                         {t('installed.health.reinstallAll')}

@@ -180,6 +180,12 @@ export function InstalledPage({
         cancelMoveCrimeBossTarget,
     } = useModActions(gamePath, onRefreshInstalled, activeGame)
 
+    // Sentinel modals (ZipPicker, HostPack, CbFlatArchive) portal to body but Radix focus traps
+    // prevent interacting with them while HealthCheckModal is also open.
+    useEffect(() => {
+        if (zipPickerData || hostPackData || cbFlatArchiveData) setShowHealth(false)
+    }, [zipPickerData, hostPackData, cbFlatArchiveData])
+
     const folderActions = useFolderActions(gamePath, onRefreshInstalled, activeGame)
 
     const {
@@ -626,6 +632,7 @@ export function InstalledPage({
                         showDepsTab={showDepsTab}
                         gamePath={gamePath}
                         gameId={activeGame}
+                        loadingMod={loadingMod}
                         visible={isActive}
                         onOpenDetail={onOpenDetail}
                         onReinstall={handleReinstall}
