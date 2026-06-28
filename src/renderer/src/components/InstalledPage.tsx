@@ -35,7 +35,6 @@ import {
     groupChildren,
     normalizeModScopes,
     filterInstalled,
-    computeHealthSummary,
     groupInstalledByIdentity,
 } from '../hooks/installedUtils'
 import { checkMissingDependencies, type HealthItem } from '../hooks/healthCheck'
@@ -80,12 +79,6 @@ export function InstalledPage({
     )
     const [healthMissingDeps, setHealthMissingDeps] = useState<HealthItem[]>([])
     const cancelHealthRef = useRef(false)
-    const healthSummary = useMemo(() => computeHealthSummary(installed), [installed])
-    const healthIssueCount =
-        healthSummary.missing.length +
-        healthSummary.archiveBroken.length +
-        healthSummary.outdated.length +
-        healthSummary.unidentified.length
     const showDepsTab = !!gamePath && installed.some((m) => m.id >= 0)
 
     useEffect(() => {
@@ -400,13 +393,7 @@ export function InstalledPage({
                                             ? cancelHealthCheck
                                             : () => void runHealthCheck()
                                     }
-                                    className={`group flex items-center gap-1.5 p-1 rounded transition-colors ${
-                                        checkingHealth
-                                            ? 'bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text cursor-pointer'
-                                            : healthIssueCount > 0
-                                              ? 'bg-warning/20 hover:bg-warning/30 text-warning'
-                                              : 'bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text'
-                                    }`}
+                                    className="group flex items-center gap-1.5 p-1 rounded transition-colors bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text cursor-pointer"
                                 >
                                     {checkingHealth ? (
                                         <>
@@ -419,14 +406,7 @@ export function InstalledPage({
                                             )}
                                         </>
                                     ) : (
-                                        <>
-                                            <Activity className="w-3.5 h-3.5" />
-                                            {healthIssueCount > 0 && (
-                                                <span className="pr-1 text-[10px] font-medium leading-none">
-                                                    {healthIssueCount}
-                                                </span>
-                                            )}
-                                        </>
+                                        <Activity className="w-3.5 h-3.5" />
                                     )}
                                 </button>
                             </Tooltip>
