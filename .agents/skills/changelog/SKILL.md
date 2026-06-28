@@ -53,6 +53,12 @@ Commit type is a starting hint, not the final answer:
 - If a commit fixes something introduced earlier in the same `Unreleased` block (the
   buggy behavior was never released), fold the fix into the existing Added bullet
   instead of adding a separate Fixed line for code users never saw broken.
+- If a commit adds a sub-detail to an unreleased feature (e.g. a progress counter
+  added to a modal that itself hasn't shipped), fold it into the existing bullet for
+  that feature — never add a separate entry for behavior users haven't seen without it.
+- Keep entries short. Don't describe a feature's internal contents unless the detail
+  is itself the user-facing point — "Added a per-mod options menu." is enough; listing
+  what's inside the menu is not.
 - No Unicode arrows/symbols — plain words ("becomes", "to", "via").
 - Match the tone already in `CHANGELOG.md`'s released sections — read a couple before
   writing new ones.
