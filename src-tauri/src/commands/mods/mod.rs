@@ -475,8 +475,8 @@ pub async fn install_mod(
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
-    if result.is_ok() {
-        crate::commands::analytics::track(
+    match &result {
+        Ok(_) => crate::commands::analytics::track(
             &app,
             "mod_installed",
             serde_json::json!({
@@ -484,9 +484,8 @@ pub async fn install_mod(
                 "mod_id": mod_id,
                 "format": file_type,
             }),
-        );
-    } else if let Err(e) = &result {
-        log::warn!("install_mod {mod_id}: {e}");
+        ),
+        Err(e) => log::warn!("install_mod {mod_id}: {e}"),
     }
     result
 }
@@ -673,8 +672,8 @@ pub async fn install_file(
     if let Some(orig) = zip_orig {
         let _ = tokio::fs::remove_file(&orig).await;
     }
-    if result.is_ok() {
-        crate::commands::analytics::track(
+    match &result {
+        Ok(_) => crate::commands::analytics::track(
             &app,
             "mod_installed",
             serde_json::json!({
@@ -682,9 +681,8 @@ pub async fn install_file(
                 "mod_id": mod_id,
                 "format": file_type,
             }),
-        );
-    } else if let Err(e) = &result {
-        log::warn!("install_file {mod_id} file={file_id}: {e}");
+        ),
+        Err(e) => log::warn!("install_file {mod_id} file={file_id}: {e}"),
     }
     result
 }
@@ -854,8 +852,8 @@ pub async fn install_from_zip_entry(
             let _ = tokio::fs::remove_file(ext.with_extension(sidecar_ext)).await;
         }
     }
-    if result.is_ok() {
-        crate::commands::analytics::track(
+    match &result {
+        Ok(_) => crate::commands::analytics::track(
             &app,
             "mod_installed",
             serde_json::json!({
@@ -863,9 +861,8 @@ pub async fn install_from_zip_entry(
                 "mod_id": mod_id,
                 "format": install_format,
             }),
-        );
-    } else if let Err(e) = &result {
-        log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}");
+        ),
+        Err(e) => log::warn!("install_from_zip_entry {mod_id} file={file_id}: {e}"),
     }
     result
 }
@@ -945,8 +942,8 @@ pub async fn install_cb_flat_archive(
     let _ = tokio::fs::remove_dir_all(&tmp_dir).await;
     let _ = tokio::fs::remove_file(&zip).await;
 
-    if result.is_ok() {
-        crate::commands::analytics::track(
+    match &result {
+        Ok(_) => crate::commands::analytics::track(
             &app,
             "mod_installed",
             serde_json::json!({
@@ -954,9 +951,8 @@ pub async fn install_cb_flat_archive(
                 "mod_id": mod_id,
                 "format": file_type,
             }),
-        );
-    } else if let Err(e) = &result {
-        log::warn!("install_cb_flat_archive {mod_id} file={file_id}: {e}");
+        ),
+        Err(e) => log::warn!("install_cb_flat_archive {mod_id} file={file_id}: {e}"),
     }
     result
 }
