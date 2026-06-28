@@ -115,7 +115,6 @@ interface CardHandlers {
 interface GridCardProps extends CardHandlers {
     mod: Mod
     installed: InstalledMod | undefined
-    installedCount: number | undefined
     gamePath: string | null
     loading: boolean
     progress: { downloaded: number; total: number } | null
@@ -127,7 +126,6 @@ const GridCard = memo(function GridCard(p: GridCardProps) {
         <ModCard
             mod={p.mod}
             installed={p.installed}
-            installedCount={p.installedCount}
             loaderInstalled={p.loaderInstalled}
             gamePath={p.gamePath}
             loading={p.loading}
@@ -196,7 +194,6 @@ const ModGrid = memo(function ModGrid({
                     key={mod.id}
                     mod={mod}
                     installed={installedByModId.get(mod.id)?.[0]}
-                    installedCount={installedByModId.get(mod.id)?.length || undefined}
                     loaderInstalled={loaderInstalledIds.has(mod.id) ? true : undefined}
                     gamePath={gamePath}
                     loading={installingMods.has(mod.id) || downloadMap.has(`mod:${mod.id}`)}
