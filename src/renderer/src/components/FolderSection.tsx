@@ -106,13 +106,14 @@ export function FolderSection({ folder }: Props) {
                 onDrop={() => {
                     if (dragItem?.kind === 'mod') {
                         onDropIntoFolder(folder.id)
-                    } else if (dragItem?.kind === 'folder') {
-                        if (isDropInto) {
-                            onNestFolderInto(dragItem.id, folder.id)
-                        } else {
-                            onChildDrop(dragItem.id, folder.id, 'folder', folder.parentId)
-                        }
+                        return
                     }
+                    if (dragItem?.kind !== 'folder') return
+                    if (isDropInto) {
+                        onNestFolderInto(dragItem.id, folder.id)
+                        return
+                    }
+                    onChildDrop(dragItem.id, folder.id, 'folder', folder.parentId)
                 }}
                 className={`group flex items-center gap-1.5 px-2 py-2 rounded-lg border transition-colors ${
                     !isRenaming ? 'cursor-grab active:cursor-grabbing' : ''

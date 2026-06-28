@@ -190,9 +190,9 @@ export function resolveStaleDuplicates(
         if (!file) continue
         if (file.type != null && file.type !== 'pak') {
             stale.add(s.bareUid)
-        } else {
-            for (const uid of s.archiveUids) stale.add(uid)
+            continue
         }
+        for (const uid of s.archiveUids) stale.add(uid)
     }
     return stale
 }
@@ -232,15 +232,15 @@ export function groupChildren(entries: ChildEntry[]): ChildGroup[] {
     const groups: ChildGroup[] = []
     let run: InstalledMod[][] = []
     for (const entry of entries) {
-        if (entry.type === 'folder') {
-            if (run.length > 0) {
-                groups.push({ type: 'root-group', groups: run })
-                run = []
-            }
-            groups.push({ type: 'folder', folder: entry.folder })
-        } else {
+        if (entry.type !== 'folder') {
             run.push(entry.mods)
+            continue
         }
+        if (run.length > 0) {
+            groups.push({ type: 'root-group', groups: run })
+            run = []
+        }
+        groups.push({ type: 'folder', folder: entry.folder })
     }
     if (run.length > 0) groups.push({ type: 'root-group', groups: run })
     return groups

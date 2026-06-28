@@ -188,9 +188,9 @@ export function ModDetailPage({
                     setLightboxIndex((i) => (i! > 0 ? i! - 1 : images.length - 1))
                 else if (e.key === 'ArrowRight')
                     setLightboxIndex((i) => (i! < images.length - 1 ? i! + 1 : 0))
-            } else if (e.key === 'Escape') {
-                onBack()
+                return
             }
+            if (e.key === 'Escape') onBack()
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)

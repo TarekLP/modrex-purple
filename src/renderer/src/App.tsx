@@ -332,12 +332,12 @@ export default function App() {
     }, [])
 
     function closeDetail() {
-        if (detailStack.length <= 1) {
-            setView(prevView)
-            setDetailStack([])
-        } else {
+        if (detailStack.length > 1) {
             setDetailStack((prev) => prev.slice(0, -1))
+            return
         }
+        setView(prevView)
+        setDetailStack([])
     }
 
     const [settingsGlobalOnly, setSettingsGlobalOnly] = useState(false)

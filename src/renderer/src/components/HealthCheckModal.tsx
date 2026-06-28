@@ -162,9 +162,9 @@ export function HealthCheckModal({
         setInstallingAll(false)
         if (hadError) {
             setDepInstallError(t('installed.health.installDepFailed'))
-        } else {
-            onClose()
+            return
         }
+        onClose()
     }
 
     function toItems(groups: InstalledGroup[]): LocalHealthItem[] {
