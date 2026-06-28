@@ -153,6 +153,7 @@
         },
         "health": {
             "title": "Health Check",
+            "cancel": "Cancel scan",
             "missingFilesCount": "Missing files ({count})",
             "brokenArchivesCount": "Broken archives ({count})",
             "outdatedCount": "Outdated ({count})",

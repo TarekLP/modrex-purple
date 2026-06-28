@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Button } from './ui/Button'
 import { SearchClearButton } from './ui/SearchClearButton'
 import {
@@ -79,6 +79,7 @@ export function InstalledPage({
         null
     )
     const [healthMissingDeps, setHealthMissingDeps] = useState<HealthItem[]>([])
+    const cancelHealthRef = useRef(false)
     const healthSummary = useMemo(() => computeHealthSummary(installed), [installed])
     const healthIssueCount =
         healthSummary.missing.length +
@@ -91,10 +92,17 @@ export function InstalledPage({
         return api.onInstallScan((info) => setScanPhase(info))
     }, [])
 
+    function cancelHealthCheck() {
+        cancelHealthRef.current = true
+        setCheckingHealth(false)
+        setHealthProgress(null)
+    }
+
     // Runs eagerly on click rather than lazily inside the modal — the dependency check costs
     // a network fetch per mod, so the modal only opens once the full report is ready.
     async function runHealthCheck() {
         if (checkingHealth) return
+        cancelHealthRef.current = false
         setCheckingHealth(true)
         const positiveIds = [
             ...new Set(
@@ -114,11 +122,13 @@ export function InstalledPage({
                       (checked, total) => setHealthProgress({ checked, total })
                   )
                 : []
-            setHealthMissingDeps(deps)
+            if (!cancelHealthRef.current) {
+                setHealthMissingDeps(deps)
+                setShowHealth(true)
+            }
         } finally {
             setHealthProgress(null)
             setCheckingHealth(false)
-            setShowHealth(true)
         }
     }
     // Two api.getInstalled calls: onRefreshInstalled updates App state but doesn't
@@ -371,19 +381,31 @@ export function InstalledPage({
                                     />
                                 </button>
                             </Tooltip>
-                            <Tooltip content={t('installed.health.title')}>
+                            <Tooltip
+                                content={
+                                    checkingHealth
+                                        ? t('installed.health.cancel')
+                                        : t('installed.health.title')
+                                }
+                            >
                                 <button
-                                    onClick={() => void runHealthCheck()}
-                                    disabled={checkingHealth}
-                                    className={`flex items-center gap-1.5 p-1 rounded transition-colors disabled:cursor-not-allowed ${
-                                        healthIssueCount > 0
-                                            ? 'bg-warning/20 hover:bg-warning/30 text-warning'
-                                            : 'bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text'
+                                    onClick={
+                                        checkingHealth
+                                            ? cancelHealthCheck
+                                            : () => void runHealthCheck()
+                                    }
+                                    className={`group flex items-center gap-1.5 p-1 rounded transition-colors ${
+                                        checkingHealth
+                                            ? 'bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text cursor-pointer'
+                                            : healthIssueCount > 0
+                                              ? 'bg-warning/20 hover:bg-warning/30 text-warning'
+                                              : 'bg-surface-hover hover:bg-surface-active text-text-subtle hover:text-text'
                                     }`}
                                 >
                                     {checkingHealth ? (
                                         <>
-                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                            <RefreshCw className="group-hover:hidden w-3.5 h-3.5 animate-spin" />
+                                            <X className="hidden group-hover:block w-3.5 h-3.5" />
                                             {healthProgress && (
                                                 <span className="pr-1 text-[10px] font-medium leading-none tabular-nums">
                                                     {healthProgress.checked}/{healthProgress.total}
