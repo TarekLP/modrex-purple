@@ -1,12 +1,12 @@
-import { FolderSymlink } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { MoreVertical } from 'lucide-react'
 import { t } from '../i18n'
 import type { InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
-import { Tooltip } from './Tooltip'
-import { syntheticMod, findSuspectDuplicateGroups } from '../hooks/installedUtils'
+import { syntheticMod } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
 
@@ -37,6 +37,20 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         setManageFilesKey,
     } = useInstalledContext()
 
+    const [menuOpen, setMenuOpen] = useState(false)
+    const menuRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        if (!menuOpen) return
+        function handleOutside(e: MouseEvent) {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setMenuOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleOutside)
+        return () => document.removeEventListener('mousedown', handleOutside)
+    }, [menuOpen])
+
     const ins = mods[0]
     const id = ins.id
     const repUid = ins.uid
@@ -44,10 +58,6 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const groupKey = id >= 0 ? `id:${id}` : `uid:${repUid}`
     const showManageFiles = manageFilesKey === groupKey
     const apiMod = modData.get(id)
-    // Cheap structural pre-filter only (no network) — see findSuspectDuplicateGroups in
-    // installedUtils.ts. ManageFilesModal does the live-data check before badging a specific
-    // file "Outdated"; this just hints that one of this group's files is worth checking there.
-    const hasSuspectDuplicate = mods.length > 1 && findSuspectDuplicateGroups(mods).length > 0
     const isBusy = mods.some((m) => loadingMod === m.uid)
     const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
     const combined: InstalledMod = {
@@ -62,32 +72,55 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         activeGame === 'cb' &&
         (combined.location === undefined || combined.location === 'paks') &&
         !combined.missing
-    const moveCrimeBossButton = canMoveCrimeBossTarget ? (
-        <div className="flex items-center gap-1">
-            <span className="px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle">
-                {combined.location === 'paks'
-                    ? t('installed.crimeBossMove.legacyBadge')
-                    : t('installed.crimeBossMove.modkitBadge')}
-            </span>
-            <Tooltip
-                content={
-                    combined.location === 'paks'
-                        ? t('installed.crimeBossMove.toModKit')
-                        : t('installed.crimeBossMove.toLegacy')
-                }
-            >
+
+    function renderMenuButton(dropdownSide: 'right' | 'left') {
+        return (
+            <div ref={menuRef} className="relative" onDragStart={(e) => e.stopPropagation()}>
                 <button
                     onClick={(e) => {
                         e.stopPropagation()
-                        requestMoveCrimeBossTarget(ins)
+                        setMenuOpen((o) => !o)
                     }}
-                    className="flex items-center justify-center w-6 h-6 rounded bg-surface-raised/80 border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors"
+                    className="flex items-center justify-center w-6 h-6 rounded border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors bg-surface-raised/80"
                 >
-                    <FolderSymlink className="w-3.5 h-3.5" />
+                    <MoreVertical className="w-3.5 h-3.5" />
                 </button>
-            </Tooltip>
-        </div>
-    ) : null
+                {menuOpen && (
+                    <div
+                        className={`absolute top-7 ${dropdownSide === 'right' ? 'right-0' : 'left-0'} min-w-40 bg-surface-raised border border-border rounded-lg shadow-xl overflow-hidden z-50`}
+                    >
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setMenuOpen(false)
+                                setManageFilesKey(groupKey)
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                        >
+                            {t('installed.modMenu.manageFiles')}
+                        </button>
+                        {canMoveCrimeBossTarget && (
+                            <>
+                                <div className="h-px bg-border" />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setMenuOpen(false)
+                                        requestMoveCrimeBossTarget(ins)
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                                >
+                                    {combined.location === 'paks'
+                                        ? t('installed.crimeBossMove.toModKit')
+                                        : t('installed.crimeBossMove.toLegacy')}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+        )
+    }
 
     if (!apiMod && !failedIds.has(id) && id >= 0) {
         return viewMode === 'list' ? <SkeletonListRow /> : <SkeletonCard />
@@ -126,26 +159,6 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                         className={`h-0.5 w-full mx-2 rounded-full pointer-events-none ${isAfterActive ? 'bg-accent' : 'opacity-0'}`}
                     />
                 </div>
-                {mods.length > 1 && (
-                    <Tooltip
-                        content={t('installed.manageFiles.staleDuplicateHint')}
-                        disabled={!hasSuspectDuplicate}
-                    >
-                        <button
-                            onClick={() => setManageFilesKey(groupKey)}
-                            className={`absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded border text-[10px] transition-colors ${
-                                hasSuspectDuplicate
-                                    ? 'bg-warning/20 border-warning/40 text-warning hover:border-warning'
-                                    : 'bg-surface-raised/80 border-border text-text-subtle hover:text-text hover:border-accent/60'
-                            }`}
-                        >
-                            {t('installed.fileCount', { count: mods.length })}
-                        </button>
-                    </Tooltip>
-                )}
-                {moveCrimeBossButton && (
-                    <div className="absolute top-1.5 right-1.5 z-10">{moveCrimeBossButton}</div>
-                )}
                 {showManageFiles && (
                     <ManageFilesModal
                         mods={mods}
@@ -167,6 +180,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     onReinstall={() => handleReinstall(mods)}
                     onDragStart={(e) => onModDragStart(e, repUid)}
                     onDragEnd={handleDragEnd}
+                    optionsButton={renderMenuButton('left')}
                 />
             </div>
         )
@@ -187,26 +201,52 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             {dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid && (
                 <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
             )}
-            {mods.length > 1 && (
-                <Tooltip
-                    content={t('installed.manageFiles.staleDuplicateHint')}
-                    disabled={!hasSuspectDuplicate}
+            <div
+                ref={menuRef}
+                className="absolute top-2 right-2 z-20"
+                onDragStart={(e) => e.stopPropagation()}
+            >
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setMenuOpen((o) => !o)
+                    }}
+                    className="flex items-center justify-center w-6 h-6 rounded border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors bg-surface-raised/80"
                 >
-                    <button
-                        onClick={() => setManageFilesKey(groupKey)}
-                        className={`absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded border text-[10px] transition-colors ${
-                            hasSuspectDuplicate
-                                ? 'bg-warning/20 border-warning/40 text-warning hover:border-warning'
-                                : 'bg-surface-raised/80 border-border text-text-subtle hover:text-text hover:border-accent/60'
-                        }`}
-                    >
-                        {t('installed.fileCount', { count: mods.length })}
-                    </button>
-                </Tooltip>
-            )}
-            {moveCrimeBossButton && (
-                <div className="absolute top-2 right-2 z-10">{moveCrimeBossButton}</div>
-            )}
+                    <MoreVertical className="w-3.5 h-3.5" />
+                </button>
+                {menuOpen && (
+                    <div className="absolute right-0 top-7 min-w-40 bg-surface-raised border border-border rounded-lg shadow-xl overflow-hidden z-50">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setMenuOpen(false)
+                                setManageFilesKey(groupKey)
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                        >
+                            {t('installed.modMenu.manageFiles')}
+                        </button>
+                        {canMoveCrimeBossTarget && (
+                            <>
+                                <div className="h-px bg-border" />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setMenuOpen(false)
+                                        requestMoveCrimeBossTarget(ins)
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs text-text hover:bg-surface-hover transition-colors"
+                                >
+                                    {combined.location === 'paks'
+                                        ? t('installed.crimeBossMove.toModKit')
+                                        : t('installed.crimeBossMove.toLegacy')}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
             {showManageFiles && (
                 <ManageFilesModal
                     mods={mods}

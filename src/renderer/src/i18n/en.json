@@ -134,11 +134,15 @@
             "updateSelected": "Update Selected ({count})",
             "error": "Update failed. Check your connection and try again."
         },
+        "modMenu": {
+            "open": "Options",
+            "manageFiles": "Manage files"
+        },
         "crimeBossMove": {
             "modkitBadge": "ModKit",
             "legacyBadge": "Legacy",
-            "toLegacy": "Move to ~mods (legacy pak)",
-            "toModKit": "Move to Mods/ (ModKit)",
+            "toLegacy": "Move to Legacy",
+            "toModKit": "Move to ModKit",
             "confirmTitleToLegacy": "Move to ~mods?",
             "confirmBodyToLegacy": "\"{name}\" will no longer merge with other mods' content. Only do this if it needs the old pak format.",
             "confirmTitleToModkit": "Move to Mods/?",

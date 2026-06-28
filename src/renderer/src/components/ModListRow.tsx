@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Button } from './ui/Button'
 import { Trash2, RotateCcw } from 'lucide-react'
 import { Toggle } from './Toggle'
@@ -23,6 +24,7 @@ interface Props {
     onDragOver?: (e: React.DragEvent) => void
     onDrop?: () => void
     onDragEnd?: () => void
+    optionsButton?: ReactNode
 }
 
 export function ModListRow({
@@ -41,6 +43,7 @@ export function ModListRow({
     onDragOver,
     onDrop,
     onDragEnd,
+    optionsButton,
 }: Props) {
     const thumbSrc = useThumbnail(mod.thumbnail?.file)
     // Fade the image in on its first real decode; cache hits (el.complete is
@@ -141,6 +144,7 @@ export function ModListRow({
                             <Trash2 className="w-4 h-4" />
                         </Button>
                     </Tooltip>
+                    {optionsButton}
                 </div>
             </div>
             {loading && progress !== null && (
