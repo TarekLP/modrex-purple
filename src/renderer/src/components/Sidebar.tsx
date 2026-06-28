@@ -4,8 +4,8 @@ import {
     Package,
     Newspaper,
     Settings,
+    ArrowLeft,
     ChevronLeft,
-    ArrowLeftRight,
     CircleHelp,
 } from 'lucide-react'
 import { siDiscord } from 'simple-icons'
@@ -56,7 +56,7 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
                             onClick={onShowWelcome}
                             className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs hover:bg-surface-hover text-text hover:text-text transition-colors"
                         >
-                            <ArrowLeftRight className="w-3.5 h-3.5 shrink-0 text-text-subtle" />
+                            <ArrowLeft className="w-3.5 h-3.5 shrink-0 text-text-subtle" />
                             <span
                                 className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                             >
@@ -72,7 +72,7 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
                             onClick={onShowWelcome}
                             className="w-full px-2 py-1.5 gap-2 flex items-center rounded text-xs hover:bg-surface-hover text-text-muted hover:text-text transition-colors"
                         >
-                            <ChevronLeft className="w-3.5 h-3.5 shrink-0" />
+                            <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
                             <span
                                 className={`truncate transition-opacity duration-200 font-medium flex-1 text-left ${collapsed ? 'opacity-0' : 'opacity-100'}`}
                             >
