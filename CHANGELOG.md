@@ -22,6 +22,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - "Update All" button now shows progress counter during a batch update.
 - Added a per-mod options menu on installed mod cards.
 - Added a clear button to the game picker search field.
+- Missing-dependencies dialog now shows download progress on install buttons, lets you open a dependency's detail page by clicking its row, and adds an "Install all" button when multiple dependencies can be auto-installed.
 
 ### Changed
 
