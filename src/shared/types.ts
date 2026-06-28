@@ -150,6 +150,7 @@ export interface InstalledMod {
     filename: string
     enabled: boolean
     installedAt: string
+    source?: string // mod source slug; absent = "modworkshop"
     fileId?: number
     fileType?: string
     sha256?: string

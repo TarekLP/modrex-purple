@@ -19,7 +19,11 @@ pub enum TopLevelItem {
     Mod { id: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+fn default_source() -> String {
+    "modworkshop".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledMod {
     #[serde(default)]
@@ -30,6 +34,8 @@ pub struct InstalledMod {
     pub filename: String,
     pub enabled: bool,
     pub installed_at: String,
+    #[serde(default = "default_source")]
+    pub source: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -46,6 +52,29 @@ pub struct InstalledMod {
     pub archive_broken: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
+}
+
+impl Default for InstalledMod {
+    fn default() -> Self {
+        Self {
+            uid: String::new(),
+            id: 0,
+            name: String::new(),
+            version: String::new(),
+            filename: String::new(),
+            enabled: false,
+            installed_at: String::new(),
+            source: default_source(),
+            file_id: None,
+            file_type: None,
+            sha256: None,
+            priority: None,
+            missing: None,
+            folder_id: None,
+            archive_broken: None,
+            location: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
