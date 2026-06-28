@@ -182,7 +182,6 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         if (mods.length <= targets.length) onClose()
     }
 
-    // Re-downloads the archive and extracts only the given entry.
     async function handleInstallEntry(ghost: GhostFile) {
         if (!gamePath || loadingMod || installingEntry) return
         setInstallError(null)

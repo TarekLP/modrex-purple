@@ -34,7 +34,6 @@ export function useModData(
         if (nextKey === installedKey.current) return
         installedKey.current = nextKey
 
-        // Sync pre-populate from localStorage-backed cache for immediate render
         const now = Date.now()
         const fromCache: [number, Mod][] = []
         for (const m of installed) {

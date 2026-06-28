@@ -14,7 +14,6 @@ export function stripPriorityPrefix(filename: string): string {
     return filename.replace(/^\d+_/, '')
 }
 
-// Last path component of an archive entry path.
 export function entryFilename(entry: string): string {
     return entry.split('/').pop() ?? entry
 }

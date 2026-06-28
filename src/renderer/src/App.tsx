@@ -70,7 +70,6 @@ export default function App() {
     const [gamePathReady, setGamePathReady] = useState(false)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
     const [folders, setFolders] = useState<ModFolder[]>([])
-    // Games whose installed list has been fetched at least once this session.
     // Empty set = startup splash; per-game membership gates the "no mods" empty state.
     const [readyGames, setReadyGames] = useState<ReadonlySet<GameId>>(new Set())
     const [modsHidden, setModsHidden] = useState(false)
@@ -103,7 +102,6 @@ export default function App() {
         isRefreshingInstalled.current = false
     }, [activeGame])
 
-    // Reports index.db identification coverage when the installed set changes.
     useModIdentificationTracking(installed, activeGame)
 
     // Analytics consent, owned here as the single source of truth so the first-run
@@ -127,15 +125,13 @@ export default function App() {
         void api.updateDiscordPresence(GAMES[activeGame].name)
     }, [activeGame])
 
-    // Per-session cache: last resolved path for each game. undefined = not yet loaded.
+    // undefined = not yet loaded; null = path not found this session.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
 
-    // When detection failed for a game, when it failed. Re-detecting a missing
-    // game runs a full launcher scan (Steam VDF walk, Epic manifests, Xbox drive
-    // scan) — don't repeat it on every switch/focus, only after the TTL.
+    // Re-detecting a missing game runs a full launcher scan — don't repeat on every switch/focus, only after the TTL.
     const failedDetectAt = useRef<Partial<Record<GameId, number>>>({})
 
-    // Per-session cache: last resolved installed state for each game. undefined = not yet loaded.
+    // undefined = not yet loaded.
     const installedCache = useRef<
         Partial<Record<GameId, { mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }>>
     >({})
