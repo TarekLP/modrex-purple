@@ -85,11 +85,7 @@ fn steam_install_path() -> Option<String> {
                 .lines()
                 .find(|l| l.contains("InstallPath") && l.contains("REG_SZ"))?;
             let value = line.split("REG_SZ").nth(1)?.trim().to_string();
-            if value.is_empty() {
-                None
-            } else {
-                Some(value)
-            }
+            (!value.is_empty()).then_some(value)
         })
         .clone()
 }

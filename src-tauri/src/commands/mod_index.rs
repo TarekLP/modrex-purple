@@ -191,11 +191,7 @@ pub(crate) fn query_by_name(
         .ok()?
         .filter_map(|r| r.ok())
         .collect();
-    if rows.len() == 1 {
-        Some(rows[0])
-    } else {
-        None
-    }
+    (rows.len() == 1).then(|| rows[0])
 }
 
 fn query_mod_files(

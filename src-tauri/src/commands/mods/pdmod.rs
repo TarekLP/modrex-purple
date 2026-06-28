@@ -35,9 +35,27 @@ pub fn hash64(s: &str) -> u64 {
     c = c.wrapping_add(length);
 
     let g = |i: usize| tail.get(i).copied().unwrap_or(0) as u64;
-    a = a.wrapping_add(g(0) | g(1)<<8 | g(2)<<16 | g(3)<<24 | g(4)<<32 | g(5)<<40 | g(6)<<48 | g(7)<<56);
-    b = b.wrapping_add(g(8) | g(9)<<8 | g(10)<<16 | g(11)<<24 | g(12)<<32 | g(13)<<40 | g(14)<<48 | g(15)<<56);
-    c = c.wrapping_add(g(16) | g(17)<<8 | g(18)<<16 | g(19)<<24 | g(20)<<32 | g(21)<<40 | g(22)<<56);
+    a = a.wrapping_add(
+        g(0) | g(1) << 8
+            | g(2) << 16
+            | g(3) << 24
+            | g(4) << 32
+            | g(5) << 40
+            | g(6) << 48
+            | g(7) << 56,
+    );
+    b = b.wrapping_add(
+        g(8) | g(9) << 8
+            | g(10) << 16
+            | g(11) << 24
+            | g(12) << 32
+            | g(13) << 40
+            | g(14) << 48
+            | g(15) << 56,
+    );
+    c = c.wrapping_add(
+        g(16) | g(17) << 8 | g(18) << 16 | g(19) << 24 | g(20) << 32 | g(21) << 40 | g(22) << 56,
+    );
 
     mix64(&mut a, &mut b, &mut c);
     c
@@ -105,7 +123,8 @@ fn read_entry(archive: &mut ZipArchive<fs::File>, name: &str) -> Result<Vec<u8>,
         .by_name_decrypt(name, PDMOD_PASSWORD)
         .map_err(|e| format!("{name}: {e}"))?;
     let mut buf = Vec::new();
-    f.read_to_end(&mut buf).map_err(|e: std::io::Error| e.to_string())?;
+    f.read_to_end(&mut buf)
+        .map_err(|e: std::io::Error| e.to_string())?;
     Ok(buf)
 }
 
@@ -124,11 +143,19 @@ pub fn extract_pdmod(path: &Path, dest_dir: &Path) -> Result<(), String> {
 
     for entry in &manifest.item_queue {
         let Some(type_str) = hl.get(&entry.bundle_extension) else {
-            log::warn!("pdmod: unknown BundleExtension hash {} ({})", entry.bundle_extension, entry.replacement_file);
+            log::warn!(
+                "pdmod: unknown BundleExtension hash {} ({})",
+                entry.bundle_extension,
+                entry.replacement_file
+            );
             continue;
         };
         let Some(name_str) = hl.get(&entry.bundle_path) else {
-            log::warn!("pdmod: unknown BundlePath hash {} ({})", entry.bundle_path, entry.replacement_file);
+            log::warn!(
+                "pdmod: unknown BundlePath hash {} ({})",
+                entry.bundle_path,
+                entry.replacement_file
+            );
             continue;
         };
 
@@ -139,8 +166,11 @@ pub fn extract_pdmod(path: &Path, dest_dir: &Path) -> Result<(), String> {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
 
-        fs::write(&output_path, read_entry(&mut archive, &entry.replacement_file)?)
-            .map_err(|e| e.to_string())?;
+        fs::write(
+            &output_path,
+            read_entry(&mut archive, &entry.replacement_file)?,
+        )
+        .map_err(|e| e.to_string())?;
         extracted += 1;
     }
 
@@ -151,7 +181,11 @@ pub fn extract_pdmod(path: &Path, dest_dir: &Path) -> Result<(), String> {
         );
     }
 
-    log::info!("pdmod: extracted {extracted}/{} entries to {}", manifest.item_queue.len(), dest_dir.display());
+    log::info!(
+        "pdmod: extracted {extracted}/{} entries to {}",
+        manifest.item_queue.len(),
+        dest_dir.display()
+    );
     Ok(())
 }
 
@@ -258,7 +292,11 @@ mod tests {
         extract_pdmod(&pdmod_path, &out_dir).expect("extract_pdmod failed");
 
         let expected = out_dir.join(format!("{path}.{ext}"));
-        assert!(expected.exists(), "output file missing: {}", expected.display());
+        assert!(
+            expected.exists(),
+            "output file missing: {}",
+            expected.display()
+        );
         assert_eq!(fs::read(&expected).unwrap(), content);
 
         let _ = fs::remove_dir_all(&tmp);
@@ -267,7 +305,8 @@ mod tests {
     #[test]
     fn extract_pdmod_skips_unknown_hash() {
         // 0 is an artificial hash that will never appear in the hashlist.
-        let manifest = r#"{"ItemQueue":[{"BundlePath":0,"BundleExtension":0,"ReplacementFile":"x.repl"}]}"#;
+        let manifest =
+            r#"{"ItemQueue":[{"BundlePath":0,"BundleExtension":0,"ReplacementFile":"x.repl"}]}"#;
 
         let buf = Vec::new();
         let cursor = Cursor::new(buf);
@@ -290,7 +329,10 @@ mod tests {
         fs::create_dir_all(&out_dir).unwrap();
 
         let err = extract_pdmod(&pdmod_path, &out_dir).unwrap_err();
-        assert!(err.contains("no entries could be extracted"), "unexpected error: {err}");
+        assert!(
+            err.contains("no entries could be extracted"),
+            "unexpected error: {err}"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 }

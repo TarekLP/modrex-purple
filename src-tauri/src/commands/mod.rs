@@ -1,7 +1,7 @@
 pub mod analytics;
-pub mod discord;
 pub mod api;
 pub mod dahm;
+pub mod discord;
 pub mod download;
 pub mod launchers;
 pub mod mod_index;

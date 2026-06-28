@@ -20,7 +20,10 @@ fn build_activity<'a>(game: &'a str, start_ts: i64) -> activity::Activity<'a> {
                 .large_image("logo")
                 .large_text("Modrex"),
         )
-        .buttons(vec![activity::Button::new("Get Modrex", "https://modrex.net")])
+        .buttons(vec![activity::Button::new(
+            "Get Modrex",
+            "https://modrex.net",
+        )])
         .timestamps(activity::Timestamps::new().start(start_ts))
 }
 
@@ -44,7 +47,9 @@ pub fn start(enabled: Arc<AtomicBool>, rx: mpsc::Receiver<String>) {
                     }
                 }
                 if let Some(ref mut c) = client {
-                    if c.set_activity(build_activity(&current_game, start_ts)).is_err() {
+                    if c.set_activity(build_activity(&current_game, start_ts))
+                        .is_err()
+                    {
                         let _ = c.close();
                         client = None;
                     }
@@ -55,7 +60,11 @@ pub fn start(enabled: Arc<AtomicBool>, rx: mpsc::Receiver<String>) {
                 client = None;
             }
 
-            let timeout = if client.is_none() { RETRY_INTERVAL } else { KEEPALIVE_INTERVAL };
+            let timeout = if client.is_none() {
+                RETRY_INTERVAL
+            } else {
+                KEEPALIVE_INTERVAL
+            };
             match rx.recv_timeout(timeout) {
                 Ok(new_state) => current_game = new_state,
                 Err(RecvTimeoutError::Disconnected) => break,

@@ -855,11 +855,14 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             .map(|e| e.eq_ignore_ascii_case("pdmod"))
             .unwrap_or(false)
     {
-        let temp_dir =
-            std::env::temp_dir().join(format!("modrex-pdmod-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("modrex-pdmod-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
         return match super::pdmod::extract_pdmod(&downloaded, &temp_dir) {
-            Ok(()) => Ok((temp_dir, Some(downloaded), Some("mod_overrides".to_string()))),
+            Ok(()) => Ok((
+                temp_dir,
+                Some(downloaded),
+                Some("mod_overrides".to_string()),
+            )),
             Err(e) => {
                 let _ = std::fs::remove_dir_all(&temp_dir);
                 Err(e)

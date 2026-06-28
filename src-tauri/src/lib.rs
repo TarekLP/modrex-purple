@@ -143,10 +143,7 @@ pub fn run() {
         discord_state
             .enabled
             .store(discord_enabled, std::sync::atomic::Ordering::Relaxed);
-        commands::discord::start(
-            std::sync::Arc::clone(&discord_state.enabled),
-            discord_rx,
-        );
+        commands::discord::start(std::sync::Arc::clone(&discord_state.enabled), discord_rx);
     }
 
     let handle = app.handle().clone();

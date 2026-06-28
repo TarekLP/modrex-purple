@@ -171,28 +171,25 @@ pub fn configure_game_path(app: AppHandle, game_id: Option<String>, game_path: O
     if let Some(ref path) = game_path {
         entry.game_path = Some(path.clone());
         entry.launcher = Some(identify_launcher_for_path(path));
-    } else {
-        // Validate existing saved path before falling back to auto-detect.
-        if let Some(ref path) = entry.game_path.clone() {
-            if Path::new(path).join(game_def.executable).exists() {
-                // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
-                if entry.launcher.is_none() {
-                    entry.launcher = Some(identify_launcher_for_path(path));
-                }
-            } else if let Some(detected) = detect_game(game_def) {
-                entry.game_path = Some(detected.game_path);
-                entry.launcher = Some(detected.launcher);
-            } else {
-                entry.game_path = None;
-                entry.launcher = None;
-            }
-        } else if let Some(detected) = detect_game(game_def) {
-            entry.game_path = Some(detected.game_path);
-            entry.launcher = Some(detected.launcher);
-        } else {
-            entry.game_path = None;
-            entry.launcher = None;
+        write_settings(&app, &s);
+        return;
+    }
+    // Validate existing saved path before falling back to auto-detect.
+    let existing_path = entry.game_path.clone();
+    let exe_exists = existing_path
+        .as_deref()
+        .is_some_and(|p| Path::new(p).join(game_def.executable).exists());
+    if exe_exists {
+        // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
+        if entry.launcher.is_none() {
+            entry.launcher = existing_path.map(|p| identify_launcher_for_path(&p));
         }
+    } else if let Some(detected) = detect_game(game_def) {
+        entry.game_path = Some(detected.game_path);
+        entry.launcher = Some(detected.launcher);
+    } else {
+        entry.game_path = None;
+        entry.launcher = None;
     }
     write_settings(&app, &s);
 }
