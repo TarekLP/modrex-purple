@@ -55,6 +55,7 @@ import {
     PDTH_OVERRIDES_ID,
     DAHM_ID,
 } from '../deps'
+import { resolveDepCheck } from '../installDepCheck'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
 import { markForegroundActivity } from '../requestPriority'
@@ -201,6 +202,35 @@ export function ModDetailPage({
             api.openExternal(mod.download.url)
             return
         }
+        // Dep check runs here — before FileSelectModal — because multi-file mods
+        // (download === null, files.length > 1) go through FileSelectModal which has
+        // no dep check of its own, so doInstall is never reached for them.
+        let checkedMod = mod
+        if (mod.dependencies === undefined) {
+            checkedMod = await getCachedMod(modId)
+            setMod(checkedMod)
+        }
+        const depResult = await resolveDepCheck(
+            modId,
+            checkedMod,
+            gamePath,
+            activeGame,
+            installed,
+            {
+                loaderInstalled,
+                ue4ssInstalled,
+                pdthOverridesInstalled,
+                dahmInstalled,
+            }
+        )
+        if (depResult) {
+            setLoaderInstalled(depResult.loaderState.loaderInstalled)
+            setUe4ssInstalled(depResult.loaderState.ue4ssInstalled)
+            setPdthOverridesInstalled(depResult.loaderState.pdthOverridesInstalled)
+            setDahmInstalled(depResult.loaderState.dahmInstalled)
+            setShowDepsWarning(true)
+            return
+        }
         if (mod.download === null && files.length > 1) {
             setShowFileSelect(true)
             return
@@ -221,25 +251,6 @@ export function ModDetailPage({
 
     async function doInstall() {
         if (!gamePath || !mod) return
-        const loaderModIds = buildLoaderModIds(activeGame, {
-            pdthOverridesInstalled,
-            dahmInstalled,
-            ue4ssInstalled,
-        })
-        let bltOk = loaderInstalled
-        if (hasLoaderDepBlt) {
-            bltOk = await api.checkSuperblt(gamePath)
-            setLoaderInstalled(bltOk)
-        }
-        if (missingRequiredDeps(allDeps, installed, bltOk, loaderModIds).length > 0) {
-            if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
-                const s = await api.getSettings()
-                if (!s.dismissedDepsWarnings?.includes(modId)) {
-                    setShowDepsWarning(true)
-                    return
-                }
-            }
-        }
         setInstallError(null)
         setActionLoading(true)
         try {

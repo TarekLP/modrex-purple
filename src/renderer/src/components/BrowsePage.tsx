@@ -37,10 +37,7 @@ import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
 import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
 import {
-    collectDeps,
-    isLoaderDep,
     isUe4ssLoaderId,
-    isPdthLoaderId,
     missingRequiredDeps,
     ue4ssLoaderIdsFor,
     buildLoaderModIds,
@@ -48,6 +45,7 @@ import {
     PDTH_OVERRIDES_ID,
     DAHM_ID,
 } from '../deps'
+import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
 import { api } from '../api'
 import { trackSearch } from '../lib/analytics/events'
@@ -423,38 +421,8 @@ export function BrowsePage({
     }, [])
 
     const doInstall = useCallback(
-        async (modId: number, fullMod: Mod) => {
+        async (modId: number) => {
             if (!gamePath) return
-            if (!sessionStorage.getItem(`depsWarningDismissed-${modId}`)) {
-                const allDeps = collectDeps(fullMod)
-                const loaderModIds = buildLoaderModIds(activeGame, {
-                    pdthOverridesInstalled,
-                    dahmInstalled,
-                    ue4ssInstalled,
-                })
-                const hasLoader =
-                    activeGame === 'pdth'
-                        ? allDeps.some(
-                              (d) => d.mod !== null && isPdthLoaderId(activeGame, d.mod.id)
-                          )
-                        : allDeps.some(isLoaderDep)
-                const bltLoaderInstalled =
-                    hasLoader && activeGame !== 'pdth' ? await api.checkSuperblt(gamePath) : null
-                const missingRequired = missingRequiredDeps(
-                    allDeps,
-                    installed,
-                    bltLoaderInstalled,
-                    loaderModIds
-                )
-                if (missingRequired.length > 0) {
-                    const s = await api.getSettings()
-                    if (!s.dismissedDepsWarnings?.includes(modId)) {
-                        removeInstalling(modId)
-                        setDepsWarning({ modId, allDeps, bltLoaderInstalled })
-                        return
-                    }
-                }
-            }
             const isUe4ssLoader = isUe4ssLoaderId(activeGame, modId)
             if (activeGame === 'pdth' && modId === PDTH_OVERRIDES_ID) {
                 await api.installPdthOverrides(gamePath)
@@ -472,16 +440,7 @@ export function BrowsePage({
             }
             await onRefreshInstalled()
         },
-        [
-            gamePath,
-            installed,
-            activeGame,
-            pdthOverridesInstalled,
-            dahmInstalled,
-            ue4ssInstalled,
-            onRefreshInstalled,
-            removeInstalling,
-        ]
+        [gamePath, activeGame, onRefreshInstalled]
     )
 
     const handleInstall = useCallback(
@@ -497,6 +456,30 @@ export function BrowsePage({
                 }
                 if (fullMod.download?.url && !fullMod.download.download_url) {
                     api.openExternal(fullMod.download.url)
+                    return
+                }
+                // Dep check runs here — before FileSelectModal — because multi-file mods
+                // go through FileSelectModal which has no dep check of its own.
+                const depResult = await resolveDepCheck(
+                    modId,
+                    fullMod,
+                    gamePath,
+                    activeGame,
+                    installed,
+                    {
+                        loaderInstalled: null,
+                        ue4ssInstalled,
+                        pdthOverridesInstalled,
+                        dahmInstalled,
+                    }
+                )
+                if (depResult) {
+                    removeInstalling(modId)
+                    setDepsWarning({
+                        modId,
+                        allDeps: depResult.allDeps,
+                        bltLoaderInstalled: depResult.bltLoaderInstalled,
+                    })
                     return
                 }
                 let checkType: string | undefined
@@ -519,7 +502,7 @@ export function BrowsePage({
                     setFormatWarning({ modId, mod: fullMod })
                     return
                 }
-                await runCrimeBossInstall(modId, fullMod.name, () => doInstall(modId, fullMod))
+                await runCrimeBossInstall(modId, fullMod.name, () => doInstall(modId))
             } catch (e) {
                 const errStr = String(e)
                 const handled = handleInstallSentinel(errStr, {
@@ -533,7 +516,18 @@ export function BrowsePage({
                 removeInstalling(modId)
             }
         },
-        [gamePath, doInstall, runCrimeBossInstall, addInstalling, removeInstalling]
+        [
+            gamePath,
+            activeGame,
+            installed,
+            pdthOverridesInstalled,
+            dahmInstalled,
+            ue4ssInstalled,
+            doInstall,
+            runCrimeBossInstall,
+            addInstalling,
+            removeInstalling,
+        ]
     )
 
     const handleUninstall = useCallback(
@@ -617,9 +611,7 @@ export function BrowsePage({
                         setFormatWarning(null)
                         addInstalling(modId)
                         try {
-                            await runCrimeBossInstall(modId, fullMod.name, () =>
-                                doInstall(modId, fullMod)
-                            )
+                            await runCrimeBossInstall(modId, fullMod.name, () => doInstall(modId))
                         } catch (e) {
                             setError(String(e))
                         } finally {
