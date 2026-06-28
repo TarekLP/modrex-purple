@@ -186,11 +186,7 @@ pub async fn find_untracked_paks(
             .iter()
             .filter_map(|k| k.strip_prefix(&tag_prefix).map(|s| s.to_string()))
             .collect();
-        let location_tag: Option<String> = if i == 0 {
-            None
-        } else {
-            Some(target.tag.to_string())
-        };
+        let location_tag: Option<String> = (i != 0).then(|| target.tag.to_string());
         // mods/base is the BLT loader's basemod, not a user mod — tracking it
         // would let the user disable their mod loader from the installed list.
         let skip_base = i == 0 && matches!(target.unit, ModUnit::Directory { .. });
@@ -264,20 +260,15 @@ async fn scan_active(
                     if excluded_names.contains(&name.as_str()) {
                         continue;
                     }
-                    let is_mod = if scan_markers.is_empty() && index_gated_markers.is_empty() {
-                        true
-                    } else {
-                        scan_markers.iter().any(|m| entry.path().join(m).exists())
-                            || index_gated_markers
-                                .iter()
-                                .any(|m| entry.path().join(m).exists())
-                    };
-                    if is_mod {
-                        if !known.contains(&rel) {
-                            out.push((rel, true));
-                        }
-                    } else {
+                    let is_mod = (scan_markers.is_empty() && index_gated_markers.is_empty())
+                        || scan_markers.iter().any(|m| entry.path().join(m).exists())
+                        || index_gated_markers
+                            .iter()
+                            .any(|m| entry.path().join(m).exists());
+                    if !is_mod {
                         subdirs.push((entry.path(), rel));
+                    } else if !known.contains(&rel) {
+                        out.push((rel, true));
                     }
                 }
             }
@@ -337,20 +328,15 @@ async fn scan_disabled(
                     if excluded_names.contains(&name.as_str()) {
                         continue;
                     }
-                    let is_mod = if scan_markers.is_empty() && index_gated_markers.is_empty() {
-                        true
-                    } else {
-                        scan_markers.iter().any(|m| entry.path().join(m).exists())
-                            || index_gated_markers
-                                .iter()
-                                .any(|m| entry.path().join(m).exists())
-                    };
-                    if is_mod {
-                        if !known.contains(&sub) {
-                            out.push((sub, false));
-                        }
-                    } else {
+                    let is_mod = (scan_markers.is_empty() && index_gated_markers.is_empty())
+                        || scan_markers.iter().any(|m| entry.path().join(m).exists())
+                        || index_gated_markers
+                            .iter()
+                            .any(|m| entry.path().join(m).exists());
+                    if !is_mod {
                         subdirs.push((entry.path(), sub));
+                    } else if !known.contains(&sub) {
+                        out.push((sub, false));
                     }
                 }
             }
