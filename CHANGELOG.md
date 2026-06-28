@@ -21,6 +21,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Loading screen now shows how many mods have been scanned during the identification phase.
 - "Update All" button now shows progress counter during a batch update.
 - Added a per-mod options menu on installed mod cards.
+- Added a clear button to the game picker search field.
 
 ### Changed
 
