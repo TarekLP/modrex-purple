@@ -37,21 +37,21 @@ pub fn hash64(s: &str) -> u64 {
     let g = |i: usize| tail.get(i).copied().unwrap_or(0) as u64;
     a = a.wrapping_add(
         g(0) | g(1) << 8
-            | g(2) << 16
-            | g(3) << 24
-            | g(4) << 32
-            | g(5) << 40
-            | g(6) << 48
-            | g(7) << 56,
+             | g(2) << 16
+             | g(3) << 24
+             | g(4) << 32
+             | g(5) << 40
+             | g(6) << 48
+             | g(7) << 56,
     );
     b = b.wrapping_add(
         g(8) | g(9) << 8
-            | g(10) << 16
-            | g(11) << 24
-            | g(12) << 32
-            | g(13) << 40
-            | g(14) << 48
-            | g(15) << 56,
+             | g(10) << 16
+             | g(11) << 24
+             | g(12) << 32
+             | g(13) << 40
+             | g(14) << 48
+             | g(15) << 56,
     );
     c = c.wrapping_add(
         g(16) | g(17) << 8 | g(18) << 16 | g(19) << 24 | g(20) << 32 | g(21) << 40 | g(22) << 56,
@@ -128,7 +128,7 @@ fn read_entry(archive: &mut ZipArchive<fs::File>, name: &str) -> Result<Vec<u8>,
     Ok(buf)
 }
 
-/// Extracts a .pdmod archive into `dest_dir`, placing each asset at the path derived from
+/// Extracts a .pdmod archive into dest_dir, placing each asset at the path derived from
 /// resolving its BundlePath and BundleExtension hashes via the embedded hashlist.
 /// Entries whose hashes are not in the hashlist are skipped with a log warning.
 pub fn extract_pdmod(path: &Path, dest_dir: &Path) -> Result<(), String> {
