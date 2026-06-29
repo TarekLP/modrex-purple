@@ -384,6 +384,7 @@ pub async fn install_mod(
                 None
             }
         });
+        let was_disabled = existing_entry.map_or(false, |e| !e.enabled);
         // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
         let effective_folder_id = folder_id.or_else(|| {
             if remote_id > 0 && saved.mods.iter().filter(|m| m.id == remote_id).count() > 1 {
@@ -422,7 +423,7 @@ pub async fn install_mod(
             &game_path,
             &sp,
             InstalledMod {
-                uid,
+                uid: uid.clone(),
                 id: remote_id,
                 name: mod_name,
                 version: mod_version,
@@ -439,6 +440,13 @@ pub async fn install_mod(
             cfg,
             target,
         )?;
+
+        if was_disabled {
+            let settings = read_settings(&app);
+            let launcher_str = game_settings(&settings, cfg.game_id)
+                .and_then(|gs| gs.launcher.clone());
+            disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref());
+        }
 
         let _ = http_client()
             .post(format!(

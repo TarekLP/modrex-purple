@@ -192,7 +192,7 @@ pub fn install_mod_from_path(
         filename,
         priority: Some(priority),
         folder_id,
-        enabled: existing.as_ref().map_or(true, |e| e.enabled),
+        enabled: true,
         location,
         installed_at: Utc::now().to_rfc3339(),
         ..mod_data
