@@ -18,12 +18,12 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 ## Installation
 
-| Platform                                                                                                                                              | Download                                                                                                    |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows     | [Modrex.Setup.exe](https://github.com/modrexio/modrex/releases/latest/download/Modrex_0.11.1_x64-setup.exe) |
-| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .deb      | [modrex.deb](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.deb)               |
-| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .rpm      | [modrex.rpm](https://github.com/modrexio/modrex/releases/latest/download/pd3-mod-manager.rpm)               |
-| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .AppImage | [modrex.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_0.11.1_amd64.AppImage) |
+| Platform                                                                                                                                              | Download                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows     | [modrex_x86_64.exe](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.exe)           |
+| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .deb      | [modrex_x86_64.deb](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.deb)           |
+| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .rpm      | [modrex_x86_64.rpm](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.rpm)           |
+| <img src="assets/icons/linux.svg#gh-light-mode-only" width="16"><img src="assets/icons/linux-white.svg#gh-dark-mode-only" width="16"> Linux .AppImage | [modrex_x86_64.AppImage](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.AppImage) |
 
 ## Features
 
@@ -32,14 +32,16 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 - In-app News tab with the latest posts for each game
 - Full mod detail page: description, images, downloads, changelog, dependencies, and install instructions
 - Rich description rendering: formatted text, tables, collapsible sections, colored text, and inline video embeds (YouTube, Streamable)
-- One-click install, uninstall, enable, and disable for `.pak`, `.zip`, `.7z`, `.rar`, and `.tar.gz`/`.tar.xz` mods
+- One-click install, uninstall, enable, and disable for `.pak`, `.zip`, `.7z`, `.rar`, `.tar.gz`/`.tar.xz`, and `.pdmod` (PDTH) mods
 - Organize mods into folders with arbitrary nesting depth and drag-and-drop reordering
 - Mods with multiple installed files grouped as a single card, with per-file management
+- Health Check scans your entire library and bulk-repairs missing files, broken archives, outdated installs, and missing dependencies
 - Update detection with selective per-mod updates
 - Launch modded or vanilla directly from the app
 - Automatically detects your game installation (Steam, Epic Games Store, Xbox App)
 - One-click install for mod loaders: SuperBLT (PD2), DAHM and PDTHModOverrides (PDTH), UE4SS (PD3, Crime Boss)
 - Identifies manually placed mod files via SHA256 lookup against a live mod index
+- Discord Rich Presence shows the active game on your profile
 - Automatic update checks with one-click in-app updates
 
 ## Requirements
