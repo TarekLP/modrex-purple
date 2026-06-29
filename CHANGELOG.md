@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.12.0
+
 ### Added
 
 - Added support for `.pdmod`.
