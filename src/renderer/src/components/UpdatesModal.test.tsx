@@ -48,18 +48,22 @@ const ZIP_MULTI_PAK_FOR_MOD_1 = `ZIP_MULTI_PAK:${JSON.stringify({
 })}`
 
 let mockInstallMod: ReturnType<typeof vi.fn>
+let mockInstallFromZipEntry: ReturnType<typeof vi.fn>
+let mockDeleteTempFile: ReturnType<typeof vi.fn>
 let UpdatesModal: typeof UpdatesModalMod.UpdatesModal
 
 beforeEach(async () => {
     vi.resetModules()
 
     mockInstallMod = vi.fn()
+    mockInstallFromZipEntry = vi.fn().mockResolvedValue(undefined)
+    mockDeleteTempFile = vi.fn().mockResolvedValue(undefined)
 
     vi.doMock('../api', () => ({
         api: {
             installMod: mockInstallMod,
-            // Rendered by ZipPickerModal on mount even though this test cancels the picker.
-            onDownloadProgress: vi.fn(() => () => {}),
+            installFromZipEntry: mockInstallFromZipEntry,
+            deleteTempFile: mockDeleteTempFile,
         },
     }))
 
@@ -68,9 +72,9 @@ beforeEach(async () => {
 })
 
 describe('UpdatesModal batch update', () => {
-    it('resumes the rest of the batch after a picker modal closes, without a second click', async () => {
-        // mod 1's latest file is a multi-pak archive with nothing matching a prior install
-        // (installed=[] below), so it genuinely needs the manual picker. mod 2 updates cleanly.
+    it('auto-installs all entries for a multi-pak mod without re-prompting, even when filenames changed', async () => {
+        // mod 1's archive has entries whose names don't match any installed file (installed=[]
+        // below), simulating a version where the author renamed the pak files.
         mockInstallMod.mockImplementation(async (modId: number) => {
             // Tauri command rejections surface as the raw string thrown on the Rust side, not
             // wrapped in an Error — parseZipMultiPak matches against that raw string.
@@ -101,20 +105,9 @@ describe('UpdatesModal batch update', () => {
 
         fireEvent.click(screen.getByText('Update Selected (2)'))
 
-        // The picker is open and the batch is paused — mod 2 must not be installed yet. Asserts
-        // on the picker's footer button rather than its title, since the title text is
-        // duplicated by Radix's sr-only Dialog.Title.
-        await screen.findByText('Install Selected (2)')
-        expect(mockInstallMod).toHaveBeenCalledTimes(1)
-        expect(mockInstallMod).toHaveBeenCalledWith(1, '/game', 'pd3')
-
-        // Cancelling the picker (no further user action on the Updates modal) must resume the
-        // batch on its own — this is the bug: previously the rest of the selection was
-        // abandoned until "Update Selected" was clicked again.
-        fireEvent.click(screen.getByText('Cancel'))
-
-        await waitFor(() => expect(mockInstallMod).toHaveBeenCalledTimes(2))
-        expect(mockInstallMod).toHaveBeenCalledWith(2, '/game', 'pd3')
         await waitFor(() => expect(onClose).toHaveBeenCalled())
+        expect(mockInstallMod).toHaveBeenCalledWith(1, '/game', 'pd3')
+        expect(mockInstallMod).toHaveBeenCalledWith(2, '/game', 'pd3')
+        expect(mockInstallFromZipEntry).toHaveBeenCalledTimes(2)
     })
 })

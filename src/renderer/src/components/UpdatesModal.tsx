@@ -69,11 +69,9 @@ export function UpdatesModal({
         })
     }
 
-    // On a ZIP_MULTI_PAK sentinel, this mod is always already installed (it came from the
-    // updatable list), so re-apply its previously selected file variants instead of asking
-    // again — only falls back to the picker when nothing matches.
-    // 'resolved' = handled silently, caller continues; 'manual' = a picker is now open and the
-    // caller must pause; 'none' = not a sentinel.
+    // The user already decided to update, so never re-prompt for file selection: re-apply
+    // the prior selection when filenames match, otherwise install all entries.
+    // 'resolved' = handled silently; 'manual' = picker open, caller must pause; 'none' = not a sentinel.
     async function resolveInstallSentinel(
         e: unknown,
         modId: number
@@ -83,20 +81,19 @@ export function UpdatesModal({
         if (zipData) {
             if (gamePath) {
                 const autoEntries = computeAutoUpdateSelection(zipData, installed)
-                if (autoEntries) {
-                    try {
-                        await installZipPickerEntries(
-                            zipData,
-                            autoEntries,
-                            gamePath,
-                            gameId,
-                            null,
-                            onRefreshInstalled
-                        )
-                        return 'resolved'
-                    } catch {
-                        // Auto-apply failed — fall back to the picker below.
-                    }
+                const entriesToInstall = autoEntries ?? zipData.entries
+                try {
+                    await installZipPickerEntries(
+                        zipData,
+                        entriesToInstall,
+                        gamePath,
+                        gameId,
+                        null,
+                        onRefreshInstalled
+                    )
+                    return 'resolved'
+                } catch {
+                    // fall back to the picker if the install fails
                 }
             }
             setZipPickerData(zipData)
