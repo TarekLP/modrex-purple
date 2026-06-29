@@ -267,6 +267,20 @@ export function BrowsePage({
         })
     }, [])
 
+    // UpdatesModal installs emit download:progress events that populate downloadMap here,
+    // but never call removeInstalling — purge stale entries on each installed refresh.
+    useEffect(() => {
+        setDownloadMap((prev) => {
+            if (prev.size === 0) return prev
+            const next = new Map(prev)
+            for (const key of next.keys()) {
+                const id = Number(key.replace('mod:', ''))
+                if (!installingMods.has(id)) next.delete(key)
+            }
+            return next.size === prev.size ? prev : next
+        })
+    }, [installed, installingMods])
+
     useEffect(() => {
         if (!gamePath) return
         let cancelled = false
