@@ -420,8 +420,11 @@ pub fn enable_mod_op(
     let to = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     // The game's own UGC mod-loader, not this file move, is what actually controls whether a
     // Crime Boss mod is active — see crimeboss_settings.rs.
+    // resync_crimeboss_enabled_flags flips m.enabled without moving files, so `from` may not
+    // exist — fall back to `to` to find the pak for settings-path derivation.
     if cfg.game_id == "cb" {
-        crimeboss_settings::sync_enabled(&from, target.is_directory_unit(), launcher, true);
+        let cb_path = if from.exists() { &from } else { &to };
+        crimeboss_settings::sync_enabled(cb_path, target.is_directory_unit(), launcher, true);
     }
     if from.exists() {
         let renamed = match &target.unit {
@@ -521,7 +524,8 @@ pub fn disable_mod_op(
     let from = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let to = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
     if cfg.game_id == "cb" {
-        crimeboss_settings::sync_enabled(&from, target.is_directory_unit(), launcher, false);
+        let cb_path = if from.exists() { &from } else { &to };
+        crimeboss_settings::sync_enabled(cb_path, target.is_directory_unit(), launcher, false);
     }
     if from.exists() {
         let renamed = match &target.unit {

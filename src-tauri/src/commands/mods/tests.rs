@@ -2149,6 +2149,71 @@ fn read_enabled_from_file_none_when_missing_or_malformed() {
     assert_eq!(read_enabled_from_file(&no_enabled_entry), None);
 }
 
+// ── enable after in-game disable (M40 / resync bug) ──────────────────────────
+// resync_crimeboss_enabled_flags sets m.enabled=false without moving files, leaving them at the
+// active path. enable_mod_op must still sync the settings file in that state.
+#[test]
+fn enable_mod_op_syncs_settings_when_files_are_at_active_path_but_state_says_disabled() {
+    let game_tmp = TempDir::new().unwrap();
+    let game = game_tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb");
+    let sp = get_state_path(game, cfg);
+
+    // Lay down the pak at the active location (files are here, as after a first install).
+    let pak_dir = game_tmp
+        .path()
+        .join("CrimeBoss/Mods/M40_Dallas_Payday/Content/Paks/WindowsNoEditor");
+    fs::create_dir_all(&pak_dir).unwrap();
+    fs::write(
+        pak_dir.join("M40DallasPDCrimeBoss-WindowsNoEditor.pak"),
+        b"pak",
+    )
+    .unwrap();
+
+    // State as left by resync_crimeboss_enabled_flags: enabled=false but files at active path.
+    let mut s = read_state(&sp);
+    s.mods.push(InstalledMod {
+        uid: "1".into(),
+        id: 1,
+        name: "M40 Dallas Payday".into(),
+        filename: "M40_Dallas_Payday".into(),
+        enabled: false,
+        ..InstalledMod::default()
+    });
+    save_state(&sp, &s);
+
+    // ModSettings file exists (game created it on first launch) with "false".
+    let profile_tmp = TempDir::new().unwrap();
+    let settings_dir = profile_tmp
+        .path()
+        .join("Saved Games/CrimeBoss/Steam/Saved/ModSettings");
+    fs::create_dir_all(&settings_dir).unwrap();
+    let settings_file = settings_dir.join("m40dallaspd.json");
+    fs::write(&settings_file, r#"[{"name":"enabled","value":"false"}]"#).unwrap();
+
+    std::env::set_var("USERPROFILE", profile_tmp.path());
+
+    enable_mod_op(game, &sp, "1", cfg, Some("steam"));
+
+    std::env::remove_var("USERPROFILE");
+
+    let entries: Vec<serde_json::Value> =
+        serde_json::from_str(&fs::read_to_string(&settings_file).unwrap()).unwrap();
+    let enabled_val = entries
+        .iter()
+        .find(|e| e["name"] == "enabled")
+        .and_then(|e| e["value"].as_str())
+        .unwrap_or("missing");
+    assert_eq!(
+        enabled_val, "true",
+        "settings file must be synced to true so the next resync doesn't immediately re-disable"
+    );
+    assert!(
+        read_state(&sp).mods[0].enabled,
+        "state must reflect enabled"
+    );
+}
+
 // ── ue4ss_modstxt: UE4SS mods.txt sync ────────────────────────────────────────
 // Fixture matches the real UE4SS-CB mods.txt byte-for-byte (BOM, CRLF, blank lines, comment,
 // trailing "do not move up" warning) — verified against the actual downloaded release.
