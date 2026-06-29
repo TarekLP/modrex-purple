@@ -40,6 +40,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed download progress stopping to update when switching away from the mod detail page and back during a download.
 - Fixed updating a mod resetting it to enabled even if it was disabled before the update.
 - Fixed a mod card on Browse Mods becoming permanently frozen in a loading state after updating it from the Installed page.
+- Fixed Crime Boss mods that default to disabled in-game being impossible to enable from Modrex after the game created their settings file on first launch.
 
 ## 0.11.1
 
