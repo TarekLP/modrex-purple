@@ -51,6 +51,7 @@ function getInitialView(): View {
     const game = localStorage.getItem('modrex:active-game')
     if (!game) return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
+    if (v === 'welcome') return 'welcome'
     if (v === 'news' && !GAMES[game as GameId]?.hasNews) return 'browse'
     return v === 'browse' || v === 'installed' || v === 'news' || v === 'settings' ? v : 'browse'
 }
@@ -156,6 +157,7 @@ export default function App() {
     }, [activeGame])
 
     function handleShowWelcome() {
+        localStorage.setItem('modrex:active-view', 'welcome')
         setDetailStack([])
         setView('welcome')
     }
@@ -173,6 +175,7 @@ export default function App() {
             (saved !== 'news' || GAMES[g].hasNews)
                 ? saved
                 : 'browse'
+        localStorage.setItem('modrex:active-view', dest)
         // The switch commit renders three pages' worth of tree at once — as a
         // transition it stays interruptible, so rapid switching can't pile up
         // janky frames (a newer switch cancels the in-progress render).
