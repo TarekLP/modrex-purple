@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Added a notice when PAYDAY 2's Diesel 3.0 beta is detected, pointing to the community SuperBLT port.
+
 ### Fixed
 
 - Fixed PAYDAY 2 not being detected after the Diesel 3.0 beta update, which renamed the game executable.
