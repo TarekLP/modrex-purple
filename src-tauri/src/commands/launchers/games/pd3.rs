@@ -2,8 +2,8 @@ use crate::commands::launchers::types::{EpicDef, GameDef, SteamDef, XboxDef};
 
 pub const PD3: GameDef = GameDef {
     name: "PAYDAY 3",
-    executable: "PAYDAY3.exe",
-    process_name: "PAYDAY3-Win64-Shipping",
+    executables: &["PAYDAY3.exe"],
+    process_names: &["PAYDAY3-Win64-Shipping"],
     steam: Some(SteamDef {
         app_id: 1272080,
         folder_name: "PAYDAY3",

@@ -21,7 +21,10 @@ impl Launcher for Steam {
                 .join("steamapps")
                 .join("common")
                 .join(def.folder_name);
-            if candidate.join(game.executable).exists() {
+            if game
+                .resolve_executable(&candidate.to_string_lossy())
+                .is_some()
+            {
                 return Some(candidate.to_string_lossy().into_owned());
             }
         }

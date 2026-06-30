@@ -89,7 +89,10 @@ fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts:
     if let Some(launcher) = all_launchers().iter().find(|l| l.id() == launcher_id) {
         launcher.launch(game, game_path, opts);
     } else {
-        let exe = Path::new(game_path).join(game.executable);
+        let exe_name = game
+            .resolve_executable(game_path)
+            .unwrap_or(game.executables[0]);
+        let exe = Path::new(game_path).join(exe_name);
         let args: Vec<&str> = opts
             .map(|o| o.split_whitespace().collect())
             .unwrap_or_default();
@@ -178,7 +181,7 @@ pub fn configure_game_path(app: AppHandle, game_id: Option<String>, game_path: O
     let existing_path = entry.game_path.clone();
     let exe_exists = existing_path
         .as_deref()
-        .is_some_and(|p| Path::new(p).join(game_def.executable).exists());
+        .is_some_and(|p| game_def.resolve_executable(p).is_some());
     if exe_exists {
         // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
         if entry.launcher.is_none() {
@@ -382,21 +385,21 @@ fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
 
 #[tauri::command]
 pub fn is_game_running(game_id: Option<String>) -> bool {
-    let process_name = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_name;
+    let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_names;
     let sys = refresh_process_list();
     sys.processes()
         .values()
-        .any(|p| process_matches(p, process_name))
+        .any(|p| process_names.iter().any(|n| process_matches(p, n)))
 }
 
 #[tauri::command]
 pub fn stop_game(game_id: Option<String>) {
-    let process_name = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_name;
+    let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_names;
     let sys = refresh_process_list();
     for p in sys
         .processes()
         .values()
-        .filter(|p| process_matches(p, process_name))
+        .filter(|p| process_names.iter().any(|n| process_matches(p, n)))
     {
         p.kill();
     }

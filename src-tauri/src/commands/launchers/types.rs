@@ -14,11 +14,20 @@ pub struct XboxDef {
 
 pub struct GameDef {
     pub name: &'static str,
-    pub executable: &'static str,
-    pub process_name: &'static str,
+    pub executables: &'static [&'static str],
+    pub process_names: &'static [&'static str],
     pub steam: Option<SteamDef>,
     pub epic: Option<EpicDef>,
     pub xbox: Option<XboxDef>,
+}
+
+impl GameDef {
+    pub fn resolve_executable(&self, game_path: &str) -> Option<&'static str> {
+        self.executables
+            .iter()
+            .copied()
+            .find(|exe| std::path::Path::new(game_path).join(exe).exists())
+    }
 }
 
 pub trait Launcher: Send + Sync {
