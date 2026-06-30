@@ -1,6 +1,6 @@
 {
     "productName": "Modrex",
-    "version": "0.12.0",
+    "version": "0.12.1",
     "identifier": "modrex",
     "build": {
         "beforeDevCommand": "pnpm run dev-renderer",

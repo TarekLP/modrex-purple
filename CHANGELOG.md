@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.12.1
+
 ### Added
 
 - Added a notice when PAYDAY 2's Diesel 3.0 beta is detected, pointing to the community SuperBLT port.
