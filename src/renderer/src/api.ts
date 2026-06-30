@@ -321,6 +321,9 @@ export const api = {
     installSuperblt(gamePath: string): Promise<void> {
         return invoke('install_superblt', { gamePath })
     },
+    isPd2Diesel3(gamePath: string): Promise<boolean> {
+        return invoke('is_pd2_diesel3', { gamePath })
+    },
 
     // ── PDTHModOverrides ───────────────────────────────────────────────────────
     checkPdthOverrides(gamePath: string): Promise<boolean> {

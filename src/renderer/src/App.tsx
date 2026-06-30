@@ -341,6 +341,17 @@ export default function App() {
     }
 
     const [settingsGlobalOnly, setSettingsGlobalOnly] = useState(false)
+    const [showDiesel3Notice, setShowDiesel3Notice] = useState(false)
+    const [diesel3NoticeDontShow, setDiesel3NoticeDontShow] = useState(false)
+
+    useEffect(() => {
+        if (activeGame !== 'pd2' || !gamePath) {
+            setShowDiesel3Notice(false)
+            return
+        }
+        if (localStorage.getItem('modrex:pd2:diesel3-notice-dismissed')) return
+        api.isPd2Diesel3(gamePath).then(setShowDiesel3Notice)
+    }, [activeGame, gamePath])
 
     const handleSidebarChange = useCallback(
         (v: 'browse' | 'installed' | 'news' | 'settings') => {
@@ -580,6 +591,70 @@ export default function App() {
                             </div>
                         </>
                     )}
+                </Dialog>
+
+                <Dialog
+                    open={showDiesel3Notice}
+                    onOpenChange={(open) => !open && setShowDiesel3Notice(false)}
+                    title={t('diesel3Notice.title')}
+                    className="w-[420px]"
+                >
+                    <div className="p-6 flex flex-col gap-4">
+                        <div className="flex items-start justify-between gap-2">
+                            <h2 className="text-sm font-semibold">{t('diesel3Notice.title')}</h2>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowDiesel3Notice(false)}
+                                className="-mr-1 shrink-0"
+                            >
+                                <X className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <p className="text-xs text-text-muted">{t('diesel3Notice.body')}</p>
+                        <div
+                            className="flex items-center gap-2 cursor-pointer select-none"
+                            onClick={() => setDiesel3NoticeDontShow((v) => !v)}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={diesel3NoticeDontShow}
+                                onChange={() => {}}
+                                className="accent-accent pointer-events-none"
+                            />
+                            <span className="text-xs text-text-muted">
+                                {t('common.dontShowAgain')}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                            <Button
+                                variant="accent"
+                                size="md"
+                                onClick={() =>
+                                    api.openExternal(
+                                        'https://github.com/diesel-modding/PAYDAY2-SuperBLT'
+                                    )
+                                }
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                {t('diesel3Notice.github')}
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                size="md"
+                                onClick={() => {
+                                    if (diesel3NoticeDontShow)
+                                        localStorage.setItem(
+                                            'modrex:pd2:diesel3-notice-dismissed',
+                                            '1'
+                                        )
+                                    setShowDiesel3Notice(false)
+                                }}
+                            >
+                                {t('diesel3Notice.gotIt')}
+                            </Button>
+                        </div>
+                    </div>
                 </Dialog>
 
                 <TelemetryConsentDialog

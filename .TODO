@@ -6,6 +6,42 @@ deferred tasks that require human judgement on timing. Treat this file as read-o
 
 ---
 
+## TODO: remove-diesel3-notice
+
+Once the Diesel 3.0 SuperBLT port ships and is installable, remove the temporary
+compatibility warning added in the Diesel 3.0 detection work.
+
+### src-tauri/src/commands/superblt.rs
+- Remove the `is_pd2_diesel3` command
+
+### src-tauri/src/lib.rs
+- Remove `commands::superblt::is_pd2_diesel3` from the handler
+
+### src/renderer/src/api.ts
+- Remove the `isPd2Diesel3` wrapper
+
+### src/renderer/src/installDepCheck.ts
+- Remove the `isPd2Diesel3` guard (the one-liner that forces `bltOk = false` on Diesel 3.0)
+
+### src/renderer/src/App.tsx
+- Remove `showDiesel3Notice` and `diesel3NoticeDontShow` useState declarations
+- Remove the `useEffect` that calls `isPd2Diesel3`
+- Remove the `<Dialog>` block for the notice (search for `diesel3Notice.title`)
+
+### src/renderer/src/components/DepsWarningModal.tsx
+- Remove `isBltUnsupported` useState and its useEffect
+- Revert the button section back to the two-branch form (Install | Open Link)
+
+### src/renderer/src/i18n/en.json
+- Remove the `"diesel3Notice"` namespace
+- Remove `"bltDiesel3Note"` and `"bltDiesel3GitHub"` from `"depsWarning"`
+
+At the same time, update `LOADER_DOWNLOAD_URL` in `superblt.rs` to the new loader's
+download endpoint (modworkshop or whatever the Diesel 3.0 port uses), and update
+`pd2.rs` `executables`/`process_names` if the stable branch is fully retired.
+
+---
+
 ## TODO: search-state-persistence
 
 When a user opens a mod from the Browse page and navigates back (back arrow or ESC),

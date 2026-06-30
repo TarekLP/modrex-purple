@@ -47,6 +47,7 @@ export async function resolveDepCheck(
     let bltOk = loaderState.loaderInstalled
     if (activeGame !== 'pdth' && allDeps.some(isLoaderDep)) {
         bltOk = await api.checkSuperblt(gamePath)
+        if (bltOk && activeGame === 'pd2' && (await api.isPd2Diesel3(gamePath))) bltOk = false
     }
 
     let pdthOverridesOk = loaderState.pdthOverridesInstalled

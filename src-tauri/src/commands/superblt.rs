@@ -35,6 +35,11 @@ pub async fn install_superblt(app: tauri::AppHandle, game_path: String) -> Resul
     result
 }
 
+#[tauri::command]
+pub fn is_pd2_diesel3(game_path: String) -> bool {
+    Path::new(&game_path).join("PAYDAY2.exe").is_file()
+}
+
 #[cfg(test)]
 #[path = "superblt_tests.rs"]
 mod tests;

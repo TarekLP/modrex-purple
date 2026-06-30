@@ -275,7 +275,9 @@
         "body": "This mod requires the following mods to be installed:",
         "gotIt": "Got it",
         "installAll": "Install all",
-        "installFailed": "Install failed"
+        "installFailed": "Install failed",
+        "bltDiesel3Note": "Official SuperBLT doesn't support Diesel 3.0 yet.",
+        "bltDiesel3GitHub": "Get from GitHub"
     },
     "crimeBossInstallChoice": {
         "title": "Where should \"{name}\" install?",
@@ -341,6 +343,12 @@
             "application": "Application",
             "advanced": "Advanced"
         }
+    },
+    "diesel3Notice": {
+        "title": "PAYDAY 2 Diesel 3.0 Beta",
+        "body": "SuperBLT from the official website is not compatible with Diesel 3.0. If you use BLT mods, install the community port from GitHub instead.",
+        "github": "Get from GitHub",
+        "gotIt": "Got it"
     },
     "telemetry": {
         "title": "Help improve Modrex",

@@ -36,6 +36,7 @@ export function DepsWarningModal({
     const [dontShowAgain, setDontShowAgain] = useState(false)
     const [installingDeps, setInstallingDeps] = useState<Record<number, boolean>>({})
     const [installingLoader, setInstallingLoader] = useState(false)
+    const [isBltUnsupported, setIsBltUnsupported] = useState(false)
     const [installingAll, setInstallingAll] = useState(false)
     const [installError, setInstallError] = useState<string | null>(null)
     const [downloadProgress, setDownloadProgress] = useState<
@@ -54,6 +55,11 @@ export function DepsWarningModal({
     useEffect(() => {
         if (missingRequired.length === 0) onClose()
     }, [missingRequired.length, onClose])
+
+    useEffect(() => {
+        if (gameId !== 'pd2' || !gamePath) return
+        api.isPd2Diesel3(gamePath).then(setIsBltUnsupported)
+    }, [gameId, gamePath])
 
     async function handleInstallLoader(loaderModId: number | null) {
         if (!onInstallLoader) return
@@ -143,10 +149,26 @@ export function DepsWarningModal({
                                         {dep.name ?? offsiteDepHost(dep.url!)}
                                     </div>
                                     <div className="text-xs text-text-subtle">
-                                        {offsiteDepHost(dep.url!)}
+                                        {isBltUnsupported && isLoaderDep(dep)
+                                            ? t('depsWarning.bltDiesel3Note')
+                                            : offsiteDepHost(dep.url!)}
                                     </div>
                                 </div>
-                                {isLoaderDep(dep) && gamePath && onInstallLoader ? (
+                                {isLoaderDep(dep) && isBltUnsupported ? (
+                                    <Button
+                                        variant="accent"
+                                        size="md"
+                                        onClick={() =>
+                                            api.openExternal(
+                                                'https://github.com/diesel-modding/PAYDAY2-SuperBLT'
+                                            )
+                                        }
+                                        className="shrink-0"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        {t('depsWarning.bltDiesel3GitHub')}
+                                    </Button>
+                                ) : isLoaderDep(dep) && gamePath && onInstallLoader ? (
                                     <Button
                                         variant="accent"
                                         size="md"

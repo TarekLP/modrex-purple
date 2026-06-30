@@ -86,6 +86,7 @@ pub fn run() {
             // superblt / pdth_overrides / dahm
             commands::superblt::check_superblt,
             commands::superblt::install_superblt,
+            commands::superblt::is_pd2_diesel3,
             commands::pdth_overrides::check_pdth_overrides,
             commands::pdth_overrides::install_pdth_overrides,
             commands::dahm::check_dahm,
