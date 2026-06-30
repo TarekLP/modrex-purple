@@ -64,22 +64,9 @@ If something goes wrong, attach your log file to a [bug report](https://github.c
 | Windows  | `%APPDATA%\Modrex\logs\modrex.log` |
 | Linux    | `~/.config/modrex/logs/modrex.log` |
 
-## Development
+## Contributing
 
-| Command                  | Description                        |
-| ------------------------ | ---------------------------------- |
-| `pnpm install`           | Install dependencies               |
-| `pnpm dev`               | Start with hot reload              |
-| `pnpm build`             | Production build                   |
-| `pnpm typecheck`         | Type-check renderer                |
-| `pnpm format`            | Format all files with Prettier     |
-| `pnpm lint`              | Lint renderer source               |
-| `pnpm test`              | Run all tests (Rust + renderer)    |
-| `pnpm generate-licenses` | Regenerate THIRD_PARTY_LICENSES.md |
-
-## Tech stack
-
-Tauri v2 · React · Tailwind CSS · Lucide · TypeScript
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commands, and commit style.
 
 ## License
 
