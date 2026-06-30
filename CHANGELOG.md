@@ -11,6 +11,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Fixed
 
 - Fixed PAYDAY 2 not being detected after the Diesel 3.0 beta update, which renamed the game executable.
+- Fixed the app not restoring to the game picker on relaunch when it was the last active view before closing.
 
 ## 0.12.0
 
