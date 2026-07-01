@@ -29,6 +29,9 @@ pub struct Settings {
     pub analytics_enabled: Option<bool>,
     pub analytics_id: Option<String>,
     pub discord_rich_presence_enabled: Option<bool>,
+    // Prototype only, dev/testing use — Nexus's Acceptable Use Policy forbids
+    // a personal key reaching real users. Replace with the SSO flow once registered.
+    pub nexus_api_key: Option<String>,
     // Legacy flat fields: deserialized from old files but never written back.
     #[serde(skip_serializing, default)]
     pub game_path: Option<String>,
@@ -312,6 +315,33 @@ pub fn dismiss_deps_warning(app: AppHandle, mod_id: i32) {
     }
     s.dismissed_deps_warnings = Some(warnings);
     write_settings(&app, &s);
+}
+
+#[tauri::command]
+pub fn set_nexus_api_key(app: AppHandle, key: String) {
+    let mut s = read_settings(&app);
+    let trimmed = key.trim();
+    s.nexus_api_key = if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    };
+    write_settings(&app, &s);
+}
+
+#[tauri::command]
+pub fn clear_nexus_api_key(app: AppHandle) {
+    let mut s = read_settings(&app);
+    s.nexus_api_key = None;
+    write_settings(&app, &s);
+}
+
+/// Whether a key is saved, without round-tripping the key itself back to the renderer.
+#[tauri::command]
+pub fn nexus_key_configured(app: AppHandle) -> bool {
+    read_settings(&app)
+        .nexus_api_key
+        .is_some_and(|k| !k.trim().is_empty())
 }
 
 #[cfg(test)]

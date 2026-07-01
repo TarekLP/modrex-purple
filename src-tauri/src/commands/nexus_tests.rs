@@ -1,0 +1,34 @@
+use super::*;
+
+#[test]
+fn parses_present_header() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-rl-hourly-remaining", "42".parse().unwrap());
+    assert_eq!(parse_hourly_remaining(&headers), Some(42));
+}
+
+#[test]
+fn returns_none_when_absent() {
+    let headers = HeaderMap::new();
+    assert_eq!(parse_hourly_remaining(&headers), None);
+}
+
+#[test]
+fn returns_none_when_malformed() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-rl-hourly-remaining", "not-a-number".parse().unwrap());
+    assert_eq!(parse_hourly_remaining(&headers), None);
+}
+
+#[test]
+fn domain_maps_supported_games() {
+    assert_eq!(nexus_domain("pd3"), Ok("payday3"));
+    assert_eq!(nexus_domain("cb"), Ok("crimebossrockaycity"));
+}
+
+#[test]
+fn domain_rejects_unsupported_games() {
+    assert!(nexus_domain("pd2").is_err());
+    assert!(nexus_domain("pdth").is_err());
+    assert!(nexus_domain("made_up").is_err());
+}

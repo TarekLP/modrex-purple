@@ -47,6 +47,12 @@ pub fn run() {
             commands::api::list_mod_links,
             commands::api::list_categories,
             commands::api::register_download,
+            // nexus (prototype)
+            commands::nexus::nexus_list_mods,
+            commands::nexus::nexus_get_mod,
+            commands::nexus::nexus_list_mod_files,
+            commands::nexus::nexus_get_download_link,
+            commands::nexus::nexus_validate_key,
             // discord
             commands::discord::set_discord_presence_enabled,
             commands::discord::update_discord_presence,
@@ -62,6 +68,9 @@ pub fn run() {
             commands::settings::dismiss_deps_warning,
             commands::settings::get_analytics_consent,
             commands::settings::set_analytics_consent,
+            commands::settings::set_nexus_api_key,
+            commands::settings::clear_nexus_api_key,
+            commands::settings::nexus_key_configured,
             commands::analytics::track_event,
             // mods
             commands::mods::get_installed,
