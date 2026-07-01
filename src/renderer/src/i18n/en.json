@@ -332,6 +332,15 @@
             "description": "If something goes wrong, open the log file and attach it to your bug report.",
             "open": "Open log file"
         },
+        "nexusPrototype": {
+            "title": "Nexus Mods API Key (Prototype)",
+            "description": "Internal testing only — not a supported download source yet. The key is stored locally and never leaves this device.",
+            "placeholder": "Paste your personal API key",
+            "save": "Save",
+            "clear": "Clear",
+            "configured": "A key is saved.",
+            "notConfigured": "No key saved."
+        },
         "crimeBossInstallMode": {
             "title": "New Mod Installs",
             "description": "Where new Crime Boss mods go by default. You can also move an already-installed mod later from the Installed list.",

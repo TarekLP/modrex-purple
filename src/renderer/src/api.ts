@@ -102,6 +102,19 @@ export const api = {
         return invoke('open_log_file')
     },
 
+    // ── Nexus (prototype) ───────────────────────────────────────────────────────
+    // Dev/testing only — see the field comment on Settings::nexus_api_key in
+    // settings.rs for why this isn't the shipped auth path.
+    isNexusKeyConfigured(): Promise<boolean> {
+        return invoke('nexus_key_configured')
+    },
+    setNexusApiKey(key: string): Promise<void> {
+        return invoke('set_nexus_api_key', { key })
+    },
+    clearNexusApiKey(): Promise<void> {
+        return invoke('clear_nexus_api_key')
+    },
+
     // ── Analytics ────────────────────────────────────────────────────────────────
     // Fire-and-forget: the Rust side gates on consent and swallows errors, so callers
     // never need to await or catch.
