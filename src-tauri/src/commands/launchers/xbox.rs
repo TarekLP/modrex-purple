@@ -1,9 +1,11 @@
 use crate::commands::launchers::types::{GameDef, Launcher};
+#[cfg(target_os = "windows")]
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(target_os = "windows")]
+use std::path::PathBuf;
 
 const GAMING_APP: &str = "Microsoft.GamingApp_8wekyb3d8bbwe";
-const DRIVES: &[&str] = &["C", "D", "E", "F", "G"];
 
 pub struct Xbox;
 
@@ -30,7 +32,7 @@ impl Launcher for Xbox {
         let result = find_in_drives(game.name, def.executable)
             .or_else(|| find_via_package_manager(def.product_id, def.executable));
         #[cfg(not(target_os = "windows"))]
-        let result = find_in_drives(game.name, def.executable);
+        let result = None;
 
         result
     }
@@ -51,41 +53,40 @@ impl Launcher for Xbox {
     }
 }
 
-// GetDriveTypeW reads the local mount table only, no volume or network I/O,
-// so it's safe to call before touching a drive.
+// Neither call does volume or network I/O, so enumeration can't stall on a dead
+// drive. Non-fixed drives are excluded: stats on a disconnected network/VPN drive
+// block for the SMB timeout, and Xbox installs only ever live on fixed volumes.
 #[cfg(target_os = "windows")]
-fn is_fixed_drive(root: &Path) -> bool {
-    use std::os::windows::ffi::OsStrExt;
+fn fixed_drive_roots() -> Vec<PathBuf> {
     const DRIVE_FIXED: u32 = 3;
     #[link(name = "kernel32")]
     extern "system" {
+        fn GetLogicalDrives() -> u32;
         fn GetDriveTypeW(root_path_name: *const u16) -> u32;
     }
-    let wide: Vec<u16> = root
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    unsafe { GetDriveTypeW(wide.as_ptr()) == DRIVE_FIXED }
+    let mask = unsafe { GetLogicalDrives() };
+    (0..26)
+        .filter(|i| mask & (1u32 << i) != 0)
+        .map(|i| format!("{}:\\", (b'A' + i) as char))
+        .filter(|root| {
+            let wide: Vec<u16> = root.encode_utf16().chain(std::iter::once(0)).collect();
+            unsafe { GetDriveTypeW(wide.as_ptr()) == DRIVE_FIXED }
+        })
+        .map(PathBuf::from)
+        .collect()
 }
 
+#[cfg(target_os = "windows")]
 fn find_in_drives(game_name: &str, xbox_executable: &str) -> Option<String> {
-    for drive in DRIVES {
-        let drive_root = PathBuf::from(format!("{}:\\", drive));
-        // Stats on a disconnected network/VPN drive block for the SMB timeout per
-        // subdirectory, Xbox installs only ever live on fixed volumes.
-        #[cfg(target_os = "windows")]
-        if !is_fixed_drive(&drive_root) {
-            continue;
-        }
-        if !drive_root.exists() {
-            continue;
-        }
+    for drive_root in fixed_drive_roots() {
         let dirs = match fs::read_dir(&drive_root) {
             Ok(d) => d,
             Err(_) => continue,
         };
         for entry in dirs.flatten() {
+            if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                continue;
+            }
             let candidate = entry.path().join(game_name).join("Content");
             if candidate.join(xbox_executable).exists() {
                 return Some(candidate.to_string_lossy().into_owned());

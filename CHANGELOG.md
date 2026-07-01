@@ -7,6 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Fixed
 
 - Fixed the app freezing at startup ("Modrex is not responding") when game detection hit a disconnected network drive, card reader, or stuck Windows service.
+- Fixed Xbox game detection not finding games installed on drive letters beyond G:.
 
 ## 0.12.1
 
