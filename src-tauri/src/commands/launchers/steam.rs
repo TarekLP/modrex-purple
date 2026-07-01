@@ -72,18 +72,14 @@ fn steam_install_path() -> Option<String> {
     static CACHE: OnceLock<Option<String>> = OnceLock::new();
     CACHE
         .get_or_init(|| {
-            use std::os::windows::process::CommandExt;
-            let out = std::process::Command::new("reg")
-                .args([
-                    "query",
-                    "HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam",
-                    "/v",
-                    "InstallPath",
-                ])
-                .creation_flags(0x08000000) // CREATE_NO_WINDOW
-                .output()
-                .ok()?;
-            let text = String::from_utf8_lossy(&out.stdout);
+            let mut cmd = std::process::Command::new("reg");
+            cmd.args([
+                "query",
+                "HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam",
+                "/v",
+                "InstallPath",
+            ]);
+            let text = super::run_bounded(cmd, std::time::Duration::from_secs(5))?;
             let line = text
                 .lines()
                 .find(|l| l.contains("InstallPath") && l.contains("REG_SZ"))?;

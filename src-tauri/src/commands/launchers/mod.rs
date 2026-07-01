@@ -54,6 +54,43 @@ fn detect_game(game: &'static GameDef) -> Option<DetectedGame> {
 
 // ── OS helpers ────────────────────────────────────────────────────────────────
 
+// reg and Get-AppxPackage hang forever when their backing service is wedged —
+// poll with a deadline and kill instead of .output()'s unbounded wait. Callers'
+// output is a single line, so reading stdout only after exit can't fill the pipe.
+#[cfg(target_os = "windows")]
+pub(super) fn run_bounded(
+    mut cmd: std::process::Command,
+    timeout: std::time::Duration,
+) -> Option<String> {
+    use std::io::Read;
+    use std::os::windows::process::CommandExt;
+    let mut child = cmd
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                let mut out = String::new();
+                if let Some(mut stdout) = child.stdout.take() {
+                    let _ = stdout.read_to_string(&mut out);
+                }
+                return Some(out);
+            }
+            Ok(None) if std::time::Instant::now() >= deadline => {
+                log::warn!("detection subprocess timed out after {timeout:?}: {cmd:?}");
+                let _ = child.kill();
+                return None;
+            }
+            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+            Err(_) => return None,
+        }
+    }
+}
+
 pub(super) fn open_url(url: &str) {
     #[cfg(target_os = "windows")]
     {
@@ -144,19 +181,29 @@ pub struct DetectedGame {
     pub game_path: String,
 }
 
+// Detection stats paths on every drive and Steam library, which blocks for the
+// SMB timeout on a dead network drive, sync commands run on the main thread,
+// so all detection work goes through spawn_blocking.
 #[tauri::command]
-pub fn auto_detect_game(game_id: Option<String>) -> Option<DetectedGame> {
-    detect_game(game_def_for_id(game_id.as_deref().unwrap_or("pd3")))
+pub async fn auto_detect_game(game_id: Option<String>) -> Option<DetectedGame> {
+    let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"));
+    tauri::async_runtime::spawn_blocking(move || detect_game(game))
+        .await
+        .unwrap_or(None)
 }
 
 #[tauri::command]
-pub fn installed_launchers(game_id: Option<String>) -> Vec<String> {
+pub async fn installed_launchers(game_id: Option<String>) -> Vec<String> {
     let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"));
-    all_launchers()
-        .iter()
-        .filter(|l| l.find_game(game).is_some())
-        .map(|l| l.id().to_string())
-        .collect()
+    tauri::async_runtime::spawn_blocking(move || {
+        all_launchers()
+            .iter()
+            .filter(|l| l.find_game(game).is_some())
+            .map(|l| l.id().to_string())
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 #[tauri::command]
@@ -164,17 +211,16 @@ pub fn identify_launcher(game_path: String) -> String {
     identify_launcher_for_path(&game_path)
 }
 
-#[tauri::command]
-pub fn configure_game_path(app: AppHandle, game_id: Option<String>, game_path: Option<String>) {
+fn resolve_and_save_game_path(app: &AppHandle, game_id: Option<String>, game_path: Option<String>) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let game_def = game_def_for_id(&game_id);
-    let mut s = read_settings(&app);
+    let mut s = read_settings(app);
     let games = s.games.get_or_insert_with(HashMap::new);
     let entry = games.entry(game_id).or_default();
     if let Some(ref path) = game_path {
         entry.game_path = Some(path.clone());
         entry.launcher = Some(identify_launcher_for_path(path));
-        write_settings(&app, &s);
+        write_settings(app, &s);
         return;
     }
     // Validate existing saved path before falling back to auto-detect.
@@ -194,7 +240,19 @@ pub fn configure_game_path(app: AppHandle, game_id: Option<String>, game_path: O
         entry.game_path = None;
         entry.launcher = None;
     }
-    write_settings(&app, &s);
+    write_settings(app, &s);
+}
+
+#[tauri::command]
+pub async fn configure_game_path(
+    app: AppHandle,
+    game_id: Option<String>,
+    game_path: Option<String>,
+) {
+    let _ = tauri::async_runtime::spawn_blocking(move || {
+        resolve_and_save_game_path(&app, game_id, game_path)
+    })
+    .await;
 }
 
 #[tauri::command]
@@ -384,12 +442,16 @@ fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
 }
 
 #[tauri::command]
-pub fn is_game_running(game_id: Option<String>) -> bool {
+pub async fn is_game_running(game_id: Option<String>) -> bool {
     let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_names;
-    let sys = refresh_process_list();
-    sys.processes()
-        .values()
-        .any(|p| process_names.iter().any(|n| process_matches(p, n)))
+    tauri::async_runtime::spawn_blocking(move || {
+        let sys = refresh_process_list();
+        sys.processes()
+            .values()
+            .any(|p| process_names.iter().any(|n| process_matches(p, n)))
+    })
+    .await
+    .unwrap_or(false)
 }
 
 #[tauri::command]

@@ -51,9 +51,33 @@ impl Launcher for Xbox {
     }
 }
 
+// GetDriveTypeW reads the local mount table only, no volume or network I/O,
+// so it's safe to call before touching a drive.
+#[cfg(target_os = "windows")]
+fn is_fixed_drive(root: &Path) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    const DRIVE_FIXED: u32 = 3;
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetDriveTypeW(root_path_name: *const u16) -> u32;
+    }
+    let wide: Vec<u16> = root
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    unsafe { GetDriveTypeW(wide.as_ptr()) == DRIVE_FIXED }
+}
+
 fn find_in_drives(game_name: &str, xbox_executable: &str) -> Option<String> {
     for drive in DRIVES {
         let drive_root = PathBuf::from(format!("{}:\\", drive));
+        // Stats on a disconnected network/VPN drive block for the SMB timeout per
+        // subdirectory, Xbox installs only ever live on fixed volumes.
+        #[cfg(target_os = "windows")]
+        if !is_fixed_drive(&drive_root) {
+            continue;
+        }
         if !drive_root.exists() {
             continue;
         }
@@ -73,24 +97,22 @@ fn find_in_drives(game_name: &str, xbox_executable: &str) -> Option<String> {
 
 #[cfg(target_os = "windows")]
 fn find_via_package_manager(product_id: &str, xbox_executable: &str) -> Option<String> {
-    use std::os::windows::process::CommandExt;
     let script = format!(
         "$p=Get-AppxPackage|?{{$c=Join-Path $_.InstallLocation 'Content\\MicrosoftGame.config';(Test-Path $c)-and((gc $c -Raw)-match '{}')}}|Select -First 1;if($p){{Join-Path $p.InstallLocation 'Content'}}",
         product_id
     );
-    let out = std::process::Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-WindowStyle",
-            "Hidden",
-            "-Command",
-            &script,
-        ])
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW
-        .output()
-        .ok()?;
-    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let mut cmd = std::process::Command::new("powershell");
+    cmd.args([
+        "-NoProfile",
+        "-NonInteractive",
+        "-WindowStyle",
+        "Hidden",
+        "-Command",
+        &script,
+    ]);
+    // Get-AppxPackage legitimately takes ~10s on slow machines, bound generously.
+    let out = super::run_bounded(cmd, std::time::Duration::from_secs(15))?;
+    let path = out.trim().to_string();
     if path.is_empty() {
         return None;
     }

@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Fixed
+
+- Fixed the app freezing at startup ("Modrex is not responding") when game detection hit a disconnected network drive, card reader, or stuck Windows service.
+
 ## 0.12.1
 
 ### Added
