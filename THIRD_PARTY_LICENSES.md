@@ -6895,6 +6895,137 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
+## Creative Commons Zero v1.0 Universal
+
+Used by: tiny-keccak 2.0.2
+
+```
+Creative Commons Legal Code
+
+CC0 1.0 Universal
+
+    CREATIVE COMMONS CORPORATION IS NOT A LAW FIRM AND DOES NOT PROVIDE
+    LEGAL SERVICES. DISTRIBUTION OF THIS DOCUMENT DOES NOT CREATE AN
+    ATTORNEY-CLIENT RELATIONSHIP. CREATIVE COMMONS PROVIDES THIS
+    INFORMATION ON AN "AS-IS" BASIS. CREATIVE COMMONS MAKES NO WARRANTIES
+    REGARDING THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS
+    PROVIDED HEREUNDER, AND DISCLAIMS LIABILITY FOR DAMAGES RESULTING FROM
+    THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS PROVIDED
+    HEREUNDER.
+
+Statement of Purpose
+
+The laws of most jurisdictions throughout the world automatically confer
+exclusive Copyright and Related Rights (defined below) upon the creator
+and subsequent owner(s) (each and all, an "owner") of an original work of
+authorship and/or a database (each, a "Work").
+
+Certain owners wish to permanently relinquish those rights to a Work for
+the purpose of contributing to a commons of creative, cultural and
+scientific works ("Commons") that the public can reliably and without fear
+of later claims of infringement build upon, modify, incorporate in other
+works, reuse and redistribute as freely as possible in any form whatsoever
+and for any purposes, including without limitation commercial purposes.
+These owners may contribute to the Commons to promote the ideal of a free
+culture and the further production of creative, cultural and scientific
+works, or to gain reputation or greater distribution for their Work in
+part through the use and efforts of others.
+
+For these and/or other purposes and motivations, and without any
+expectation of additional consideration or compensation, the person
+associating CC0 with a Work (the "Affirmer"), to the extent that he or she
+is an owner of Copyright and Related Rights in the Work, voluntarily
+elects to apply CC0 to the Work and publicly distribute the Work under its
+terms, with knowledge of his or her Copyright and Related Rights in the
+Work and the meaning and intended legal effect of CC0 on those rights.
+
+1. Copyright and Related Rights. A Work made available under CC0 may be
+protected by copyright and related or neighboring rights ("Copyright and
+Related Rights"). Copyright and Related Rights include, but are not
+limited to, the following:
+
+  i. the right to reproduce, adapt, distribute, perform, display,
+     communicate, and translate a Work;
+ ii. moral rights retained by the original author(s) and/or performer(s);
+iii. publicity and privacy rights pertaining to a person's image or
+     likeness depicted in a Work;
+ iv. rights protecting against unfair competition in regards to a Work,
+     subject to the limitations in paragraph 4(a), below;
+  v. rights protecting the extraction, dissemination, use and reuse of data
+     in a Work;
+ vi. database rights (such as those arising under Directive 96/9/EC of the
+     European Parliament and of the Council of 11 March 1996 on the legal
+     protection of databases, and under any national implementation
+     thereof, including any amended or successor version of such
+     directive); and
+vii. other similar, equivalent or corresponding rights throughout the
+     world based on applicable law or treaty, and any national
+     implementations thereof.
+
+2. Waiver. To the greatest extent permitted by, but not in contravention
+of, applicable law, Affirmer hereby overtly, fully, permanently,
+irrevocably and unconditionally waives, abandons, and surrenders all of
+Affirmer's Copyright and Related Rights and associated claims and causes
+of action, whether now known or unknown (including existing as well as
+future claims and causes of action), in the Work (i) in all territories
+worldwide, (ii) for the maximum duration provided by applicable law or
+treaty (including future time extensions), (iii) in any current or future
+medium and for any number of copies, and (iv) for any purpose whatsoever,
+including without limitation commercial, advertising or promotional
+purposes (the "Waiver"). Affirmer makes the Waiver for the benefit of each
+member of the public at large and to the detriment of Affirmer's heirs and
+successors, fully intending that such Waiver shall not be subject to
+revocation, rescission, cancellation, termination, or any other legal or
+equitable action to disrupt the quiet enjoyment of the Work by the public
+as contemplated by Affirmer's express Statement of Purpose.
+
+3. Public License Fallback. Should any part of the Waiver for any reason
+be judged legally invalid or ineffective under applicable law, then the
+Waiver shall be preserved to the maximum extent permitted taking into
+account Affirmer's express Statement of Purpose. In addition, to the
+extent the Waiver is so judged Affirmer hereby grants to each affected
+person a royalty-free, non transferable, non sublicensable, non exclusive,
+irrevocable and unconditional license to exercise Affirmer's Copyright and
+Related Rights in the Work (i) in all territories worldwide, (ii) for the
+maximum duration provided by applicable law or treaty (including future
+time extensions), (iii) in any current or future medium and for any number
+of copies, and (iv) for any purpose whatsoever, including without
+limitation commercial, advertising or promotional purposes (the
+"License"). The License shall be deemed effective as of the date CC0 was
+applied by Affirmer to the Work. Should any part of the License for any
+reason be judged legally invalid or ineffective under applicable law, such
+partial invalidity or ineffectiveness shall not invalidate the remainder
+of the License, and in such case Affirmer hereby affirms that he or she
+will not (i) exercise any of his or her remaining Copyright and Related
+Rights in the Work or (ii) assert any associated claims and causes of
+action with respect to the Work, in either case contrary to Affirmer's
+express Statement of Purpose.
+
+4. Limitations and Disclaimers.
+
+ a. No trademark or patent rights held by Affirmer are waived, abandoned,
+    surrendered, licensed or otherwise affected by this document.
+ b. Affirmer offers the Work as-is and makes no representations or
+    warranties of any kind concerning the Work, express, implied,
+    statutory or otherwise, including without limitation warranties of
+    title, merchantability, fitness for a particular purpose, non
+    infringement, or the absence of latent or other defects, accuracy, or
+    the present or absence of errors, whether or not discoverable, all to
+    the greatest extent permissible under applicable law.
+ c. Affirmer disclaims responsibility for clearing rights of other persons
+    that may apply to the Work or any use thereof, including without
+    limitation any person's Copyright and Related Rights in the Work.
+    Further, Affirmer disclaims responsibility for obtaining any necessary
+    consents, permissions or other rights required for any use of the
+    Work.
+ d. Affirmer understands and acknowledges that Creative Commons is not a
+    party to this document and has no duty or obligation with respect to
+    this CC0 or use of the Work.
+
+```
+
+---
+
 ## ISC License
 
 Used by: untrusted 0.9.0
@@ -7012,6 +7143,37 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 The files under third-party/chromium are licensed as described in
 third-party/chromium/LICENSE.
+
+```
+
+---
+
+## MIT License
+
+Used by: uds_windows 1.2.1
+
+```
+    MIT License
+
+    Copyright (c) Microsoft Corporation. All rights reserved.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
 
 ```
 
@@ -8142,7 +8304,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: hashbrown 0.12.3, hashbrown 0.14.5, hashbrown 0.17.1
+Used by: const-random-macro 0.1.16, const-random 0.1.18, hashbrown 0.12.3, hashbrown 0.14.5, hashbrown 0.17.1
 
 ```
 Copyright (c) 2016 Amanieu d'Antras
@@ -8768,6 +8930,41 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
+Used by: enumflags2_derive 0.7.12
+
+```
+Copyright (c) 2017 Maik Klein
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
 Used by: keyboard-types 0.7.0
 
 ```
@@ -9064,6 +9261,41 @@ Used by: signal-hook-registry 1.4.8
 
 ```
 Copyright (c) 2017 tokio-jsonrpc developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
+Used by: enumflags2 0.7.12
+
+```
+Copyright (c) 2017-2023 Maik Klein, Maja Kądziołka
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -9643,7 +9875,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: tokio-native-tls 0.3.1, tracing-core 0.1.36, tracing 0.1.44
+Used by: tokio-native-tls 0.3.1, tracing-attributes 0.1.31, tracing-core 0.1.36, tracing 0.1.44
 
 ```
 Copyright (c) 2019 Tokio Contributors
@@ -10174,7 +10406,42 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: serde_spanned 0.6.9, serde_spanned 1.1.1, toml 0.8.2, toml 0.9.12+spec-1.1.0, toml 1.1.2+spec-1.1.0, toml_datetime 0.7.5+spec-1.1.0, toml_datetime 1.1.1+spec-1.1.0, toml_edit 0.19.15, toml_edit 0.20.2, toml_parser 1.1.2+spec-1.1.0, toml_writer 1.1.1+spec-1.1.0
+Used by: zbus 5.16.0, zbus_macros 5.16.0, zbus_names 4.3.2, zvariant 5.12.0, zvariant_derive 5.12.0
+
+```
+Copyright (c) 2024 Zeeshan Ali Khan & zbus contributors
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
+Used by: serde_spanned 0.6.9, serde_spanned 1.1.1, toml 0.8.2, toml 0.9.12+spec-1.1.0, toml 1.1.2+spec-1.1.0, toml_datetime 0.7.5+spec-1.1.0, toml_datetime 1.1.1+spec-1.1.0, toml_edit 0.19.15, toml_edit 0.20.2, toml_edit 0.25.11+spec-1.1.0, toml_parser 1.1.2+spec-1.1.0, toml_writer 1.1.1+spec-1.1.0
 
 ```
 Copyright (c) Individual contributors
@@ -10882,6 +11149,37 @@ SOFTWARE.
 
 ## MIT License
 
+Used by: ordered-multimap 0.7.3
+
+```
+MIT License
+
+Copyright (c) 2018 sgodwincs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
 Used by: zeroize 1.8.2
 
 ```
@@ -11410,6 +11708,36 @@ SOFTWARE.
 
 ## MIT License
 
+Used by: dlv-list 0.5.2
+
+```
+MIT License
+
+Copyright (c) 2022 Scott Godwin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## MIT License
+
 Used by: muda 0.19.2
 
 ```
@@ -11570,7 +11898,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: modrex 0.12.1, brotli-decompressor 5.0.0, cargo_toml 0.22.3, chrono 0.4.44, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, fxhash 0.2.1, mac 0.1.1, minisign-verify 0.2.5, phf 0.10.1, phf_codegen 0.10.0, phf_generator 0.10.0, phf_shared 0.10.0, servo_arc 0.3.0, siphasher 0.3.11, siphasher 1.0.3, tauri-build 2.6.2, tauri-codegen 2.6.2, tauri-macros 2.6.2, tauri-plugin-dialog 2.7.1, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.8.0, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.2, tauri-runtime 2.11.2, tauri-utils 2.9.2, tauri 2.11.2, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-core 0.57.0, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-implement 0.57.0, windows-implement 0.60.2, windows-interface 0.57.0, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-registry 0.6.1, windows-result 0.1.2, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-version 0.1.7, windows 0.57.0, windows 0.61.3, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
+Used by: modrex 0.12.1, brotli-decompressor 5.0.0, cargo_toml 0.22.3, chrono 0.4.44, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, fxhash 0.2.1, mac 0.1.1, minisign-verify 0.2.5, phf 0.10.1, phf_codegen 0.10.0, phf_generator 0.10.0, phf_shared 0.10.0, servo_arc 0.3.0, siphasher 0.3.11, siphasher 1.0.3, tauri-build 2.6.2, tauri-codegen 2.6.2, tauri-macros 2.6.2, tauri-plugin-deep-link 2.4.9, tauri-plugin-dialog 2.7.1, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.8.0, tauri-plugin-single-instance 2.4.2, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.2, tauri-runtime 2.11.2, tauri-utils 2.9.2, tauri 2.11.2, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-core 0.57.0, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-implement 0.57.0, windows-implement 0.60.2, windows-interface 0.57.0, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-registry 0.5.3, windows-registry 0.6.1, windows-result 0.1.2, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-version 0.1.7, windows 0.57.0, windows 0.61.3, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
 
 ```
 MIT License
@@ -11759,7 +12087,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: rustc-hash 2.1.2
+Used by: async-recursion 1.1.1, rustc-hash 2.1.2
 
 ```
 Permission is hereby granted, free of charge, to any
@@ -11791,7 +12119,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: adler2 2.0.1, anyhow 1.0.102, atomic-waker 1.1.2, camino 1.2.2, cargo-platform 0.1.9, cargo_metadata 0.19.2, displaydoc 0.2.5, dtoa 1.0.11, dyn-clone 1.0.20, erased-serde 0.4.10, fastrand 2.4.1, itoa 1.0.18, linux-raw-sys 0.12.1, once_cell 1.21.4, pin-project-lite 0.2.17, proc-macro-crate 1.3.1, proc-macro-crate 2.0.2, proc-macro2 1.0.106, quote 1.0.45, rustix 1.1.4, semver 1.0.28, serde-untagged 0.1.9, serde 1.0.228, serde_core 1.0.228, serde_derive 1.0.228, serde_derive_internals 0.29.1, serde_json 1.0.150, serde_repr 0.1.20, servo_arc 0.4.3, syn 1.0.109, syn 2.0.117, system-deps 6.2.2, thiserror-impl 1.0.69, thiserror-impl 2.0.18, thiserror 1.0.69, thiserror 2.0.18, typeid 1.0.3, unicode-ident 1.0.24, unrar 0.5.8, utf-8 0.7.6, x11-dl 2.21.0, x11 2.21.0, zmij 1.0.21
+Used by: adler2 2.0.1, anyhow 1.0.102, async-channel 2.5.0, async-executor 1.14.0, async-io 2.6.0, async-lock 3.4.2, async-process 2.5.0, async-signal 0.2.14, async-task 4.7.1, async-trait 0.1.89, atomic-waker 1.1.2, blocking 1.6.2, camino 1.2.2, cargo-platform 0.1.9, cargo_metadata 0.19.2, concurrent-queue 2.5.0, displaydoc 0.2.5, dtoa 1.0.11, dyn-clone 1.0.20, endi 1.1.1, erased-serde 0.4.10, event-listener-strategy 0.5.4, event-listener 5.4.1, fastrand 2.4.1, futures-lite 2.6.1, itoa 1.0.18, linux-raw-sys 0.12.1, once_cell 1.21.4, ordered-stream 0.2.0, parking 2.2.1, pin-project-lite 0.2.17, piper 0.2.5, polling 3.11.0, proc-macro-crate 1.3.1, proc-macro-crate 2.0.2, proc-macro-crate 3.5.0, proc-macro2 1.0.106, quote 1.0.45, rustix 1.1.4, semver 1.0.28, serde-untagged 0.1.9, serde 1.0.228, serde_core 1.0.228, serde_derive 1.0.228, serde_derive_internals 0.29.1, serde_json 1.0.150, serde_repr 0.1.20, servo_arc 0.4.3, syn 1.0.109, syn 2.0.117, system-deps 6.2.2, thiserror-impl 1.0.69, thiserror-impl 2.0.18, thiserror 1.0.69, thiserror 2.0.18, typeid 1.0.3, unicode-ident 1.0.24, unrar 0.5.8, utf-8 0.7.6, x11-dl 2.21.0, x11 2.21.0, zmij 1.0.21, zvariant_utils 3.4.0
 
 ```
 Permission is hereby granted, free of charge, to any
@@ -12077,6 +12405,25 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
+Used by: rust-ini 0.21.3
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2014 Y. T. CHUNG
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ```
 
@@ -12465,6 +12812,37 @@ SOFTWARE.
 
 ## MIT License
 
+Used by: async-broadcast 0.7.2
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2020 Yoshua Wuyts
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
 Used by: tauri-winres 0.3.6
 
 ```
@@ -12496,6 +12874,37 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+
+```
+
+---
+
+## MIT License
+
+Used by: crunchy 0.2.4
+
+```
+The MIT License (MIT)
+
+Copyright 2017-2023 Eira Fransham.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ```
 

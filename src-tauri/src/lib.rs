@@ -1,6 +1,7 @@
 mod commands;
 
 use tauri::Manager;
+use tauri_plugin_deep_link::DeepLinkExt;
 
 pub fn run() {
     std::panic::set_hook(Box::new(|panic_info| {
@@ -15,7 +16,15 @@ pub fn run() {
 
     let (discord_state, discord_rx) = commands::discord::DiscordState::new(true);
 
-    let app = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
+            log::info!("second instance launched with {argv:?}");
+        }));
+    }
+
+    let app = builder
         .manage(commands::updater::UpdaterState::new())
         .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {
@@ -23,6 +32,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Warn)
@@ -36,6 +46,23 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
             }
+
+            #[cfg(desktop)]
+            app.deep_link().register("nxm")?;
+
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    let handle = handle.clone();
+                    let url = url.to_string();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = commands::nxm::handle_nxm_url(&handle, &url).await {
+                            log::warn!("nxm handoff failed: {e}");
+                        }
+                    });
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

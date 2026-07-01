@@ -73,7 +73,7 @@ fn rate_limiter() -> &'static Mutex<TokenBucket> {
 
 // Only the two games Modrex actually installs to today are wired up — an
 // unsupported id is a real error, not a silent fallback to a default game.
-fn nexus_domain(game_id: &str) -> Result<&'static str, String> {
+pub(crate) fn nexus_domain(game_id: &str) -> Result<&'static str, String> {
     match game_id {
         "pd3" => Ok("payday3"),
         "cb" => Ok("crimebossrockaycity"),
@@ -81,13 +81,33 @@ fn nexus_domain(game_id: &str) -> Result<&'static str, String> {
     }
 }
 
-async fn nexus_get(app: &AppHandle, path: &str) -> Result<Value, String> {
+// Reverse of nexus_domain, for nxm:// links where Nexus hands us its own
+// domain and we need the internal game_id to route the download.
+pub(crate) fn game_id_for_domain(domain: &str) -> Result<&'static str, String> {
+    match domain {
+        "payday3" => Ok("pd3"),
+        "crimebossrockaycity" => Ok("cb"),
+        other => Err(format!("nexus: no game id mapping for domain '{other}'")),
+    }
+}
+
+async fn nexus_get(
+    app: &AppHandle,
+    path: &str,
+    query: Vec<(&str, String)>,
+) -> Result<Value, String> {
     let api_key = read_settings(app)
         .nexus_api_key
         .filter(|k| !k.trim().is_empty())
         .ok_or_else(|| "nexus: no API key configured".to_string())?;
 
-    let url = format!("{BASE}{path}");
+    let mut url = reqwest::Url::parse(&format!("{BASE}{path}")).map_err(|e| e.to_string())?;
+    {
+        let mut pairs = url.query_pairs_mut();
+        for (k, v) in &query {
+            pairs.append_pair(k, v);
+        }
+    }
     let client = http_client();
     let ua = user_agent(app);
 
@@ -106,7 +126,7 @@ async fn nexus_get(app: &AppHandle, path: &str) -> Result<Value, String> {
         }
 
         let res = client
-            .get(&url)
+            .get(url.clone())
             .header("apikey", &api_key)
             .header("Accept", "application/json")
             .header("User-Agent", &ua)
@@ -155,23 +175,22 @@ pub async fn nexus_list_mods(
     period: Option<String>,
 ) -> Result<Value, String> {
     let domain = nexus_domain(&game_id)?;
-    let path = match listing.as_str() {
-        "updated" => format!(
-            "/games/{}/mods/updated.json?period={}",
-            domain,
-            period.as_deref().unwrap_or("1m")
+    let (path, query) = match listing.as_str() {
+        "updated" => (
+            format!("/games/{domain}/mods/updated.json"),
+            vec![("period", period.unwrap_or_else(|| "1m".to_string()))],
         ),
-        "latest_added" => format!("/games/{domain}/mods/latest_added.json"),
-        "trending" => format!("/games/{domain}/mods/trending.json"),
+        "latest_added" => (format!("/games/{domain}/mods/latest_added.json"), vec![]),
+        "trending" => (format!("/games/{domain}/mods/trending.json"), vec![]),
         other => return Err(format!("nexus: unknown listing '{other}'")),
     };
-    nexus_get(&app, &path).await
+    nexus_get(&app, &path, query).await
 }
 
 #[tauri::command]
 pub async fn nexus_get_mod(app: AppHandle, game_id: String, mod_id: u32) -> Result<Value, String> {
     let domain = nexus_domain(&game_id)?;
-    nexus_get(&app, &format!("/games/{domain}/mods/{mod_id}.json")).await
+    nexus_get(&app, &format!("/games/{domain}/mods/{mod_id}.json"), vec![]).await
 }
 
 #[tauri::command]
@@ -181,29 +200,40 @@ pub async fn nexus_list_mod_files(
     mod_id: u32,
 ) -> Result<Value, String> {
     let domain = nexus_domain(&game_id)?;
-    nexus_get(&app, &format!("/games/{domain}/mods/{mod_id}/files.json")).await
+    nexus_get(
+        &app,
+        &format!("/games/{domain}/mods/{mod_id}/files.json"),
+        vec![],
+    )
+    .await
 }
 
-// Nexus 403s this for free accounts by design, confirmed live — not a bug
-// here. Free-tier path is the nxm:// handoff, not implemented yet.
+// key/expires come from a real nxm:// link, proof the download was
+// authorized via a site click — passing them lets this endpoint succeed for
+// free accounts too. Omitted, it 403s free accounts by design (confirmed
+// live, not a bug here); that direct path is for Premium only.
 #[tauri::command]
 pub async fn nexus_get_download_link(
     app: AppHandle,
     game_id: String,
     mod_id: u32,
     file_id: u32,
+    key: Option<String>,
+    expires: Option<String>,
 ) -> Result<Value, String> {
     let domain = nexus_domain(&game_id)?;
-    nexus_get(
-        &app,
-        &format!("/games/{domain}/mods/{mod_id}/files/{file_id}/download_link.json"),
-    )
-    .await
+    let path = format!("/games/{domain}/mods/{mod_id}/files/{file_id}/download_link.json");
+    let query = match (key, expires) {
+        (Some(key), Some(expires)) => vec![("key", key), ("expires", expires)],
+        (None, None) => vec![],
+        _ => return Err("nexus: key and expires must be provided together".to_string()),
+    };
+    nexus_get(&app, &path, query).await
 }
 
 #[tauri::command]
 pub async fn nexus_validate_key(app: AppHandle) -> Result<Value, String> {
-    nexus_get(&app, "/users/validate.json").await
+    nexus_get(&app, "/users/validate.json", vec![]).await
 }
 
 #[cfg(test)]

@@ -8,6 +8,7 @@ pub mod mod_index;
 pub mod mods;
 pub mod news;
 pub mod nexus;
+pub mod nxm;
 pub mod pdth_overrides;
 pub mod settings;
 pub mod superblt;
