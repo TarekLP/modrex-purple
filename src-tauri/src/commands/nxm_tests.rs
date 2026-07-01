@@ -17,6 +17,13 @@ fn parses_valid_link() {
 }
 
 #[test]
+fn domain_match_is_case_insensitive() {
+    let link =
+        parse_nxm_url("nxm://PAYDAY3/mods/12/files/34?key=abc123&expires=1700000000").unwrap();
+    assert_eq!(link.game_id, "pd3");
+}
+
+#[test]
 fn rejects_wrong_scheme() {
     assert!(parse_nxm_url("https://payday3/mods/12/files/34?key=a&expires=1").is_err());
 }

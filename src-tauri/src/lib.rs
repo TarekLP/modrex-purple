@@ -1,6 +1,6 @@
 mod commands;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 
 pub fn run() {
@@ -20,7 +20,8 @@ pub fn run() {
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
-            log::info!("second instance launched with {argv:?}");
+            // Not argv itself — it can carry an nxm:// URL with a real download token.
+            log::info!("second instance launched with {} arg(s)", argv.len());
         }));
     }
 
@@ -58,6 +59,8 @@ pub fn run() {
                     tauri::async_runtime::spawn(async move {
                         if let Err(e) = commands::nxm::handle_nxm_url(&handle, &url).await {
                             log::warn!("nxm handoff failed: {e}");
+                            // Mirrors the success path's emit; no listener yet either way.
+                            let _ = handle.emit("nxm:download-failed", e);
                         }
                     });
                 }

@@ -21,8 +21,12 @@ pub fn parse_nxm_url(url: &str) -> Result<NxmLink, String> {
     if parsed.scheme() != "nxm" {
         return Err(format!("nxm: unexpected scheme '{}'", parsed.scheme()));
     }
-    let domain = parsed.host_str().ok_or("nxm: missing game domain")?;
-    let game_id = game_id_for_domain(domain)?.to_string();
+    // nxm is not a special scheme, so url leaves the host case as-is unlike http(s).
+    let domain = parsed
+        .host_str()
+        .ok_or("nxm: missing game domain")?
+        .to_lowercase();
+    let game_id = game_id_for_domain(&domain)?.to_string();
 
     let segments: Vec<&str> = parsed
         .path_segments()
@@ -82,7 +86,16 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
         .ok_or("nxm: no download URI in resolved link")?;
     let ext = extension_from_uri(uri).ok_or("nxm: could not determine file extension from URI")?;
 
-    let dest = download_file(app, uri, &ext, &uuid::Uuid::new_v4().to_string()).await?;
+    // nxm-prefixed so it never collides with the app's other download-id conventions.
+    let download_id = format!("nxm:{}:{}", link.mod_id, link.file_id);
+    let dest = download_file(app, uri, &ext, &download_id).await?;
+
+    // No renderer listens for this yet, so the log is the only record of where it landed.
+    log::info!(
+        "nxm download complete: mod {} file {} -> {dest:?}",
+        link.mod_id,
+        link.file_id
+    );
 
     app.emit(
         "nxm:download-complete",
