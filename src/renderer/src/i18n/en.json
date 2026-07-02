@@ -93,7 +93,6 @@
         "noMods": "No mods found",
         "loadFailed": "Couldn't load mods",
         "modCount": "{total} mods",
-        "download": "Download",
         "keyMissing": "Add your Nexus Mods API key to browse mods from Nexus.",
         "goToSettings": "Configure in Settings",
         "sort": {

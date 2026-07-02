@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Search, Download, ThumbsUp, Clock, ExternalLink, Trash2 } from 'lucide-react'
+import { Search, Download, ThumbsUp, Clock, Trash2 } from 'lucide-react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { SearchClearButton } from './ui/SearchClearButton'
@@ -206,8 +206,8 @@ function NexusModCard({
                             </Button>
                         ) : (
                             <Button variant="accent" size="sm" onClick={openOnNexus}>
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                {t('nexus.download')}
+                                <Download className="w-3.5 h-3.5" />
+                                {t('common.install')}
                             </Button>
                         )}
                     </>
