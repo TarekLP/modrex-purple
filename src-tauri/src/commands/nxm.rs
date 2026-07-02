@@ -117,7 +117,21 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
         .and_then(|gs| gs.game_path.clone())
         .ok_or_else(|| format!("nxm: no game path configured for '{}'", link.game_id))?;
 
-    let mod_info = nexus_get_mod(app.clone(), link.game_id.clone(), link.mod_id).await?;
+    // Independent requests; the rate limiter's burst covers both at once.
+    let (mod_info, resolved) = futures::join!(
+        nexus_get_mod(app.clone(), link.game_id.clone(), link.mod_id),
+        nexus_get_download_link(
+            app.clone(),
+            link.game_id.clone(),
+            link.mod_id,
+            link.file_id,
+            Some(link.key.clone()),
+            Some(link.expires.clone()),
+        )
+    );
+    let mod_info = mod_info?;
+    let resolved = resolved?;
+
     let mod_name = mod_info["name"]
         .as_str()
         .ok_or("nxm: mod info missing name")?
@@ -126,16 +140,6 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
     let mod_author = mod_info["author"].as_str().map(|s| s.to_string());
     let thumbnail_url = mod_info["picture_url"].as_str().map(|s| s.to_string());
 
-    let resolved = nexus_get_download_link(
-        app.clone(),
-        link.game_id.clone(),
-        link.mod_id,
-        link.file_id,
-        Some(link.key.clone()),
-        Some(link.expires.clone()),
-    )
-    .await?;
-
     let uri = resolved
         .get(0)
         .and_then(|v| v.get("URI"))
@@ -143,8 +147,9 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
         .ok_or("nxm: no download URI in resolved link")?;
     let ext = resolve_extension(app, &link, uri).await?;
 
-    // nxm-prefixed so it never collides with the app's other download-id conventions.
-    let download_id = format!("nxm:{}:{}", link.mod_id, link.file_id);
+    // nxm-prefixed so it never collides with the app's other download-id
+    // conventions; carries the game so the renderer can scope progress to it.
+    let download_id = format!("nxm:{}:{}:{}", link.game_id, link.mod_id, link.file_id);
     let dest = download_file(app, uri, &ext, &download_id).await?;
 
     install_nexus_download(

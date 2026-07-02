@@ -28,14 +28,20 @@ static RATE_REMAINING: AtomicI64 = AtomicI64::new(-1);
 const LOW_REMAINING_THRESHOLD: i64 = 5;
 const LOW_REMAINING_PAUSE: Duration = Duration::from_secs(3);
 
-fn parse_rate_limit_remaining(headers: &HeaderMap) -> Option<i64> {
+// Shared with the Nexus client, which reads its own quota header name.
+pub(crate) fn parse_remaining_header(headers: &HeaderMap, name: &str) -> Option<i64> {
     headers
-        .get("x-ratelimit-remaining")
+        .get(name)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.parse::<i64>().ok())
 }
 
-struct TokenBucket {
+fn parse_rate_limit_remaining(headers: &HeaderMap) -> Option<i64> {
+    parse_remaining_header(headers, "x-ratelimit-remaining")
+}
+
+// Shared with the Nexus client, which runs its own instance with its own limits.
+pub(crate) struct TokenBucket {
     tokens: f64,
     max: f64,
     refill_per_ms: f64,
@@ -43,7 +49,7 @@ struct TokenBucket {
 }
 
 impl TokenBucket {
-    fn new(max: f64, per_second: f64) -> Self {
+    pub(crate) fn new(max: f64, per_second: f64) -> Self {
         Self {
             tokens: max,
             max,
@@ -52,7 +58,7 @@ impl TokenBucket {
         }
     }
 
-    fn consume(&mut self) -> Duration {
+    pub(crate) fn consume(&mut self) -> Duration {
         let now = Instant::now();
         let elapsed_ms = now.duration_since(self.last_refill).as_secs_f64() * 1000.0;
         self.tokens = (self.tokens + elapsed_ms * self.refill_per_ms).min(self.max);

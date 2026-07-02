@@ -113,10 +113,6 @@ export const api = {
     clearNexusApiKey(): Promise<void> {
         return invoke('clear_nexus_api_key')
     },
-    // Raw passthrough of Nexus's own JSON shape; no verified field mapping yet.
-    nexusListMods(gameId: string, listing: string): Promise<unknown[]> {
-        return invoke('nexus_list_mods', { gameId, listing })
-    },
     // GraphQL v2 search, verified live via schema introspection. Empty query omits
     // the name filter (browse-by-sort instead of search). sort is one of
     // "relevance" | "downloads" | "endorsements" | "updatedAt".

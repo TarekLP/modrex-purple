@@ -8,6 +8,7 @@ import { Select } from './Select'
 import { Button } from './ui/Button'
 import { Toggle } from './Toggle'
 import { Tooltip } from './Tooltip'
+import { formatCount, formatRelativeTime } from './modDetail/format'
 import { t } from '../i18n'
 import { api } from '../api'
 
@@ -66,25 +67,6 @@ function buildPages(current: number, last: number): (number | '...')[] {
         }
     }
     return pages
-}
-
-function formatCount(n: number): string {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
-    return String(n)
-}
-
-function formatRelativeTime(dateStr: string): string {
-    const ms = Date.now() - new Date(dateStr).getTime()
-    const mins = Math.floor(ms / 60_000)
-    if (mins < 60) return `${Math.max(1, mins)}m ago`
-    const hours = Math.floor(ms / 3_600_000)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(ms / 86_400_000)
-    if (days < 30) return `${days}d ago`
-    const months = Math.floor(days / 30)
-    if (months < 12) return `${months}mo ago`
-    return `${Math.floor(days / 365)}y ago`
 }
 
 interface NexusModCardProps {
@@ -248,7 +230,7 @@ export function NexusBrowsePage({
     const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null)
     const [busyUid, setBusyUid] = useState<string | null>(null)
     const [downloadMap, setDownloadMap] = useState<
-        ReadonlyMap<number, { downloaded: number; total: number }>
+        ReadonlyMap<number, { downloaded: number; total: number; fileId: number }>
     >(new Map())
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const fetchIdRef = useRef(0)
@@ -292,19 +274,27 @@ export function NexusBrowsePage({
 
     // The nxm:// handoff runs entirely in the backend; these listeners are what
     // make the browser-initiated download visible on the cards. Progress ids are
-    // "nxm:{modId}:{fileId}". A failure payload carries no mod id (it can occur
-    // before the link is even parsed), so it clears everything.
+    // "nxm:{gameId}:{modId}:{fileId}"; Nexus mod ids repeat across game domains,
+    // so events for other games must be ignored. Completion only clears the entry
+    // when the file matches, so a second file of the same mod keeps its progress.
+    // A failure payload carries no ids (it can occur before the link is even
+    // parsed), so it clears everything.
     useEffect(() => {
-        const offStarted = api.onNxmInstallStarted(({ modId }) => {
-            setDownloadMap((prev) => new Map(prev).set(modId, { downloaded: 0, total: 0 }))
+        const offStarted = api.onNxmInstallStarted(({ gameId, modId, fileId }) => {
+            if (gameId !== activeGame) return
+            setDownloadMap((prev) => new Map(prev).set(modId, { downloaded: 0, total: 0, fileId }))
         })
         const offProgress = api.onDownloadProgress(({ download_id, downloaded, total }) => {
-            const [prefix, modId] = download_id.split(':')
-            if (prefix !== 'nxm') return
-            setDownloadMap((prev) => new Map(prev).set(Number(modId), { downloaded, total }))
+            const [prefix, gameId, modId, fileId] = download_id.split(':')
+            if (prefix !== 'nxm' || gameId !== activeGame) return
+            setDownloadMap((prev) =>
+                new Map(prev).set(Number(modId), { downloaded, total, fileId: Number(fileId) })
+            )
         })
-        const offComplete = api.onNxmInstallComplete(({ modId }) => {
+        const offComplete = api.onNxmInstallComplete(({ gameId, modId, fileId }) => {
+            if (gameId !== activeGame) return
             setDownloadMap((prev) => {
+                if (prev.get(modId)?.fileId !== fileId) return prev
                 const next = new Map(prev)
                 next.delete(modId)
                 return next
@@ -320,7 +310,7 @@ export function NexusBrowsePage({
             offComplete()
             offFailed()
         }
-    }, [])
+    }, [activeGame])
 
     // Re-checked on every activation so saving a key in Settings takes effect
     // without an app restart.

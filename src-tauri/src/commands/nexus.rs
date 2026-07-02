@@ -8,10 +8,10 @@ use reqwest::header::HeaderMap;
 use serde_json::Value;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tauri::AppHandle;
 
-use crate::commands::api::{http_client, user_agent};
+use crate::commands::api::{http_client, parse_remaining_header, user_agent, TokenBucket};
 use crate::commands::settings::read_settings;
 
 const BASE: &str = "https://api.nexusmods.com/v1";
@@ -29,42 +29,7 @@ const LOW_REMAINING_THRESHOLD: i64 = 5;
 const LOW_REMAINING_PAUSE: Duration = Duration::from_secs(5);
 
 fn parse_hourly_remaining(headers: &HeaderMap) -> Option<i64> {
-    headers
-        .get("x-rl-hourly-remaining")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.parse::<i64>().ok())
-}
-
-struct TokenBucket {
-    tokens: f64,
-    max: f64,
-    refill_per_ms: f64,
-    last_refill: Instant,
-}
-
-impl TokenBucket {
-    fn new(max: f64, per_second: f64) -> Self {
-        Self {
-            tokens: max,
-            max,
-            refill_per_ms: per_second / 1000.0,
-            last_refill: Instant::now(),
-        }
-    }
-
-    fn consume(&mut self) -> Duration {
-        let now = Instant::now();
-        let elapsed_ms = now.duration_since(self.last_refill).as_secs_f64() * 1000.0;
-        self.tokens = (self.tokens + elapsed_ms * self.refill_per_ms).min(self.max);
-        self.last_refill = now;
-        if self.tokens >= 1.0 {
-            self.tokens -= 1.0;
-            Duration::ZERO
-        } else {
-            let wait_ms = ((1.0 - self.tokens) / self.refill_per_ms) as u64;
-            Duration::from_millis(wait_ms)
-        }
-    }
+    parse_remaining_header(headers, "x-rl-hourly-remaining")
 }
 
 static RATE_LIMITER: OnceLock<Mutex<TokenBucket>> = OnceLock::new();
@@ -192,46 +157,13 @@ async fn nexus_get(
     .await
 }
 
-// period applies only to the "updated" listing: "1d", "1w", or "1m".
-#[tauri::command]
-pub async fn nexus_list_mods(
-    app: AppHandle,
-    game_id: String,
-    listing: String,
-    period: Option<String>,
-) -> Result<Value, String> {
-    let domain = nexus_domain(&game_id)?;
-    let (path, query) = match listing.as_str() {
-        "updated" => (
-            format!("/games/{domain}/mods/updated.json"),
-            vec![("period", period.unwrap_or_else(|| "1m".to_string()))],
-        ),
-        "latest_added" => (format!("/games/{domain}/mods/latest_added.json"), vec![]),
-        "trending" => (format!("/games/{domain}/mods/trending.json"), vec![]),
-        other => return Err(format!("nexus: unknown listing '{other}'")),
-    };
-    nexus_get(&app, &path, query).await
-}
-
-#[tauri::command]
-pub async fn nexus_get_mod(app: AppHandle, game_id: String, mod_id: u32) -> Result<Value, String> {
-    let domain = nexus_domain(&game_id)?;
-    nexus_get(&app, &format!("/games/{domain}/mods/{mod_id}.json"), vec![]).await
-}
-
-#[tauri::command]
-pub async fn nexus_list_mod_files(
+pub(crate) async fn nexus_get_mod(
     app: AppHandle,
     game_id: String,
     mod_id: u32,
 ) -> Result<Value, String> {
     let domain = nexus_domain(&game_id)?;
-    nexus_get(
-        &app,
-        &format!("/games/{domain}/mods/{mod_id}/files.json"),
-        vec![],
-    )
-    .await
+    nexus_get(&app, &format!("/games/{domain}/mods/{mod_id}.json"), vec![]).await
 }
 
 // Single-file details; carries file_name, which the nxm flow needs when the
@@ -272,11 +204,6 @@ pub async fn nexus_get_download_link(
         _ => return Err("nexus: key and expires must be provided together".to_string()),
     };
     nexus_get(&app, &path, query).await
-}
-
-#[tauri::command]
-pub async fn nexus_validate_key(app: AppHandle) -> Result<Value, String> {
-    nexus_get(&app, "/users/validate.json", vec![]).await
 }
 
 // Verified live against the real schema via introspection; ModsFilter's

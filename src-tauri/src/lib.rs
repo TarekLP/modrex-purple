@@ -84,12 +84,8 @@ pub fn run() {
             commands::api::list_categories,
             commands::api::register_download,
             // nexus (prototype)
-            commands::nexus::nexus_list_mods,
             commands::nexus::nexus_search_mods,
-            commands::nexus::nexus_get_mod,
-            commands::nexus::nexus_list_mod_files,
             commands::nexus::nexus_get_download_link,
-            commands::nexus::nexus_validate_key,
             // discord
             commands::discord::set_discord_presence_enabled,
             commands::discord::update_discord_presence,
