@@ -278,6 +278,9 @@ export default function App() {
     }, [activeGame])
 
     useEffect(() => {
+        // Dev builds run whatever version the branch has and would nag about the
+        // latest release on every launch, the check only makes sense for real installs.
+        if (import.meta.env.DEV) return
         api.checkForUpdates().catch(() => {})
     }, [])
 
