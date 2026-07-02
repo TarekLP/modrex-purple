@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.12.2
+
 ### Changed
 
 - Game detection now skips store launchers that aren't installed and logs each probe, making startup hangs diagnosable from the log.
