@@ -25,16 +25,16 @@ impl Launcher for Xbox {
         }
     }
 
+    #[cfg(target_os = "windows")]
     fn find_game(&self, game: &GameDef) -> Option<String> {
         let def = game.xbox.as_ref()?;
+        find_in_drives(game.name, def.executable)
+            .or_else(|| find_via_package_manager(def.product_id, def.executable))
+    }
 
-        #[cfg(target_os = "windows")]
-        let result = find_in_drives(game.name, def.executable)
-            .or_else(|| find_via_package_manager(def.product_id, def.executable));
-        #[cfg(not(target_os = "windows"))]
-        let result = None;
-
-        result
+    #[cfg(not(target_os = "windows"))]
+    fn find_game(&self, _game: &GameDef) -> Option<String> {
+        None
     }
 
     fn identify_path(&self, game_path: &str) -> bool {
