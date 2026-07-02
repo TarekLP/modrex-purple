@@ -57,12 +57,12 @@ Steam works on Windows and Linux for every supported game. Epic Games Store and 
 
 ## Troubleshooting
 
-If something goes wrong, attach your log file to a [bug report](https://github.com/modrexio/modrex/issues).
+If something goes wrong, attach your log file to a [bug report](https://github.com/modrexio/modrex/issues). The easiest way to get it is from inside the app: **Settings > Logs > Open log file**. If the app won't start, grab it directly:
 
-| Platform | Path                               |
-| -------- | ---------------------------------- |
-| Windows  | `%APPDATA%\Modrex\logs\modrex.log` |
-| Linux    | `~/.config/modrex/logs/modrex.log` |
+| Platform | Path                                    |
+| -------- | --------------------------------------- |
+| Windows  | `%LOCALAPPDATA%\Modrex\logs\Modrex.log` |
+| Linux    | `~/.local/share/modrex/logs/Modrex.log` |
 
 ## Contributing
 
