@@ -59,8 +59,7 @@ pub fn run() {
                     tauri::async_runtime::spawn(async move {
                         if let Err(e) = commands::nxm::handle_nxm_url(&handle, &url).await {
                             log::warn!("nxm handoff failed: {e}");
-                            // Mirrors the success path's emit; no listener yet either way.
-                            let _ = handle.emit("nxm:download-failed", e);
+                            let _ = handle.emit("nxm:install-failed", e);
                         }
                     });
                 }

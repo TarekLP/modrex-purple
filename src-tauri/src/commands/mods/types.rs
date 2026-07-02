@@ -36,6 +36,12 @@ pub struct InstalledMod {
     pub installed_at: String,
     #[serde(default = "default_source")]
     pub source: String,
+    // Only recorded for non-modworkshop sources; modworkshop authorship and
+    // artwork come from the live API via the mod id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thumbnail_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -65,6 +71,8 @@ impl Default for InstalledMod {
             enabled: false,
             installed_at: String::new(),
             source: default_source(),
+            author: None,
+            thumbnail_url: None,
             file_id: None,
             file_type: None,
             sha256: None,

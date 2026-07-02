@@ -281,6 +281,14 @@ export default function App() {
         api.checkForUpdates().catch(() => {})
     }, [])
 
+    // A Nexus install arrives via the OS nxm:// deep link, not an in-app action,
+    // so nothing else triggers the installed-list refresh for it.
+    useEffect(() => {
+        return api.onNxmInstallComplete(({ gameId }) => {
+            if (gameId === activeGameRef.current) void refreshInstalled()
+        })
+    }, [refreshInstalled])
+
     useEffect(() => {
         const offAvailable = api.onUpdateAvailable(({ version, strategy, body, releaseUrl }) => {
             setUpdate({
@@ -492,6 +500,9 @@ export default function App() {
                                         key={activeGame}
                                         activeGame={activeGame}
                                         isActive={view === 'nexus'}
+                                        gamePath={gamePath}
+                                        installed={installed}
+                                        onRefreshInstalled={refreshInstalled}
                                         onGoToSettings={goToNexusSettings}
                                     />
                                 )}

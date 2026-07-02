@@ -12,12 +12,19 @@ const LOCAL_RACE_MS = 50
 export function useThumbnail(file: string | null | undefined, full = false): string | null {
     const [src, setSrc] = useState<string | null>(() => {
         if (!file) return null
+        // Absolute URLs (Nexus-sourced installs) bypass the local cache; the
+        // filename-keyed disk cache only knows modworkshop's CDN.
+        if (file.startsWith('https://')) return file
         return getCachedThumbnailUrl(file, full) ?? null
     })
 
     useEffect(() => {
         if (!file) {
             setSrc(null)
+            return
+        }
+        if (file.startsWith('https://')) {
+            setSrc(file)
             return
         }
         const cached = getCachedThumbnailUrl(file, full)

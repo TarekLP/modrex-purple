@@ -160,6 +160,8 @@ export interface InstalledMod {
     enabled: boolean
     installedAt: string
     source?: string // mod source slug; absent = "modworkshop"
+    author?: string // only recorded for non-modworkshop sources
+    thumbnailUrl?: string // absolute CDN URL; only recorded for non-modworkshop sources
     fileId?: number
     fileType?: string
     sha256?: string

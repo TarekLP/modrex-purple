@@ -26,11 +26,14 @@ export function displayFilename(filename: string): string {
 }
 
 export function syntheticMod(ins: InstalledMod): Mod {
+    const fromNexus = ins.source === 'nexus'
     return {
         id: ins.id,
         name: ins.name,
         desc: '',
-        short_desc: 'Manually installed — not on modworkshop',
+        short_desc: fromNexus
+            ? 'Installed from Nexus Mods'
+            : 'Manually installed — not on modworkshop',
         version: ins.version,
         downloads: 0,
         likes: 0,
@@ -39,9 +42,11 @@ export function syntheticMod(ins: InstalledMod): Mod {
         bumped_at: ins.installedAt,
         category_id: 0,
         has_download: false,
-        thumbnail: null,
+        // useThumbnail passes absolute URLs through untouched, so a recorded CDN
+        // URL can ride the normal thumbnail field.
+        thumbnail: ins.thumbnailUrl ? { file: ins.thumbnailUrl } : null,
         download: null,
-        user: { name: 'Unknown' },
+        user: { name: fromNexus ? (ins.author ?? '') : 'Unknown' },
     }
 }
 
@@ -137,7 +142,9 @@ export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
                 (g.mods.some((m) => m.version === 'outdated') ||
                     g.mods.some((m) => m.fileId != null && suspectFileIds.has(m.fileId)))
         ),
-        unidentified: groups.filter((g) => g.id < 0),
+        // Nexus installs carry a negative id by design; they're identified, just
+        // not on modworkshop, so they don't belong here.
+        unidentified: groups.filter((g) => g.id < 0 && g.mods.every((m) => m.source !== 'nexus')),
     }
 }
 

@@ -411,6 +411,19 @@ export const api = {
     onInstallScan(callback: (info: { phase: string; total: number }) => void): () => void {
         return onEvent<{ phase: string; total: number }>('installed:scan', callback)
     },
+    // Fired by the nxm:// handoff after a Nexus download has been installed.
+    onNxmInstallComplete(
+        callback: (info: { gameId: string; modId: number; fileId: number; name: string }) => void
+    ): () => void {
+        return onEvent<{ gameId: string; modId: number; fileId: number; name: string }>(
+            'nxm:install-complete',
+            callback
+        )
+    },
+    // Payload is the plain error string from any stage of the handoff.
+    onNxmInstallFailed(callback: (error: string) => void): () => void {
+        return onEvent<string>('nxm:install-failed', callback)
+    },
     onUpdateAvailable(
         callback: (info: {
             version: string

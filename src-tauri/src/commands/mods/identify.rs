@@ -140,6 +140,11 @@ pub(crate) fn upgrade_negative_ids(
         if m.id >= 0 {
             continue;
         }
+        // A nexus-sourced negative id is a deliberate identity, not a failed
+        // identification; the name fallback could rewrite it to an unrelated mod.
+        if m.source == "nexus" {
+            continue;
+        }
         if let Some(hit) = m
             .sha256
             .as_deref()
@@ -178,7 +183,7 @@ pub(crate) fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
         .map(|m| (m.name.to_lowercase(), m.id))
         .collect();
     for m in mods.iter_mut() {
-        if m.id >= 0 {
+        if m.id >= 0 || m.source == "nexus" {
             continue;
         }
         if let Some(pos) = m.name.rfind(' ') {

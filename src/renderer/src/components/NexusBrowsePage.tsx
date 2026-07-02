@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
-import { Search, Download, ThumbsUp, Clock, ExternalLink } from 'lucide-react'
-import type { GameId } from '../../../shared/types'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Search, Download, ThumbsUp, Clock, ExternalLink, Trash2 } from 'lucide-react'
+import type { GameId, InstalledMod } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { SearchClearButton } from './ui/SearchClearButton'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
 import { Button } from './ui/Button'
+import { Toggle } from './Toggle'
+import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
 
@@ -28,6 +30,9 @@ interface NexusResult {
 interface Props {
     activeGame: GameId
     isActive: boolean
+    gamePath: string | null
+    installed: InstalledMod[]
+    onRefreshInstalled: () => Promise<void>
     onGoToSettings: () => void
 }
 
@@ -82,8 +87,29 @@ function formatRelativeTime(dateStr: string): string {
     return `${Math.floor(days / 365)}y ago`
 }
 
-function NexusModCard({ mod, domain }: { mod: NexusModNode; domain: string }) {
+interface NexusModCardProps {
+    mod: NexusModNode
+    domain: string
+    installed: InstalledMod | undefined
+    busy: boolean
+    gamePath: string | null
+    onUninstall: (ins: InstalledMod) => void
+    onEnable: (ins: InstalledMod) => void
+    onDisable: (ins: InstalledMod) => void
+}
+
+function NexusModCard({
+    mod,
+    domain,
+    installed,
+    busy,
+    gamePath,
+    onUninstall,
+    onEnable,
+    onDisable,
+}: NexusModCardProps) {
     const [thumbLoaded, setThumbLoaded] = useState(false)
+    const canAct = !!gamePath && !busy
 
     // The files tab hosts "Mod Manager Download", which hands the download back
     // to Modrex via the nxm:// deep link, the sanctioned free-tier flow.
@@ -103,7 +129,7 @@ function NexusModCard({ mod, domain }: { mod: NexusModNode; domain: string }) {
                             if (el?.complete) setThumbLoaded(true)
                         }}
                         onLoad={() => setThumbLoaded(true)}
-                        className={`w-full h-36 object-cover transition-opacity ${thumbLoaded ? '' : 'opacity-0'}`}
+                        className={`w-full h-36 object-cover transition-opacity ${thumbLoaded ? '' : 'opacity-0'}${installed && !installed.enabled ? ' grayscale' : ''}`}
                     />
                 ) : (
                     <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
@@ -120,36 +146,68 @@ function NexusModCard({ mod, domain }: { mod: NexusModNode; domain: string }) {
             </div>
 
             <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
-                <div className="flex items-center gap-3 text-xs text-text-subtle">
-                    {mod.downloads !== undefined && (
-                        <span className="flex items-center gap-1">
-                            <Download className="w-3 h-3" />
-                            {formatCount(mod.downloads)}
-                        </span>
-                    )}
-                    {mod.endorsements !== undefined && (
-                        <span className="flex items-center gap-1">
-                            <ThumbsUp className="w-3 h-3" />
-                            {formatCount(mod.endorsements)}
-                        </span>
-                    )}
-                    {mod.updatedAt && (
-                        <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatRelativeTime(mod.updatedAt)}
-                        </span>
-                    )}
-                </div>
-                <Button variant="accent" size="sm" onClick={openOnNexus}>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    {t('nexus.download')}
-                </Button>
+                {installed ? (
+                    <>
+                        <span className="text-xs text-text-subtle">{installed.version}</span>
+                        <div className="flex items-center gap-2">
+                            <Toggle
+                                checked={installed.enabled}
+                                onChange={(v) => (v ? onEnable(installed) : onDisable(installed))}
+                                disabled={!canAct}
+                            />
+                            <Tooltip content={t('common.remove')}>
+                                <Button
+                                    variant="danger"
+                                    size="icon-md"
+                                    disabled={!canAct}
+                                    onClick={() => onUninstall(installed)}
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                            </Tooltip>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="flex items-center gap-3 text-xs text-text-subtle">
+                            {mod.downloads !== undefined && (
+                                <span className="flex items-center gap-1">
+                                    <Download className="w-3 h-3" />
+                                    {formatCount(mod.downloads)}
+                                </span>
+                            )}
+                            {mod.endorsements !== undefined && (
+                                <span className="flex items-center gap-1">
+                                    <ThumbsUp className="w-3 h-3" />
+                                    {formatCount(mod.endorsements)}
+                                </span>
+                            )}
+                            {mod.updatedAt && (
+                                <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatRelativeTime(mod.updatedAt)}
+                                </span>
+                            )}
+                        </div>
+                        <Button variant="accent" size="sm" onClick={openOnNexus}>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            {t('nexus.download')}
+                        </Button>
+                    </>
+                )}
             </div>
         </div>
     )
 }
 
-export function NexusBrowsePage({ activeGame, isActive, onGoToSettings }: Props) {
+export function NexusBrowsePage({
+    activeGame,
+    isActive,
+    gamePath,
+    installed,
+    onRefreshInstalled,
+    onGoToSettings,
+}: Props) {
     const domain = GAMES[activeGame].nexusDomain
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
@@ -158,10 +216,52 @@ export function NexusBrowsePage({ activeGame, isActive, onGoToSettings }: Props)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null)
+    const [busyUid, setBusyUid] = useState<string | null>(null)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const fetchIdRef = useRef(0)
     const lastFetchedRef = useRef('')
     const scrollRef = useRef<HTMLDivElement>(null)
+
+    // Nexus installs are tracked as id = -nexusModId with source "nexus".
+    const installedByNexusId = useMemo(() => {
+        const map = new Map<number, InstalledMod>()
+        for (const m of installed) {
+            if (m.source === 'nexus' && m.id < 0) map.set(-m.id, m)
+        }
+        return map
+    }, [installed])
+
+    async function runModAction(ins: InstalledMod, action: () => Promise<void>) {
+        if (!gamePath) return
+        setBusyUid(ins.uid)
+        setError(null)
+        try {
+            await action()
+            await onRefreshInstalled()
+        } catch (e) {
+            setError(String(e))
+        } finally {
+            setBusyUid(null)
+        }
+    }
+
+    function handleUninstall(ins: InstalledMod) {
+        void runModAction(ins, () => api.uninstallMod(ins.uid, gamePath!, activeGame))
+    }
+
+    function handleEnable(ins: InstalledMod) {
+        void runModAction(ins, () => api.enableMod(ins.uid, gamePath!, activeGame))
+    }
+
+    function handleDisable(ins: InstalledMod) {
+        void runModAction(ins, () => api.disableMod(ins.uid, gamePath!, activeGame))
+    }
+
+    // The nxm:// handoff runs entirely in the backend; this banner is the only
+    // place a failed browser-initiated install becomes visible.
+    useEffect(() => {
+        return api.onNxmInstallFailed((e) => setError(e))
+    }, [])
 
     // Re-checked on every activation so saving a key in Settings takes effect
     // without an app restart.
@@ -288,9 +388,22 @@ export function NexusBrowsePage({ activeGame, isActive, onGoToSettings }: Props)
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-                            {result.nodes.map((mod) => (
-                                <NexusModCard key={mod.modId} mod={mod} domain={domain} />
-                            ))}
+                            {result.nodes.map((mod) => {
+                                const ins = installedByNexusId.get(mod.modId)
+                                return (
+                                    <NexusModCard
+                                        key={mod.modId}
+                                        mod={mod}
+                                        domain={domain}
+                                        installed={ins}
+                                        busy={ins !== undefined && ins.uid === busyUid}
+                                        gamePath={gamePath}
+                                        onUninstall={handleUninstall}
+                                        onEnable={handleEnable}
+                                        onDisable={handleDisable}
+                                    />
+                                )
+                            })}
                         </div>
                     )}
                 </div>

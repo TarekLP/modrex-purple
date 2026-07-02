@@ -234,6 +234,23 @@ pub async fn nexus_list_mod_files(
     .await
 }
 
+// Single-file details; carries file_name, which the nxm flow needs when the
+// download URI's path has no usable filename.
+pub(crate) async fn nexus_get_file(
+    app: &AppHandle,
+    game_id: &str,
+    mod_id: u32,
+    file_id: u32,
+) -> Result<Value, String> {
+    let domain = nexus_domain(game_id)?;
+    nexus_get(
+        app,
+        &format!("/games/{domain}/mods/{mod_id}/files/{file_id}.json"),
+        vec![],
+    )
+    .await
+}
+
 // key/expires come from a real nxm:// link, proof the download was
 // authorized via a site click — passing them lets this endpoint succeed for
 // free accounts too. Omitted, it 403s free accounts by design (confirmed
