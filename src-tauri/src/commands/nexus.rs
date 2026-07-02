@@ -1,7 +1,8 @@
 // Prototype only. Personal API key — Nexus's Acceptable Use Policy forbids
 // that auth mode in a public build, so nothing here is wired into a release
-// path yet. Nexus's REST v1 has no free-text search endpoint, only fixed
-// listings (updated/latest_added/trending), unlike modworkshop's query param.
+// path yet. REST v1's listing endpoints (updated/latest_added/trending) have
+// no free-text search; real search goes through the GraphQL v2 mods query
+// instead (api.nexusmods.com/v2/graphql, verified live via introspection).
 
 use reqwest::header::HeaderMap;
 use serde_json::Value;
@@ -14,6 +15,7 @@ use crate::commands::api::{http_client, user_agent};
 use crate::commands::settings::read_settings;
 
 const BASE: &str = "https://api.nexusmods.com/v1";
+const GRAPHQL_BASE: &str = "https://api.nexusmods.com/v2/graphql";
 
 // Nexus reports quota per-request via X-RL-Hourly-Remaining, undocumented
 // but observed live. No confirmed steady rate exists ahead of time, so this
@@ -91,26 +93,32 @@ pub(crate) fn game_id_for_domain(domain: &str) -> Result<&'static str, String> {
     }
 }
 
-async fn nexus_get(
-    app: &AppHandle,
-    path: &str,
-    query: Vec<(&str, String)>,
-) -> Result<Value, String> {
-    let api_key = read_settings(app)
+fn nexus_api_key(app: &AppHandle) -> Result<String, String> {
+    read_settings(app)
         .nexus_api_key
         .filter(|k| !k.trim().is_empty())
-        .ok_or_else(|| "nexus: no API key configured".to_string())?;
+        .ok_or_else(|| "nexus: no API key configured".to_string())
+}
 
-    let mut url = reqwest::Url::parse(&format!("{BASE}{path}")).map_err(|e| e.to_string())?;
-    {
-        let mut pairs = url.query_pairs_mut();
-        for (k, v) in &query {
-            pairs.append_pair(k, v);
-        }
-    }
-    let client = http_client();
-    let ua = user_agent(app);
+fn nexus_headers(app: &AppHandle, api_key: &str) -> Vec<(&'static str, String)> {
+    vec![
+        ("apikey", api_key.to_string()),
+        ("User-Agent", user_agent(app)),
+        ("Application-Name", "Modrex".to_string()),
+        (
+            "Application-Version",
+            app.package_info().version.to_string(),
+        ),
+    ]
+}
 
+// Shared retry/rate-limit loop for both the REST GET client and the GraphQL
+// POST client below, build re-creates the request fresh each attempt
+// since a sent RequestBuilder can't be replayed. label is only for errors.
+async fn send_with_retry(
+    label: &str,
+    build: impl Fn() -> reqwest::RequestBuilder,
+) -> Result<Value, String> {
     for attempt in 0u64..3 {
         let wait = rate_limiter()
             .lock()
@@ -125,16 +133,7 @@ async fn nexus_get(
             tokio::time::sleep(LOW_REMAINING_PAUSE).await;
         }
 
-        let res = client
-            .get(url.clone())
-            .header("apikey", &api_key)
-            .header("Accept", "application/json")
-            .header("User-Agent", &ua)
-            .header("Application-Name", "Modrex")
-            .header(
-                "Application-Version",
-                app.package_info().version.to_string(),
-            )
+        let res = build()
             .timeout(Duration::from_secs(15))
             .send()
             .await
@@ -158,12 +157,39 @@ async fn nexus_get(
         }
 
         if !res.status().is_success() {
-            return Err(format!("nexus API {}: {}", res.status(), path));
+            return Err(format!("nexus API {}: {label}", res.status()));
         }
         return res.json().await.map_err(|e| e.to_string());
     }
 
-    Err(format!("nexus API 429: {path}"))
+    Err(format!("nexus API 429: {label}"))
+}
+
+async fn nexus_get(
+    app: &AppHandle,
+    path: &str,
+    query: Vec<(&str, String)>,
+) -> Result<Value, String> {
+    let api_key = nexus_api_key(app)?;
+    let mut url = reqwest::Url::parse(&format!("{BASE}{path}")).map_err(|e| e.to_string())?;
+    {
+        let mut pairs = url.query_pairs_mut();
+        for (k, v) in &query {
+            pairs.append_pair(k, v);
+        }
+    }
+    let headers = nexus_headers(app, &api_key);
+
+    send_with_retry(path, || {
+        let mut req = http_client()
+            .get(url.clone())
+            .header("Accept", "application/json");
+        for (k, v) in &headers {
+            req = req.header(*k, v);
+        }
+        req
+    })
+    .await
 }
 
 // period applies only to the "updated" listing: "1d", "1w", or "1m".
@@ -234,6 +260,95 @@ pub async fn nexus_get_download_link(
 #[tauri::command]
 pub async fn nexus_validate_key(app: AppHandle) -> Result<Value, String> {
     nexus_get(&app, "/users/validate.json", vec![]).await
+}
+
+// Verified live against the real schema via introspection; ModsFilter's
+// name field takes WILDCARD-op predicates.
+const SEARCH_QUERY: &str = r#"
+query ModrexSearch($filter: ModsFilter, $sort: [ModsSort!], $count: Int, $offset: Int) {
+    mods(filter: $filter, sort: $sort, count: $count, offset: $offset) {
+        totalCount
+        nodes {
+            modId
+            name
+            summary
+            pictureUrl
+            author
+            downloads
+            endorsements
+            updatedAt
+        }
+    }
+}
+"#;
+
+const PAGE_SIZE: u32 = 24;
+
+fn validate_sort_field(sort: &str) -> Result<&str, String> {
+    match sort {
+        "relevance" | "downloads" | "endorsements" | "updatedAt" => Ok(sort),
+        other => Err(format!("nexus: unknown sort field '{other}'")),
+    }
+}
+
+// One query for both browse and search: an empty query string omits the
+// name filter entirely rather than sending a WILDCARD match-everything.
+#[tauri::command]
+pub async fn nexus_search_mods(
+    app: AppHandle,
+    game_id: String,
+    query: String,
+    sort: String,
+    offset: Option<u32>,
+) -> Result<Value, String> {
+    let domain = nexus_domain(&game_id)?;
+    let api_key = nexus_api_key(&app)?;
+    let headers = nexus_headers(&app, &api_key);
+    let sort_field = validate_sort_field(&sort)?;
+
+    let mut filter = serde_json::json!({
+        "op": "AND",
+        "gameDomainName": [{ "op": "EQUALS", "value": domain }],
+    });
+    if !query.trim().is_empty() {
+        filter["name"] = serde_json::json!([{ "op": "WILDCARD", "value": query.trim() }]);
+    }
+
+    // json! doesn't support a computed key, and the sort field name is one
+    // of the four validated above, so build that one object by hand.
+    let mut sort_entry = serde_json::Map::new();
+    sort_entry.insert(
+        sort_field.to_string(),
+        serde_json::json!({ "direction": "DESC" }),
+    );
+
+    let body = serde_json::json!({
+        "query": SEARCH_QUERY,
+        "variables": {
+            "filter": filter,
+            "sort": [Value::Object(sort_entry)],
+            "count": PAGE_SIZE,
+            "offset": offset.unwrap_or(0),
+        },
+    });
+
+    let value = send_with_retry("search", || {
+        let mut req = http_client().post(GRAPHQL_BASE).json(&body);
+        for (k, v) in &headers {
+            req = req.header(*k, v);
+        }
+        req
+    })
+    .await?;
+
+    if let Some(errors) = value.get("errors") {
+        return Err(format!("nexus graphql error: {errors}"));
+    }
+    value
+        .get("data")
+        .and_then(|d| d.get("mods"))
+        .cloned()
+        .ok_or_else(|| "nexus: malformed graphql response".to_string())
 }
 
 #[cfg(test)]

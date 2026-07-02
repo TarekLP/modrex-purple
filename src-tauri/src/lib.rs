@@ -79,6 +79,7 @@ pub fn run() {
             commands::api::register_download,
             // nexus (prototype)
             commands::nexus::nexus_list_mods,
+            commands::nexus::nexus_search_mods,
             commands::nexus::nexus_get_mod,
             commands::nexus::nexus_list_mod_files,
             commands::nexus::nexus_get_download_link,

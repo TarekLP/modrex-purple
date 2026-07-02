@@ -103,8 +103,7 @@ export const api = {
     },
 
     // ── Nexus (prototype) ───────────────────────────────────────────────────────
-    // Dev/testing only — see the field comment on Settings::nexus_api_key in
-    // settings.rs for why this isn't the shipped auth path.
+    // Dev/testing only: personal-key auth is not allowed in a public build per Nexus AUP.
     isNexusKeyConfigured(): Promise<boolean> {
         return invoke('nexus_key_configured')
     },
@@ -113,6 +112,21 @@ export const api = {
     },
     clearNexusApiKey(): Promise<void> {
         return invoke('clear_nexus_api_key')
+    },
+    // Raw passthrough of Nexus's own JSON shape; no verified field mapping yet.
+    nexusListMods(gameId: string, listing: string): Promise<unknown[]> {
+        return invoke('nexus_list_mods', { gameId, listing })
+    },
+    // GraphQL v2 search, verified live via schema introspection. Empty query omits
+    // the name filter (browse-by-sort instead of search). sort is one of
+    // "relevance" | "downloads" | "endorsements" | "updatedAt".
+    nexusSearchMods(
+        gameId: string,
+        query: string,
+        sort: string,
+        offset?: number
+    ): Promise<{ totalCount: number; nodes: unknown[] }> {
+        return invoke('nexus_search_mods', { gameId, query, sort, offset })
     },
 
     // ── Analytics ────────────────────────────────────────────────────────────────

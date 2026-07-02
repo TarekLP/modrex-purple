@@ -36,6 +36,12 @@ type SettingsTab = 'game' | 'application' | 'advanced'
 const GAME_TAB_KEY = 'modrex:settings-tab'
 const GLOBAL_TAB_KEY = 'modrex:settings-tab:global'
 
+// For navigation into a specific tab from outside the page: the page re-reads
+// the saved tab on every activation, so writing before switching views lands there.
+export function saveSettingsTab(tab: SettingsTab) {
+    localStorage.setItem(GAME_TAB_KEY, tab)
+}
+
 function readSavedTab(globalOnly: boolean): SettingsTab {
     const saved = localStorage.getItem(globalOnly ? GLOBAL_TAB_KEY : GAME_TAB_KEY)
     if (globalOnly) {
@@ -70,6 +76,7 @@ function Section({
 
 interface Props {
     activeGame: GameId
+    isActive: boolean
     gamePath: string | null
     gamePathReady: boolean
     onGamePathChange: () => Promise<void>
@@ -87,6 +94,7 @@ function effectiveLauncher(gs: GameSettings, installed: string[]): string {
 
 export function SettingsPage({
     activeGame,
+    isActive,
     gamePath,
     gamePathReady,
     onGamePathChange,
@@ -125,9 +133,11 @@ export function SettingsPage({
     const [nexusKeyInput, setNexusKeyInput] = useState('')
     const [nexusKeySaving, setNexusKeySaving] = useState(false)
 
+    // Re-read on activation, not just mount: the page stays mounted as a hidden
+    // pane, and other pages can request a tab via saveSettingsTab before navigating.
     useEffect(() => {
-        setActiveTabState(readSavedTab(globalOnly))
-    }, [globalOnly])
+        if (isActive) setActiveTabState(readSavedTab(globalOnly))
+    }, [isActive, globalOnly])
 
     function setActiveTab(tab: SettingsTab) {
         setActiveTabState(tab)

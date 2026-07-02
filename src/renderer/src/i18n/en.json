@@ -55,6 +55,8 @@
         "expandTitle": "Expand sidebar",
         "collapseTitle": "Collapse sidebar",
         "changeGame": "Change game",
+        "nexus": "Nexus Mods",
+        "nexusBeta": "Beta",
         "docs": "Documentation",
         "docsTitle": "Open documentation",
         "discord": "Discord",
@@ -83,6 +85,22 @@
             "mostLiked": "Most Liked",
             "newest": "Newest",
             "name": "Name"
+        }
+    },
+    "nexus": {
+        "title": "Nexus Mods",
+        "searchPlaceholder": "Search mods…",
+        "noMods": "No mods found",
+        "loadFailed": "Couldn't load mods",
+        "modCount": "{total} mods",
+        "download": "Download",
+        "keyMissing": "Add your Nexus Mods API key to browse mods from Nexus.",
+        "goToSettings": "Configure in Settings",
+        "sort": {
+            "lastUpdated": "Last Updated",
+            "mostDownloaded": "Most Downloaded",
+            "mostEndorsed": "Most Endorsed",
+            "relevance": "Relevance"
         }
     },
     "installed": {

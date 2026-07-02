@@ -112,9 +112,17 @@ export const GAMES: Record<
         workshopId: number
         storageKey: string
         hasNews: boolean
+        nexusDomain?: string
     }
 > = {
-    pd3: { name: 'PAYDAY 3', shortName: 'PD3', workshopId: 853, storageKey: 'pd3', hasNews: true },
+    pd3: {
+        name: 'PAYDAY 3',
+        shortName: 'PD3',
+        workshopId: 853,
+        storageKey: 'pd3',
+        hasNews: true,
+        nexusDomain: 'payday3',
+    },
     pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2', hasNews: true },
     pdth: {
         name: 'PAYDAY: The Heist',
@@ -129,6 +137,7 @@ export const GAMES: Record<
         workshopId: 857,
         storageKey: 'cb',
         hasNews: false,
+        nexusDomain: 'crimebossrockaycity',
     },
 }
 

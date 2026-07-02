@@ -32,3 +32,16 @@ fn domain_rejects_unsupported_games() {
     assert!(nexus_domain("pdth").is_err());
     assert!(nexus_domain("made_up").is_err());
 }
+
+#[test]
+fn sort_field_accepts_known_values() {
+    for field in ["relevance", "downloads", "endorsements", "updatedAt"] {
+        assert_eq!(validate_sort_field(field), Ok(field));
+    }
+}
+
+#[test]
+fn sort_field_rejects_unknown_values() {
+    assert!(validate_sort_field("name").is_err());
+    assert!(validate_sort_field("").is_err());
+}
