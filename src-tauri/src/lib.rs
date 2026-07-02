@@ -1,6 +1,6 @@
 mod commands;
 
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 
 pub fn run() {
@@ -19,9 +19,15 @@ pub fn run() {
     let mut builder = tauri::Builder::default();
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
-            // Not argv itself — it can carry an nxm:// URL with a real download token.
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // Not argv itself, it can carry an nxm:// URL with a real download token.
             log::info!("second instance launched with {} arg(s)", argv.len());
+            // A second launch is the user asking for the app, so surface the existing window.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
         }));
     }
 
@@ -54,16 +60,17 @@ pub fn run() {
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
-                    let handle = handle.clone();
-                    let url = url.to_string();
-                    tauri::async_runtime::spawn(async move {
-                        if let Err(e) = commands::nxm::handle_nxm_url(&handle, &url).await {
-                            log::warn!("nxm handoff failed: {e}");
-                            let _ = handle.emit("nxm:install-failed", e);
-                        }
-                    });
+                    commands::nxm::spawn_handle_nxm_url(&handle, url.to_string());
                 }
             });
+
+            // A link that launched this very process isn't replayed through
+            // on_open_url on Windows/Linux, it only surfaces via get_current.
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    commands::nxm::spawn_handle_nxm_url(app.handle(), url.to_string());
+                }
+            }
 
             Ok(())
         })

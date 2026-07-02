@@ -411,6 +411,16 @@ export const api = {
     onInstallScan(callback: (info: { phase: string; total: number }) => void): () => void {
         return onEvent<{ phase: string; total: number }>('installed:scan', callback)
     },
+    // Fired by the nxm:// handoff as soon as a link is accepted, before any
+    // network work, so the UI can react instantly.
+    onNxmInstallStarted(
+        callback: (info: { gameId: string; modId: number; fileId: number }) => void
+    ): () => void {
+        return onEvent<{ gameId: string; modId: number; fileId: number }>(
+            'nxm:install-started',
+            callback
+        )
+    },
     // Fired by the nxm:// handoff after a Nexus download has been installed.
     onNxmInstallComplete(
         callback: (info: { gameId: string; modId: number; fileId: number; name: string }) => void

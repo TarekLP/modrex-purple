@@ -92,6 +92,7 @@ interface NexusModCardProps {
     domain: string
     installed: InstalledMod | undefined
     busy: boolean
+    progress: { downloaded: number; total: number } | null
     gamePath: string | null
     onUninstall: (ins: InstalledMod) => void
     onEnable: (ins: InstalledMod) => void
@@ -103,6 +104,7 @@ function NexusModCard({
     domain,
     installed,
     busy,
+    progress,
     gamePath,
     onUninstall,
     onEnable,
@@ -110,6 +112,11 @@ function NexusModCard({
 }: NexusModCardProps) {
     const [thumbLoaded, setThumbLoaded] = useState(false)
     const canAct = !!gamePath && !busy
+
+    const progressPct =
+        progress && progress.total > 0
+            ? Math.round((progress.downloaded / progress.total) * 100)
+            : null
 
     // The files tab hosts "Mod Manager Download", which hands the download back
     // to Modrex via the nxm:// deep link, the sanctioned free-tier flow.
@@ -189,13 +196,36 @@ function NexusModCard({
                                 </span>
                             )}
                         </div>
-                        <Button variant="accent" size="sm" onClick={openOnNexus}>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            {t('nexus.download')}
-                        </Button>
+                        {progress ? (
+                            <Button variant="accent" size="sm" disabled>
+                                {progressPct === null
+                                    ? t('common.downloading')
+                                    : progressPct < 100
+                                      ? `${progressPct}%`
+                                      : t('common.installing')}
+                            </Button>
+                        ) : (
+                            <Button variant="accent" size="sm" onClick={openOnNexus}>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                {t('nexus.download')}
+                            </Button>
+                        )}
                     </>
                 )}
             </div>
+
+            {progress && !installed && (
+                <div className="h-0.5 bg-surface-active">
+                    {progress.total > 0 ? (
+                        <div
+                            className="h-full bg-accent transition-[width] duration-100"
+                            style={{ width: `${progressPct}%` }}
+                        />
+                    ) : (
+                        <div className="h-full bg-accent animate-pulse w-full" />
+                    )}
+                </div>
+            )}
         </div>
     )
 }
@@ -217,6 +247,9 @@ export function NexusBrowsePage({
     const [error, setError] = useState<string | null>(null)
     const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null)
     const [busyUid, setBusyUid] = useState<string | null>(null)
+    const [downloadMap, setDownloadMap] = useState<
+        ReadonlyMap<number, { downloaded: number; total: number }>
+    >(new Map())
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const fetchIdRef = useRef(0)
     const lastFetchedRef = useRef('')
@@ -257,10 +290,36 @@ export function NexusBrowsePage({
         void runModAction(ins, () => api.disableMod(ins.uid, gamePath!, activeGame))
     }
 
-    // The nxm:// handoff runs entirely in the backend; this banner is the only
-    // place a failed browser-initiated install becomes visible.
+    // The nxm:// handoff runs entirely in the backend; these listeners are what
+    // make the browser-initiated download visible on the cards. Progress ids are
+    // "nxm:{modId}:{fileId}". A failure payload carries no mod id (it can occur
+    // before the link is even parsed), so it clears everything.
     useEffect(() => {
-        return api.onNxmInstallFailed((e) => setError(e))
+        const offStarted = api.onNxmInstallStarted(({ modId }) => {
+            setDownloadMap((prev) => new Map(prev).set(modId, { downloaded: 0, total: 0 }))
+        })
+        const offProgress = api.onDownloadProgress(({ download_id, downloaded, total }) => {
+            const [prefix, modId] = download_id.split(':')
+            if (prefix !== 'nxm') return
+            setDownloadMap((prev) => new Map(prev).set(Number(modId), { downloaded, total }))
+        })
+        const offComplete = api.onNxmInstallComplete(({ modId }) => {
+            setDownloadMap((prev) => {
+                const next = new Map(prev)
+                next.delete(modId)
+                return next
+            })
+        })
+        const offFailed = api.onNxmInstallFailed((e) => {
+            setError(e)
+            setDownloadMap(new Map())
+        })
+        return () => {
+            offStarted()
+            offProgress()
+            offComplete()
+            offFailed()
+        }
     }, [])
 
     // Re-checked on every activation so saving a key in Settings takes effect
@@ -397,6 +456,7 @@ export function NexusBrowsePage({
                                         domain={domain}
                                         installed={ins}
                                         busy={ins !== undefined && ins.uid === busyUid}
+                                        progress={downloadMap.get(mod.modId) ?? null}
                                         gamePath={gamePath}
                                         onUninstall={handleUninstall}
                                         onEnable={handleEnable}

@@ -86,8 +86,29 @@ async fn resolve_extension(app: &AppHandle, link: &NxmLink, uri: &str) -> Result
         .ok_or_else(|| "nxm: could not determine file type from URI or file details".to_string())
 }
 
+pub fn spawn_handle_nxm_url(app: &AppHandle, url: String) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = handle_nxm_url(&app, &url).await {
+            log::warn!("nxm handoff failed: {e}");
+            let _ = app.emit("nxm:install-failed", e);
+        }
+    });
+}
+
 pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
     let link = parse_nxm_url(url)?;
+
+    // Fired before any network work so the card leaves its idle state the moment
+    // the handoff lands, not seconds later when download bytes start flowing.
+    let _ = app.emit(
+        "nxm:install-started",
+        serde_json::json!({
+            "gameId": link.game_id,
+            "modId": link.mod_id,
+            "fileId": link.file_id,
+        }),
+    );
 
     // Checked before any network work so a misconfigured game fails fast and
     // never leaves an orphaned temp download.
