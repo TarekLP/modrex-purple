@@ -37,12 +37,15 @@ fn game_def_for_id(game_id: &str) -> &'static GameDef {
     }
 }
 
+// A stalled find_game leaves no trace in Modrex.log without the probe line before it.
 fn detect_game(game: &'static GameDef) -> Option<DetectedGame> {
     for launcher in all_launchers() {
         if !launcher.is_installed() {
             continue;
         }
+        log::info!("probing {} for {}", launcher.id(), game.name);
         if let Some(path) = launcher.find_game(game) {
+            log::info!("found {} via {}: {path}", game.name, launcher.id());
             return Some(DetectedGame {
                 launcher: launcher.id().to_string(),
                 game_path: path,
@@ -196,11 +199,17 @@ pub async fn auto_detect_game(game_id: Option<String>) -> Option<DetectedGame> {
 pub async fn installed_launchers(game_id: Option<String>) -> Vec<String> {
     let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"));
     tauri::async_runtime::spawn_blocking(move || {
-        all_launchers()
-            .iter()
-            .filter(|l| l.find_game(game).is_some())
-            .map(|l| l.id().to_string())
-            .collect()
+        let mut found = Vec::new();
+        for launcher in all_launchers() {
+            if !launcher.is_installed() {
+                continue;
+            }
+            log::info!("probing {} for {}", launcher.id(), game.name);
+            if launcher.find_game(game).is_some() {
+                found.push(launcher.id().to_string());
+            }
+        }
+        found
     })
     .await
     .unwrap_or_default()
