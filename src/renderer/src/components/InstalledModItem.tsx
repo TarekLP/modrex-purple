@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { MoreVertical } from 'lucide-react'
 import { t } from '../i18n'
+import { api } from '../api'
 import type { InstalledMod } from '../../../shared/types'
+import { GAMES } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
@@ -66,6 +68,16 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         missing: mods.some((m) => m.missing) ? true : undefined,
         archiveBroken: mods.some((m) => m.archiveBroken) ? true : undefined,
     }
+    // Nexus-sourced mods have no in-app detail page; their mod page on
+    // nexusmods.com is the equivalent destination (id encodes -nexusModId).
+    const nexusDomain = GAMES[activeGame].nexusDomain
+    const handleOpen =
+        apiMod !== undefined
+            ? () => onOpenDetail(id)
+            : ins.source === 'nexus' && nexusDomain !== undefined
+              ? () => api.openExternal(`https://www.nexusmods.com/${nexusDomain}/mods/${-id}`)
+              : () => {}
+
     // CB-only: the primary mods/ (ModKit) and legacy ~mods targets are alternate shapes of the
     // same content (see CLAUDE.md's Crime Boss section) — ue4ss_mods and host packs aren't.
     const canMoveCrimeBossTarget =
@@ -173,7 +185,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     loading={isBusy}
                     progress={isBusy ? reinstallProgress : null}
                     isDragging={isDragging}
-                    onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
+                    onOpen={handleOpen}
                     onUninstall={() => handleUninstall(mods)}
                     onEnable={() => handleEnable(mods)}
                     onDisable={() => handleDisable(mods)}
@@ -260,7 +272,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 gamePath={gamePath}
                 loading={isBusy}
                 progress={isBusy ? reinstallProgress : null}
-                onOpen={apiMod ? () => onOpenDetail(id) : () => {}}
+                onOpen={handleOpen}
                 onInstall={() => {}}
                 onUninstall={() => handleUninstall(mods)}
                 onEnable={() => handleEnable(mods)}
