@@ -54,7 +54,13 @@ async fn refresh_index(app: &AppHandle) -> &'static str {
     }
     let client = match reqwest::Client::builder()
         .user_agent(concat!("modrex/", env!("CARGO_PKG_VERSION")))
-        .timeout(std::time::Duration::from_secs(30))
+        // The index is a single multi-megabyte download that grows with the catalog. A whole
+        // request deadline aborts a healthy but slow connection partway through the body,
+        // stranding the user with no index and every mod unidentified, and it only gets
+        // tighter as the index grows. Bound the connect attempt and per-read stalls instead:
+        // a dead host still fails fast, but a slow steady download is allowed to finish.
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .read_timeout(std::time::Duration::from_secs(30))
         .build()
     {
         Ok(c) => c,
