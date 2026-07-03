@@ -4,6 +4,12 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Fixed
+
+- Fixed installed mods not being recognized on slower internet connections, where the mod identification data could time out before it finished downloading.
+- Fixed a rare case where an interrupted background update left the mod identification data unreadable, keeping installed mods unrecognized until the next refresh.
+- Fixed mods whose names contain characters such as `%` or `_` not being recognized by name.
+
 ### Security
 
 - Hardened thumbnail caching to reject unsafe image filenames.
