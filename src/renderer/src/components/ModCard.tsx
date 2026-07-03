@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { Button } from './ui/Button'
 import { formatCount, formatRelativeTime } from './modDetail/format'
+import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 
 interface Props {
     mod: Mod
@@ -75,12 +76,22 @@ export function ModCard({
                     />
                 ) : (
                     <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
-                        <span className="text-text-subtle text-xs">{t('common.noImage')}</span>
+                        {installed?.source === 'nexus' ? (
+                            <NexusIcon className="w-8 h-8 text-text-subtle" />
+                        ) : (
+                            <span className="text-text-subtle text-xs">{t('common.noImage')}</span>
+                        )}
                     </div>
                 )}
                 {installedCount !== undefined && installedCount > 1 && (
                     <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none">
                         {t('installed.fileCount', { count: installedCount })}
+                    </div>
+                )}
+                {installed?.source === 'nexus' && (
+                    <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none flex items-center gap-1">
+                        <NexusIcon className="w-3 h-3" />
+                        {t('installed.nexusBadge')}
                     </div>
                 )}
                 <div className="px-3 pt-3 pb-1 flex flex-col gap-1">
