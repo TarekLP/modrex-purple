@@ -102,6 +102,14 @@ fn by_name_pd2_mod_matches_in_pd2() {
     );
 }
 
+#[test]
+fn by_name_unique_match_with_multiple_files_returns_id() {
+    let conn = setup_db();
+    // "Dark Matter Skins" (remote 200) has three file rows. The files join must not turn a
+    // single multi-file mod into a false ambiguity: DISTINCT collapses it back to one match.
+    assert_eq!(query_by_name(&conn, "Dark Matter", "PAYDAY 3"), Some(200));
+}
+
 // ── query_mod_files ───────────────────────────────────────────────────────
 
 #[test]

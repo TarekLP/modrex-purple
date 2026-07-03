@@ -195,9 +195,15 @@ pub(crate) fn query_by_name(
     game_name: &str,
 ) -> Option<i64> {
     let pattern = format!("%{}%", name);
+    // Join files so a name only resolves to a mod that actually has indexed content: a mod
+    // with no files cannot be the source of an installed pak, and anchoring on files keeps
+    // this in step with the sha256 and id lookups above. DISTINCT collapses the one row per
+    // file the join would otherwise produce, so a single many-file mod still reads as one
+    // match and does not trip the ambiguity guard below.
     let mut stmt = conn
         .prepare(
-            "SELECT m.remote_id FROM mods m
+            "SELECT DISTINCT m.remote_id FROM mods m
+             JOIN files f ON f.mod_id = m.id
              JOIN sources s ON s.id = m.source_id
              JOIN games g ON g.id = s.game_id
              WHERE m.name LIKE ?1 AND g.name = ?2
