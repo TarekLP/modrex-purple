@@ -75,14 +75,136 @@ waiting until the Tauri build has been stable for several releases), remove the 
 
 ---
 
-## TODO: rename-identifier
+## TODO: pak-analyzer
 
-After `drop-electron-compat` is done, rename the Tauri app identifier:
+Phase 1 of the pak content manifest feature. The work happens in the modrex-index repo
+(C:\local\modrexio\modrex-index), but is tracked here like all deferred work. Phases must
+land in order: pak-analyzer -> pak-entries-schema -> manifest-backfill-and-size ->
+pak-conflict-detection (the last one is the only modrex-main change).
 
-### tauri.conf.json
-- Change `identifier` from `io.github.shulhaoleh.pd3modmanager` to `io.github.modrexio.modrex`
+### Context and reasoning (read before implementing)
 
-### NSIS hook (required for seamless upgrade)
-- Add `bundle.windows.nsis.installerHooks` pointing to a custom NSIS script
-- The script must read `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\io.github.shulhaoleh.pd3modmanager`
-  and run the old uninstaller silently if found, so users on the old identifier get a clean upgrade
+The goal of the whole feature: know which asset paths each indexed .pak mounts, so the
+app can detect conflicts between installed mods (two mods overriding the same asset),
+identify repackaged mods, and verify integrity. A Merkle tree was considered and
+rejected: Merkle trees pay off when a consumer needs to verify a subset without having
+all the data, but the app downloads the whole index.db anyway, so a flat per-pak entry
+manifest gives every benefit with none of the complexity.
+
+Engine fact that shapes everything: BOTH PAYDAY 3 and Crime Boss are Unreal Engine
+4.27.2. (modrex-main's CLAUDE.md says "PD3 on UE5" - that attribution is wrong, per the
+project owner; the pak-mounting behavior it describes still holds.) This means the
+parser needs exactly one format generation: the UE 4.27 pak index layout and the UE 4.27
+IoStore layout. No UE5 variants, no version matrix.
+
+Why the parser lands alone, before any schema work: binary-format parsing against real
+files is the only risky part of the feature. Everything else is plumbing that already
+has proven patterns in build-index.ts. Isolating the risk makes it cheap to verify and
+cheap to throw away if an assumption is wrong.
+
+### What to build (in modrex-index)
+
+- parsePakIndex(buf: Buffer): read the FPakInfo footer at the end of the file (magic
+  0x5A6F12E1), which carries the pak version and the index offset/size. Follow it to
+  the pak index and return every mounted asset path. Each FPakEntry record already
+  contains a SHA-1 hash of its data, so per-entry hashes come FREE - never read or hash
+  the asset bytes themselves. Also return per-entry size. UE 4.25+ split the index into
+  a path-hash index and a full directory index; 4.27 uses that layout, so parse the full
+  directory index for paths.
+- parseUtocIndex(buf: Buffer): read the .utoc directory index. For IoStore mods the
+  .utoc IS the table of contents (.ucas holds the data). Crime Boss ModKit mods almost
+  always ship the .pak/.ucas/.utoc triplet where the .pak is nearly empty and the real
+  content list is in the .utoc; PD3 mods usually ship a bare .pak. Both parsers are
+  needed.
+- Explicit status instead of guessing (this is a hard rule): the parse result is one of
+  ok / encrypted (pak index is encrypted - possible, mods normally are not) /
+  no-directory-index (.utoc with a stripped directory index has chunk ids but no
+  paths). A silent empty result would be indistinguishable from "empty pak" and would
+  later make the app claim "no conflicts" for a pak whose contents are simply unknown -
+  same class of bug as the zero-yield memoization gap fixed in the CI perf work.
+- A dev util in the style of the existing check-pak.mjs / lookup-mod.mjs (e.g.
+  analyze-pak.mjs <path>) that runs the parser on a local file and prints paths, hashes,
+  sizes, status.
+
+### Verification (do not skip)
+
+Test against real installed mods on this machine, not spec assumptions: Crime Boss
+skeletons under {gamePath}/CrimeBoss/Mods/<name>/Content/Paks/WindowsNoEditor/ (pak +
+ucas/utoc triplets) and PD3 paks under {gamePath}/PAYDAY3/Content/Paks/~mods/. The
+installed-app DB at C:/Users/oleh/AppData/Roaming/io.github.shulhaoleh.pd3modmanager/
+mod-index.db (see the APP_DB constant in the dev utils) can cross-check identities.
+Every parsed path list should be spot-checked against what the mod's modworkshop page
+says it changes.
+
+---
+
+## TODO: pak-entries-schema
+
+Phase 2, only after pak-analyzer is verified. Work happens in modrex-index.
+
+- New table in index.db:
+  pak_entries(sha256 REFERENCES file_contents, entry_path, entry_hash, entry_size)
+  plus a per-sha256 manifest status (ok / encrypted / no-directory-index), keyed on
+  CONTENT hash so identical paks shipped by multiple mods store one manifest.
+- Safety constraint that drove the design (verified against modrex-main's reader): all
+  five queries in src-tauri/src/commands/mod_index.rs name their columns explicitly and
+  open read-only, so NEW tables and columns are invisible to shipped apps - safe. What
+  is NOT safe is adding rows to the mods table for mods without indexed files:
+  query_by_name identifies a mod only when exactly one LIKE match exists, so bloating
+  mods would silently break name identification. pak_entries must not touch existing
+  tables.
+- Wire the parser into extractContentEntries in build-index.ts: the pak bytes are
+  already in memory there when the SHA256 is computed, so new mods get manifests with
+  zero extra downloads or API calls.
+- Backfill for the ~7,500 already-indexed PD3/Crime Boss pak files (they need one
+  re-download to parse their indexes): mirror the existing entry_name refill mechanism,
+  i.e. a getFileIdsMissingManifests set (like getFileIdsMissingNames) that --backfill
+  honors and that checkIsCurrent treats like its missing-set parameter, so builder-state
+  check skips do not suppress the refill. Do NOT use --recheck-all for this: that would
+  re-examine all ~29k mods including PD2/PDTH, whose marker files are not paks and are
+  excluded from manifests entirely.
+
+---
+
+## TODO: manifest-backfill-and-size
+
+Phase 3, after pak-entries-schema ships. Trigger the manifest backfill run in GitHub
+Actions (plain backfill - the missing-manifest set drives it), then measure the real
+index.db size increase. Estimate is +8-12 MB over the current ~17.6 MB, paid by every
+app user on the 1-hour TTL download. Decision was deliberately deferred until the
+number is real. Options, in order of preference if it is too heavy:
+
+1. Keep as is (if the real number is modest)
+2. Dedupe entry paths into a separate paths table with a junction (popular assets are
+   overridden by many mods, so paths repeat heavily and this compresses well)
+3. Move manifests to a third release asset the app fetches lazily (only when a UE-game
+   conflict check actually needs it)
+
+---
+
+## TODO: pak-conflict-detection
+
+Phase 4, the only modrex-main change of the pak manifest feature. Blocked until the
+three TODOs above (pak-analyzer, pak-entries-schema, manifest-backfill-and-size) are
+done and index.db actually carries pak_entries. Applies to PD3 and Crime Boss only;
+both are UE 4.27.2, so one format generation.
+
+### src-tauri/src/commands/mod_index.rs
+- Query: entries (paths) for a given content sha256
+- Query: given the set of installed mods' hashes, find asset paths claimed by more than one
+
+### Install-time conflict warning
+- All install entry points (BrowsePage, ModDetailPage header, DownloadsTab): before
+  install, look up the new mod's entry paths and warn "overrides X, also overridden by
+  installed mod Y". Warn only, never block the install.
+
+### InstalledPage
+- Health indicator for installed mods with overlapping asset paths
+
+### Honesty rule
+- A pak whose manifest status is encrypted / no-directory-index must surface as
+  "contents unknown", never as "no conflicts"
+
+### Follow-up (separate, later)
+- Fuzzy identification: match repackaged/renamed paks by entry-set fingerprint when the
+  outer sha256 misses
