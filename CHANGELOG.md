@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Security
+
+- Hardened thumbnail caching to reject unsafe image filenames.
+
 ## 0.12.2
 
 ### Changed
