@@ -52,7 +52,7 @@ Root cause: `BrowsePage` unmounts on tab switch (intentional, for fresh data), w
 all local search/sort/scroll state. Fix would require lifting search state up to `App.tsx`
 or preserving it with CSS-hidden approach (same as `InstalledPage` / `SettingsPage`).
 
-Note: the fresh-fetch-on-visit behavior is desirable — only the search/sort *inputs* need
+Note: the fresh-fetch-on-visit behavior is desirable - only the search/sort *inputs* need
 to survive navigation, not the results themselves.
 
 ---
@@ -208,3 +208,299 @@ both are UE 4.27.2, so one format generation.
 ### Follow-up (separate, later)
 - Fuzzy identification: match repackaged/renamed paks by entry-set fingerprint when the
   outer sha256 misses
+
+---
+
+## TODO: nexus-prototype-merge
+
+Phase 1 of the multi-source expansion. The phases must land in this order:
+nexus-prototype-merge -> source-identity-refactor -> mod-source-domain-model ->
+sources-module-restructure -> acquire-install-split -> index-multi-source.
+kill-pd3-fallback is independent and can land any time.
+
+### Context and reasoning (read before implementing)
+
+Goal of the whole track: expand Modrex from one source (modworkshop) to many
+(Nexus Mods, mod.io, Steam Workshop, ModDB) across many games. A full architecture
+review (2026-07-03) found the app has no domain model of "a mod": the modworkshop
+wire format IS the data model, and the modworkshop numeric id IS mod identity, baked
+into the persisted state file, every cache, the IPC surface, the dependency system,
+and the SHA256 index. The install engine BELOW the "archive on disk" boundary
+(zip.rs, ScanTargets, sentinels, state management) is already source-agnostic and
+must not be restructured by this work.
+
+Sequencing decision, deliberate: the branch `feature/nexus-prototype` merges into
+main BEFORE the deep refactor, not after. Merging after is the worst ordering: the
+refactor rewrites exactly the files the branch touches (types.rs, identify.rs,
+api.ts, App.tsx, installedUtils.ts), so every refactor commit conflicts with the
+branch, and the final "merge" is a rewrite anyway. Merging first is cheap (the
+branch is mostly additive new files) and makes the later refactor better: the
+source abstraction gets extracted from two live implementations instead of one.
+
+### Facts about feature/nexus-prototype (verified against the branch)
+
+- Forked from 0.12.1 (commit 003a684). One commit, f61e99a (skip startup update
+  check in dev builds), was already cherry-picked to main - expect it to dedupe or
+  trivially conflict when merging.
+- New Rust modules: `commands/nexus.rs` (+tests) - API client with GraphQL mods
+  search; `commands/nxm.rs` (+tests) - nxm:// deep-link parsing and handoff
+  (case-insensitive domain match, secrets kept out of logs). New renderer page:
+  `NexusBrowsePage.tsx` (separate from BrowsePage, deliberately). Tauri deep-link
+  plugin config + ACL/schema changes in `tauri.conf.json`, `lib.rs`, `gen/schemas`.
+- Identity convention on the branch: a Nexus install gets
+  `uid = "nexus:{nexus_mod_id}:{nexus_file_id}"`, `id = -(nexus_mod_id)`,
+  `source = "nexus"`, plus new optional state fields `author` and `thumbnail_url`
+  (only recorded for non-modworkshop sources). THE UID ENCODES THE FULL REAL
+  IDENTITY - this is the invariant that makes the later identity refactor a
+  mechanical state migration. Never break it for anything new persisted.
+- Guarded special cases that exist on the branch and are DELETED later by the
+  refactor (do not multiply them): identify.rs skips nexus entries in the fuzzy
+  name fallback and name-suffix regroup (SHA256 cross-post upgrade still allowed);
+  computeHealthSummary excludes nexus entries from "unidentified"; syntheticMod
+  renders author/thumbnail from state.
+- `GAMES` gained optional `nexusDomain` (pd3 = "payday3",
+  cb = "crimebossrockaycity").
+- install_nexus_download reuses resolve_archive_download + install_mod_from_path;
+  the four picker sentinels (ZIP_MULTI_PAK / HOST_MOD_PACK / CB_FLAT_ARCHIVE /
+  UNRECOGNIZED_ARCHIVE) currently FAIL with an honest error ("needs a manual
+  install choice that Nexus downloads don't support yet") because the picker
+  modals are modworkshop-shaped.
+- Nexus platform constraints the branch encodes: free-tier users cannot get API
+  download links (premium only) - downloads arrive via the site's "Mod Manager
+  Download" button firing an nxm:// link with a signed key; hence the deep-link
+  subsystem. API key is entered by the user in Settings (prototype: stored in
+  settings.json plaintext).
+
+### What to do
+
+1. Merge main into the branch (or rebase) to clear drift; repeat periodically
+   while work continues. Keep new branch work additive (new files) wherever
+   possible.
+2. Pre-merge polish, in the branch:
+   - Decide the sentinel story: either keep the honest failure for v1 (acceptable,
+     it is explicit and rare) or wire ZipPickerModal for nexus installs. Do NOT
+     silently guess an install target.
+   - Decide on API key storage. Plaintext settings.json is a known tradeoff; if
+     kept, say so in the Settings UI copy. (A proper secrets story can ride the
+     sources-module-restructure phase.)
+   - Nexus feature stays naturally gated: no API key configured -> no Nexus UI.
+     Verify that holds everywhere (Sidebar, Settings, deep-link handler).
+3. Merge to main. Conventional commit; user runs all remote git commands.
+4. Verify end-to-end after merge: nxm:// handoff from the Nexus website installs a
+   real PD3 mod and a real Crime Boss mod; entries show in InstalledPage with
+   author + thumbnail; enable/disable/uninstall work; modworkshop flows unchanged.
+
+---
+
+## TODO: source-identity-refactor
+
+Phase 2 of the multi-source expansion. Do AFTER nexus-prototype-merge. This is the
+change that gets harder the longer it waits, because it touches persisted user
+state (.modrex.json).
+
+### Context
+
+Mod identity today is a bare number in one global namespace: `InstalledMod.id` is
+"the modworkshop remote id", negative = unidentified (and, post-merge, negative =
+nexus by convention). Everything keys on it: modCache/filesCache/linksCache,
+dismissedDepsWarnings, loaderModIds, hardcoded loader ids (SuperBLT-family
+53474/14267, UE4SS 44048/47771/47749, Menu Backgrounds host 17160), useModData
+dedupe, installedByModId, host-pack `location: "host:<id>:<subpath>"`, uid schemes
+`{file_id}` / `{file_id}_{entry_stem}`. Two sources collide on ids immediately.
+Steam Workshop PublishedFileId is a 64-bit integer that OVERFLOWS JavaScript's
+safe-integer range - remote ids must become STRINGS in TS, not numbers.
+
+### What to do
+
+- Identity becomes the pair `(source: string, remoteId: string)` everywhere a mod
+  is referenced. `InstalledMod.source` already exists (serde default
+  "modworkshop") - start consuming it instead of special-casing.
+- State migration in reconcile_state (the established migration point - see the
+  .pd3mm.json and legacy-.disabled migrations there for the pattern): modworkshop
+  entries get source stamped by the serde default already; nexus entries recover
+  `(source="nexus", remoteId, fileRemoteId)` by parsing the
+  `nexus:{mod}:{file}` uid. After migration, delete the negative-id-means-nexus
+  convention and the `source == "nexus"` guards in identify.rs and
+  installedUtils.ts. Negative id goes back to meaning exactly one thing:
+  unidentified.
+- Cache keys in the renderer become source-qualified: modCache/filesCache/
+  linksCache/installedMetaCache (`modCache.ts`), browseCache (already keyed by
+  workshopId - generalize the key to `(source, gameRef, ...)`), thumbnail cache
+  keys (see thumbnails note in sources-module-restructure).
+- dismissedDepsWarnings, loaderModIds, and the hardcoded loader-id tables in
+  deps.ts get source-qualified or explicitly scoped modworkshop-only (loaders ARE
+  modworkshop-hosted today; scoping is fine, silent ambiguity is not).
+- uid scheme for new installs becomes source-prefixed for every source (the nexus
+  branch already does `nexus:{mod}:{file}`; modworkshop keeps `{file_id}` /
+  `{file_id}_{entry_stem}` for backward compat - do NOT rewrite existing uids,
+  they are stable identity).
+- Version/update semantics: replace the magic version strings "unknown"/"outdated"
+  with an explicit updateStatus enum on the domain side while in here, or schedule
+  it with mod-source-domain-model - per-source version semantics (Nexus semverish,
+  Steam timestamps, modworkshop two version fields) do not fit one string field.
+
+---
+
+## TODO: mod-source-domain-model
+
+Phase 3 of the multi-source expansion.
+
+### Context
+
+`Mod`, `ModFile`, `ModLink`, `ModDependency`, `Category`, `Paginated`, `SortOption`
+in `src/shared/types.ts` are literal modworkshop response shapes, and the Rust
+commands (`list_mods`, `get_mod`, ...) return `Result<Value, String>` - raw
+provider JSON passed through IPC untyped. Every component consumes modworkshop
+quirks directly (`download.url` vs `download_url`, `has_download` with
+`download: null`, mod-level vs file-level version, `instructs_template`,
+`disable_mod_managers`). Other sources have different shapes AND different
+concepts (Nexus file categories main/optional/old; Steam items often have no
+version string, only an update timestamp; mod.io has its own dependency model).
+
+### What to do
+
+- Define neutral internal types: ModSummary, ModDetail, DownloadableFile,
+  SourceRef, plus per-source extension fields where needed. Rust owns the
+  translation: each source module parses its provider JSON into the domain types;
+  IPC returns typed structs, never `serde_json::Value`.
+- Define a SourceCapabilities descriptor consumed by the renderer: has categories?
+  which sort options? batch metadata fetch? direct download vs handoff? auth
+  required? BrowsePage renders from capabilities instead of assuming the
+  modworkshop feature set. This is what lets NexusBrowsePage fold back into one
+  BrowsePage and is the phase where the separate page is deleted.
+- The bulk metadata refresh (useModData -> fetchInstalledModsMeta) becomes a
+  per-source strategy: modworkshop has the undocumented `ids[]` batch filter
+  (~50 ids per request); Nexus has NO batch endpoint and a daily quota on the
+  order of a couple thousand requests, so its strategy must be lazy/trickled,
+  never "refresh all 300 installed mods on focus".
+- Migration path: do it source-by-source behind the same IPC commands rather than
+  a big-bang rewrite; modworkshop first, then the nexus module.
+
+---
+
+## TODO: sources-module-restructure
+
+Phase 4 of the multi-source expansion. Largely mechanical after phase 3.
+
+### Context
+
+`api.rs` is a single-host client: modworkshop BASE url, a process-global rate
+limiter tuned to modworkshop's undocumented 90 req/min shared budget,
+x-ratelimit-remaining semantics, register_download. `nexus.rs` (post-merge) is a
+second free-standing client. The proven structural pattern for "several
+implementations of one concept" in this codebase is `launchers/` (types.rs trait +
+one file per implementation).
+
+### What to do
+
+- Create `src-tauri/src/commands/sources/` mirroring `launchers/`: a ModSource
+  trait (list/search, get detail, files, request-download, rate policy, auth
+  needs), `modworkshop.rs` and `nexus.rs` as the two implementations. Per-source
+  rate limiter instances instead of the global statics (keep the HTTP_CLIENT
+  invariant: one shared reqwest client for everything).
+- requestPriority.ts foreground/background arbitration currently assumes one
+  shared rate-limited pipe; make it per-source.
+- Credential storage: settings.json is plaintext. Introduce a secrets story for
+  API keys/tokens (candidates: OS keychain via a Tauri plugin, or documented
+  plaintext with explicit user consent). Nexus API key moves there; mod.io and
+  Steam Web API keys will follow.
+- Thumbnails: `thumbnails.rs` hardcodes storage.modworkshop.net and keys the disk
+  cache by CDN filename (unique only within that CDN). Key by full-URL hash
+  instead; every new source's image CDN origin must be added to BOTH `csp` and
+  `devCsp` in tauri.conf.json (a miss fails silently as blank images).
+
+---
+
+## TODO: acquire-install-split
+
+Phase 5 of the multi-source expansion.
+
+### Context
+
+`download.rs::download_file` assumes "a direct HTTPS GET yields the archive". That
+holds for modworkshop and premium Nexus only. The install pipeline below "archive
+on disk" is source-agnostic and stays untouched.
+
+### What to do
+
+- Split acquisition from installation: an acquisition step per source produces
+  "an archive/folder on disk" and hands it to the existing install engine.
+  Strategies: plain HTTP GET (modworkshop, mod.io), nxm:// deep-link handoff
+  (Nexus free tier - already built on the branch), steamcmd / manage-in-place
+  (Steam Workshop, future), browser handoff (last resort).
+- Steam Workshop note for whenever it lands: content is NOT archives over HTTP.
+  Metadata via IPublishedFileService web API (needs a Steam Web API key);
+  delivery via the Steam client (subscribe + ISteamUGC) or
+  `steamcmd workshop_download_item` (anonymous works only for some games). For
+  many games "install" means "manage what Steam already downloaded" - a different
+  install model, likely a new ScanTarget-like concept pointing at the workshop
+  content dir rather than a copy step.
+- ModDB note: no public API; scraping only, behind Cloudflare bot management that
+  defeats library HTTP clients (see news.rs, which had to shell out to curl.exe).
+  Deliberately LAST or never.
+- Recommended source order after Nexus: mod.io next (API-first, direct binary
+  downloads, OAuth or API key, designed for managers - validates the abstraction
+  with the least incidental complexity), then Steam Workshop, then ModDB.
+  Re-verify Nexus and mod.io API terms (registered-app requirements, free-user
+  download policy) against current documents before building - the architecture
+  above holds either way, but product constraints may have changed.
+
+---
+
+## TODO: index-multi-source
+
+Phase 6 of the multi-source expansion. Work spans modrex-index and modrex-main.
+
+### Context
+
+index.db already has a `sources` table (schema: games -> sources -> mods ->
+files), but modrex-main's queries (mod_index.rs) filter by game name only and
+return a bare remote id the app assumes is a modworkshop id. Cross-posting is
+common (authors publish the same file to Nexus + mod.io + modworkshop), so one
+SHA256 will match multiple identities.
+
+### What to do
+
+- mod_index.rs lookups return `(source, remote_id)`; callers stop assuming
+  modworkshop. Precedence policy for multi-source SHA256 hits: prefer the source
+  the mod was installed from, else a fixed priority order.
+- modrex-index gains per-source fetchers. Constraint: the "download everything
+  and hash SHA256" strategy is modworkshop-shaped. Nexus ToS will not tolerate
+  mass-downloading, but Nexus offers an MD5 lookup API - identification there
+  wants MD5, which means per-source identification strategies and possibly
+  dual-hashing (SHA256 + MD5) installed files in modrex-main going forward.
+  Steam Workshop hashing would require steamcmd-driven downloads.
+- Keep the hard rule from builder-state: zero-yield mods never become `mods` rows
+  (query_by_name uniqueness depends on it), per source.
+
+---
+
+## TODO: kill-pd3-fallback
+
+Independent of the multi-source phases; do before scaling past a handful of games.
+
+### Context
+
+`engine_for_game` maps any unknown game id to `&PD3_ENGINE`; `game_def_for_id`
+does the same; nearly every Tauri command starts with
+`game_id.as_deref().unwrap_or("pd3")`. With 4 games and disciplined call sites it
+is survivable; with many games, a typo'd or missing gameId silently reads/writes
+PD3's directories - a data-corruption class of bug.
+
+### What to do
+
+- `engine_for_game` and `game_def_for_id` return Result/Option; unknown game id is
+  a hard command error, never a silent PD3.
+- Retire the `Option<String> game_id` backward-compat defaults on the IPC surface:
+  make gameId required in api.ts wrappers and in the Rust command signatures. The
+  renderer always has `activeGame`; the Option-ness only exists for pre-multi-game
+  compat.
+- Sweep: `unwrap_or("pd3")` across src-tauri/src/commands/ (mods/mod.rs,
+  launchers/mod.rs, settings.rs, news.rs).
+- Note for the far future, do not act now: games are compile-time Rust statics +
+  a TS union (`GameId`, `GAMES`, engine.rs statics, launchers/games/*.rs). Each
+  new game is code + a release, and history shows each game needed bespoke
+  subsystems anyway (crimeboss_settings.rs, pdmod.rs, host_mods.rs,
+  ue4ss_modstxt.rs) - roughly 60% config, 40% reverse-engineering. A data-driven
+  game registry only pays off if game count grows past what hand-written modules
+  sustain; revisit then, not preemptively.
