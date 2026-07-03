@@ -51,11 +51,11 @@ async fn fetch_image(app: &AppHandle, file: &str) -> Result<Vec<u8>, String> {
 }
 
 /// Caches an image and returns the cache filename for the renderer to build its
-/// `thumb://` URL from. Default: the pre-generated small variant
-/// (`thumbnail_{file}`, ~10–20× smaller than the original, which can be multiple
+/// thumb:// URL from. Default: the pre-generated small variant
+/// (thumbnail_{file}, ~10-20x smaller than the original, which can be multiple
 /// MB), falling back to the original for old images without one
-/// (`has_thumb: false`). With `full = true`: the original, cached under
-/// `{filename}` — used by the detail page (banner, lightbox), where the CDN's
+/// (has_thumb: false). With full = true: the original, cached under
+/// {filename}, used by the detail page (banner, lightbox), where the CDN's
 /// missing cache headers would otherwise cost a revalidation round-trip per view.
 #[tauri::command]
 pub async fn get_thumbnail(
@@ -63,6 +63,9 @@ pub async fn get_thumbnail(
     filename: String,
     full: Option<bool>,
 ) -> Result<String, String> {
+    if !is_safe_thumb_filename(&filename) {
+        return Err(format!("invalid thumbnail filename: {filename}"));
+    }
     let full = full.unwrap_or(false);
     let cache_name = if full {
         filename.clone()
@@ -106,6 +109,19 @@ pub async fn get_thumbnail(
     Ok(cache_name)
 }
 
+/// True when filename is a single safe path segment. get_thumbnail's filename
+/// comes straight from modworkshop mod metadata (thumbnail.file, banner.file,
+/// images[].file), so it is attacker-controlled. A "..", separator, or
+/// absolute/drive-prefixed value would let the cache write and the {base}/{file}
+/// fetch escape the thumbnails directory (path traversal).
+pub(crate) fn is_safe_thumb_filename(filename: &str) -> bool {
+    !filename.is_empty()
+        && !filename.contains('/')
+        && !filename.contains('\\')
+        && !filename.contains("..")
+        && !Path::new(filename).is_absolute()
+}
+
 /// Returns the bare filename when the raw URI path is a single safe path
 /// segment; rejects anything that could escape the thumbnails directory.
 pub(crate) fn sanitize_thumb_filename(raw_path: &str) -> Option<String> {
@@ -129,11 +145,11 @@ pub(crate) fn thumb_content_type(filename: &str) -> &'static str {
     }
 }
 
-/// Serves `thumb://` requests from the thumbnail disk cache. Unlike Tauri's
+/// Serves thumb:// requests from the thumbnail disk cache. Unlike Tauri's
 /// asset protocol, responses carry an immutable Cache-Control header: CDN
 /// filenames are content-unique, so the webview can reuse cached (and decoded)
 /// images across page remounts instead of re-reading and re-decoding on every
-/// mount — without the header, every game/tab switch re-loads the whole grid.
+/// mount. Without the header, every game/tab switch re-loads the whole grid.
 pub(crate) fn handle_thumb_protocol(
     app: &AppHandle,
     request: tauri::http::Request<Vec<u8>>,

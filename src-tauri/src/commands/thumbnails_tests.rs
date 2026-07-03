@@ -1,4 +1,4 @@
-use super::{cleanup_dir, sanitize_thumb_filename, thumb_content_type};
+use super::{cleanup_dir, is_safe_thumb_filename, sanitize_thumb_filename, thumb_content_type};
 use filetime::FileTime;
 use std::time::{Duration, SystemTime};
 use tempfile::tempdir;
@@ -76,6 +76,26 @@ fn sanitize_rejects_traversal_and_separators() {
     assert_eq!(sanitize_thumb_filename("/a/b.png"), None);
     assert_eq!(sanitize_thumb_filename("/a%2Fb.png"), None);
     assert_eq!(sanitize_thumb_filename("/a%5Cb.png"), None);
+}
+
+#[test]
+fn thumb_filename_accepts_plain_names() {
+    assert!(is_safe_thumb_filename("abc123.webp"));
+    assert!(is_safe_thumb_filename("thumbnail_abc123.png"));
+    assert!(is_safe_thumb_filename("a b.jpg"));
+}
+
+#[test]
+fn thumb_filename_rejects_traversal_and_separators() {
+    // Attacker-controlled modworkshop image names must never escape the cache dir.
+    assert!(!is_safe_thumb_filename(""));
+    assert!(!is_safe_thumb_filename(".."));
+    assert!(!is_safe_thumb_filename("../settings.json"));
+    assert!(!is_safe_thumb_filename("..\\..\\settings.json"));
+    assert!(!is_safe_thumb_filename("sub/dir.png"));
+    assert!(!is_safe_thumb_filename("sub\\dir.png"));
+    assert!(!is_safe_thumb_filename("/etc/passwd"));
+    assert!(!is_safe_thumb_filename("C:\\Windows\\evil.bat"));
 }
 
 #[test]
