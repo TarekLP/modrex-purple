@@ -504,3 +504,175 @@ PD3's directories - a data-corruption class of bug.
   ue4ss_modstxt.rs) - roughly 60% config, 40% reverse-engineering. A data-driven
   game registry only pays off if game count grows past what hand-written modules
   sustain; revisit then, not preemptively.
+
+---
+
+## TODO: index-download-scaling
+
+The app downloads the ENTIRE `index.db` (one GitHub release asset,
+`modrexio/modrex-index` tag `latest-index`, file `index.db`) at startup with a 1-hour
+TTL cached in `app_data_dir()/mod-index.db`. Today that is ~16.8 MB for 4 games /
+~25.6k mods / ~30.3k files, and it grows with every game and every source. This entry
+records the plan for keeping that download bounded as the catalog grows. Nothing here is
+urgent at 4 games; do it before scaling past a handful of games (same trigger as
+`kill-pd3-fallback`) or when the Nexus merge starts inflating the pak games.
+
+### Relationship to existing TODOs (read first)
+
+- `manifest-backfill-and-size` option 3 ("move manifests to a third release asset the
+  app fetches lazily") is the same philosophy - split rarely-needed bulk into a separate
+  on-demand asset - applied to the pak-manifest axis. This entry applies it to the
+  per-GAME axis. If both land, the app fetches: the shard(s) for the games it manages,
+  plus (UE games only, only when a conflict check runs) the manifest asset.
+- `index-multi-source` (phase 6) grows each game's data by adding sources (Nexus,
+  mod.io, ...). Sharding by game is orthogonal and compatible: a shard holds ALL of one
+  game's sources, so multi-source inflates each shard but per-game sharding still bounds
+  what one user pulls.
+- `kill-pd3-fallback` matters here: sharding makes the app map game_id -> shard URL/path,
+  so a wrong/missing game id must be a hard error, never a silent PD3 shard fetch.
+
+### Context and reasoning (read before implementing)
+
+Measured composition of the current 16.8 MB `index.db` (4304 pages x 4096):
+- sha256 hex text ~1.85 MB, entry_name ~1.35 MB, mod names ~0.76 MB, versions ~0.06 MB
+  = ~4 MB of actual content.
+- The other ~12.8 MB is structure + indexes: `idx_files_sha256`, the
+  `UNIQUE(mod_id, sha256)` autoindex, the `file_contents` autoindex, `indexed_at`
+  timestamps, row overhead. The 64-char hex sha256 is effectively stored 3-4 times (the
+  `files` column, `idx_files_sha256`, the UNIQUE autoindex, and `file_contents`).
+
+Why the literal idea - "don't download it fully, fetch more of the file as we need it"
+(HTTP Range / sql.js-httpvfs style page VFS) - is the WRONG fit here, two independent
+reasons:
+1. The access pattern is a burst, not a trickle. `get_installed` identifies ALL
+   installed mods at once - dozens to hundreds of `query_sha256` point lookups in one
+   pass, plus name/id fallbacks. On-demand page fetching turns one download into hundreds
+   of latency-bound HTTP round-trips exactly when the user opens the Installed page -
+   usually slower and flakier than pulling the file once. rusqlite has no HTTP VFS; you
+   would hand-write a SQLite VFS in Rust.
+2. The file is not stable across builds. The frequent cron rebuilds and re-uploads
+   `index.db` whenever content changes; a `--backfill` or a VACUUM reshuffles page
+   offsets. Any locally cached page range silently goes stale, so you keep refetching.
+   Partial-file download assumes a stable file; this one changes wholesale.
+
+So the lever is WHICH data to download, not what fraction of one file. The natural axis
+is per-game: a Modrex user manages 1-3 of the supported games and should never download
+data for games they do not play. The schema already carries the axis
+(`games(slug)` -> `sources.game_id` -> `mods.source_id` -> `files.mod_id`), and
+modrex-main already has `game_id` + `index_game_name` per engine (`engine.rs`:
+pd3/"PAYDAY 3", cb/"Crime Boss: Rockay City", pd2/"PAYDAY 2", pdth/"PAYDAY: The Heist").
+
+### Approach A (recommended): per-game shards, lazily downloaded
+
+Publish one asset per game slug (`index-pd3.db`, `index-cb.db`, `index-pd2.db`,
+`index-pdth.db`) and have the app download only the shard for a game when that game is
+first selected/configured. This is the "lazy download" split at the boundary that
+actually matters, keeps rusqlite unchanged, and stays offline-after-cache.
+
+modrex-index (`build-index.ts` + `.github/workflows/update-index.yml`):
+- Keep building the combined `index.db` exactly as today - the incremental
+  download-previous-then-hash flow plus `builder-state.db` (mod_checks) is proven; do NOT
+  reshard the build itself. After the build, add a publish step that DERIVES each shard
+  from the combined DB: for each game slug, emit `index-<slug>.db` with only that game's
+  rows. Do it by attaching the combined DB and INSERT ... SELECT into a fresh shard DB
+  (that game's `games`/`sources`/`mods`/`files` rows plus the `file_contents` rows their
+  files reference via `SELECT DISTINCT sha256`), then VACUUM. Prefer INSERT-into-fresh
+  over copy-then-delete: the schema has REFERENCES but no ON DELETE CASCADE, so a delete
+  path needs manual FK-ordered deletes and `file_contents` orphan cleanup.
+- Upload each shard with `gh release upload latest-index index-<slug>.db --clobber`,
+  gated on the same `changed == 'true'` output as the combined upload
+  (`update-index.yml`, "Upload updated index" step).
+- Keep uploading the combined `index.db` too, at least initially: the site's build-time
+  count fallback (`modrex-site/src/lib/mod-index.ts` `getModIndexStats`) downloads it via
+  sql.js, and it is a convenient whole-catalog artifact. Shards are additive, not a
+  replacement.
+- `index-stats.json` stays one aggregate (`SUPPORTED_MODS_SQL` = COUNT(DISTINCT m.id)
+  over the combined DB). No website change: the counter already reads only the small
+  stats asset at runtime (`Features.astro`) and never the DB.
+
+modrex-main (`src-tauri/src/commands/mod_index.rs` + `engine.rs`):
+- `INDEX_URL` becomes per-game: `.../latest-index/index-<slug>.db`. `index_path` becomes
+  per-game: `app_data_dir()/mod-index-<game_id>.db`.
+- `ensure_index`/`refresh_index` (already atomic via temp + rename) refresh the shard for
+  a given game instead of one global DB. Trigger lazily: download/refresh a game's shard
+  when the user first configures/selects that game (natural point: game-path
+  configuration or active-game switch), not all shards at startup. Keep the 1-hour TTL
+  per shard.
+- `open_index`/`lookup_sha256`/`lookup_by_name`/`lookup_mod_files`/`query_mod_by_id`/
+  `has_game` open the shard for the caller's game. Each `lookup_*` already receives
+  `game_name`; callers already hold `cfg` (game_id + index_game_name). KEEP the
+  `WHERE g.name = ?` filter even though a single-game shard makes it redundant - it is
+  cheap and preserves cross-game isolation if a shard ever holds more than one game.
+- Startup: today `ensure_index` is one fire-and-forget call in the `lib.rs` setup hook;
+  it becomes "refresh the shard(s) for configured games" (still fire-and-forget,
+  non-blocking).
+- Coordinate with `kill-pd3-fallback`: the game_id -> shard mapping must reject unknown
+  ids rather than default to the pd3 shard.
+
+Win scaling: bounded by "games the user has", not "games in the ecosystem". At 4 games
+the win is modest (a PD3-only user skips PD2/PDTH/CB data); it becomes large as
+games/sources grow (Nexus especially inflates the pak games).
+
+### Approach B (bigger hammer, only if the game count itself explodes): server identify API
+
+Instead of shipping any DB, host a query endpoint and send it the batch of installed-mod
+hashes: `POST /api/identify { sha256: [...] }` -> matches. One request, no local DB,
+scales infinitely, best on slow connections. Batching is mandatory - it is what avoids
+the per-mod round-trip problem that kills the range approach.
+- Precedent/infra exists: modrex-site already runs Cloudflare Pages Functions
+  (`functions/api/collect.ts`, the analytics proxy) and already queries `index.db`
+  server-side at build time (`getModIndexStats` via sql.js). A sibling
+  `functions/api/identify.ts` is the same shape.
+- The DB must be queryable at the edge: Cloudflare D1 (SQLite) is the natural target -
+  modrex-index would publish rows into D1 in addition to (or instead of) the release
+  asset. Raw `index.db` in R2 + sql.js in the worker is possible but heavy; D1 is better.
+- Trade-offs, be honest in the design/UI: (1) needs network AT identification time -
+  today the app works offline once the DB is cached; (2) sends the user's installed-file
+  hashes to a server (hashes of public mods, but note it, given analytics is opt-in);
+  (3) a backend to build, rate-limit, and keep in sync with the index build.
+- Best role: a fallback for the long tail / "unknown" mods, or the primary path only if
+  Modrex becomes a general many-games manager where even per-game shards are too many.
+
+### Cheap wins (independent of A/B, pure build-side) - watch rollout safety
+
+Grounded in the measured composition above. Ranked by how safe they are against
+already-shipped app versions that read the same release asset:
+- SAFE - drop `indexed_at` from the app-facing DB (~0.6 MB): `mod_index.rs` never reads
+  it. If shards are derived post-build (Approach A), the derive step just does not copy
+  it. (`file_contents` and a future `pak_entries` are needed only where the manifest
+  feature runs - see `manifest-backfill-and-size` option 3.)
+- SAFE (at a new asset name) - ship compressed (e.g. `index-<slug>.db.zst`), decompress
+  client-side. Paths/names compress well; hex hashes do not (another reason to BLOB them
+  first). Plausibly 30-40% off the wire for a one-time decompress. GitHub serves release
+  assets as-is (no content-encoding), so this is explicit, and old apps keep reading the
+  uncompressed asset while new apps read the `.zst` one.
+- NOT backward-compatible - store sha256 as a 32-byte BLOB instead of 64-char hex TEXT.
+  Because it is duplicated 3-4x, this is a few MB (~15-20%). But `sha256` is an EXISTING
+  column shipped apps read (`query_sha256` binds a hex string; `compute_sha256` produces
+  hex), so changing its type breaks every installed old app version pointed at the same
+  asset - the same distribution constraint the `pak-entries-schema` TODO calls out for
+  existing tables. Needs a new asset name/version or a long compat window; do it together
+  with a shard cutover, not in place.
+
+### Hard rules / invariants to preserve
+
+- The zero-yield / childless-mods invariant holds PER SHARD: a shard must never contain a
+  `mods` row with no `files` (`query_by_name` uniqueness depends on it - see the
+  childless-rows fix and the `builder-state.db` design). Deriving shards by filtering the
+  already-clean combined DB preserves this for free; any from-scratch per-shard build must
+  keep the same guard.
+- `games.name` stays load-bearing and must keep matching `index_game_name` exactly,
+  sharded or not.
+- Do not regress offline-after-cache (Approach A keeps it; Approach B trades it away -
+  the main reason A is preferred).
+- The index write is already atomic (temp + rename in `refresh_index`); keep it that way
+  per shard.
+
+### Recommendation
+
+When Nexus lands or before scaling past a handful of games: do Approach A (per-game
+shards) first - biggest win, lowest risk, keeps everything offline-capable, reuses the
+hardened download/TTL/atomic-write path. Keep Approach B in reserve for a many-games
+future or an "identify unknowns" fallback. The drop-`indexed_at` + compression + BLOB
+wins are worth doing independently whenever someone touches the build, minding the
+rollout-safety ranking above.
