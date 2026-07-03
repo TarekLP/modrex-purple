@@ -78,8 +78,20 @@ async fn refresh_index(app: &AppHandle) -> &'static str {
             return "read_error";
         }
     };
-    if let Err(e) = std::fs::write(&path, &bytes) {
+    // The refresh runs fire-and-forget while get_installed holds this same file open
+    // read-only for identification. Overwriting the multi-megabyte index in place lets that
+    // reader observe a truncated database, and a crash mid-write leaves a short file carrying
+    // a fresh mtime that still reads as cached for the next hour. Stage into a sibling temp
+    // file and rename over the live index instead: rename is atomic on one volume, so a
+    // reader always opens a whole database, old or new.
+    let tmp = path.with_extension("db.tmp");
+    if let Err(e) = std::fs::write(&tmp, &bytes) {
         log::warn!("mod_index: write failed: {e}");
+        return "write_error";
+    }
+    if let Err(e) = std::fs::rename(&tmp, &path) {
+        log::warn!("mod_index: rename failed: {e}");
+        let _ = std::fs::remove_file(&tmp);
         return "write_error";
     }
     "updated"
