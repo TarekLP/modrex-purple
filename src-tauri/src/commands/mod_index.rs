@@ -194,7 +194,14 @@ pub(crate) fn query_by_name(
     name: &str,
     game_name: &str,
 ) -> Option<i64> {
-    let pattern = format!("%{}%", name);
+    // Escape LIKE metacharacters so a mod name that literally contains % or _ matches as
+    // itself instead of as a wildcard. Escape the backslash first, or it would double-escape
+    // the escapes added for % and _ on the following lines.
+    let escaped = name
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    let pattern = format!("%{}%", escaped);
     // Join files so a name only resolves to a mod that actually has indexed content: a mod
     // with no files cannot be the source of an installed pak, and anchoring on files keeps
     // this in step with the sha256 and id lookups above. DISTINCT collapses the one row per
@@ -206,7 +213,7 @@ pub(crate) fn query_by_name(
              JOIN files f ON f.mod_id = m.id
              JOIN sources s ON s.id = m.source_id
              JOIN games g ON g.id = s.game_id
-             WHERE m.name LIKE ?1 AND g.name = ?2
+             WHERE m.name LIKE ?1 ESCAPE '\\' AND g.name = ?2
              LIMIT 2",
         )
         .ok()?;

@@ -110,6 +110,33 @@ fn by_name_unique_match_with_multiple_files_returns_id() {
     assert_eq!(query_by_name(&conn, "Dark Matter", "PAYDAY 3"), Some(200));
 }
 
+#[test]
+fn by_name_escapes_like_wildcards() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    conn.execute_batch("
+        CREATE TABLE games (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE sources (id INTEGER PRIMARY KEY, game_id INTEGER);
+        CREATE TABLE mods (id INTEGER PRIMARY KEY, source_id INTEGER, remote_id INTEGER, name TEXT);
+        CREATE TABLE files (id INTEGER PRIMARY KEY, mod_id INTEGER, remote_id INTEGER, sha256 TEXT, version TEXT, entry_name TEXT NOT NULL DEFAULT '');
+        INSERT INTO games VALUES (2, 'PAYDAY 2');
+        INSERT INTO sources VALUES (2, 2);
+        INSERT INTO mods VALUES (1, 2, 111, 'Ammo_Pickup');
+        INSERT INTO mods VALUES (2, 2, 222, 'AmmoXPickup');
+        INSERT INTO mods VALUES (3, 2, 333, '50% Off');
+        INSERT INTO mods VALUES (4, 2, 444, '5000 Off Deluxe');
+        INSERT INTO files VALUES (1, 1, 501, 'h1', '1.0', '');
+        INSERT INTO files VALUES (2, 2, 502, 'h2', '1.0', '');
+        INSERT INTO files VALUES (3, 3, 503, 'h3', '1.0', '');
+        INSERT INTO files VALUES (4, 4, 504, 'h4', '1.0', '');
+    ").unwrap();
+    // A name carrying a LIKE metacharacter must match literally, not as a wildcard: without
+    // escaping, "Ammo_Pickup" also matches "AmmoXPickup" (the _ standing in for any char) and
+    // "50% Off" also matches "5000 Off Deluxe", so a real unique mod would read as ambiguous
+    // and resolve to nothing.
+    assert_eq!(query_by_name(&conn, "Ammo_Pickup", "PAYDAY 2"), Some(111));
+    assert_eq!(query_by_name(&conn, "50% Off", "PAYDAY 2"), Some(333));
+}
+
 // ── query_mod_files ───────────────────────────────────────────────────────
 
 #[test]
