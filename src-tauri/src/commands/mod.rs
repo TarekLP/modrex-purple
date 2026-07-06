@@ -8,6 +8,7 @@ pub mod mod_index;
 pub mod mods;
 pub mod news;
 pub mod pdth_overrides;
+pub mod raid_superblt;
 pub mod settings;
 pub mod superblt;
 pub mod thumbnails;
