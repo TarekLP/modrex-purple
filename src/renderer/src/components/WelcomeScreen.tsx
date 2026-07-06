@@ -14,6 +14,7 @@ const CDN_URLS: Record<GameId, string> = {
     pd2: 'https://cdn.akamai.steamstatic.com/steam/apps/218620/library_600x900.jpg',
     pdth: 'https://cdn.akamai.steamstatic.com/steam/apps/24240/library_600x900.jpg',
     cb: 'https://cdn.akamai.steamstatic.com/steam/apps/2933080/library_600x900.jpg',
+    raid: 'https://cdn.akamai.steamstatic.com/steam/apps/414740/library_600x900.jpg',
 }
 
 const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }> = {
@@ -21,6 +22,10 @@ const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }>
     pd2: { background: 'linear-gradient(135deg, #1a1306 0%, #3d2d0f 100%)', nameColor: '#e09020' },
     pdth: { background: 'linear-gradient(135deg, #060d1a 0%, #0f1f3d 100%)', nameColor: '#5588cc' },
     cb: { background: 'linear-gradient(135deg, #1a062b 0%, #3d0f3a 100%)', nameColor: '#e055c9' },
+    raid: {
+        background: 'linear-gradient(135deg, #131806 0%, #333d0f 100%)',
+        nameColor: '#a9c34f',
+    },
 }
 
 interface Props {

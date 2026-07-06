@@ -61,7 +61,7 @@ export default function App() {
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [activeGame, setActiveGame] = useState<GameId>(() => {
         const saved = localStorage.getItem('modrex:active-game')
-        if (saved === 'pd2' || saved === 'pdth' || saved === 'cb') return saved
+        if (saved === 'pd2' || saved === 'pdth' || saved === 'cb' || saved === 'raid') return saved
         return 'pd3'
     })
     const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: Mod }[]>([])

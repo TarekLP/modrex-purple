@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Added support for RAID: World War II — browse, install, and manage its mods (SuperBLT and legacy RaidBLT script mods in `mods/`, asset packs in `assets/mod_overrides`).
+
 ### Fixed
 
 - Fixed installed mods not being recognized on slower internet connections, where the mod identification data could time out before it finished downloading.
