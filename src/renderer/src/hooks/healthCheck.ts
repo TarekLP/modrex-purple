@@ -34,6 +34,19 @@ async function checkLoaders(
                 pdthOverridesInstalled: pdthOk,
                 dahmInstalled: dahmOk,
                 ue4ssInstalled: null,
+                raidSuperbltInstalled: null,
+            }),
+        }
+    }
+    if (gameId === 'raid') {
+        const sbltOk = await api.checkRaidSuperblt(gamePath)
+        return {
+            bltOk: sbltOk,
+            loaderModIds: buildLoaderModIds('raid', {
+                pdthOverridesInstalled: null,
+                dahmInstalled: null,
+                ue4ssInstalled: null,
+                raidSuperbltInstalled: sbltOk,
             }),
         }
     }
@@ -44,6 +57,7 @@ async function checkLoaders(
             pdthOverridesInstalled: null,
             dahmInstalled: null,
             ue4ssInstalled: ue4ssOk,
+            raidSuperbltInstalled: null,
         }),
     }
 }

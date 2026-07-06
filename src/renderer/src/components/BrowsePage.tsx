@@ -44,6 +44,7 @@ import {
     loaderIdsForGame,
     PDTH_OVERRIDES_ID,
     DAHM_ID,
+    RAID_SUPERBLT_ID,
 } from '../deps'
 import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
@@ -260,6 +261,7 @@ export function BrowsePage({
     const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
     const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
     const [ue4ssInstalled, setUe4ssInstalled] = useState<boolean | null>(null)
+    const [raidSuperbltInstalled, setRaidSuperbltInstalled] = useState<boolean | null>(null)
 
     useEffect(() => {
         return api.onDownloadProgress(({ download_id, downloaded, total }) => {
@@ -295,6 +297,11 @@ export function BrowsePage({
         if (activeGame === 'cb' || activeGame === 'pd3') {
             api.checkUe4ss(gamePath, activeGame).then((v) => {
                 if (!cancelled) setUe4ssInstalled(v)
+            })
+        }
+        if (activeGame === 'raid') {
+            api.checkRaidSuperblt(gamePath).then((v) => {
+                if (!cancelled) setRaidSuperbltInstalled(v)
             })
         }
         return () => {
@@ -444,6 +451,9 @@ export function BrowsePage({
             } else if (activeGame === 'pdth' && modId === DAHM_ID) {
                 await api.installDahm(gamePath)
                 setDahmInstalled(true)
+            } else if (activeGame === 'raid' && modId === RAID_SUPERBLT_ID) {
+                await api.installRaidSuperblt(gamePath)
+                setRaidSuperbltInstalled(true)
             } else {
                 await api.installMod(modId, gamePath, activeGame)
                 // The loader package isn't tracked in the installed list — its own install
@@ -485,6 +495,7 @@ export function BrowsePage({
                         ue4ssInstalled,
                         pdthOverridesInstalled,
                         dahmInstalled,
+                        raidSuperbltInstalled,
                     }
                 )
                 if (depResult) {
@@ -537,6 +548,7 @@ export function BrowsePage({
             pdthOverridesInstalled,
             dahmInstalled,
             ue4ssInstalled,
+            raidSuperbltInstalled,
             doInstall,
             runCrimeBossInstall,
             addInstalling,
@@ -606,6 +618,7 @@ export function BrowsePage({
         pdthOverridesInstalled,
         dahmInstalled,
         ue4ssInstalled,
+        raidSuperbltInstalled,
     })
     const missingDepsList = depsWarning
         ? missingRequiredDeps(
@@ -705,6 +718,9 @@ export function BrowsePage({
                             } else if (loaderModId === DAHM_ID) {
                                 await api.installDahm(gamePath)
                                 setDahmInstalled(true)
+                            } else if (loaderModId === RAID_SUPERBLT_ID) {
+                                await api.installRaidSuperblt(gamePath)
+                                setRaidSuperbltInstalled(true)
                             } else if (
                                 loaderModId !== null &&
                                 isUe4ssLoaderId(activeGame, loaderModId)
@@ -804,6 +820,7 @@ export function BrowsePage({
                             ...(pdthOverridesInstalled ? [PDTH_OVERRIDES_ID] : []),
                             ...(dahmInstalled ? [DAHM_ID] : []),
                             ...(ue4ssInstalled ? ue4ssLoaderIdsFor(activeGame) : []),
+                            ...(raidSuperbltInstalled ? [RAID_SUPERBLT_ID] : []),
                         ])
                     }
                     onOpen={onOpenDetail}

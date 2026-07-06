@@ -341,6 +341,14 @@ export const api = {
         return invoke('install_dahm', { gamePath })
     },
 
+    // ── RAID-SuperBLT ──────────────────────────────────────────────────────────
+    checkRaidSuperblt(gamePath: string): Promise<boolean> {
+        return invoke('check_raid_superblt', { gamePath })
+    },
+    installRaidSuperblt(gamePath: string): Promise<void> {
+        return invoke('install_raid_superblt', { gamePath })
+    },
+
     // ── UE4SS ────────────────────────────────────────────────────────────────────
     checkUe4ss(gamePath: string, gameId?: string): Promise<boolean> {
         return invoke('check_ue4ss', { gamePath, gameId })

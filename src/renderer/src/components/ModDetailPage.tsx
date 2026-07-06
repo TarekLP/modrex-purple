@@ -49,11 +49,13 @@ import {
     isLoaderDep,
     isUe4ssLoaderId,
     isPdthLoaderId,
+    isRaidLoaderId,
     missingRequiredDeps,
     buildLoaderModIds,
     loaderIdsForGame,
     PDTH_OVERRIDES_ID,
     DAHM_ID,
+    RAID_SUPERBLT_ID,
 } from '../deps'
 import { resolveDepCheck } from '../installDepCheck'
 import { useThumbnail } from '../hooks/useThumbnail'
@@ -108,6 +110,7 @@ export function ModDetailPage({
     const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
     const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
     const [ue4ssInstalled, setUe4ssInstalled] = useState<boolean | null>(null)
+    const [raidSuperbltInstalled, setRaidSuperbltInstalled] = useState<boolean | null>(null)
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
@@ -127,7 +130,8 @@ export function ModDetailPage({
     const installedMod = installedFiles[0]
     // Not tracked in the installed list — DLL presence drives its button state.
     const isUe4ssMod = isUe4ssLoaderId(activeGame, modId)
-    const isLoaderMod = isPdthLoaderId(activeGame, modId) || isUe4ssMod
+    const isRaidLoaderMod = isRaidLoaderId(activeGame, modId)
+    const isLoaderMod = isPdthLoaderId(activeGame, modId) || isUe4ssMod || isRaidLoaderMod
     const loaderModInstalled =
         modId === PDTH_OVERRIDES_ID
             ? pdthOverridesInstalled
@@ -135,7 +139,9 @@ export function ModDetailPage({
               ? dahmInstalled
               : isUe4ssMod
                 ? ue4ssInstalled
-                : null
+                : isRaidLoaderMod
+                  ? raidSuperbltInstalled
+                  : null
 
     // Full-size banner via the disk cache — the CDN sends no cache headers, so a
     // direct URL costs a download or revalidation round-trip on every page visit.
@@ -221,6 +227,7 @@ export function ModDetailPage({
                 ue4ssInstalled,
                 pdthOverridesInstalled,
                 dahmInstalled,
+                raidSuperbltInstalled,
             }
         )
         if (depResult) {
@@ -228,6 +235,7 @@ export function ModDetailPage({
             setUe4ssInstalled(depResult.loaderState.ue4ssInstalled)
             setPdthOverridesInstalled(depResult.loaderState.pdthOverridesInstalled)
             setDahmInstalled(depResult.loaderState.dahmInstalled)
+            setRaidSuperbltInstalled(depResult.loaderState.raidSuperbltInstalled)
             setShowDepsWarning(true)
             return
         }
@@ -260,6 +268,9 @@ export function ModDetailPage({
             } else if (activeGame === 'pdth' && mod.id === DAHM_ID) {
                 await api.installDahm(gamePath)
                 setDahmInstalled(true)
+            } else if (activeGame === 'raid' && mod.id === RAID_SUPERBLT_ID) {
+                await api.installRaidSuperblt(gamePath)
+                setRaidSuperbltInstalled(true)
             } else {
                 await api.installMod(mod.id, gamePath, activeGame)
             }
@@ -287,6 +298,9 @@ export function ModDetailPage({
             } else if (loaderModId === DAHM_ID) {
                 await api.installDahm(gamePath)
                 setDahmInstalled(true)
+            } else if (loaderModId === RAID_SUPERBLT_ID) {
+                await api.installRaidSuperblt(gamePath)
+                setRaidSuperbltInstalled(true)
             } else if (loaderModId !== null && isUe4ssLoaderId(activeGame, loaderModId)) {
                 // UE4SS has no dedicated install command — it's routed server-side via the
                 // UE4SS_LOADER sentinel the same way any other mod install resolves.
@@ -347,10 +361,13 @@ export function ModDetailPage({
     const hasLoaderDepUe4ss = allDeps.some(
         (d) => d.mod !== null && isUe4ssLoaderId(activeGame, d.mod.id)
     )
+    const hasLoaderDepRaidSblt =
+        activeGame === 'raid' && allDeps.some((d) => d.mod?.id === RAID_SUPERBLT_ID)
     const loaderModIds = buildLoaderModIds(activeGame, {
         pdthOverridesInstalled,
         dahmInstalled,
         ue4ssInstalled,
+        raidSuperbltInstalled,
     })
     const missingRequired = missingRequiredDeps(allDeps, installed, loaderInstalled, loaderModIds)
 
@@ -361,7 +378,8 @@ export function ModDetailPage({
             hasLoaderDepPdthOverrides || (activeGame === 'pdth' && modId === PDTH_OVERRIDES_ID)
         const needsDahm = hasLoaderDepDahm || (activeGame === 'pdth' && modId === DAHM_ID)
         const needsUe4ss = isUe4ssMod || hasLoaderDepUe4ss
-        if (!needsBlt && !needsPdthOverrides && !needsDahm && !needsUe4ss) return
+        const needsRaidSblt = isRaidLoaderMod || hasLoaderDepRaidSblt
+        if (!needsBlt && !needsPdthOverrides && !needsDahm && !needsUe4ss && !needsRaidSblt) return
         let cancelled = false
         if (needsBlt) {
             api.checkSuperblt(gamePath).then((v) => {
@@ -383,6 +401,11 @@ export function ModDetailPage({
                 if (!cancelled) setUe4ssInstalled(v)
             })
         }
+        if (needsRaidSblt) {
+            api.checkRaidSuperblt(gamePath).then((v) => {
+                if (!cancelled) setRaidSuperbltInstalled(v)
+            })
+        }
         return () => {
             cancelled = true
         }
@@ -392,7 +415,9 @@ export function ModDetailPage({
         hasLoaderDepPdthOverrides,
         hasLoaderDepDahm,
         hasLoaderDepUe4ss,
+        hasLoaderDepRaidSblt,
         isUe4ssMod,
+        isRaidLoaderMod,
         activeGame,
         modId,
     ])

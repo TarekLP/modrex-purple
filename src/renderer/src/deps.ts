@@ -48,18 +48,34 @@ export function isPdthLoaderId(gameId: string | undefined, id: number): boolean 
 }
 
 /**
+ * RAID's mod loader, hosted on modworkshop (mod page 49744) but installed as a
+ * game-root package (loader DLL plus the mods/base Lua basemod) via a dedicated
+ * command — the same hosted-loader shape as PDTH's. RAID mods declare it as an
+ * instructs-template dependency.
+ */
+export const RAID_SUPERBLT_ID = 49744
+
+export function isRaidLoaderId(gameId: string | undefined, id: number): boolean {
+    return gameId === 'raid' && id === RAID_SUPERBLT_ID
+}
+
+/**
  * The loader mod ids the dep-warning UI can offer to install for `gameId`: PDTH's two
- * hosted loaders, or the UE4SS page(s) for PD3/Crime Boss (empty for PD2).
+ * hosted loaders, RAID's SuperBLT page, or the UE4SS page(s) for PD3/Crime Boss
+ * (empty for PD2).
  */
 export function loaderIdsForGame(gameId: string | undefined): number[] {
-    return gameId === 'pdth' ? PDTH_LOADER_IDS : ue4ssLoaderIdsFor(gameId)
+    if (gameId === 'pdth') return PDTH_LOADER_IDS
+    if (gameId === 'raid') return [RAID_SUPERBLT_ID]
+    return ue4ssLoaderIdsFor(gameId)
 }
 
 /**
  * Per-id install state for `gameId`'s hosted loaders, in the `Record<id, installed?>` shape
  * `missingRequiredDeps` expects. The flags are the caller's own presence-check results
- * (`null` = not yet checked): PDTH maps to PDTHModOverrides + DAHM; PD3/Crime Boss map their
- * UE4SS page(s) to the single `ue4ssInstalled` flag; other games map to `{}`.
+ * (`null` = not yet checked): PDTH maps to PDTHModOverrides + DAHM; RAID maps its SuperBLT
+ * page to `raidSuperbltInstalled`; PD3/Crime Boss map their UE4SS page(s) to the single
+ * `ue4ssInstalled` flag; other games map to `{}`.
  */
 export function buildLoaderModIds(
     gameId: string | undefined,
@@ -67,10 +83,14 @@ export function buildLoaderModIds(
         pdthOverridesInstalled: boolean | null
         dahmInstalled: boolean | null
         ue4ssInstalled: boolean | null
+        raidSuperbltInstalled: boolean | null
     }
 ): Record<number, boolean | null> {
     if (gameId === 'pdth') {
         return { [PDTH_OVERRIDES_ID]: flags.pdthOverridesInstalled, [DAHM_ID]: flags.dahmInstalled }
+    }
+    if (gameId === 'raid') {
+        return { [RAID_SUPERBLT_ID]: flags.raidSuperbltInstalled }
     }
     return Object.fromEntries(
         ue4ssLoaderIdsFor(gameId).map((id): [number, boolean | null] => [id, flags.ue4ssInstalled])
