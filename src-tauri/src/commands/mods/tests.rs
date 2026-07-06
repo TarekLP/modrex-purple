@@ -1537,12 +1537,16 @@ fn extract_dir_entry_drops_traversal_entries() {
     assert!(!out.path().join("escape.pak").exists());
 }
 
-// ── embedded_modworkshop_id (BeardLib AssetUpdates) ───────────────────────────
+// ── embedded_modworkshop_id (BeardLib / RAID BLT marker files) ────────────────
+
+fn dir_with_marker(name: &str, content: &str) -> TempDir {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join(name), content).unwrap();
+    tmp
+}
 
 fn dir_with_main_xml(content: &str) -> TempDir {
-    let tmp = TempDir::new().unwrap();
-    fs::write(tmp.path().join("main.xml"), content).unwrap();
-    tmp
+    dir_with_marker("main.xml", content)
 }
 
 #[test]
@@ -1600,6 +1604,42 @@ fn embedded_id_ignores_substring_attribute_names() {
     // `someid="7"` must not be mistaken for `id`.
     let d = dir_with_main_xml(r#"<AssetUpdates someid="7" id="42" provider="modworkshop"/>"#);
     assert_eq!(embedded_modworkshop_id(d.path()), Some((42, None)));
+}
+
+#[test]
+fn embedded_id_reads_raid_supermod_update_with_root_version() {
+    // Real RAID-SuperBLT shape (WolfgangHUD): identifier on the update element inside an
+    // updates wrapper, version on the multi-line root mod element.
+    let d = dir_with_marker(
+        "supermod.xml",
+        "<mod name=\"WolfgangHUD\"\n\tauthor=\"BangL\"\n\tversion=\"2.36.0\">\n\t<updates>\n\t\t<update provider=\"modworkshop\" identifier=\"24551\"/>\n\t</updates>\n</mod>",
+    );
+    assert_eq!(
+        embedded_modworkshop_id(d.path()),
+        Some((24551, Some("2.36.0".to_string())))
+    );
+}
+
+#[test]
+fn embedded_id_supermod_skips_non_modworkshop_updates() {
+    let d = dir_with_marker(
+        "supermod.xml",
+        r#"<mod name="x"><updates><update provider="github" identifier="1"/><update provider="modworkshop" identifier="7"/></updates></mod>"#,
+    );
+    assert_eq!(embedded_modworkshop_id(d.path()), Some((7, None)));
+}
+
+#[test]
+fn embedded_id_reads_legacy_raidblt_auto_updates() {
+    // Real legacy RaidBLT shape (Carry Stacker): auto_updates element in mod.xml.
+    let d = dir_with_marker(
+        "mod.xml",
+        r#"<table name="Carry Stacker"><auto_updates provider="modworkshop" id="25166" version="2" important="true"/></table>"#,
+    );
+    assert_eq!(
+        embedded_modworkshop_id(d.path()),
+        Some((25166, Some("2".to_string())))
+    );
 }
 
 // ── identify_untracked (hash → embedded-id → name priority) ───────────────────
