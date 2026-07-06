@@ -2090,6 +2090,31 @@ fn hashable_file_for_mod_dir_prefers_pak_over_alphabetically_first_file() {
     assert_eq!(hashed, pak_dir.join("SomeMod-WindowsNoEditor.pak"));
 }
 
+// RAID BLT mods: the marker must win over the alphabetical-first file (which sorts before
+// supermod.xml for typical mods, e.g. WolfgangHUD's WolfgangHUDTweakData.lua) because
+// modrex-index records SHA256 for the marker, not the first file.
+#[test]
+fn hashable_file_for_mod_dir_prefers_raid_supermod_marker() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("AaaFirst.lua"), b"lua").unwrap();
+    fs::write(dir.path().join("supermod.xml"), b"<mod/>").unwrap();
+    assert_eq!(
+        hashable_file_for_mod_dir(dir.path()).unwrap(),
+        dir.path().join("supermod.xml")
+    );
+}
+
+#[test]
+fn hashable_file_for_mod_dir_prefers_supermod_over_legacy_mod_xml() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("mod.xml"), b"<table/>").unwrap();
+    fs::write(dir.path().join("supermod.xml"), b"<mod/>").unwrap();
+    assert_eq!(
+        hashable_file_for_mod_dir(dir.path()).unwrap(),
+        dir.path().join("supermod.xml")
+    );
+}
+
 // ── crimeboss_settings: ModSettings id derivation / file sync ────────────────
 // Derivation and schema verified against real installs (see CLAUDE.md's Crime Boss section):
 // e.g. DallasPDCrimeBoss-WindowsNoEditor.pak <-> Saved/ModSettings/dallaspd.json.

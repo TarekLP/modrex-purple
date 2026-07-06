@@ -53,9 +53,14 @@ fn first_pak_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
 }
 
 pub(crate) fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    let main_xml = dir.join("main.xml");
-    if main_xml.exists() {
-        return Some(main_xml);
+    // Marker preference mirrors modrex-index's selectMarkerPath so both sides hash the same
+    // representative file: main.xml (BeardLib), then RAID's supermod.xml (RAID-SuperBLT) and
+    // mod.xml (legacy RaidBLT).
+    for marker in ["main.xml", "supermod.xml", "mod.xml"] {
+        let p = dir.join(marker);
+        if p.exists() {
+            return Some(p);
+        }
     }
     first_pak_file_in_dir(dir).or_else(|| first_file_in_dir(dir))
 }
