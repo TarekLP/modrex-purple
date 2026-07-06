@@ -688,6 +688,41 @@ fn target_for_unknown_tag_falls_back_to_primary() {
     assert_eq!(cfg.target_for(Some("nonexistent")).tag, "mods");
 }
 
+// ── RAID multi-target engine ──────────────────────────────────────────────
+
+#[test]
+fn raid_engine_has_two_targets() {
+    let cfg = engine_for_game("raid");
+    assert_eq!(cfg.targets.len(), 2);
+    assert_eq!(cfg.targets[0].tag, "mods");
+    assert_eq!(cfg.targets[1].tag, "mod_overrides");
+}
+
+#[test]
+fn raid_classify_superblt_and_legacy_mods_route_to_primary() {
+    let names: Vec<String> = ["WolfgangHUD/supermod.xml", "CarryStacker/mod.xml"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let dirs = classify_archive_dirs(&names, engine_for_game("raid"));
+    assert_eq!(dirs.len(), 2);
+    assert_eq!(tag_of(&dirs, "WolfgangHUD"), Some(&None));
+    assert_eq!(tag_of(&dirs, "CarryStacker"), Some(&None));
+}
+
+#[test]
+fn raid_classify_markerless_pack_routes_to_mod_overrides() {
+    let names: Vec<String> = ["CODWW2Soundpack/soundbanks/weapon_thompson.bnk"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let dirs = classify_archive_dirs(&names, engine_for_game("raid"));
+    assert_eq!(
+        tag_of(&dirs, "CODWW2Soundpack"),
+        Some(&Some("mod_overrides".to_string()))
+    );
+}
+
 // ── classify_archive_dirs ────────────────────────────────────────────────
 
 fn classify(names: &[&str]) -> Vec<(String, Option<String>)> {

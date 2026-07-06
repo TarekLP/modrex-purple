@@ -263,11 +263,51 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     ],
 };
 
+// RAID BLT mods are marked by supermod.xml (RAID-SuperBLT) or mod.xml (legacy RaidBLT,
+// still loaded via RAIDWW2-BeardLib); the mod.txt marker from PD2's BLT does not exist in
+// the RAID fork. assets/mod_overrides is the same native Diesel override system as PD2's.
+// The top-level base skip in find_untracked_paks is load-bearing here: unlike PD2, RAID's
+// mods/base carries supermod.xml, which matches the primary marker.
+pub static RAID_ENGINE: ModEngineConfig = ModEngineConfig {
+    game_id: "raid",
+    index_game_name: "RAID: World War II",
+    state_filename: ".modrex.json",
+    targets: &[
+        ScanTarget {
+            tag: "mods",
+            unit: ModUnit::Directory {
+                entry_markers: &["supermod.xml", "mod.xml"],
+                scan_markers: &["supermod.xml", "mod.xml"],
+                index_gated_markers: &[],
+                excluded_names: &[],
+                priority_prefix: false,
+            },
+            mods_subpath: &["mods"],
+            disabled_subpath: &["mods", "disabled"],
+            backup_subpath: &["mods.bak"],
+        },
+        ScanTarget {
+            tag: "mod_overrides",
+            unit: ModUnit::Directory {
+                entry_markers: &[],
+                scan_markers: &[],
+                index_gated_markers: &[],
+                excluded_names: &[],
+                priority_prefix: false,
+            },
+            mods_subpath: &["assets", "mod_overrides"],
+            disabled_subpath: &["assets", "mod_overrides", "disabled"],
+            backup_subpath: &["assets", "mod_overrides.bak"],
+        },
+    ],
+};
+
 pub fn engine_for_game(game_id: &str) -> &'static ModEngineConfig {
     match game_id {
         "pd2" => &PD2_ENGINE,
         "pdth" => &PDTH_ENGINE,
         "cb" => &CRIMEBOSS_ENGINE,
+        "raid" => &RAID_ENGINE,
         _ => &PD3_ENGINE,
     }
 }
