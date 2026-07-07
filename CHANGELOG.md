@@ -6,7 +6,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
-- Added support for RAID: World War II: browse, install, and manage its mods (SuperBLT and legacy RaidBLT script mods in `mods/`, asset packs in `assets/mod_overrides`), with one-click install and dependency detection for the RAID-SuperBLT mod loader.
+- Added support for RAID: World War II: browse, install, and manage its mods (SuperBLT and legacy RaidBLT script mods plus asset override packs, all installed into the game's `mods` folder as the current loader expects), with one-click install and dependency detection for the RAID-SuperBLT mod loader.
 
 ### Fixed
 

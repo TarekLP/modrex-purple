@@ -688,39 +688,54 @@ fn target_for_unknown_tag_falls_back_to_primary() {
     assert_eq!(cfg.target_for(Some("nonexistent")).tag, "mods");
 }
 
-// ── RAID multi-target engine ──────────────────────────────────────────────
+// ── RAID single blanket-accept engine ─────────────────────────────────────
+// RAID's loader reads both BLT script mods and asset packs from one mods/<name>/ folder
+// (assets/mod_overrides was removed), so the engine is a single blanket-accept target that
+// excludes only BLT infrastructure dirs — see RAID_ENGINE in engine.rs.
 
 #[test]
-fn raid_engine_has_two_targets() {
+fn raid_engine_has_single_blanket_mods_target() {
     let cfg = engine_for_game("raid");
-    assert_eq!(cfg.targets.len(), 2);
+    assert_eq!(cfg.targets.len(), 1);
     assert_eq!(cfg.targets[0].tag, "mods");
-    assert_eq!(cfg.targets[1].tag, "mod_overrides");
+    // Blanket-accept: no markers, so every non-infra folder in mods/ is a user mod.
+    match &cfg.targets[0].unit {
+        super::engine::ModUnit::Directory {
+            entry_markers,
+            scan_markers,
+            excluded_names,
+            ..
+        } => {
+            assert!(entry_markers.is_empty());
+            assert!(scan_markers.is_empty());
+            for infra in ["base", "downloads", "logs", "saves"] {
+                assert!(
+                    excluded_names.contains(&infra),
+                    "missing exclusion: {infra}"
+                );
+            }
+        }
+        _ => panic!("RAID mods target must be a Directory unit"),
+    }
 }
 
 #[test]
-fn raid_classify_superblt_and_legacy_mods_route_to_primary() {
-    let names: Vec<String> = ["WolfgangHUD/supermod.xml", "CarryStacker/mod.xml"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+fn raid_classify_script_and_asset_mods_all_route_to_mods() {
+    // A BLT script mod (supermod.xml), a legacy RaidBLT mod (mod.xml), and a marker-less asset
+    // pack (soundbanks/) all install into the one mods target (primary tag, location None).
+    let names: Vec<String> = [
+        "WolfgangHUD/supermod.xml",
+        "CarryStacker/mod.xml",
+        "CODWW2Soundpack/soundbanks/weapon_thompson.bnk",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
     let dirs = classify_archive_dirs(&names, engine_for_game("raid"));
-    assert_eq!(dirs.len(), 2);
+    assert_eq!(dirs.len(), 3);
     assert_eq!(tag_of(&dirs, "WolfgangHUD"), Some(&None));
     assert_eq!(tag_of(&dirs, "CarryStacker"), Some(&None));
-}
-
-#[test]
-fn raid_classify_markerless_pack_routes_to_mod_overrides() {
-    let names: Vec<String> = ["CODWW2Soundpack/soundbanks/weapon_thompson.bnk"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-    let dirs = classify_archive_dirs(&names, engine_for_game("raid"));
-    assert_eq!(
-        tag_of(&dirs, "CODWW2Soundpack"),
-        Some(&Some("mod_overrides".to_string()))
-    );
+    assert_eq!(tag_of(&dirs, "CODWW2Soundpack"), Some(&None));
 }
 
 // ── classify_archive_dirs ────────────────────────────────────────────────
