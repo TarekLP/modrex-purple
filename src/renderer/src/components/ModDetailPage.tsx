@@ -819,6 +819,7 @@ export function ModDetailPage({
                                 gamePath={gamePath}
                                 activeGame={activeGame}
                                 loaderInstalled={loaderInstalled}
+                                loaderModIds={loaderModIds}
                                 onInstallLoader={handleInstallLoader}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}

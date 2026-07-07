@@ -16,6 +16,7 @@ export function DepsTab({
     gamePath,
     activeGame,
     loaderInstalled,
+    loaderModIds,
     onInstallLoader,
     onRefreshInstalled,
     onOpenDetail,
@@ -26,6 +27,9 @@ export function DepsTab({
     gamePath: string | null
     activeGame?: GameId
     loaderInstalled: boolean | null
+    // Hosted loaders (PDTHModOverrides, DAHM, UE4SS, RAID-SuperBLT) are on-site deps but aren't
+    // tracked in the installed list — their per-id presence state lives here instead.
+    loaderModIds: Record<number, boolean | null>
     onInstallLoader?: (modId: number | null) => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
@@ -66,6 +70,7 @@ export function DepsTab({
                                 gamePath={gamePath}
                                 activeGame={activeGame}
                                 loaderInstalled={loaderInstalled}
+                                loaderModIds={loaderModIds}
                                 onInstallLoader={onInstallLoader}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
@@ -89,6 +94,7 @@ export function DepsTab({
                                 gamePath={gamePath}
                                 activeGame={activeGame}
                                 loaderInstalled={loaderInstalled}
+                                loaderModIds={loaderModIds}
                                 onInstallLoader={onInstallLoader}
                                 onRefreshInstalled={onRefreshInstalled}
                                 onOpenDetail={onOpenDetail}
@@ -107,6 +113,7 @@ function DepRow({
     gamePath,
     activeGame,
     loaderInstalled,
+    loaderModIds,
     onInstallLoader,
     onRefreshInstalled,
     onOpenDetail,
@@ -116,6 +123,7 @@ function DepRow({
     gamePath: string | null
     activeGame?: GameId
     loaderInstalled: boolean | null
+    loaderModIds: Record<number, boolean | null>
     onInstallLoader?: (modId: number | null) => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
@@ -205,15 +213,28 @@ function DepRow({
             </div>
         )
     }
-    const isInstalled = installed.some((m) => m.id === mod.id)
+    // Hosted loaders (RAID-SuperBLT, PDTHModOverrides, DAHM, UE4SS) are on-site deps but live in
+    // the game root as DLLs, not the installed-mods list — their presence comes from loaderModIds
+    // (null = not yet checked). Falling through to the installed-list check would always read
+    // "Missing" for an installed loader.
+    const isHostedLoader = mod.id in loaderModIds
+    const isInstalled = isHostedLoader
+        ? loaderModIds[mod.id] === true
+        : installed.some((m) => m.id === mod.id)
 
     async function handleInstall(e: React.MouseEvent) {
         e.stopPropagation()
         if (!gamePath) return
         setInstalling(true)
         try {
-            await api.installMod(mod!.id, gamePath, activeGame)
-            await onRefreshInstalled()
+            if (isHostedLoader && onInstallLoader) {
+                // Loaders install via a dedicated command (extraction to game root/Binaries),
+                // never the normal mod-install flow.
+                await onInstallLoader(mod!.id)
+            } else {
+                await api.installMod(mod!.id, gamePath, activeGame)
+                await onRefreshInstalled()
+            }
         } finally {
             setInstalling(false)
         }

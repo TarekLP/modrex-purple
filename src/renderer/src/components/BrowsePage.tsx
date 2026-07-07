@@ -283,8 +283,12 @@ export function BrowsePage({
         })
     }, [installed, installingMods])
 
+    // Re-runs on browse re-activation, not just gamePath, so a loader installed from a mod's
+    // detail page (which updates only that page's own presence state) is reflected on the
+    // browse cards when the user returns. Loaders aren't tracked in the installed list, so
+    // there's no installed-array change to key off; the DLL/file presence check is cheap.
     useEffect(() => {
-        if (!gamePath) return
+        if (!gamePath || !isActive) return
         let cancelled = false
         if (activeGame === 'pdth') {
             api.checkPdthOverrides(gamePath).then((v) => {
@@ -307,7 +311,7 @@ export function BrowsePage({
         return () => {
             cancelled = true
         }
-    }, [gamePath]) // eslint-disable-line react-hooks/exhaustive-deps -- activeGame is stable per mount; BrowsePage remounts on game change via key={activeGame}
+    }, [gamePath, isActive]) // eslint-disable-line react-hooks/exhaustive-deps -- activeGame is stable per mount; BrowsePage remounts on game change via key={activeGame}
 
     const fetchMods = useCallback(
         async (p: number, q: string, cat: number | undefined, s: SortOption) => {
