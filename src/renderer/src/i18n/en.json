@@ -338,10 +338,22 @@
             "auto": "Automatic",
             "ask": "Always ask"
         },
+        "about": {
+            "tagline": "Free and open-source mod manager.",
+            "supportTitle": "Support the project",
+            "supportBody": "Modrex is free and built in spare time. If it saves you time, a GitHub star or a sponsorship helps keep it going.",
+            "star": "Star on GitHub",
+            "sponsor": "Sponsor",
+            "communityTitle": "Community",
+            "discord": "Join the Discord",
+            "website": "modrex.net",
+            "disclaimer": "Modrex is a community project and is not affiliated with the developers or publishers of the supported games."
+        },
         "nav": {
             "game": "Game",
             "application": "Application",
-            "advanced": "Advanced"
+            "advanced": "Advanced",
+            "about": "About"
         }
     },
     "diesel3Notice": {

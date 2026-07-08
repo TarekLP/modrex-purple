@@ -8,8 +8,12 @@ import {
     Gamepad2,
     AppWindow,
     Wrench,
+    Heart,
+    Globe,
+    Info,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { siGithub, siDiscord } from 'simple-icons'
 import { t } from '../i18n'
 import { Select } from './Select'
 import { Toggle } from './Toggle'
@@ -25,13 +29,20 @@ import XboxIcon from '../../../../assets/icons/xbox.svg?react'
 
 const iconClass = 'w-3.5 h-3.5 shrink-0 fill-current'
 
+const APP_VERSION = import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP_VERSION}`
+
+const GITHUB_URL = 'https://github.com/modrexio/modrex'
+const SPONSOR_URL = 'https://github.com/sponsors/modrexio'
+const DISCORD_URL = 'https://discord.gg/tenzpx8JRM'
+const WEBSITE_URL = 'https://modrex.net/'
+
 const LAUNCHER_OPTIONS = [
     { value: 'steam', label: 'Steam', icon: <SteamIcon className={iconClass} /> },
     { value: 'epic', label: 'Epic Games', icon: <EpicIcon className={iconClass} /> },
     { value: 'xbox', label: 'Xbox', icon: <XboxIcon className={iconClass} /> },
 ]
 
-type SettingsTab = 'game' | 'application' | 'advanced'
+type SettingsTab = 'game' | 'application' | 'advanced' | 'about'
 
 const GAME_TAB_KEY = 'modrex:settings-tab'
 const GLOBAL_TAB_KEY = 'modrex:settings-tab:global'
@@ -39,15 +50,20 @@ const GLOBAL_TAB_KEY = 'modrex:settings-tab:global'
 function readSavedTab(globalOnly: boolean): SettingsTab {
     const saved = localStorage.getItem(globalOnly ? GLOBAL_TAB_KEY : GAME_TAB_KEY)
     if (globalOnly) {
-        return saved === 'application' || saved === 'advanced' ? saved : 'application'
+        return saved === 'application' || saved === 'advanced' || saved === 'about'
+            ? saved
+            : 'application'
     }
-    return saved === 'game' || saved === 'application' || saved === 'advanced' ? saved : 'game'
+    return saved === 'game' || saved === 'application' || saved === 'advanced' || saved === 'about'
+        ? saved
+        : 'game'
 }
 
 const NAV_ITEMS: { id: SettingsTab; label: string; icon: LucideIcon }[] = [
     { id: 'game', label: t('settings.nav.game'), icon: Gamepad2 },
     { id: 'application', label: t('settings.nav.application'), icon: AppWindow },
     { id: 'advanced', label: t('settings.nav.advanced'), icon: Wrench },
+    { id: 'about', label: t('settings.nav.about'), icon: Info },
 ]
 
 function Section({
@@ -444,6 +460,91 @@ export function SettingsPage({
                                         />
                                     </div>
                                 </Section>
+                            </>
+                        )}
+
+                        {activeTab === 'about' && (
+                            <>
+                                <div className="flex flex-col items-center gap-1 py-6 text-center">
+                                    <span
+                                        style={{
+                                            fontFamily: "'Bebas Neue', sans-serif",
+                                            fontSize: '3rem',
+                                            letterSpacing: '0.05em',
+                                            lineHeight: 1,
+                                        }}
+                                    >
+                                        <span style={{ color: 'var(--color-text)' }}>MOD</span>
+                                        <span style={{ color: 'var(--color-accent)' }}>REX</span>
+                                    </span>
+                                    <span className="text-xs text-text-subtle">{APP_VERSION}</span>
+                                    <p className="text-sm text-text-muted mt-2">
+                                        {t('settings.about.tagline')}
+                                    </p>
+                                </div>
+
+                                <Section title={t('settings.about.supportTitle')}>
+                                    <div className="flex flex-col gap-3 px-4 py-3 rounded-lg border border-border bg-surface-raised mt-1">
+                                        <p className="text-sm text-text-muted">
+                                            {t('settings.about.supportBody')}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Button
+                                                variant="accent"
+                                                size="md"
+                                                onClick={() => api.openExternal(SPONSOR_URL)}
+                                            >
+                                                <Heart className="w-3.5 h-3.5 shrink-0" />
+                                                {t('settings.about.sponsor')}
+                                            </Button>
+                                            <Button
+                                                variant="secondary"
+                                                size="md"
+                                                onClick={() => api.openExternal(GITHUB_URL)}
+                                            >
+                                                <svg
+                                                    viewBox="0 0 24 24"
+                                                    className={iconClass}
+                                                    aria-hidden
+                                                >
+                                                    <path d={siGithub.path} />
+                                                </svg>
+                                                {t('settings.about.star')}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </Section>
+
+                                <Section title={t('settings.about.communityTitle')}>
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                        <Button
+                                            variant="secondary"
+                                            size="md"
+                                            onClick={() => api.openExternal(DISCORD_URL)}
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                className={iconClass}
+                                                aria-hidden
+                                            >
+                                                <path d={siDiscord.path} />
+                                            </svg>
+                                            {t('settings.about.discord')}
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="md"
+                                            onClick={() => api.openExternal(WEBSITE_URL)}
+                                        >
+                                            <Globe className="w-3.5 h-3.5 shrink-0" />
+                                            {t('settings.about.website')}
+                                        </Button>
+                                    </div>
+                                </Section>
+
+                                <p className="text-xs text-text-subtle">
+                                    {t('settings.about.disclaimer')}
+                                </p>
                             </>
                         )}
 

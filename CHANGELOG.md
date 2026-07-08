@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- New About tab in Settings with project info and quick links to the GitHub repository, GitHub Sponsors, Discord, and modrex.net.
+
 ### Fixed
 
 - Fixed installed mods not being recognized on slower internet connections, where the mod identification data could time out before it finished downloading.
