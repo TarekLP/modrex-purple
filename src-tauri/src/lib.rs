@@ -60,6 +60,7 @@ pub fn run() {
             commands::settings::set_suppress_crash_reporter,
             commands::settings::set_skip_fileopenlog_warning,
             commands::settings::dismiss_deps_warning,
+            commands::settings::record_successful_install,
             commands::settings::get_analytics_consent,
             commands::settings::set_analytics_consent,
             commands::analytics::track_event,

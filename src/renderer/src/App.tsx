@@ -22,6 +22,7 @@ import { ModDetailPage } from './components/ModDetailPage'
 import { SettingsPage } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
+import { SupportPromptBanner } from './components/SupportPromptBanner'
 import { api } from './api'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
 import { useModIdentificationTracking } from './lib/analytics/useModIdentificationTracking'
@@ -84,6 +85,7 @@ export default function App() {
         releaseUrl: string
     } | null>(null)
     const [showUpdateModal, setShowUpdateModal] = useState(false)
+    const [showSupportPrompt, setShowSupportPrompt] = useState(false)
 
     // Kept in sync with view so handleSidebarChange can read it without taking view as a dep.
     const viewRef = useRef<View>(view)
@@ -303,6 +305,8 @@ export default function App() {
         }
     }, [])
 
+    useEffect(() => api.onSupportPromptEligible(() => setShowSupportPrompt(true)), [])
+
     async function handleUpdate() {
         if (!update) return
         setShowUpdateModal(false)
@@ -432,6 +436,9 @@ export default function App() {
                                 </button>
                             </div>
                         </div>
+                    )}
+                    {showSupportPrompt && view !== 'welcome' && (
+                        <SupportPromptBanner onClose={() => setShowSupportPrompt(false)} />
                     )}
                     <div className="flex flex-1 overflow-hidden">
                         <Sidebar

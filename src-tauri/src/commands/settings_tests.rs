@@ -168,3 +168,24 @@ fn migration_skipped_when_games_already_present() {
         Some("new_path")
     );
 }
+
+const DAY_MS: u64 = 24 * 60 * 60 * 1000;
+
+#[test]
+fn support_prompt_eligible_requires_both_installs_and_age() {
+    let first = 1_000_000;
+    // Enough installs but too young
+    assert!(!support_prompt_eligible(10, first, first + 6 * DAY_MS));
+    // Old enough but too few installs
+    assert!(!support_prompt_eligible(9, first, first + 8 * DAY_MS));
+    // Both thresholds met
+    assert!(support_prompt_eligible(10, first, first + 7 * DAY_MS));
+    assert!(support_prompt_eligible(25, first, first + 300 * DAY_MS));
+}
+
+#[test]
+fn support_prompt_eligible_tolerates_clock_moved_backwards() {
+    // now < first_install_at (clock skew / manual clock change) must not panic
+    // or become eligible via underflow.
+    assert!(!support_prompt_eligible(10, 5_000_000, 1_000_000));
+}

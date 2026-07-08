@@ -31,6 +31,30 @@ export type GameSettings = {
     crimebossInstallMode?: string
 }
 
+// Feeds the one-time "star us on GitHub" prompt (settings.rs::record_successful_install).
+// Picker sentinels (ZIP_MULTI_PAK etc.) are flow control, not failures, so they don't
+// poison the session; any real install error suppresses the prompt for this session.
+const INSTALL_SENTINEL_PREFIXES = [
+    'ZIP_MULTI_PAK:',
+    'HOST_MOD_PACK:',
+    'CB_FLAT_ARCHIVE:',
+    'UNRECOGNIZED_ARCHIVE',
+]
+
+let installErrorThisSession = false
+
+async function trackInstall(install: Promise<void>): Promise<void> {
+    try {
+        await install
+    } catch (e) {
+        if (!INSTALL_SENTINEL_PREFIXES.some((p) => String(e).startsWith(p))) {
+            installErrorThisSession = true
+        }
+        throw e
+    }
+    void invoke('record_successful_install', { cleanSession: !installErrorThisSession })
+}
+
 function onEvent<T>(eventName: string, callback: (payload: T) => void): () => void {
     let unlistenFn: (() => void) | null = null
     let cancelled = false
@@ -132,7 +156,7 @@ export const api = {
         return gameId ? invoke('open_mods_folder', { gameId }) : invoke('open_mods_folder')
     },
     installMod(modId: number, gamePath: string, gameId?: string): Promise<void> {
-        return invoke('install_mod', { modId, gamePath, gameId })
+        return trackInstall(invoke('install_mod', { modId, gamePath, gameId }))
     },
     installModFile(
         modId: number,
@@ -144,16 +168,18 @@ export const api = {
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return invoke('install_file', {
-            modId,
-            modName,
-            fileId,
-            downloadUrl,
-            fileType,
-            modVersion,
-            gamePath,
-            gameId,
-        })
+        return trackInstall(
+            invoke('install_file', {
+                modId,
+                modName,
+                fileId,
+                downloadUrl,
+                fileType,
+                modVersion,
+                gamePath,
+                gameId,
+            })
+        )
     },
     deleteTempFile(path: string): Promise<void> {
         return invoke('delete_temp_file', { path })
@@ -186,20 +212,22 @@ export const api = {
         locationTag?: string,
         entryKind?: string
     ): Promise<void> {
-        return invoke('install_from_zip_entry', {
-            zipPath,
-            entryName,
-            modId,
-            modName,
-            fileId,
-            fileType,
-            modVersion,
-            gamePath,
-            folderId,
-            gameId,
-            locationTag,
-            entryKind,
-        })
+        return trackInstall(
+            invoke('install_from_zip_entry', {
+                zipPath,
+                entryName,
+                modId,
+                modName,
+                fileId,
+                fileType,
+                modVersion,
+                gamePath,
+                folderId,
+                gameId,
+                locationTag,
+                entryKind,
+            })
+        )
     },
     installCbFlatArchive(
         zipPath: string,
@@ -211,16 +239,18 @@ export const api = {
         gamePath: string,
         folderId?: string | null
     ): Promise<void> {
-        return invoke('install_cb_flat_archive', {
-            zipPath,
-            modId,
-            modName,
-            fileId,
-            fileType,
-            modVersion,
-            gamePath,
-            folderId,
-        })
+        return trackInstall(
+            invoke('install_cb_flat_archive', {
+                zipPath,
+                modId,
+                modName,
+                fileId,
+                fileType,
+                modVersion,
+                gamePath,
+                folderId,
+            })
+        )
     },
     installHostPack(
         zipPath: string,
@@ -235,19 +265,21 @@ export const api = {
         hostSubpath: string,
         gameId?: string
     ): Promise<void> {
-        return invoke('install_host_pack', {
-            zipPath,
-            entryName,
-            modId,
-            modName,
-            fileId,
-            fileType,
-            modVersion,
-            gamePath,
-            hostModId,
-            hostSubpath,
-            gameId,
-        })
+        return trackInstall(
+            invoke('install_host_pack', {
+                zipPath,
+                entryName,
+                modId,
+                modName,
+                fileId,
+                fileType,
+                modVersion,
+                gamePath,
+                hostModId,
+                hostSubpath,
+                gameId,
+            })
+        )
     },
     uninstallMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
         return invoke('uninstall_mod', { uid, gamePath, gameId })
@@ -399,6 +431,9 @@ export const api = {
     },
     onUpdateReady(callback: () => void): () => void {
         return onEvent<void>('updater:update-ready', () => callback())
+    },
+    onSupportPromptEligible(callback: () => void): () => void {
+        return onEvent<void>('support-prompt:eligible', () => callback())
     },
 
     // ── Thumbnails ─────────────────────────────────────────────────────────────

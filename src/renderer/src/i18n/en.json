@@ -356,6 +356,11 @@
             "about": "About"
         }
     },
+    "supportPrompt": {
+        "body": "Enjoying Modrex? A star on GitHub helps other players find it.",
+        "star": "Star on GitHub",
+        "dismiss": "No thanks"
+    },
     "diesel3Notice": {
         "title": "PAYDAY 2 Diesel 3.0 Beta",
         "body": "SuperBLT from the official website is not compatible with Diesel 3.0. If you use BLT mods, install the community port from GitHub instead.",

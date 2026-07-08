@@ -7,6 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - New About tab in Settings with project info and quick links to the GitHub repository, GitHub Sponsors, Discord, and modrex.net.
+- A one-time banner asking for a GitHub star, shown once ever after the 10th successful mod install (and at least a week of use). Dismissing it is permanent.
 
 ### Fixed
 

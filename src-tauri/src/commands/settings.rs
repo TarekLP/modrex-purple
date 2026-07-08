@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -29,6 +29,13 @@ pub struct Settings {
     pub analytics_enabled: Option<bool>,
     pub analytics_id: Option<String>,
     pub discord_rich_presence_enabled: Option<bool>,
+    // One-time "star us on GitHub" prompt bookkeeping. Lives here (not localStorage)
+    // so it shares the telemetry consent's lifecycle: survives uninstall/reinstall
+    // (the NSIS uninstaller never touches app data) and only resets on a full
+    // app-data wipe, where the guards below re-rate-limit it to once per 7+ days.
+    pub successful_installs: Option<u64>,
+    pub first_install_at: Option<u64>,
+    pub support_prompt_shown: Option<bool>,
     // Legacy flat fields: deserialized from old files but never written back.
     #[serde(skip_serializing, default)]
     pub game_path: Option<String>,
@@ -301,6 +308,40 @@ pub(crate) fn ensure_analytics_id(app: &AppHandle) -> String {
     s.analytics_id = Some(id.clone());
     write_settings(app, &s);
     id
+}
+
+const SUPPORT_PROMPT_MIN_INSTALLS: u64 = 10;
+const SUPPORT_PROMPT_MIN_AGE_MS: u64 = 7 * 24 * 60 * 60 * 1000;
+
+pub(crate) fn support_prompt_eligible(installs: u64, first_install_at: u64, now_ms: u64) -> bool {
+    installs >= SUPPORT_PROMPT_MIN_INSTALLS
+        && now_ms.saturating_sub(first_install_at) >= SUPPORT_PROMPT_MIN_AGE_MS
+}
+
+/// Counts a successful mod install toward the one-time "star us on GitHub"
+/// prompt. When the milestone is reached in a clean session, the shown flag is
+/// persisted *before* the renderer displays anything (write-on-show), so the
+/// prompt can never fire twice while settings.json survives.
+#[tauri::command]
+pub fn record_successful_install(app: AppHandle, clean_session: bool) {
+    let mut s = read_settings(&app);
+    if s.support_prompt_shown == Some(true) {
+        return;
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let first = *s.first_install_at.get_or_insert(now);
+    let count = s.successful_installs.unwrap_or(0) + 1;
+    s.successful_installs = Some(count);
+    if clean_session && support_prompt_eligible(count, first, now) {
+        s.support_prompt_shown = Some(true);
+        write_settings(&app, &s);
+        let _ = app.emit("support-prompt:eligible", ());
+        return;
+    }
+    write_settings(&app, &s);
 }
 
 #[tauri::command]
