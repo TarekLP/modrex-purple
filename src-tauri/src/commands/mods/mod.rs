@@ -443,8 +443,8 @@ pub async fn install_mod(
 
         if was_disabled {
             let settings = read_settings(&app);
-            let launcher_str = game_settings(&settings, cfg.game_id)
-                .and_then(|gs| gs.launcher.clone());
+            let launcher_str =
+                game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
             disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref());
         }
 

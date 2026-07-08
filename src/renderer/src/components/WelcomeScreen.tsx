@@ -43,6 +43,14 @@ export function WelcomeScreen({ onSelectGame }: Props) {
     useEffect(() => {
         let cancelled = false
         for (const g of Object.keys(GAMES) as GameId[]) {
+            // Seed from the saved path so the filter answers instantly; full
+            // detection below can take seconds and overwrites the seed when done.
+            void api.getGameSettings(g).then((gs) => {
+                if (cancelled) return
+                setInstalledStatus((prev) =>
+                    g in prev ? prev : { ...prev, [g]: gs.gamePath != null }
+                )
+            })
             void api.findGamePath(g).then((path) => {
                 if (cancelled) return
                 setInstalledStatus((prev) => ({ ...prev, [g]: path !== null }))

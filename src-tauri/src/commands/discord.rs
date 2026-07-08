@@ -99,9 +99,9 @@ pub fn set_discord_presence_enabled(
     enabled: bool,
 ) {
     state.enabled.store(enabled, Ordering::Relaxed);
-    let mut s = crate::commands::settings::read_settings(&app);
-    s.discord_rich_presence_enabled = Some(enabled);
-    crate::commands::settings::write_settings(&app, &s);
+    crate::commands::settings::update_settings(&app, |s| {
+        s.discord_rich_presence_enabled = Some(enabled);
+    });
 }
 
 #[tauri::command]

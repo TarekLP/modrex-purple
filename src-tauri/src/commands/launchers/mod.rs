@@ -11,7 +11,7 @@ use types::{GameDef, Launcher};
 use xbox::Xbox;
 
 use crate::commands::mods::{backup_dir, engine_for_game, mods_base};
-use crate::commands::settings::{game_settings, read_settings, write_settings, GameSettings};
+use crate::commands::settings::{game_settings, read_settings, update_settings, GameSettings};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
@@ -224,33 +224,45 @@ pub fn identify_launcher(game_path: String) -> String {
 fn resolve_and_save_game_path(app: &AppHandle, game_id: Option<String>, game_path: Option<String>) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let game_def = game_def_for_id(&game_id);
-    let mut s = read_settings(app);
-    let games = s.games.get_or_insert_with(HashMap::new);
-    let entry = games.entry(game_id).or_default();
-    if let Some(ref path) = game_path {
-        entry.game_path = Some(path.clone());
-        entry.launcher = Some(identify_launcher_for_path(path));
-        write_settings(app, &s);
-        return;
-    }
-    // Validate existing saved path before falling back to auto-detect.
-    let existing_path = entry.game_path.clone();
-    let exe_exists = existing_path
-        .as_deref()
-        .is_some_and(|p| game_def.resolve_executable(p).is_some());
-    if exe_exists {
-        // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
-        if entry.launcher.is_none() {
-            entry.launcher = existing_path.map(|p| identify_launcher_for_path(&p));
-        }
-    } else if let Some(detected) = detect_game(game_def) {
-        entry.game_path = Some(detected.game_path);
-        entry.launcher = Some(detected.launcher);
+    // Path validation and detection can stall for seconds (SMB timeouts, wedged
+    // services), so resolve first and only take the settings lock to apply the
+    // result — sync commands on the main thread must never wait behind a probe.
+    let (resolved_path, resolved_launcher) = if let Some(path) = game_path {
+        let launcher = identify_launcher_for_path(&path);
+        (Some(path), Some(launcher))
     } else {
-        entry.game_path = None;
-        entry.launcher = None;
-    }
-    write_settings(app, &s);
+        let existing = game_settings(&read_settings(app), &game_id)
+            .cloned()
+            .unwrap_or_default();
+        // Validate existing saved path before falling back to auto-detect.
+        let exe_exists = existing
+            .game_path
+            .as_deref()
+            .is_some_and(|p| game_def.resolve_executable(p).is_some());
+        if exe_exists {
+            // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
+            let launcher = existing.launcher.or_else(|| {
+                existing
+                    .game_path
+                    .as_deref()
+                    .map(identify_launcher_for_path)
+            });
+            (existing.game_path, launcher)
+        } else if let Some(detected) = detect_game(game_def) {
+            (Some(detected.game_path), Some(detected.launcher))
+        } else {
+            (None, None)
+        }
+    };
+    update_settings(app, |s| {
+        let entry = s
+            .games
+            .get_or_insert_with(HashMap::new)
+            .entry(game_id)
+            .or_default();
+        entry.game_path = resolved_path;
+        entry.launcher = resolved_launcher;
+    });
 }
 
 #[tauri::command]

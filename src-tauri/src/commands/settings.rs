@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -76,24 +77,52 @@ pub fn read_settings(app: &AppHandle) -> Settings {
     if !path.exists() {
         return Settings::default();
     }
-    let content = std::fs::read_to_string(path).unwrap_or_default();
-    let s: Settings = serde_json::from_str(&content).unwrap_or_default();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let s: Settings = match serde_json::from_str(&content) {
+        Ok(s) => s,
+        Err(e) => {
+            log::warn!("read_settings: parse {path:?}: {e}; falling back to defaults");
+            Settings::default()
+        }
+    };
     migrate_settings(s)
 }
 
-pub fn write_settings(app: &AppHandle, settings: &Settings) {
+fn write_settings(app: &AppHandle, settings: &Settings) {
     let path = settings_path(app);
     if let Some(parent) = path.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {
             log::warn!("write_settings: create_dir_all {parent:?}: {e}");
         }
     }
+    // Write-then-rename so a reader can never see a half-written file: a torn
+    // read parses as default settings, and the next save would persist that
+    // empty default, wiping every configured game.
+    let tmp = path.with_extension("json.tmp");
     if let Err(e) = std::fs::write(
-        &path,
+        &tmp,
         serde_json::to_string_pretty(settings).unwrap_or_default(),
     ) {
-        log::warn!("write_settings: write {path:?}: {e}");
+        log::warn!("write_settings: write {tmp:?}: {e}");
+        return;
     }
+    if let Err(e) = std::fs::rename(&tmp, &path) {
+        log::warn!("write_settings: rename {tmp:?} -> {path:?}: {e}");
+    }
+}
+
+static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
+
+/// Serializes every read-modify-write of settings.json. The game picker
+/// resolves all games' paths concurrently; without the lock those writers
+/// overwrote each other's just-saved paths, making games flap between
+/// installed and not installed.
+pub fn update_settings<T>(app: &AppHandle, mutate: impl FnOnce(&mut Settings) -> T) -> T {
+    let _guard = SETTINGS_LOCK.lock().unwrap();
+    let mut s = read_settings(app);
+    let result = mutate(&mut s);
+    write_settings(app, &s);
+    result
 }
 
 pub fn game_settings<'a>(s: &'a Settings, game_id: &str) -> Option<&'a GameSettings> {
@@ -215,67 +244,65 @@ pub fn get_game_settings(app: AppHandle, game_id: String) -> GameSettings {
 #[tauri::command]
 pub fn set_game_path(app: AppHandle, game_id: Option<String>, game_path: Option<String>) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
-    let mut s = read_settings(&app);
-    s.games
-        .get_or_insert_with(HashMap::new)
-        .entry(game_id)
-        .or_default()
-        .game_path = game_path;
-    write_settings(&app, &s);
+    update_settings(&app, |s| {
+        s.games
+            .get_or_insert_with(HashMap::new)
+            .entry(game_id)
+            .or_default()
+            .game_path = game_path;
+    });
 }
 
 #[tauri::command]
 pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
-    let mut s = read_settings(&app);
-    s.games
-        .get_or_insert_with(HashMap::new)
-        .entry(game_id)
-        .or_default()
-        .launcher = Some(launcher);
-    write_settings(&app, &s);
+    update_settings(&app, |s| {
+        s.games
+            .get_or_insert_with(HashMap::new)
+            .entry(game_id)
+            .or_default()
+            .launcher = Some(launcher);
+    });
 }
 
 #[tauri::command]
 pub fn set_launch_options(app: AppHandle, game_id: Option<String>, launch_options: String) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
-    let mut s = read_settings(&app);
-    s.games
-        .get_or_insert_with(HashMap::new)
-        .entry(game_id)
-        .or_default()
-        .launch_options = Some(launch_options);
-    write_settings(&app, &s);
+    update_settings(&app, |s| {
+        s.games
+            .get_or_insert_with(HashMap::new)
+            .entry(game_id)
+            .or_default()
+            .launch_options = Some(launch_options);
+    });
 }
 
 #[tauri::command]
 pub fn set_crimeboss_install_mode(app: AppHandle, mode: String) {
-    let mut s = read_settings(&app);
-    s.games
-        .get_or_insert_with(HashMap::new)
-        .entry("cb".to_string())
-        .or_default()
-        .crimeboss_install_mode = Some(mode);
-    write_settings(&app, &s);
+    update_settings(&app, |s| {
+        s.games
+            .get_or_insert_with(HashMap::new)
+            .entry("cb".to_string())
+            .or_default()
+            .crimeboss_install_mode = Some(mode);
+    });
 }
 
 #[tauri::command]
 pub fn set_suppress_crash_reporter(app: AppHandle, game_id: Option<String>, suppress: bool) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
-    let mut s = read_settings(&app);
-    s.games
-        .get_or_insert_with(HashMap::new)
-        .entry(game_id)
-        .or_default()
-        .suppress_crash_reporter = Some(suppress);
-    write_settings(&app, &s);
+    update_settings(&app, |s| {
+        s.games
+            .get_or_insert_with(HashMap::new)
+            .entry(game_id)
+            .or_default()
+            .suppress_crash_reporter = Some(suppress);
+    });
 }
 
 #[tauri::command]
 pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
-    let mut s = read_settings(&app);
-    s.skip_file_open_log_warning = Some(skip);
-    write_settings(&app, &s);
+    update_settings(&app, |s| s.skip_file_open_log_warning = Some(skip));
 }
 
 /// Current analytics consent: `None` = not yet asked, `Some(true/false)` = chosen.
@@ -288,26 +315,26 @@ pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {
 /// ID lazily on first opt-in, so a user who never enables analytics never gets one.
 #[tauri::command]
 pub fn set_analytics_consent(app: AppHandle, enabled: bool) {
-    let mut s = read_settings(&app);
-    s.analytics_enabled = Some(enabled);
-    if enabled && s.analytics_id.is_none() {
-        s.analytics_id = Some(uuid::Uuid::new_v4().to_string());
-    }
-    write_settings(&app, &s);
+    update_settings(&app, |s| {
+        s.analytics_enabled = Some(enabled);
+        if enabled && s.analytics_id.is_none() {
+            s.analytics_id = Some(uuid::Uuid::new_v4().to_string());
+        }
+    });
 }
 
 /// Returns the persisted anonymous analytics ID, generating and persisting one if
 /// absent. Used by the analytics sender; the ID never leaves the device unless the
 /// user has enabled analytics.
 pub(crate) fn ensure_analytics_id(app: &AppHandle) -> String {
-    let mut s = read_settings(app);
-    if let Some(id) = s.analytics_id.clone() {
+    if let Some(id) = read_settings(app).analytics_id {
         return id;
     }
-    let id = uuid::Uuid::new_v4().to_string();
-    s.analytics_id = Some(id.clone());
-    write_settings(app, &s);
-    id
+    update_settings(app, |s| {
+        s.analytics_id
+            .get_or_insert_with(|| uuid::Uuid::new_v4().to_string())
+            .clone()
+    })
 }
 
 const SUPPORT_PROMPT_MIN_INSTALLS: u64 = 10;
@@ -324,35 +351,36 @@ pub(crate) fn support_prompt_eligible(installs: u64, first_install_at: u64, now_
 /// prompt can never fire twice while settings.json survives.
 #[tauri::command]
 pub fn record_successful_install(app: AppHandle, clean_session: bool) {
-    let mut s = read_settings(&app);
-    if s.support_prompt_shown == Some(true) {
-        return;
-    }
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-    let first = *s.first_install_at.get_or_insert(now);
-    let count = s.successful_installs.unwrap_or(0) + 1;
-    s.successful_installs = Some(count);
-    if clean_session && support_prompt_eligible(count, first, now) {
-        s.support_prompt_shown = Some(true);
-        write_settings(&app, &s);
+    let show_prompt = update_settings(&app, |s| {
+        if s.support_prompt_shown == Some(true) {
+            return false;
+        }
+        let first = *s.first_install_at.get_or_insert(now);
+        let count = s.successful_installs.unwrap_or(0) + 1;
+        s.successful_installs = Some(count);
+        if clean_session && support_prompt_eligible(count, first, now) {
+            s.support_prompt_shown = Some(true);
+            return true;
+        }
+        false
+    });
+    if show_prompt {
         let _ = app.emit("support-prompt:eligible", ());
-        return;
     }
-    write_settings(&app, &s);
 }
 
 #[tauri::command]
 pub fn dismiss_deps_warning(app: AppHandle, mod_id: i32) {
-    let mut s = read_settings(&app);
-    let mut warnings = s.dismissed_deps_warnings.unwrap_or_default();
-    if !warnings.contains(&mod_id) {
-        warnings.push(mod_id);
-    }
-    s.dismissed_deps_warnings = Some(warnings);
-    write_settings(&app, &s);
+    update_settings(&app, |s| {
+        let warnings = s.dismissed_deps_warnings.get_or_insert_with(Vec::new);
+        if !warnings.contains(&mod_id) {
+            warnings.push(mod_id);
+        }
+    });
 }
 
 #[cfg(test)]
