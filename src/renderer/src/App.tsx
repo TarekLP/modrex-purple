@@ -281,6 +281,10 @@ export default function App() {
         // Dev builds run whatever version the branch has and would nag about the
         // latest release on every launch, the check only makes sense for real installs.
         if (import.meta.env.DEV) return
+        // Preview builds (e.g. the Nexus prototype handed to reviewers) sit on a
+        // version above the public release, so the updater would offer to "update"
+        // them straight onto a build without the prototype features. Never self-update.
+        if (import.meta.env.VITE_APP_VERSION?.includes('preview')) return
         api.checkForUpdates().catch(() => {})
     }, [])
 
