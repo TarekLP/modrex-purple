@@ -688,6 +688,56 @@ fn target_for_unknown_tag_falls_back_to_primary() {
     assert_eq!(cfg.target_for(Some("nonexistent")).tag, "mods");
 }
 
+// ── RAID single blanket-accept engine ─────────────────────────────────────
+// RAID's loader reads both BLT script mods and asset packs from one mods/<name>/ folder
+// (assets/mod_overrides was removed), so the engine is a single blanket-accept target that
+// excludes only BLT infrastructure dirs — see RAID_ENGINE in engine.rs.
+
+#[test]
+fn raid_engine_has_single_blanket_mods_target() {
+    let cfg = engine_for_game("raid");
+    assert_eq!(cfg.targets.len(), 1);
+    assert_eq!(cfg.targets[0].tag, "mods");
+    // Blanket-accept: no markers, so every non-infra folder in mods/ is a user mod.
+    match &cfg.targets[0].unit {
+        super::engine::ModUnit::Directory {
+            entry_markers,
+            scan_markers,
+            excluded_names,
+            ..
+        } => {
+            assert!(entry_markers.is_empty());
+            assert!(scan_markers.is_empty());
+            for infra in ["base", "downloads", "logs", "saves"] {
+                assert!(
+                    excluded_names.contains(&infra),
+                    "missing exclusion: {infra}"
+                );
+            }
+        }
+        _ => panic!("RAID mods target must be a Directory unit"),
+    }
+}
+
+#[test]
+fn raid_classify_script_and_asset_mods_all_route_to_mods() {
+    // A BLT script mod (supermod.xml), a legacy RaidBLT mod (mod.xml), and a marker-less asset
+    // pack (soundbanks/) all install into the one mods target (primary tag, location None).
+    let names: Vec<String> = [
+        "WolfgangHUD/supermod.xml",
+        "CarryStacker/mod.xml",
+        "CODWW2Soundpack/soundbanks/weapon_thompson.bnk",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    let dirs = classify_archive_dirs(&names, engine_for_game("raid"));
+    assert_eq!(dirs.len(), 3);
+    assert_eq!(tag_of(&dirs, "WolfgangHUD"), Some(&None));
+    assert_eq!(tag_of(&dirs, "CarryStacker"), Some(&None));
+    assert_eq!(tag_of(&dirs, "CODWW2Soundpack"), Some(&None));
+}
+
 // ── classify_archive_dirs ────────────────────────────────────────────────
 
 fn classify(names: &[&str]) -> Vec<(String, Option<String>)> {
@@ -1502,12 +1552,16 @@ fn extract_dir_entry_drops_traversal_entries() {
     assert!(!out.path().join("escape.pak").exists());
 }
 
-// ── embedded_modworkshop_id (BeardLib AssetUpdates) ───────────────────────────
+// ── embedded_modworkshop_id (BeardLib / RAID BLT marker files) ────────────────
+
+fn dir_with_marker(name: &str, content: &str) -> TempDir {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join(name), content).unwrap();
+    tmp
+}
 
 fn dir_with_main_xml(content: &str) -> TempDir {
-    let tmp = TempDir::new().unwrap();
-    fs::write(tmp.path().join("main.xml"), content).unwrap();
-    tmp
+    dir_with_marker("main.xml", content)
 }
 
 #[test]
@@ -1565,6 +1619,42 @@ fn embedded_id_ignores_substring_attribute_names() {
     // `someid="7"` must not be mistaken for `id`.
     let d = dir_with_main_xml(r#"<AssetUpdates someid="7" id="42" provider="modworkshop"/>"#);
     assert_eq!(embedded_modworkshop_id(d.path()), Some((42, None)));
+}
+
+#[test]
+fn embedded_id_reads_raid_supermod_update_with_root_version() {
+    // Real RAID-SuperBLT shape (WolfgangHUD): identifier on the update element inside an
+    // updates wrapper, version on the multi-line root mod element.
+    let d = dir_with_marker(
+        "supermod.xml",
+        "<mod name=\"WolfgangHUD\"\n\tauthor=\"BangL\"\n\tversion=\"2.36.0\">\n\t<updates>\n\t\t<update provider=\"modworkshop\" identifier=\"24551\"/>\n\t</updates>\n</mod>",
+    );
+    assert_eq!(
+        embedded_modworkshop_id(d.path()),
+        Some((24551, Some("2.36.0".to_string())))
+    );
+}
+
+#[test]
+fn embedded_id_supermod_skips_non_modworkshop_updates() {
+    let d = dir_with_marker(
+        "supermod.xml",
+        r#"<mod name="x"><updates><update provider="github" identifier="1"/><update provider="modworkshop" identifier="7"/></updates></mod>"#,
+    );
+    assert_eq!(embedded_modworkshop_id(d.path()), Some((7, None)));
+}
+
+#[test]
+fn embedded_id_reads_legacy_raidblt_auto_updates() {
+    // Real legacy RaidBLT shape (Carry Stacker): auto_updates element in mod.xml.
+    let d = dir_with_marker(
+        "mod.xml",
+        r#"<table name="Carry Stacker"><auto_updates provider="modworkshop" id="25166" version="2" important="true"/></table>"#,
+    );
+    assert_eq!(
+        embedded_modworkshop_id(d.path()),
+        Some((25166, Some("2".to_string())))
+    );
 }
 
 // ── identify_untracked (hash → embedded-id → name priority) ───────────────────
@@ -2013,6 +2103,31 @@ fn hashable_file_for_mod_dir_prefers_pak_over_alphabetically_first_file() {
 
     let hashed = hashable_file_for_mod_dir(dir.path()).unwrap();
     assert_eq!(hashed, pak_dir.join("SomeMod-WindowsNoEditor.pak"));
+}
+
+// RAID BLT mods: the marker must win over the alphabetical-first file (which sorts before
+// supermod.xml for typical mods, e.g. WolfgangHUD's WolfgangHUDTweakData.lua) because
+// modrex-index records SHA256 for the marker, not the first file.
+#[test]
+fn hashable_file_for_mod_dir_prefers_raid_supermod_marker() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("AaaFirst.lua"), b"lua").unwrap();
+    fs::write(dir.path().join("supermod.xml"), b"<mod/>").unwrap();
+    assert_eq!(
+        hashable_file_for_mod_dir(dir.path()).unwrap(),
+        dir.path().join("supermod.xml")
+    );
+}
+
+#[test]
+fn hashable_file_for_mod_dir_prefers_supermod_over_legacy_mod_xml() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("mod.xml"), b"<table/>").unwrap();
+    fs::write(dir.path().join("supermod.xml"), b"<mod/>").unwrap();
+    assert_eq!(
+        hashable_file_for_mod_dir(dir.path()).unwrap(),
+        dir.path().join("supermod.xml")
+    );
 }
 
 // ── crimeboss_settings: ModSettings id derivation / file sync ────────────────

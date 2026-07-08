@@ -5,7 +5,7 @@ mod types;
 mod xbox;
 
 use epic::Epic;
-use games::{CRIMEBOSS, PD2, PD3, PDTH};
+use games::{CRIMEBOSS, PD2, PD3, PDTH, RAID};
 use steam::Steam;
 use types::{GameDef, Launcher};
 use xbox::Xbox;
@@ -33,6 +33,7 @@ fn game_def_for_id(game_id: &str) -> &'static GameDef {
         "pd2" => &PD2,
         "pdth" => &PDTH,
         "cb" => &CRIMEBOSS,
+        "raid" => &RAID,
         _ => &PD3,
     }
 }

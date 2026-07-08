@@ -263,11 +263,47 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     ],
 };
 
+// BLT infrastructure dirs that live under RAID's mods/ but are never user mods — mirrors
+// RAIDWW2-BeardLib's own _ignore_folders list (Classes/Frameworks.lua), verified against a real
+// install. BeardLib (the framework) is deliberately omitted: unlike these runtime/basemod dirs
+// it's a normal installable mod page (id 49760), tracked like any other mod (matching PD2).
+const RAID_INFRA_FOLDERS: &[&str] = &["base", "downloads", "logs", "saves"];
+
+// RAID's modern loader (RAID-SuperBLT + RAIDWW2-BeardLib) loads BLT script mods AND asset
+// override packs from a single mods/<name>/ folder: the game's older assets/mod_overrides mount
+// was removed (current builds show a "MOD OVERRIDES IS NO LONGER USED" migration dialog, and
+// BeardLib's FindOverrides scans each mods/<name>/ folder for override content — soundbanks/,
+// guis/, units/, etc. — instead). So RAID has one blanket-accept target like Crime Boss's Mods/:
+// every folder in mods/ is a user mod unless it's on RAID_INFRA_FOLDERS. Markers aren't usable
+// here because asset packs carry no supermod.xml/mod.xml; identification still reads those
+// embedded ids when present (embedded_modworkshop_id) and otherwise falls back to SHA256/name.
+// The top-level base skip in find_untracked_paks also covers mods/base (which carries a
+// supermod.xml that a blanket scan would otherwise treat as a user mod).
+pub static RAID_ENGINE: ModEngineConfig = ModEngineConfig {
+    game_id: "raid",
+    index_game_name: "RAID: World War II",
+    state_filename: ".modrex.json",
+    targets: &[ScanTarget {
+        tag: "mods",
+        unit: ModUnit::Directory {
+            entry_markers: &[],
+            scan_markers: &[],
+            index_gated_markers: &[],
+            excluded_names: RAID_INFRA_FOLDERS,
+            priority_prefix: false,
+        },
+        mods_subpath: &["mods"],
+        disabled_subpath: &["mods", "disabled"],
+        backup_subpath: &["mods.bak"],
+    }],
+};
+
 pub fn engine_for_game(game_id: &str) -> &'static ModEngineConfig {
     match game_id {
         "pd2" => &PD2_ENGINE,
         "pdth" => &PDTH_ENGINE,
         "cb" => &CRIMEBOSS_ENGINE,
+        "raid" => &RAID_ENGINE,
         _ => &PD3_ENGINE,
     }
 }

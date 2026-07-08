@@ -5,6 +5,7 @@ import {
     isLoaderDep,
     isUe4ssLoaderId,
     isPdthLoaderId,
+    isRaidLoaderId,
     missingRequiredDeps,
     offsiteDepHost,
     ue4ssLoaderIdsFor,
@@ -13,6 +14,7 @@ import {
     PDTH_OVERRIDES_ID,
     DAHM_ID,
     PDTH_LOADER_IDS,
+    RAID_SUPERBLT_ID,
 } from './deps'
 import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
 
@@ -114,11 +116,21 @@ describe('isPdthLoaderId / PDTH_LOADER_IDS', () => {
     })
 })
 
+describe('isRaidLoaderId', () => {
+    it('recognizes RAID-SuperBLT only for raid', () => {
+        expect(isRaidLoaderId('raid', RAID_SUPERBLT_ID)).toBe(true)
+        expect(isRaidLoaderId('raid', 12345)).toBe(false)
+        expect(isRaidLoaderId('pd2', RAID_SUPERBLT_ID)).toBe(false)
+        expect(isRaidLoaderId(undefined, RAID_SUPERBLT_ID)).toBe(false)
+    })
+})
+
 describe('loaderIdsForGame', () => {
-    it('returns PDTH loaders for pdth, UE4SS pages otherwise, [] for pd2/undefined', () => {
+    it('returns each game its hosted loader pages, [] for pd2/undefined', () => {
         expect(loaderIdsForGame('pdth')).toEqual([53474, 14267])
         expect(loaderIdsForGame('pd3')).toEqual([47771, 44048])
         expect(loaderIdsForGame('cb')).toEqual([47749])
+        expect(loaderIdsForGame('raid')).toEqual([49744])
         expect(loaderIdsForGame('pd2')).toEqual([])
         expect(loaderIdsForGame(undefined)).toEqual([])
     })
@@ -127,12 +139,19 @@ describe('loaderIdsForGame', () => {
 describe('buildLoaderModIds', () => {
     const flags = (
         o: Partial<
-            Record<'pdthOverridesInstalled' | 'dahmInstalled' | 'ue4ssInstalled', boolean | null>
+            Record<
+                | 'pdthOverridesInstalled'
+                | 'dahmInstalled'
+                | 'ue4ssInstalled'
+                | 'raidSuperbltInstalled',
+                boolean | null
+            >
         > = {}
     ) => ({
         pdthOverridesInstalled: null,
         dahmInstalled: null,
         ue4ssInstalled: null,
+        raidSuperbltInstalled: null,
         ...o,
     })
 
@@ -148,6 +167,12 @@ describe('buildLoaderModIds', () => {
             44048: true,
         })
         expect(buildLoaderModIds('cb', flags({ ue4ssInstalled: false }))).toEqual({ 47749: false })
+    })
+
+    it('maps RAID to its SuperBLT page using its flag', () => {
+        expect(buildLoaderModIds('raid', flags({ raidSuperbltInstalled: false }))).toEqual({
+            49744: false,
+        })
     })
 
     it('returns empty for games without hosted loaders', () => {

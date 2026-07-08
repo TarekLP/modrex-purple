@@ -7,6 +7,7 @@ import {
     isUe4ssLoaderId,
     PDTH_OVERRIDES_ID,
     DAHM_ID,
+    RAID_SUPERBLT_ID,
 } from './deps'
 import { api } from './api'
 
@@ -15,6 +16,7 @@ export type LoaderState = {
     ue4ssInstalled: boolean | null
     pdthOverridesInstalled: boolean | null
     dahmInstalled: boolean | null
+    raidSuperbltInstalled: boolean | null
 }
 
 export type DepCheckResult = {
@@ -72,10 +74,20 @@ export async function resolveDepCheck(
         ue4ssOk = await api.checkUe4ss(gamePath, activeGame)
     }
 
+    let raidSbltOk = loaderState.raidSuperbltInstalled
+    if (
+        activeGame === 'raid' &&
+        raidSbltOk === null &&
+        allDeps.some((d) => d.mod?.id === RAID_SUPERBLT_ID)
+    ) {
+        raidSbltOk = await api.checkRaidSuperblt(gamePath)
+    }
+
     const loaderModIds = buildLoaderModIds(activeGame, {
         pdthOverridesInstalled: pdthOverridesOk,
         dahmInstalled: dahmOk,
         ue4ssInstalled: ue4ssOk,
+        raidSuperbltInstalled: raidSbltOk,
     })
 
     const missingRequired = missingRequiredDeps(allDeps, installed, bltOk, loaderModIds)
@@ -92,6 +104,7 @@ export async function resolveDepCheck(
             ue4ssInstalled: ue4ssOk,
             pdthOverridesInstalled: pdthOverridesOk,
             dahmInstalled: dahmOk,
+            raidSuperbltInstalled: raidSbltOk,
         },
     }
 }

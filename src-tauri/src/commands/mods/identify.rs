@@ -53,9 +53,14 @@ fn first_pak_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
 }
 
 pub(crate) fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    let main_xml = dir.join("main.xml");
-    if main_xml.exists() {
-        return Some(main_xml);
+    // Marker preference mirrors modrex-index's selectMarkerPath so both sides hash the same
+    // representative file: main.xml (BeardLib), then RAID's supermod.xml (RAID-SuperBLT) and
+    // mod.xml (legacy RaidBLT).
+    for marker in ["main.xml", "supermod.xml", "mod.xml"] {
+        let p = dir.join(marker);
+        if p.exists() {
+            return Some(p);
+        }
     }
     first_pak_file_in_dir(dir).or_else(|| first_file_in_dir(dir))
 }
@@ -85,15 +90,14 @@ fn xml_attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     None
 }
 
-/// Returns the modworkshop mod id (and declared version, if present) that a BeardLib mod
-/// embeds in `dir/main.xml` via `<AssetUpdates … provider="modworkshop" … id="N" …>`.
-/// The provider defaults to modworkshop when omitted; any other provider is ignored.
-/// This identity survives version drift, so it works even for very old installs.
-pub(crate) fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Option<String>)> {
-    let xml = std::fs::read_to_string(dir.join("main.xml")).ok()?;
+/// Scans `xml` for elements whose name starts with `tag_name` and returns the first one
+/// whose provider is modworkshop (the default when omitted) and whose `id_attr` parses as
+/// a positive id, along with the element's own version attribute if present.
+fn embedded_id_from_tag(xml: &str, tag_name: &str, id_attr: &str) -> Option<(i64, Option<String>)> {
     let lower = xml.to_ascii_lowercase();
+    let needle = format!("<{}", tag_name);
     let mut from = 0;
-    while let Some(rel) = lower[from..].find("<assetupdates") {
+    while let Some(rel) = lower[from..].find(&needle) {
         let start = from + rel;
         let Some(close) = xml[start..].find('>') else {
             break;
@@ -106,13 +110,56 @@ pub(crate) fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Opt
                 continue;
             }
         }
-        let Some(id) = xml_attr(tag, "id").and_then(|v| v.trim().parse::<i64>().ok()) else {
+        let Some(id) = xml_attr(tag, id_attr).and_then(|v| v.trim().parse::<i64>().ok()) else {
             continue;
         };
         if id <= 0 {
             continue;
         }
         return Some((id, xml_attr(tag, "version").map(str::to_string)));
+    }
+    None
+}
+
+/// The version attribute of supermod.xml's root mod element — RAID-SuperBLT mods declare
+/// their version there, not on the update element.
+fn supermod_root_version(xml: &str) -> Option<String> {
+    let lower = xml.to_ascii_lowercase();
+    let mut from = 0;
+    while let Some(rel) = lower[from..].find("<mod") {
+        let start = from + rel;
+        from = start + 4;
+        if !xml[start + 4..].starts_with(|c: char| c.is_whitespace()) {
+            continue;
+        }
+        let close = xml[start..].find('>')?;
+        return xml_attr(&xml[start..start + close], "version").map(str::to_string);
+    }
+    None
+}
+
+/// Returns the modworkshop mod id (and declared version, if present) a mod embeds in its
+/// marker file. One format per BLT family, all verified against real downloads: BeardLib's
+/// main.xml (AssetUpdates element, id + version attributes), RAID-SuperBLT's supermod.xml
+/// (update element with an identifier attribute; version declared on the root mod element),
+/// and legacy RaidBLT's mod.xml (auto_updates element, id + version attributes). The
+/// provider defaults to modworkshop when omitted; any other provider is ignored. This
+/// identity survives version drift, so it works even for very old installs.
+pub(crate) fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Option<String>)> {
+    if let Ok(xml) = std::fs::read_to_string(dir.join("main.xml")) {
+        if let Some(hit) = embedded_id_from_tag(&xml, "assetupdates", "id") {
+            return Some(hit);
+        }
+    }
+    if let Ok(xml) = std::fs::read_to_string(dir.join("supermod.xml")) {
+        if let Some((id, version)) = embedded_id_from_tag(&xml, "update", "identifier") {
+            return Some((id, version.or_else(|| supermod_root_version(&xml))));
+        }
+    }
+    if let Ok(xml) = std::fs::read_to_string(dir.join("mod.xml")) {
+        if let Some(hit) = embedded_id_from_tag(&xml, "auto_updates", "id") {
+            return Some(hit);
+        }
     }
     None
 }

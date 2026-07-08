@@ -102,7 +102,7 @@ export interface Category {
 export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
 export const GAME_STORAGE_KEY = 'pd3'
 
-export type GameId = 'pd3' | 'pd2' | 'pdth' | 'cb'
+export type GameId = 'pd3' | 'pd2' | 'pdth' | 'cb' | 'raid'
 
 export const GAMES: Record<
     GameId,
@@ -128,6 +128,13 @@ export const GAMES: Record<
         shortName: 'CBRC',
         workshopId: 857,
         storageKey: 'cb',
+        hasNews: false,
+    },
+    raid: {
+        name: 'RAID: World War II',
+        shortName: 'RAID',
+        workshopId: 543,
+        storageKey: 'raid',
         hasNews: false,
     },
 }

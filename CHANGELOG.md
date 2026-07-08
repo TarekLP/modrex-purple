@@ -8,6 +8,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - New About tab in Settings with project info and quick links to the GitHub repository, GitHub Sponsors, Discord, and modrex.net.
 - A one-time banner asking for a GitHub star, shown once ever after the 10th successful mod install (and at least a week of use). Dismissing it is permanent.
+- Added support for RAID: World War II: browse, install, and manage its mods (SuperBLT and legacy RaidBLT script mods plus asset override packs, all installed into the game's `mods` folder as the current loader expects), with one-click install and dependency detection for the RAID-SuperBLT mod loader.
 
 ### Fixed
 
