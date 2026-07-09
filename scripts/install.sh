@@ -42,8 +42,8 @@ confirm() {
     local reply=""
     if [ -t 0 ]; then
         read -r -p "$1 [y/N] " reply || reply=""
-    elif [ -r /dev/tty ]; then
-        read -r -p "$1 [y/N] " reply 2>/dev/null </dev/tty || reply=""
+    elif { : </dev/tty; } 2>/dev/null; then
+        read -r -p "$1 [y/N] " reply </dev/tty || reply=""
     else
         die "refusing to proceed without confirmation in a non-interactive shell — rerun with -y"
     fi
