@@ -6,6 +6,13 @@ set -euo pipefail
 REPO="modrexio/modrex"
 BASE_URL="https://github.com/$REPO/releases/latest/download"
 
+# $0 is just "bash" when piped via curl, so a literal "$0 uninstall" hint is useless there
+if [ -f "$0" ]; then
+    UNINSTALL_HINT="$0 uninstall"
+else
+    UNINSTALL_HINT="curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/install.sh | bash -s -- uninstall"
+fi
+
 log() { printf '%s\n' "$*" >&2; }
 die() {
     log "error: $*"
@@ -111,7 +118,7 @@ install_appimage() {
     log "  Binary:    $HOME/.local/bin/modrex"
     log "  Desktop:   $HOME/.local/share/applications/modrex.desktop"
     log "  Icon:      $HOME/.local/share/icons/modrex.$icon_ext"
-    log "  Uninstall: $0 uninstall"
+    log "  Uninstall: $UNINSTALL_HINT"
     case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;
     *) log "Note: ~/.local/bin is not on your PATH — add it to your shell profile to run 'modrex' from a terminal." ;;
