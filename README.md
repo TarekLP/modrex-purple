@@ -18,6 +18,14 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 
 ## Installation
 
+Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/modrexio/modrex/main/scripts/install.sh | bash
+```
+
+Or grab a specific package:
+
 | Platform                                                                                                                                              | Download                                                                                                     |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | <img src="assets/icons/windows.svg#gh-light-mode-only" width="16"><img src="assets/icons/windows-white.svg#gh-dark-mode-only" width="16"> Windows     | [modrex_x86_64.exe](https://github.com/modrexio/modrex/releases/latest/download/modrex_x86_64.exe)           |
