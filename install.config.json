@@ -4,6 +4,5 @@
     "github_repo": "modrexio/modrex",
     "manifest_url": "https://github.com/modrexio/modrex/releases/latest/download/latest.json",
     "pubkey": "RWTX2KsFhWADAjKhVxTe/CxS/HT+S3iMqrQorXSP/QUE20RjzISVRUbV",
-    "install_dir": "$HOME/.local/bin",
-    "post_install_cmd": "modrex --version"
+    "install_dir": "$HOME/.local/bin"
 }
