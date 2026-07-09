@@ -21,7 +21,7 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 Linux:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/modrexio/modrex/main/scripts/install.sh | bash
+curl -fsSL https://modrex.net/install.sh | sh
 ```
 
 Or grab a specific package:
