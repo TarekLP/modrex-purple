@@ -1,6 +1,7 @@
 import { useState, useMemo, createContext, useContext, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -11,6 +12,25 @@ import 'highlight.js/styles/github-dark.css'
 import { api } from '../api'
 
 const InsidePreContext = createContext(false)
+
+// Mod descriptions are attacker-controlled HTML (rehypeRaw), so they are sanitized
+// against the GitHub-style default schema. Must run AFTER rehypeRaw (there is no raw
+// HTML to sanitize before it) and BEFORE rehypeHighlight (so the hljs-* classes it
+// injects survive). Two deliberate carve-outs beyond the defaults:
+// - span keeps the style attribute: parseColorTags compiles modworkshop's {#hex}(text)
+//   syntax to <span style="color:...">, and authors write the same tag raw.
+// - iframe keeps only src (http/https enforced by the schema's protocol map): the
+//   iframe component below renders nothing unless detectEmbed matches an allowlisted
+//   video host, so unknown iframes are dropped even after passing sanitization.
+const sanitizeSchema = {
+    ...defaultSchema,
+    tagNames: [...(defaultSchema.tagNames ?? []), 'iframe', 'figure', 'figcaption'],
+    attributes: {
+        ...defaultSchema.attributes,
+        span: [...(defaultSchema.attributes?.span ?? []), 'style'],
+        iframe: ['src'],
+    },
+}
 
 type Part =
     | { type: 'text'; text: string }
@@ -251,7 +271,11 @@ export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embed
                             <div className="px-3">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkBreaks]}
-                                    rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                                    rehypePlugins={[
+                                        rehypeRaw,
+                                        [rehypeSanitize, sanitizeSchema],
+                                        rehypeHighlight,
+                                    ]}
                                     components={components}
                                 >
                                     {part.body}
@@ -264,7 +288,11 @@ export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embed
                     <ReactMarkdown
                         key={i}
                         remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                        rehypePlugins={[
+                            rehypeRaw,
+                            [rehypeSanitize, sanitizeSchema],
+                            rehypeHighlight,
+                        ]}
                         components={components}
                     >
                         {part.text}
