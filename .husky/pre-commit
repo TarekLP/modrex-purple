@@ -1,5 +1,6 @@
 pnpm format:check || (echo "" && echo "Format errors found. Run: pnpm format" && exit 1)
 pnpm lint || (echo "" && echo "Lint errors found. Run: pnpm lint:fix" && exit 1)
+pnpm check-commands || (echo "" && echo "Command registration mismatch, see errors above." && exit 1)
 
 if git diff --cached --name-only | grep -qE '(Cargo\.toml|Cargo\.lock|package\.json|pnpm-lock\.yaml)'; then
     echo "Dep files changed — regenerating THIRD_PARTY_LICENSES.md (may take ~15s)..."

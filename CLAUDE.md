@@ -10,6 +10,7 @@ pnpm build        # Production build — installer written to src-tauri/target/r
 pnpm dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
 pnpm dist:linux   # Package Linux AppImage + .deb
 pnpm typecheck    # Type-check renderer without emitting (same as: pnpm tsc --noEmit)
+pnpm check-commands # Verify api.ts invoke() names match generate_handler! in lib.rs, and that invoke stays api.ts-only (also runs in pre-commit and CI)
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
 pnpm lint         # ESLint on renderer source (src/renderer/src/)
@@ -55,7 +56,7 @@ src/shared/types.ts       ← TypeScript types shared by renderer and api.ts
 2. Register it in `src-tauri/src/lib.rs` inside `tauri::generate_handler![...]`
 3. Add a wrapper in `src/renderer/src/api.ts` calling `invoke('my_cmd', { ... })`
 
-Missing any of these three breaks the channel silently at the type level.
+Missing any of these three breaks the channel silently at the type level. `pnpm check-commands` (pre-commit + CI) mechanically enforces the lib.rs/api.ts halves in both directions: an invoked-but-unregistered name and a registered-but-never-invoked name both fail the check.
 
 ### Per-module details (load on demand)
 
