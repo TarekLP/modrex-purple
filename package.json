@@ -1,5 +1,5 @@
 {
-    "name": "pd3-mod-manager",
+    "name": "modrex",
     "version": "0.12.2",
     "type": "module",
     "packageManager": "pnpm@10.32.1",
@@ -28,8 +28,11 @@
         "url": "git+https://github.com/modrexio/modrex.git"
     },
     "keywords": [
-        "pd3",
+        "modrex",
         "payday3",
+        "payday2",
+        "payday-the-heist",
+        "crime-boss",
         "mod-manager"
     ],
     "author": "Oleh Shulha",
@@ -38,7 +41,7 @@
         "url": "https://github.com/modrexio/modrex/issues"
     },
     "homepage": "https://github.com/modrexio/modrex#readme",
-    "description": "A desktop mod manager for PAYDAY 3 powered by modworkshop",
+    "description": "A desktop mod manager for PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City powered by modworkshop",
     "devDependencies": {
         "@commitlint/cli": "^21.0.1",
         "@commitlint/config-conventional": "^21.0.1",

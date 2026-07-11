@@ -747,7 +747,7 @@ pub async fn install_from_zip_entry(
     } else {
         match &target.unit {
             engine::ModUnit::File { .. } => {
-                let p = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
+                let p = std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
                 (p, None)
             }
             engine::ModUnit::Directory { .. } => {

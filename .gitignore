@@ -148,6 +148,6 @@ out/
 !.claude/commands/
 !.claude/rules/
 
-# Mod index build artifacts (belong in pd3-mod-index repo)
+# Mod index build artifacts (belong in modrex-index repo)
 scripts/index.json
 scripts/index.db*

@@ -889,7 +889,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                     Err("This mod is packaged as an archive with no .pak files inside.".to_string())
                 }
                 1 => {
-                    let tmp = std::env::temp_dir().join(format!("pd3-mod-{}.pak", Uuid::new_v4()));
+                    let tmp = std::env::temp_dir().join(format!("modrex-mod-{}.pak", Uuid::new_v4()));
                     extract_entry_with_sidecars(&downloaded, &entries[0], &tmp)?;
                     Ok((tmp, Some(downloaded), None))
                 }
