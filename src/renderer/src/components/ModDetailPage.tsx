@@ -61,13 +61,13 @@ import { resolveDepCheck } from '../installDepCheck'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
 import { markForegroundActivity } from '../requestPriority'
-import { DescriptionTab, ChangelogTab } from './modDetail/textTabs'
+import { DescriptionTab, ChangelogTab, LicenseTab } from './modDetail/textTabs'
 import { LightboxImage, ImagesTab } from './modDetail/ImagesTab'
 import { DownloadsTab } from './modDetail/DownloadsTab'
 import { DepsTab } from './modDetail/DepsTab'
 import { formatDate } from './modDetail/format'
 
-type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'deps'
+type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'license' | 'deps'
 
 interface Props {
     modId: number
@@ -423,6 +423,7 @@ export function ModDetailPage({
     ])
 
     const showChangelogTab = !!mod?.changelog
+    const showLicenseTab = !!mod?.license
     const showDepsTab =
         !!(mod?.instructs_template?.instructions || mod?.instructions) || allDeps.length > 0
 
@@ -444,6 +445,7 @@ export function ModDetailPage({
         ...(showChangelogTab
             ? [{ id: 'changelog' as Tab, label: t('detail.tabs.changelog') }]
             : []),
+        ...(showLicenseTab ? [{ id: 'license' as Tab, label: t('detail.tabs.license') }] : []),
         ...(showDepsTab ? [{ id: 'deps' as Tab, label: t('detail.tabs.deps') }] : []),
     ]
 
@@ -793,6 +795,9 @@ export function ModDetailPage({
                         </Tabs.Content>
                         <Tabs.Content value="changelog" className="px-6 py-5 focus:outline-none">
                             <ChangelogTab mod={mod} />
+                        </Tabs.Content>
+                        <Tabs.Content value="license" className="px-6 py-5 focus:outline-none">
+                            <LicenseTab mod={mod} />
                         </Tabs.Content>
                         <Tabs.Content value="images" className="px-6 py-5 focus:outline-none">
                             <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />

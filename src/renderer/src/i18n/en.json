@@ -199,6 +199,7 @@
             "downloads": "Downloads",
             "downloadsCount": "Downloads ({count})",
             "changelog": "Changelog",
+            "license": "License",
             "deps": "Dependencies & Instructions"
         },
         "stats": {
@@ -209,8 +210,7 @@
             "updated": "Updated {date}"
         },
         "description": {
-            "noDescription": "No description provided.",
-            "license": "License"
+            "noDescription": "No description provided."
         },
         "images": {
             "none": "No images uploaded for this mod."

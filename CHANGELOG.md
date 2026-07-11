@@ -13,6 +13,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Changed
 
 - Improved app startup time.
+- Mod licenses now show as their own tab on the mod page with full formatting.
 
 ### Fixed
 
