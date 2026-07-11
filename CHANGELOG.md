@@ -14,6 +14,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Improved app startup time.
 - Mod licenses now show as their own tab on the mod page with full formatting.
+- The Dependencies & Instructions tab now lists dependencies in the author's intended install order, numbered, with instructions below.
 
 ### Fixed
 

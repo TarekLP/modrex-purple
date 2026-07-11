@@ -222,8 +222,7 @@
         },
         "deps": {
             "instructions": "Installation Instructions",
-            "required": "Required Dependencies",
-            "optional": "Optional Dependencies",
+            "dependencies": "Dependencies",
             "statusInstalled": "Installed",
             "statusMissing": "Missing",
             "statusNotInstalled": "Not installed",

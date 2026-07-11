@@ -35,11 +35,34 @@ export function DepsTab({
     onOpenDetail?: (modId: number) => void
 }) {
     const hasInstructions = !!(mod.instructs_template?.instructions || mod.instructions)
-    const required = deps.filter((d) => !d.optional)
-    const optional = deps.filter((d) => d.optional)
 
     return (
         <div className="flex flex-col gap-8 max-w-3xl">
+            {deps.length > 0 && (
+                <section>
+                    <h2 className="text-sm font-semibold mb-3 text-text">
+                        {t('detail.deps.dependencies')}
+                    </h2>
+                    <div className="flex flex-col gap-2">
+                        {deps.map((dep, i) => (
+                            <DepRow
+                                key={dep.id}
+                                dep={dep}
+                                position={deps.length > 1 ? i + 1 : undefined}
+                                installed={installed}
+                                gamePath={gamePath}
+                                activeGame={activeGame}
+                                loaderInstalled={loaderInstalled}
+                                loaderModIds={loaderModIds}
+                                onInstallLoader={onInstallLoader}
+                                onRefreshInstalled={onRefreshInstalled}
+                                onOpenDetail={onOpenDetail}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
+
             {hasInstructions && (
                 <section>
                     <h2 className="text-sm font-semibold mb-3 text-text">
@@ -55,60 +78,13 @@ export function DepsTab({
                     )}
                 </section>
             )}
-
-            {required.length > 0 && (
-                <section>
-                    <h2 className="text-sm font-semibold mb-3 text-text">
-                        {t('detail.deps.required')}
-                    </h2>
-                    <div className="flex flex-col gap-2">
-                        {required.map((dep) => (
-                            <DepRow
-                                key={dep.id}
-                                dep={dep}
-                                installed={installed}
-                                gamePath={gamePath}
-                                activeGame={activeGame}
-                                loaderInstalled={loaderInstalled}
-                                loaderModIds={loaderModIds}
-                                onInstallLoader={onInstallLoader}
-                                onRefreshInstalled={onRefreshInstalled}
-                                onOpenDetail={onOpenDetail}
-                            />
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {optional.length > 0 && (
-                <section>
-                    <h2 className="text-sm font-semibold mb-3 text-text">
-                        {t('detail.deps.optional')}
-                    </h2>
-                    <div className="flex flex-col gap-2">
-                        {optional.map((dep) => (
-                            <DepRow
-                                key={dep.id}
-                                dep={dep}
-                                installed={installed}
-                                gamePath={gamePath}
-                                activeGame={activeGame}
-                                loaderInstalled={loaderInstalled}
-                                loaderModIds={loaderModIds}
-                                onInstallLoader={onInstallLoader}
-                                onRefreshInstalled={onRefreshInstalled}
-                                onOpenDetail={onOpenDetail}
-                            />
-                        ))}
-                    </div>
-                </section>
-            )}
         </div>
     )
 }
 
 function DepRow({
     dep,
+    position,
     installed,
     gamePath,
     activeGame,
@@ -119,6 +95,7 @@ function DepRow({
     onOpenDetail,
 }: {
     dep: ModDependency
+    position?: number
     installed: InstalledMod[]
     gamePath: string | null
     activeGame?: GameId
@@ -148,6 +125,11 @@ function DepRow({
 
         return (
             <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border">
+                {position !== undefined && (
+                    <span className="w-4 text-xs text-text-subtle text-right shrink-0">
+                        {position}
+                    </span>
+                )}
                 <div className="w-10 h-10 rounded bg-surface-active shrink-0" />
                 <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium truncate">
@@ -250,6 +232,9 @@ function DepRow({
                 onOpenDetail ? 'cursor-pointer hover:border-accent/50 hover:bg-surface-raised' : ''
             }`}
         >
+            {position !== undefined && (
+                <span className="w-4 text-xs text-text-subtle text-right shrink-0">{position}</span>
+            )}
             {thumbSrc ? (
                 <img
                     src={thumbSrc}

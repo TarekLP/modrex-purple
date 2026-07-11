@@ -15,6 +15,8 @@ export interface ModDependency {
     name?: string
     url?: string | null
     optional: boolean
+    // author-defined install order; deps render sorted by it like on modworkshop
+    order?: number
     mod: Mod | null
 }
 

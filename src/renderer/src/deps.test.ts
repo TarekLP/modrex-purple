@@ -53,6 +53,22 @@ describe('collectDeps', () => {
     it('returns empty for null mod', () => {
         expect(collectDeps(null)).toEqual([])
     })
+
+    it('sorts by author-defined order, id as tiebreak, missing order as 0', () => {
+        const mod = {
+            dependencies: [
+                dep({ id: 3, order: 2, mod: hostedMod(5) }),
+                dep({ id: 2, mod: hostedMod(6) }),
+            ],
+            instructs_template: {
+                dependencies: [
+                    dep({ id: 9, order: 1, mod: hostedMod(7) }),
+                    dep({ id: 1, mod: hostedMod(8) }),
+                ],
+            },
+        } as unknown as Mod
+        expect(collectDeps(mod).map((d) => d.id)).toEqual([1, 2, 9, 3])
+    })
 })
 
 describe('isOffsiteDep / isLoaderDep', () => {

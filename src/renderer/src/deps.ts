@@ -4,11 +4,15 @@ import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
  * Combines a mod's direct and instructs-template dependencies, keeping
  * modworkshop-hosted deps (`mod` set) and offsite deps (`url` set, e.g.
  * SuperBLT). Deps whose mod was deleted (neither set) are dropped.
+ * Sorted by the author-defined `order` (id as tiebreak), matching modworkshop:
+ * the sequence is meaningful install order, not arbitrary.
  */
 export function collectDeps(mod: Mod | null | undefined): ModDependency[] {
-    return [...(mod?.dependencies ?? []), ...(mod?.instructs_template?.dependencies ?? [])].filter(
-        (d) => d.mod !== null || !!d.url
-    )
+    return [...(mod?.dependencies ?? []), ...(mod?.instructs_template?.dependencies ?? [])]
+        .filter((d) => d.mod !== null || !!d.url)
+        .sort((a, b) =>
+            (a.order ?? 0) === (b.order ?? 0) ? a.id - b.id : (a.order ?? 0) - (b.order ?? 0)
+        )
 }
 
 export function isOffsiteDep(d: ModDependency): boolean {
