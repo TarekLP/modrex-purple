@@ -426,11 +426,12 @@ pub fn restore_mods(app: AppHandle, game_id: Option<String>) -> Result<(), Strin
 // tasklist/pgrep, so a wedged WMI service or missing procps can't hang the UI.
 fn refresh_process_list() -> sysinfo::System {
     let mut sys = sysinfo::System::new();
-    sys.refresh_processes_specifics(
-        sysinfo::ProcessesToUpdate::All,
-        true,
-        sysinfo::ProcessRefreshKind::nothing().with_cmd(sysinfo::UpdateKind::Always),
-    );
+    let kind = sysinfo::ProcessRefreshKind::nothing();
+    // cmdlines are only needed to see through Proton/wine wrapper process names;
+    // on Windows the process name is always the exe name
+    #[cfg(not(windows))]
+    let kind = kind.with_cmd(sysinfo::UpdateKind::Always);
+    sys.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, kind);
     sys
 }
 
