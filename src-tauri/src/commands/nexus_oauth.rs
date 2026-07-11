@@ -9,10 +9,13 @@ use base64::Engine;
 use rand::RngCore;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::sync::Mutex;
 use std::time::Duration;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use crate::commands::api::{http_client, user_agent};
+use crate::commands::launchers::shell_open_external;
+use crate::commands::settings::{read_settings, write_settings, NexusOAuthTokens};
 
 const OAUTH_BASE: &str = "https://users.nexusmods.com/oauth";
 
@@ -111,6 +114,99 @@ async fn token_request(app: &AppHandle, params: &[(&str, &str)]) -> Result<Token
         return Err(format!("nexus oauth token: {}", res.status()));
     }
     res.json().await.map_err(|e| e.to_string())
+}
+
+struct PendingLogin {
+    verifier: String,
+    state: String,
+}
+
+// One login attempt at a time; a new "sign in" click replaces any stale
+// attempt whose browser tab the user abandoned.
+static PENDING_LOGIN: Mutex<Option<PendingLogin>> = Mutex::new(None);
+
+#[tauri::command]
+pub fn nexus_oauth_start() {
+    let pkce = generate_pkce();
+    let state = uuid::Uuid::new_v4().to_string();
+    let url = authorize_url(&pkce.challenge, &state);
+    *PENDING_LOGIN.lock().unwrap_or_else(|e| e.into_inner()) = Some(PendingLogin {
+        verifier: pkce.verifier,
+        state,
+    });
+    shell_open_external(url);
+}
+
+// Callback shape: modrex://oauth/callback?code=...&state=..., or an
+// error/error_description pair when the user denies the request.
+pub(crate) fn parse_callback_url(url: &str) -> Result<(String, String), String> {
+    let parsed =
+        reqwest::Url::parse(url).map_err(|e| format!("nexus oauth: invalid callback: {e}"))?;
+    let full = format!(
+        "{}://{}{}",
+        parsed.scheme(),
+        parsed.host_str().unwrap_or(""),
+        parsed.path()
+    );
+    if full != REDIRECT_URI {
+        return Err(format!("nexus oauth: unexpected callback '{full}'"));
+    }
+
+    let pairs: std::collections::HashMap<_, _> = parsed.query_pairs().into_owned().collect();
+    if let Some(error) = pairs.get("error") {
+        let description = pairs
+            .get("error_description")
+            .map(|d| format!(": {d}"))
+            .unwrap_or_default();
+        return Err(format!("nexus oauth: {error}{description}"));
+    }
+    let code = pairs
+        .get("code")
+        .cloned()
+        .ok_or("nexus oauth: missing code param")?;
+    let state = pairs
+        .get("state")
+        .cloned()
+        .ok_or("nexus oauth: missing state param")?;
+    Ok((code, state))
+}
+
+pub fn spawn_handle_oauth_callback(app: &AppHandle, url: String) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = handle_oauth_callback(&app, &url).await {
+            log::warn!("nexus oauth sign-in failed: {e}");
+            let _ = app.emit("nexus-oauth:failed", e);
+        }
+    });
+}
+
+async fn handle_oauth_callback(app: &AppHandle, url: &str) -> Result<(), String> {
+    let (code, state) = parse_callback_url(url)?;
+    let pending = PENDING_LOGIN
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()
+        .ok_or("nexus oauth: no sign-in in progress")?;
+    if pending.state != state {
+        return Err("nexus oauth: state mismatch".to_string());
+    }
+
+    let tokens = exchange_code(app, &code, &pending.verifier).await?;
+    store_tokens(app, &tokens);
+    log::info!("nexus oauth: signed in");
+    app.emit("nexus-oauth:signed-in", ())
+        .map_err(|e| e.to_string())
+}
+
+pub(crate) fn store_tokens(app: &AppHandle, tokens: &TokenResponse) {
+    let mut settings = read_settings(app);
+    settings.nexus_oauth = Some(NexusOAuthTokens {
+        access_token: tokens.access_token.clone(),
+        refresh_token: tokens.refresh_token.clone(),
+        expires_at: chrono::Utc::now().timestamp() + tokens.expires_in as i64,
+    });
+    write_settings(app, &settings);
 }
 
 #[cfg(test)]

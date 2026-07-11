@@ -16,6 +16,15 @@ pub struct GameSettings {
     pub crimeboss_install_mode: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct NexusOAuthTokens {
+    pub access_token: String,
+    pub refresh_token: String,
+    // Unix seconds, computed from the token response's expires_in at receipt.
+    pub expires_at: i64,
+}
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -32,6 +41,9 @@ pub struct Settings {
     // Prototype only, dev/testing use — Nexus's Acceptable Use Policy forbids
     // a personal key reaching real users. Replace with the SSO flow once registered.
     pub nexus_api_key: Option<String>,
+    // OAuth2 tokens from the users.nexusmods.com PKCE flow, the public-release
+    // replacement for nexus_api_key. Stored locally only, never leaves the machine.
+    pub nexus_oauth: Option<NexusOAuthTokens>,
     // Legacy flat fields: deserialized from old files but never written back.
     #[serde(skip_serializing, default)]
     pub game_path: Option<String>,

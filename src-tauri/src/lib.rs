@@ -3,6 +3,13 @@ mod commands;
 use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 
+fn route_deep_link(app: &tauri::AppHandle, url: &tauri::Url) {
+    match url.scheme() {
+        "modrex" => commands::nexus_oauth::spawn_handle_oauth_callback(app, url.to_string()),
+        _ => commands::nxm::spawn_handle_nxm_url(app, url.to_string()),
+    }
+}
+
 pub fn run() {
     std::panic::set_hook(Box::new(|panic_info| {
         log::error!("PANIC: {panic_info}");
@@ -55,12 +62,15 @@ pub fn run() {
             }
 
             #[cfg(desktop)]
-            app.deep_link().register("nxm")?;
+            {
+                app.deep_link().register("nxm")?;
+                app.deep_link().register("modrex")?;
+            }
 
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
-                    commands::nxm::spawn_handle_nxm_url(&handle, url.to_string());
+                    route_deep_link(&handle, &url);
                 }
             });
 
@@ -68,7 +78,7 @@ pub fn run() {
             // on_open_url on Windows/Linux, it only surfaces via get_current.
             if let Ok(Some(urls)) = app.deep_link().get_current() {
                 for url in urls {
-                    commands::nxm::spawn_handle_nxm_url(app.handle(), url.to_string());
+                    route_deep_link(app.handle(), &url);
                 }
             }
 
@@ -86,6 +96,7 @@ pub fn run() {
             // nexus (prototype)
             commands::nexus::nexus_search_mods,
             commands::nexus::nexus_get_download_link,
+            commands::nexus_oauth::nexus_oauth_start,
             // discord
             commands::discord::set_discord_presence_enabled,
             commands::discord::update_discord_presence,

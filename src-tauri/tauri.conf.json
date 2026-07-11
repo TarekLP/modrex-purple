@@ -46,7 +46,7 @@
     "plugins": {
         "deep-link": {
             "desktop": {
-                "schemes": ["nxm"]
+                "schemes": ["nxm", "modrex"]
             }
         },
         "updater": {

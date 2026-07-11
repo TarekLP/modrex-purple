@@ -47,3 +47,34 @@ fn authorize_url_carries_all_oauth_params() {
     assert_eq!(params["code_challenge"], "test-challenge");
     assert_eq!(params["state"], "test-state");
 }
+
+#[test]
+fn parse_callback_extracts_code_and_state() {
+    let (code, state) =
+        parse_callback_url("modrex://oauth/callback?code=abc123&state=xyz").unwrap();
+    assert_eq!(code, "abc123");
+    assert_eq!(state, "xyz");
+}
+
+#[test]
+fn parse_callback_rejects_other_schemes_and_paths() {
+    assert!(parse_callback_url("nxm://oauth/callback?code=a&state=b").is_err());
+    assert!(parse_callback_url("modrex://other/callback?code=a&state=b").is_err());
+    assert!(parse_callback_url("modrex://oauth/other?code=a&state=b").is_err());
+}
+
+#[test]
+fn parse_callback_requires_code_and_state() {
+    assert!(parse_callback_url("modrex://oauth/callback?state=b").is_err());
+    assert!(parse_callback_url("modrex://oauth/callback?code=a").is_err());
+}
+
+#[test]
+fn parse_callback_surfaces_oauth_error() {
+    let err = parse_callback_url(
+        "modrex://oauth/callback?error=access_denied&error_description=User+denied",
+    )
+    .unwrap_err();
+    assert!(err.contains("access_denied"));
+    assert!(err.contains("User denied"));
+}
