@@ -199,6 +199,43 @@ async fn handle_oauth_callback(app: &AppHandle, url: &str) -> Result<(), String>
         .map_err(|e| e.to_string())
 }
 
+// Refresh a minute early so a token never expires mid-request.
+const EXPIRY_MARGIN_SECS: i64 = 60;
+
+fn needs_refresh(expires_at: i64, now: i64) -> bool {
+    now + EXPIRY_MARGIN_SECS >= expires_at
+}
+
+// Serializes refreshes: concurrent requests (e.g. the nxm flow's joined pair)
+// would otherwise both send the same refresh token, and if Nexus rotates
+// refresh tokens the losing request would invalidate the winner's grant.
+static REFRESH_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+// None = not signed in via OAuth (caller decides its fallback).
+pub(crate) async fn access_token(app: &AppHandle) -> Result<Option<String>, String> {
+    let Some(tokens) = read_settings(app).nexus_oauth else {
+        return Ok(None);
+    };
+    if !needs_refresh(tokens.expires_at, chrono::Utc::now().timestamp()) {
+        return Ok(Some(tokens.access_token));
+    }
+
+    let _guard = REFRESH_LOCK.lock().await;
+    // Another request may have refreshed while this one waited on the lock.
+    let Some(tokens) = read_settings(app).nexus_oauth else {
+        return Ok(None);
+    };
+    if !needs_refresh(tokens.expires_at, chrono::Utc::now().timestamp()) {
+        return Ok(Some(tokens.access_token));
+    }
+
+    let fresh = refresh_tokens(app, &tokens.refresh_token)
+        .await
+        .map_err(|e| format!("nexus oauth: token refresh failed ({e}), sign in again"))?;
+    store_tokens(app, &fresh);
+    Ok(Some(fresh.access_token))
+}
+
 pub(crate) fn store_tokens(app: &AppHandle, tokens: &TokenResponse) {
     let mut settings = read_settings(app);
     settings.nexus_oauth = Some(NexusOAuthTokens {

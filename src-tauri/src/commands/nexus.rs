@@ -1,7 +1,8 @@
-// Prototype only. Personal API key — Nexus's Acceptable Use Policy forbids
-// that auth mode in a public build, so nothing here is wired into a release
-// path yet. REST v1's listing endpoints (updated/latest_added/trending) have
-// no free-text search; real search goes through the GraphQL v2 mods query
+// Auth prefers an OAuth2 Bearer token (nexus_oauth.rs); a manually entered
+// personal API key remains as the dev/testing fallback only. Nexus's
+// Acceptable Use Policy forbids the personal-key mode in a public build.
+// REST v1's listing endpoints (updated/latest_added/trending) have no
+// free-text search; real search goes through the GraphQL v2 mods query
 // instead (api.nexusmods.com/v2/graphql, verified live via introspection).
 
 use reqwest::header::HeaderMap;
@@ -12,6 +13,7 @@ use std::time::Duration;
 use tauri::AppHandle;
 
 use crate::commands::api::{http_client, parse_remaining_header, user_agent, TokenBucket};
+use crate::commands::nexus_oauth;
 use crate::commands::settings::read_settings;
 
 const BASE: &str = "https://api.nexusmods.com/v1";
@@ -62,19 +64,23 @@ fn nexus_api_key(app: &AppHandle) -> Result<String, String> {
     read_settings(app)
         .nexus_api_key
         .filter(|k| !k.trim().is_empty())
-        .ok_or_else(|| "nexus: no API key configured".to_string())
+        .ok_or_else(|| "nexus: not signed in and no API key configured".to_string())
 }
 
-fn nexus_headers(app: &AppHandle, api_key: &str) -> Vec<(&'static str, String)> {
-    vec![
-        ("apikey", api_key.to_string()),
+async fn nexus_headers(app: &AppHandle) -> Result<Vec<(&'static str, String)>, String> {
+    let auth = match nexus_oauth::access_token(app).await? {
+        Some(token) => ("Authorization", format!("Bearer {token}")),
+        None => ("apikey", nexus_api_key(app)?),
+    };
+    Ok(vec![
+        auth,
         ("User-Agent", user_agent(app)),
         ("Application-Name", "Modrex".to_string()),
         (
             "Application-Version",
             app.package_info().version.to_string(),
         ),
-    ]
+    ])
 }
 
 // Shared retry/rate-limit loop for both the REST GET client and the GraphQL
@@ -116,7 +122,7 @@ async fn send_with_retry(
 
         if res.status() == 403 {
             return Err(
-                "nexus: 403 — this endpoint may require Premium, or the API key is invalid"
+                "nexus: 403 — this endpoint may require Premium, or the credentials are invalid"
                     .to_string(),
             );
         }
@@ -135,7 +141,6 @@ async fn nexus_get(
     path: &str,
     query: Vec<(&str, String)>,
 ) -> Result<Value, String> {
-    let api_key = nexus_api_key(app)?;
     let mut url = reqwest::Url::parse(&format!("{BASE}{path}")).map_err(|e| e.to_string())?;
     {
         let mut pairs = url.query_pairs_mut();
@@ -143,7 +148,7 @@ async fn nexus_get(
             pairs.append_pair(k, v);
         }
     }
-    let headers = nexus_headers(app, &api_key);
+    let headers = nexus_headers(app).await?;
 
     send_with_retry(path, || {
         let mut req = http_client()
@@ -246,8 +251,7 @@ pub async fn nexus_search_mods(
     offset: Option<u32>,
 ) -> Result<Value, String> {
     let domain = nexus_domain(&game_id)?;
-    let api_key = nexus_api_key(&app)?;
-    let headers = nexus_headers(&app, &api_key);
+    let headers = nexus_headers(&app).await?;
     let sort_field = validate_sort_field(&sort)?;
 
     let mut filter = serde_json::json!({

@@ -70,6 +70,15 @@ fn parse_callback_requires_code_and_state() {
 }
 
 #[test]
+fn needs_refresh_only_inside_expiry_margin() {
+    let now = 1_000_000;
+    assert!(!needs_refresh(now + EXPIRY_MARGIN_SECS + 1, now));
+    assert!(needs_refresh(now + EXPIRY_MARGIN_SECS, now));
+    assert!(needs_refresh(now, now));
+    assert!(needs_refresh(now - 100, now));
+}
+
+#[test]
 fn parse_callback_surfaces_oauth_error() {
     let err = parse_callback_url(
         "modrex://oauth/callback?error=access_denied&error_description=User+denied",
