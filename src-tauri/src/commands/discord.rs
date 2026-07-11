@@ -40,10 +40,9 @@ pub fn start(enabled: Arc<AtomicBool>, rx: mpsc::Receiver<String>) {
         loop {
             if enabled.load(Ordering::Relaxed) {
                 if client.is_none() {
-                    if let Ok(mut c) = DiscordIpcClient::new(APP_ID) {
-                        if c.connect().is_ok() {
-                            client = Some(c);
-                        }
+                    let mut c = DiscordIpcClient::new(APP_ID);
+                    if c.connect().is_ok() {
+                        client = Some(c);
                     }
                 }
                 if let Some(ref mut c) = client {
