@@ -889,6 +889,7 @@ export function ModDetailPage({
                             <MemberRow
                                 name={mod.user.name}
                                 role={t('detail.info.owner')}
+                                userId={mod.user.id}
                                 avatar={mod.user.avatar}
                                 avatarHasThumb={mod.user.avatar_has_thumb}
                                 donation={ownerDonation}
@@ -898,6 +899,7 @@ export function ModDetailPage({
                                     key={m.id}
                                     name={m.name}
                                     role={creditLevelLabel(m.level)}
+                                    userId={m.id}
                                     avatar={m.avatar}
                                     avatarHasThumb={m.avatar_has_thumb}
                                     donation={donationInfo(m.donation_url)}
@@ -1000,19 +1002,21 @@ function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value
 function MemberRow({
     name,
     role,
+    userId,
     avatar,
     avatarHasThumb,
     donation,
 }: {
     name: string
     role: string
+    userId?: number
     avatar?: string
     avatarHasThumb?: boolean
     donation: { url: string; label: string } | null
 }) {
     const src = avatar ? `${AVATAR_BASE_URL}/${avatarHasThumb ? 'thumbnail_' : ''}${avatar}` : null
-    return (
-        <div className="flex items-center gap-2.5">
+    const person = (
+        <>
             {src ? (
                 <img
                     src={src}
@@ -1024,9 +1028,27 @@ function MemberRow({
                 <div className="w-9 h-9 rounded-md bg-surface-active shrink-0" />
             )}
             <div className="min-w-0">
-                <div className="text-xs font-medium text-text truncate">{name}</div>
+                <div className="text-xs font-medium text-text truncate group-hover:text-accent-bright">
+                    {name}
+                </div>
                 <div className="text-xs text-text-subtle">{role}</div>
             </div>
+        </>
+    )
+    return (
+        <div className="flex items-center gap-2.5">
+            {userId !== undefined ? (
+                <Tooltip content={t('detail.deps.openOnSite')}>
+                    <button
+                        onClick={() => api.openExternal(`https://modworkshop.net/user/${userId}`)}
+                        className="group flex items-center gap-2.5 min-w-0 text-left"
+                    >
+                        {person}
+                    </button>
+                </Tooltip>
+            ) : (
+                person
+            )}
             {donation && (
                 <span className="ml-auto">
                     <DonateButton donation={donation} />

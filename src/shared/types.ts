@@ -69,6 +69,8 @@ export interface Mod {
         url?: string
     } | null
     user: {
+        // absent on locally synthesized mods (installedUtils.syntheticMod)
+        id?: number
         name: string
         donation_url?: string | null
         avatar?: string
