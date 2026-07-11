@@ -4,7 +4,7 @@ import { t } from '../../i18n'
 
 export function DescriptionTab({ mod }: { mod: Mod }) {
     return (
-        <div className="max-w-3xl">
+        <div>
             {mod.desc ? (
                 <MarkdownContent text={mod.desc} />
             ) : (
@@ -16,7 +16,7 @@ export function DescriptionTab({ mod }: { mod: Mod }) {
 
 export function ChangelogTab({ mod }: { mod: Mod }) {
     return (
-        <div className="max-w-3xl">
+        <div>
             <MarkdownContent text={mod.changelog!} />
         </div>
     )
@@ -24,7 +24,7 @@ export function ChangelogTab({ mod }: { mod: Mod }) {
 
 export function LicenseTab({ mod }: { mod: Mod }) {
     return (
-        <div className="max-w-3xl">
+        <div>
             <MarkdownContent text={mod.license!} />
         </div>
     )

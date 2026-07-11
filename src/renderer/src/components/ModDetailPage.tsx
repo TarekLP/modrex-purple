@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
 import {
@@ -8,8 +8,13 @@ import {
     ExternalLink,
     ChevronLeft,
     ChevronRight,
+    Heart,
     X,
     AlertTriangle,
+    Tag as TagIcon,
+    CalendarDays,
+    Clock,
+    Users,
 } from 'lucide-react'
 import { t } from '../i18n'
 import { Toggle } from './Toggle'
@@ -22,6 +27,7 @@ import type {
     ModDependency,
     InstalledMod,
 } from '../../../shared/types'
+import { AVATAR_BASE_URL } from '../../../shared/types'
 import {
     getCachedMod,
     getCachedModFiles,
@@ -68,6 +74,75 @@ import { DepsTab } from './modDetail/DepsTab'
 import { formatDate } from './modDetail/format'
 
 type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'license' | 'deps'
+
+// The member roles shown in the header credits line, mirroring modworkshop's
+// mod page (its right pane lists collaborator/maintainer/contributor; viewers
+// and unaccepted invites are hidden).
+const CREDIT_LEVELS = new Set(['collaborator', 'maintainer', 'contributor'])
+
+// Donation fields are free-form on the site — only usable as links when http(s).
+function httpUrl(raw: string | null | undefined): string | null {
+    return raw && /^https?:\/\//.test(raw) ? raw : null
+}
+
+// modworkshop's donation values aren't always URLs — a bare PayPal email or a
+// paypal.me handle without a scheme are valid on the site. Same provider patterns
+// as the site's donation-button component, so the button can say where it leads.
+// Order matters: the hosted-button form must match before the generic paypal ones,
+// and the bare-email PayPal form goes last as the loosest pattern.
+const DONATION_PROVIDERS: [RegExp, string, (m: RegExpMatchArray) => string][] = [
+    [
+        /(?:https:\/\/)?(?:www\.)?paypal(?:\.me|\.com)\/donate\/\?hosted_button_id=(\w+)/,
+        'PayPal',
+        (m) => `https://www.paypal.com/donate/?hosted_button_id=${m[1]}`,
+    ],
+    [/(?:https:\/\/)?(?:www\.)?paypal\.me\/(\w+)/, 'PayPal', (m) => `https://paypal.me/${m[1]}`],
+    [
+        /(?:https:\/\/)?(?:www\.)?github\.com\/sponsors\/([\w-]+)/,
+        'GitHub Sponsors',
+        (m) => `https://github.com/sponsors/${m[1]}`,
+    ],
+    [/(?:https:\/\/)?(?:www\.)?ko-fi\.com\/(\w+)/, 'Ko-fi', (m) => `https://ko-fi.com/${m[1]}`],
+    [
+        /(?:https:\/\/)?(?:www\.)?buymeacoffee\.com\/(\w+)/,
+        'Buy Me a Coffee',
+        (m) => `https://buymeacoffee.com/${m[1]}`,
+    ],
+    [/(?:https:\/\/)?(?:www\.)?boosty\.to\/(\w+)/, 'Boosty', (m) => `https://boosty.to/${m[1]}`],
+    [
+        /^[\w.+-]+@[\w-]+(?:\.[\w-]+)+$/,
+        'PayPal',
+        (m) => `https://www.paypal.com/donate/?business=${encodeURIComponent(m[0])}`,
+    ],
+]
+
+function donationInfo(raw: string | null | undefined): { url: string; label: string } | null {
+    if (!raw) return null
+    for (const [pattern, label, toUrl] of DONATION_PROVIDERS) {
+        const m = raw.match(pattern)
+        if (m) return { url: toUrl(m), label }
+    }
+    const url = httpUrl(raw)
+    if (!url) return null
+    try {
+        return { url, label: new URL(url).hostname.replace(/^www\./, '') }
+    } catch {
+        return null
+    }
+}
+
+function creditLevelLabel(level: string): string {
+    switch (level) {
+        case 'collaborator':
+            return t('detail.creditsLevelCollaborator')
+        case 'maintainer':
+            return t('detail.creditsLevelMaintainer')
+        case 'contributor':
+            return t('detail.creditsLevelContributor')
+        default:
+            return level
+    }
+}
 
 interface Props {
     modId: number
@@ -424,6 +499,10 @@ export function ModDetailPage({
 
     const showChangelogTab = !!mod?.changelog
     const showLicenseTab = !!mod?.license
+
+    // Owner's own donation link wins over the mod-level one, like on modworkshop.
+    const ownerDonation = donationInfo(mod?.user.donation_url) ?? donationInfo(mod?.donation)
+    const credits = (mod?.members ?? []).filter((m) => m.accepted && CREDIT_LEVELS.has(m.level))
     const showDepsTab =
         !!(mod?.instructs_template?.instructions || mod?.instructions) || allDeps.length > 0
 
@@ -683,47 +762,16 @@ export function ModDetailPage({
                                 src={bannerSrc}
                                 alt={mod.name}
                                 loading="lazy"
-                                className="w-full h-48 object-cover"
+                                className="w-full aspect-[4/1] max-h-72 object-cover"
                             />
                         ) : (
-                            <div className="w-full h-48 bg-surface-raised" />
+                            <div className="w-full aspect-[4/1] max-h-72 bg-surface-raised" />
                         ))}
 
-                    <div className="px-6 py-5 border-b border-border">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
+                    <div className="flex items-start gap-6 px-6">
+                        <div className="min-w-0 flex-1">
+                            <div className="py-5 border-b border-border">
                                 <h1 className="text-xl font-bold leading-tight">{mod.name}</h1>
-                                <p className="text-sm text-text-muted mt-1">
-                                    by {mod.user.name}
-                                    {mod.repo_url && (
-                                        <>
-                                            {' · '}
-                                            <button
-                                                onClick={() => api.openExternal(mod.repo_url!)}
-                                                className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
-                                            >
-                                                {t('detail.source')}
-                                                <ExternalLink className="w-3 h-3" />
-                                            </button>
-                                        </>
-                                    )}
-                                    {mod.id > 0 && (
-                                        <>
-                                            {' · '}
-                                            <button
-                                                onClick={() =>
-                                                    api.openExternal(
-                                                        `https://modworkshop.net/mod/${mod.id}`
-                                                    )
-                                                }
-                                                className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
-                                            >
-                                                {t('detail.viewOnSite')}
-                                                <ExternalLink className="w-3 h-3" />
-                                            </button>
-                                        </>
-                                    )}
-                                </p>
                                 {mod.tags && mod.tags.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5 mt-3">
                                         {mod.tags.map((tag) => (
@@ -742,95 +790,145 @@ export function ModDetailPage({
                                     </div>
                                 )}
                             </div>
-                            <div className="text-right text-xs text-text-subtle shrink-0">
-                                <div className="font-medium text-sm text-text">
-                                    {installedMod?.version ?? mod.version}
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="flex items-center gap-5 mt-4 text-sm">
-                            <Stat
-                                value={mod.downloads.toLocaleString()}
-                                label={t('detail.stats.downloads')}
-                            />
-                            <div className="w-px h-7 bg-border" />
-                            <Stat
-                                value={mod.likes.toLocaleString()}
-                                label={t('detail.stats.likes')}
-                            />
-                            <div className="w-px h-7 bg-border" />
-                            <Stat
-                                value={mod.views.toLocaleString()}
-                                label={t('detail.stats.views')}
-                            />
-                            <div className="ml-auto text-xs text-text-subtle text-right">
-                                <div>
-                                    {t('detail.stats.published', {
-                                        date: formatDate(mod.published_at),
-                                    })}
-                                </div>
-                                <div>
-                                    {t('detail.stats.updated', { date: formatDate(mod.bumped_at) })}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                            <Tabs.Root defaultValue="description">
+                                <Tabs.List className="flex border-b border-border">
+                                    {tabs.map((tabItem) => (
+                                        <Tabs.Trigger
+                                            key={tabItem.id}
+                                            value={tabItem.id}
+                                            className="relative text-xs px-4 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted before:content-[''] before:absolute before:inset-x-1 before:inset-y-1.5 before:rounded before:transition-colors hover:before:bg-surface-hover data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none"
+                                        >
+                                            <span className="relative">{tabItem.label}</span>
+                                        </Tabs.Trigger>
+                                    ))}
+                                </Tabs.List>
 
-                    <Tabs.Root defaultValue="description">
-                        <Tabs.List className="flex border-b border-border px-6">
-                            {tabs.map((tabItem) => (
-                                <Tabs.Trigger
-                                    key={tabItem.id}
-                                    value={tabItem.id}
-                                    className="relative text-xs px-4 py-3 border-b-2 border-transparent transition-colors text-text-subtle hover:text-text-muted before:content-[''] before:absolute before:inset-x-1 before:inset-y-1.5 before:rounded before:transition-colors hover:before:bg-surface-hover data-[state=active]:border-accent data-[state=active]:text-accent focus:outline-none"
+                                <Tabs.Content
+                                    value="description"
+                                    className="py-5 focus:outline-none"
                                 >
-                                    <span className="relative">{tabItem.label}</span>
-                                </Tabs.Trigger>
-                            ))}
-                        </Tabs.List>
+                                    <DescriptionTab mod={mod} />
+                                </Tabs.Content>
+                                <Tabs.Content value="changelog" className="py-5 focus:outline-none">
+                                    <ChangelogTab mod={mod} />
+                                </Tabs.Content>
+                                <Tabs.Content value="license" className="py-5 focus:outline-none">
+                                    <LicenseTab mod={mod} />
+                                </Tabs.Content>
+                                <Tabs.Content value="images" className="py-5 focus:outline-none">
+                                    <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />
+                                </Tabs.Content>
+                                <Tabs.Content value="downloads" className="py-5 focus:outline-none">
+                                    <DownloadsTab
+                                        files={files}
+                                        links={links}
+                                        loading={filesLoading}
+                                        mod={mod}
+                                        gamePath={gamePath}
+                                        installed={installed}
+                                        installedFiles={installedFiles}
+                                        downloadMap={downloadMap}
+                                        activeGame={activeGame}
+                                        onRefreshInstalled={onRefreshInstalled}
+                                    />
+                                </Tabs.Content>
+                                <Tabs.Content value="deps" className="py-5 focus:outline-none">
+                                    <DepsTab
+                                        mod={mod}
+                                        deps={allDeps}
+                                        installed={installed}
+                                        gamePath={gamePath}
+                                        activeGame={activeGame}
+                                        loaderInstalled={loaderInstalled}
+                                        loaderModIds={loaderModIds}
+                                        onInstallLoader={handleInstallLoader}
+                                        onRefreshInstalled={onRefreshInstalled}
+                                        onOpenDetail={onOpenDetail}
+                                    />
+                                </Tabs.Content>
+                            </Tabs.Root>
+                        </div>
 
-                        <Tabs.Content value="description" className="px-6 py-5 focus:outline-none">
-                            <DescriptionTab mod={mod} />
-                        </Tabs.Content>
-                        <Tabs.Content value="changelog" className="px-6 py-5 focus:outline-none">
-                            <ChangelogTab mod={mod} />
-                        </Tabs.Content>
-                        <Tabs.Content value="license" className="px-6 py-5 focus:outline-none">
-                            <LicenseTab mod={mod} />
-                        </Tabs.Content>
-                        <Tabs.Content value="images" className="px-6 py-5 focus:outline-none">
-                            <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />
-                        </Tabs.Content>
-                        <Tabs.Content value="downloads" className="px-6 py-5 focus:outline-none">
-                            <DownloadsTab
-                                files={files}
-                                links={links}
-                                loading={filesLoading}
-                                mod={mod}
-                                gamePath={gamePath}
-                                installed={installed}
-                                installedFiles={installedFiles}
-                                downloadMap={downloadMap}
-                                activeGame={activeGame}
-                                onRefreshInstalled={onRefreshInstalled}
+                        <aside className="w-1/3 min-w-64 max-w-md shrink-0 sticky top-5 my-5 rounded-lg bg-surface-hover border border-border p-4 flex flex-col gap-3">
+                            <div className="grid grid-cols-3">
+                                <Stat
+                                    value={mod.downloads.toLocaleString()}
+                                    label={t('detail.stats.downloads')}
+                                />
+                                <Stat
+                                    value={mod.likes.toLocaleString()}
+                                    label={t('detail.stats.likes')}
+                                />
+                                <Stat
+                                    value={mod.views.toLocaleString()}
+                                    label={t('detail.stats.views')}
+                                />
+                            </div>
+                            <div className="h-px bg-border" />
+                            <InfoRow
+                                icon={<TagIcon className="w-3.5 h-3.5" />}
+                                label={t('detail.info.version')}
+                                value={installedMod?.version ?? mod.version}
                             />
-                        </Tabs.Content>
-                        <Tabs.Content value="deps" className="px-6 py-5 focus:outline-none">
-                            <DepsTab
-                                mod={mod}
-                                deps={allDeps}
-                                installed={installed}
-                                gamePath={gamePath}
-                                activeGame={activeGame}
-                                loaderInstalled={loaderInstalled}
-                                loaderModIds={loaderModIds}
-                                onInstallLoader={handleInstallLoader}
-                                onRefreshInstalled={onRefreshInstalled}
-                                onOpenDetail={onOpenDetail}
+                            <InfoRow
+                                icon={<CalendarDays className="w-3.5 h-3.5" />}
+                                label={t('detail.info.published')}
+                                value={formatDate(mod.published_at)}
                             />
-                        </Tabs.Content>
-                    </Tabs.Root>
+                            <InfoRow
+                                icon={<Clock className="w-3.5 h-3.5" />}
+                                label={t('detail.info.updated')}
+                                value={formatDate(mod.bumped_at)}
+                            />
+                            <div className="h-px bg-border" />
+                            <div className="flex items-center gap-1.5 text-xs text-text-subtle">
+                                <Users className="w-3.5 h-3.5" />
+                                {t('detail.info.members')}
+                            </div>
+                            <MemberRow
+                                name={mod.user.name}
+                                role={t('detail.info.owner')}
+                                avatar={mod.user.avatar}
+                                avatarHasThumb={mod.user.avatar_has_thumb}
+                                donation={ownerDonation}
+                            />
+                            {credits.map((m) => (
+                                <MemberRow
+                                    key={m.id}
+                                    name={m.name}
+                                    role={creditLevelLabel(m.level)}
+                                    avatar={m.avatar}
+                                    avatarHasThumb={m.avatar_has_thumb}
+                                    donation={donationInfo(m.donation_url)}
+                                />
+                            ))}
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                                {mod.id > 0 && (
+                                    <button
+                                        onClick={() =>
+                                            api.openExternal(
+                                                `https://modworkshop.net/mod/${mod.id}`
+                                            )
+                                        }
+                                        className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
+                                    >
+                                        {t('detail.viewOnSite')}
+                                        <ExternalLink className="w-3 h-3" />
+                                    </button>
+                                )}
+                                {mod.repo_url && (
+                                    <button
+                                        onClick={() => api.openExternal(mod.repo_url!)}
+                                        className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
+                                    >
+                                        {t('detail.source')}
+                                        <ExternalLink className="w-3 h-3" />
+                                    </button>
+                                )}
+                            </div>
+                        </aside>
+                    </div>
                 </div>
             )}
 
@@ -884,5 +982,72 @@ function Stat({ value, label }: { value: string; label: string }) {
             <span className="font-semibold">{value}</span>
             <span className="text-xs text-text-subtle">{label}</span>
         </div>
+    )
+}
+
+function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+    return (
+        <div className="flex items-center gap-2 text-xs">
+            <span className="flex items-center gap-1.5 text-text-subtle">
+                {icon}
+                {label}
+            </span>
+            <span className="ml-auto text-right font-medium text-text">{value}</span>
+        </div>
+    )
+}
+
+function MemberRow({
+    name,
+    role,
+    avatar,
+    avatarHasThumb,
+    donation,
+}: {
+    name: string
+    role: string
+    avatar?: string
+    avatarHasThumb?: boolean
+    donation: { url: string; label: string } | null
+}) {
+    const src = avatar ? `${AVATAR_BASE_URL}/${avatarHasThumb ? 'thumbnail_' : ''}${avatar}` : null
+    return (
+        <div className="flex items-center gap-2.5">
+            {src ? (
+                <img
+                    src={src}
+                    alt={name}
+                    loading="lazy"
+                    className="w-9 h-9 rounded-md object-cover shrink-0"
+                />
+            ) : (
+                <div className="w-9 h-9 rounded-md bg-surface-active shrink-0" />
+            )}
+            <div className="min-w-0">
+                <div className="text-xs font-medium text-text truncate">{name}</div>
+                <div className="text-xs text-text-subtle">{role}</div>
+            </div>
+            {donation && (
+                <span className="ml-auto">
+                    <DonateButton donation={donation} />
+                </span>
+            )}
+        </div>
+    )
+}
+
+function DonateButton({ donation }: { donation: { url: string; label: string } }) {
+    return (
+        <Tooltip content={t('detail.donate')}>
+            <Button
+                variant="ghost-accent"
+                size="sm"
+                onClick={() => api.openExternal(donation.url)}
+                className="px-2 shrink-0 hover:bg-surface-active"
+            >
+                <Heart className="w-3 h-3" />
+                {donation.label}
+            </Button>
+        </Tooltip>
     )
 }

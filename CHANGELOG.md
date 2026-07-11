@@ -14,6 +14,12 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Improved app startup time.
 - Mod licenses now show as their own tab on the mod page with full formatting.
+- Redesigned the mod page:
+  - Mod details (downloads, likes, views, version, dates, and links) moved into an info panel that stays visible while you scroll.
+  - The panel now credits everyone who worked on the mod, with avatars and roles, not just the author.
+  - Each contributor with a donation link gets their own donation button, labeled with where it leads (PayPal, Ko-fi, GitHub Sponsors, and more).
+  - Banners keep the same proportions as on modworkshop instead of being cropped to a fixed height.
+  - Descriptions and dependency lists use the full page width.
 - The Dependencies & Instructions tab now lists dependencies in the author's intended install order, numbered, with instructions below.
 
 ### Fixed

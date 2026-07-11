@@ -37,7 +37,7 @@ export function DepsTab({
     const hasInstructions = !!(mod.instructs_template?.instructions || mod.instructions)
 
     return (
-        <div className="flex flex-col gap-8 max-w-3xl">
+        <div className="flex flex-col gap-8">
             {deps.length > 0 && (
                 <section>
                     <h2 className="text-sm font-semibold mb-3 text-text">

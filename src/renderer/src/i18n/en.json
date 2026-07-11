@@ -192,6 +192,10 @@
         "back": "Back",
         "source": "Source",
         "viewOnSite": "modworkshop",
+        "donate": "Donate",
+        "creditsLevelCollaborator": "Collaborator",
+        "creditsLevelMaintainer": "Maintainer",
+        "creditsLevelContributor": "Contributor",
         "tabs": {
             "description": "Description",
             "images": "Images",
@@ -205,9 +209,14 @@
         "stats": {
             "downloads": "Downloads",
             "likes": "Likes",
-            "views": "Views",
-            "published": "Published {date}",
-            "updated": "Updated {date}"
+            "views": "Views"
+        },
+        "info": {
+            "version": "Version",
+            "published": "Published",
+            "updated": "Updated",
+            "members": "Members",
+            "owner": "Owner"
         },
         "description": {
             "noDescription": "No description provided."

@@ -27,6 +27,18 @@ export interface InstructsTemplate {
     dependencies: ModDependency[]
 }
 
+// A user attached to a mod's credits (member of the mod page). `level` is the
+// modworkshop role: collaborator | maintainer | contributor | viewer.
+export interface ModMember {
+    id: number
+    name: string
+    level: string
+    accepted: boolean
+    donation_url?: string | null
+    avatar?: string
+    avatar_has_thumb?: boolean
+}
+
 export interface ModTag {
     id: number
     name: string
@@ -56,7 +68,12 @@ export interface Mod {
         download_url: string | undefined
         url?: string
     } | null
-    user: { name: string }
+    user: {
+        name: string
+        donation_url?: string | null
+        avatar?: string
+        avatar_has_thumb?: boolean
+    }
     // Extended fields returned by getMod full response
     changelog?: string
     instructions?: string
@@ -67,6 +84,8 @@ export interface Mod {
     dependencies?: ModDependency[]
     instructs_template?: InstructsTemplate | null
     tags?: ModTag[]
+    members?: ModMember[]
+    donation?: string | null
 }
 
 export interface ModLink {
@@ -102,6 +121,7 @@ export interface Category {
 }
 
 export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
+export const AVATAR_BASE_URL = 'https://storage.modworkshop.net/users/images'
 export const GAME_STORAGE_KEY = 'pd3'
 
 export type GameId = 'pd3' | 'pd2' | 'pdth' | 'cb' | 'raid'
