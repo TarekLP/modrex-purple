@@ -16,8 +16,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Mod licenses now show as their own tab on the mod page with full formatting.
 - Redesigned the mod page:
   - Mod details (downloads, likes, views, version, dates, and links) moved into an info panel that stays visible while you scroll.
-  - The panel now credits everyone who worked on the mod, with avatars and roles, not just the author.
+  - The panel now credits everyone who worked on the mod, with avatars and roles, not just the author. Clicking a person opens their modworkshop profile.
   - Each contributor with a donation link gets their own donation button, labeled with where it leads (PayPal, Ko-fi, GitHub Sponsors, and more).
+  - Mods with a public repository get a Repository row showing where the code is hosted (GitHub, GitLab, or Bitbucket), replacing the plain "Source" link.
   - Banners keep the same proportions as on modworkshop instead of being cropped to a fixed height.
   - Descriptions and dependency lists use the full page width.
 - The Dependencies & Instructions tab now lists dependencies in the author's intended install order, numbered, with instructions below.
