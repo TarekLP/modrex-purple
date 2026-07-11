@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
-import { MarkdownContent } from './MarkdownContent'
+import { MarkdownContent } from './MarkdownContentImpl'
 import { api } from '../api'
 
 vi.mock('../api', () => ({ api: { openExternal: vi.fn() } }))
