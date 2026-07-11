@@ -242,18 +242,6 @@ pub fn get_game_settings(app: AppHandle, game_id: String) -> GameSettings {
 }
 
 #[tauri::command]
-pub fn set_game_path(app: AppHandle, game_id: Option<String>, game_path: Option<String>) {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
-    update_settings(&app, |s| {
-        s.games
-            .get_or_insert_with(HashMap::new)
-            .entry(game_id)
-            .or_default()
-            .game_path = game_path;
-    });
-}
-
-#[tauri::command]
 pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     update_settings(&app, |s| {

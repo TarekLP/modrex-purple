@@ -221,11 +221,6 @@ pub async fn get_mod(app: AppHandle, id: u32) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub async fn get_latest_file(app: AppHandle, mod_id: u32) -> Result<Value, String> {
-    api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await
-}
-
-#[tauri::command]
 pub async fn list_mod_files(app: AppHandle, mod_id: u32) -> Result<Value, String> {
     api_get(&app, &format!("/mods/{}/files", mod_id), vec![]).await
 }
@@ -240,18 +235,6 @@ pub async fn list_categories(app: AppHandle, game_id: u32) -> Result<Value, Stri
     api_get(&app, &format!("/games/{}/categories", game_id), vec![]).await
 }
 
-#[tauri::command]
-pub async fn register_download(app: AppHandle, file_id: u32) -> Result<(), String> {
-    let _permit = semaphore().acquire().await.map_err(|e| e.to_string())?;
-    http_client()
-        .post(format!("{}/files/{}/register-download", BASE, file_id))
-        .header("User-Agent", user_agent(&app))
-        .timeout(Duration::from_secs(15))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
 
 #[cfg(test)]
 #[path = "api_tests.rs"]

@@ -189,14 +189,6 @@ pub struct DetectedGame {
 // SMB timeout on a dead network drive, sync commands run on the main thread,
 // so all detection work goes through spawn_blocking.
 #[tauri::command]
-pub async fn auto_detect_game(game_id: Option<String>) -> Option<DetectedGame> {
-    let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"));
-    tauri::async_runtime::spawn_blocking(move || detect_game(game))
-        .await
-        .unwrap_or(None)
-}
-
-#[tauri::command]
 pub async fn installed_launchers(game_id: Option<String>) -> Vec<String> {
     let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"));
     tauri::async_runtime::spawn_blocking(move || {
@@ -214,11 +206,6 @@ pub async fn installed_launchers(game_id: Option<String>) -> Vec<String> {
     })
     .await
     .unwrap_or_default()
-}
-
-#[tauri::command]
-pub fn identify_launcher(game_path: String) -> String {
-    identify_launcher_for_path(&game_path)
 }
 
 fn resolve_and_save_game_path(app: &AppHandle, game_id: Option<String>, game_path: Option<String>) {

@@ -42,18 +42,15 @@ pub fn run() {
             // api
             commands::api::list_mods,
             commands::api::get_mod,
-            commands::api::get_latest_file,
             commands::api::list_mod_files,
             commands::api::list_mod_links,
             commands::api::list_categories,
-            commands::api::register_download,
             // discord
             commands::discord::set_discord_presence_enabled,
             commands::discord::update_discord_presence,
             // settings
             commands::settings::get_settings,
             commands::settings::get_game_settings,
-            commands::settings::set_game_path,
             commands::settings::set_launcher,
             commands::settings::set_launch_options,
             commands::settings::set_crimeboss_install_mode,
@@ -96,9 +93,7 @@ pub fn run() {
             commands::raid_superblt::install_raid_superblt,
             commands::ue4ss::check_ue4ss,
             // launchers & system
-            commands::launchers::auto_detect_game,
             commands::launchers::installed_launchers,
-            commands::launchers::identify_launcher,
             commands::launchers::configure_game_path,
             commands::launchers::pick_folder,
             commands::launchers::launch_game,
