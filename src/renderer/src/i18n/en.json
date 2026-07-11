@@ -190,7 +190,6 @@
     "detail": {
         "spoiler": "Spoiler!",
         "back": "Back",
-        "source": "Source",
         "viewOnSite": "modworkshop",
         "donate": "Donate",
         "creditsLevelCollaborator": "Collaborator",
@@ -215,6 +214,8 @@
             "version": "Version",
             "published": "Published",
             "updated": "Updated",
+            "repository": "Repository",
+            "link": "Link",
             "members": "Members",
             "owner": "Owner"
         },

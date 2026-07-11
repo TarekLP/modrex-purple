@@ -15,7 +15,9 @@ import {
     CalendarDays,
     Clock,
     Users,
+    Link as LinkIcon,
 } from 'lucide-react'
+import { siGit, siGithub, siGitlab, siBitbucket, type SimpleIcon } from 'simple-icons'
 import { t } from '../i18n'
 import { Toggle } from './Toggle'
 import { Tooltip } from './Tooltip'
@@ -129,6 +131,28 @@ function donationInfo(raw: string | null | undefined): { url: string; label: str
     } catch {
         return null
     }
+}
+
+const REPO_HOST_ICONS: Record<string, SimpleIcon> = {
+    'github.com': siGithub,
+    'gitlab.com': siGitlab,
+    'bitbucket.org': siBitbucket,
+}
+
+function repoHostIcon(url: string): SimpleIcon | null {
+    try {
+        return REPO_HOST_ICONS[new URL(url).hostname.replace(/^www\./, '')] ?? null
+    } catch {
+        return null
+    }
+}
+
+function BrandIcon({ icon }: { icon: SimpleIcon }) {
+    return (
+        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0 fill-current" aria-hidden>
+            <path d={icon.path} />
+        </svg>
+    )
 }
 
 function creditLevelLabel(level: string): string {
@@ -881,6 +905,28 @@ export function ModDetailPage({
                                 label={t('detail.info.updated')}
                                 value={formatDate(mod.bumped_at)}
                             />
+                            {mod.repo_url && (
+                                <InfoRow
+                                    icon={<BrandIcon icon={siGit} />}
+                                    label={t('detail.info.repository')}
+                                    value={
+                                        <button
+                                            onClick={() => api.openExternal(mod.repo_url!)}
+                                            className="inline-flex items-center gap-1 font-medium text-text hover:text-accent-bright transition-colors"
+                                        >
+                                            {(() => {
+                                                const icon = repoHostIcon(mod.repo_url!)
+                                                return icon ? (
+                                                    <BrandIcon icon={icon} />
+                                                ) : (
+                                                    <LinkIcon className="w-3 h-3 shrink-0" />
+                                                )
+                                            })()}
+                                            {t('detail.info.link')}
+                                        </button>
+                                    }
+                                />
+                            )}
                             <div className="h-px bg-border" />
                             <div className="flex items-center gap-1.5 text-xs text-text-subtle">
                                 <Users className="w-3.5 h-3.5" />
@@ -916,15 +962,6 @@ export function ModDetailPage({
                                         className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
                                     >
                                         {t('detail.viewOnSite')}
-                                        <ExternalLink className="w-3 h-3" />
-                                    </button>
-                                )}
-                                {mod.repo_url && (
-                                    <button
-                                        onClick={() => api.openExternal(mod.repo_url!)}
-                                        className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
-                                    >
-                                        {t('detail.source')}
                                         <ExternalLink className="w-3 h-3" />
                                     </button>
                                 )}
@@ -987,7 +1024,7 @@ function Stat({ value, label }: { value: string; label: string }) {
     )
 }
 
-function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
     return (
         <div className="flex items-center gap-2 text-xs">
             <span className="flex items-center gap-1.5 text-text-subtle">
