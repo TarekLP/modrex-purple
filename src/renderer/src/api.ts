@@ -113,6 +113,17 @@ export const api = {
     clearNexusApiKey(): Promise<void> {
         return invoke('clear_nexus_api_key')
     },
+    // OAuth2 PKCE sign-in: opens the browser to users.nexusmods.com; the result
+    // comes back asynchronously via the nexus-oauth:signed-in / failed events.
+    nexusOAuthStart(): Promise<void> {
+        return invoke('nexus_oauth_start')
+    },
+    isNexusSignedIn(): Promise<boolean> {
+        return invoke('nexus_oauth_signed_in')
+    },
+    nexusSignOut(): Promise<void> {
+        return invoke('nexus_oauth_sign_out')
+    },
     // GraphQL v2 search, verified live via schema introspection. Empty query omits
     // the name filter (browse-by-sort instead of search). sort is one of
     // "relevance" | "downloads" | "endorsements" | "updatedAt".
@@ -425,6 +436,14 @@ export const api = {
             'nxm:install-complete',
             callback
         )
+    },
+    // Fired when the modrex://oauth/callback deep link completes a sign-in.
+    onNexusOAuthSignedIn(callback: () => void): () => void {
+        return onEvent<null>('nexus-oauth:signed-in', () => callback())
+    },
+    // Payload is the plain error string from any stage of the OAuth flow.
+    onNexusOAuthFailed(callback: (error: string) => void): () => void {
+        return onEvent<string>('nexus-oauth:failed', callback)
     },
     // Payload is the plain error string from any stage of the handoff.
     onNxmInstallFailed(callback: (error: string) => void): () => void {

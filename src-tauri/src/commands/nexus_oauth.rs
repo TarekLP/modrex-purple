@@ -246,6 +246,18 @@ pub(crate) fn store_tokens(app: &AppHandle, tokens: &TokenResponse) {
     write_settings(app, &settings);
 }
 
+#[tauri::command]
+pub fn nexus_oauth_signed_in(app: AppHandle) -> bool {
+    read_settings(&app).nexus_oauth.is_some()
+}
+
+#[tauri::command]
+pub fn nexus_oauth_sign_out(app: AppHandle) {
+    let mut settings = read_settings(&app);
+    settings.nexus_oauth = None;
+    write_settings(&app, &settings);
+}
+
 #[cfg(test)]
 #[path = "nexus_oauth_tests.rs"]
 mod tests;

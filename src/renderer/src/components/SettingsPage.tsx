@@ -132,6 +132,8 @@ export function SettingsPage({
     const [nexusKeyConfigured, setNexusKeyConfigured] = useState<boolean | null>(null)
     const [nexusKeyInput, setNexusKeyInput] = useState('')
     const [nexusKeySaving, setNexusKeySaving] = useState(false)
+    const [nexusSignedIn, setNexusSignedIn] = useState<boolean | null>(null)
+    const [nexusSignInError, setNexusSignInError] = useState<string | null>(null)
 
     // Re-read on activation, not just mount: the page stays mounted as a hidden
     // pane, and other pages can request a tab via saveSettingsTab before navigating.
@@ -183,8 +185,18 @@ export function SettingsPage({
         api.isNexusKeyConfigured().then((configured) => {
             if (!cancelled) setNexusKeyConfigured(configured)
         })
+        api.isNexusSignedIn().then((signedIn) => {
+            if (!cancelled) setNexusSignedIn(signedIn)
+        })
+        const offSignedIn = api.onNexusOAuthSignedIn(() => {
+            setNexusSignedIn(true)
+            setNexusSignInError(null)
+        })
+        const offFailed = api.onNexusOAuthFailed((error) => setNexusSignInError(error))
         return () => {
             cancelled = true
+            offSignedIn()
+            offFailed()
         }
     }, [])
 
@@ -248,6 +260,16 @@ export function SettingsPage({
         } finally {
             setNexusKeySaving(false)
         }
+    }
+
+    function handleNexusSignIn() {
+        setNexusSignInError(null)
+        api.nexusOAuthStart()
+    }
+
+    async function handleNexusSignOut() {
+        await api.nexusSignOut()
+        setNexusSignedIn(false)
     }
 
     async function handleClearNexusKey() {
@@ -508,6 +530,43 @@ export function SettingsPage({
                                             {t('settings.logs.open')}
                                         </Button>
                                     </div>
+                                </Section>
+
+                                <Section
+                                    title={t('settings.nexusAccount.title')}
+                                    description={t('settings.nexusAccount.description')}
+                                >
+                                    <div className="flex items-center gap-3 mt-1">
+                                        {nexusSignedIn === true ? (
+                                            <>
+                                                <span className="text-xs text-success-text">
+                                                    {t('settings.nexusAccount.signedIn')}
+                                                </span>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={handleNexusSignOut}
+                                                >
+                                                    {t('settings.nexusAccount.signOut')}
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Button
+                                                variant="accent"
+                                                size="md"
+                                                onClick={handleNexusSignIn}
+                                            >
+                                                {t('settings.nexusAccount.signIn')}
+                                            </Button>
+                                        )}
+                                    </div>
+                                    {nexusSignInError !== null && (
+                                        <p className="text-xs text-danger-text">
+                                            {t('settings.nexusAccount.failed', {
+                                                error: nexusSignInError,
+                                            })}
+                                        </p>
+                                    )}
                                 </Section>
 
                                 <Section

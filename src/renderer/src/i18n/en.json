@@ -350,6 +350,14 @@
             "description": "If something goes wrong, open the log file and attach it to your bug report.",
             "open": "Open log file"
         },
+        "nexusAccount": {
+            "title": "Nexus Mods Account (Prototype)",
+            "description": "Sign in with your Nexus Mods account in your browser. Sign-in becomes available once Nexus Mods registers this application; tokens are stored locally and never leave this device.",
+            "signIn": "Sign in with Nexus Mods",
+            "signOut": "Sign out",
+            "signedIn": "Signed in to Nexus Mods.",
+            "failed": "Sign-in failed: {error}"
+        },
         "nexusPrototype": {
             "title": "Nexus Mods API Key (Prototype)",
             "description": "Internal testing only — not a supported download source yet. The key is stored locally and never leaves this device.",

@@ -97,6 +97,8 @@ pub fn run() {
             commands::nexus::nexus_search_mods,
             commands::nexus::nexus_get_download_link,
             commands::nexus_oauth::nexus_oauth_start,
+            commands::nexus_oauth::nexus_oauth_signed_in,
+            commands::nexus_oauth::nexus_oauth_sign_out,
             // discord
             commands::discord::set_discord_presence_enabled,
             commands::discord::update_discord_presence,
