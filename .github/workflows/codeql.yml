@@ -1,0 +1,42 @@
+name: CodeQL
+
+on:
+    push:
+        branches: [main]
+        paths-ignore:
+            - '**.md'
+            - '.gitignore'
+            - 'LICENSE'
+    pull_request:
+        branches: [main]
+        paths-ignore:
+            - '**.md'
+            - '.gitignore'
+            - 'LICENSE'
+    schedule:
+        - cron: '30 4 * * 1'
+
+jobs:
+    analyze:
+        runs-on: ubuntu-latest
+        permissions:
+            security-events: write
+            contents: read
+            actions: read
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - language: javascript-typescript
+                    - language: rust
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: github/codeql-action/init@v3
+              with:
+                  languages: ${{ matrix.language }}
+                  build-mode: none
+
+            - uses: github/codeql-action/analyze@v3
+              with:
+                  category: '/language:${{ matrix.language }}'
