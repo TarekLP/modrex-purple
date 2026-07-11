@@ -55,14 +55,17 @@ fn detect_game(game: &'static GameDef) -> Option<DetectedGame> {
 // ── OS helpers ────────────────────────────────────────────────────────────────
 
 pub(super) fn open_url(url: &str) {
+    // Never route this through cmd /c start: cmd re-parses its command line,
+    // so a & in a query string truncates the URL there and executes what
+    // follows as a command, and %..% sequences risk variable expansion.
+    // explorer.exe is no good either: it validates its argument and falls back
+    // to opening the Documents folder for URLs it considers malformed, which
+    // includes query strings. rundll32's FileProtocolHandler takes the URL as
+    // one argument and hands it to the shell's URL handler unmodified.
     #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        let _ = std::process::Command::new("cmd")
-            .args(["/c", "start", "", url])
-            .creation_flags(0x08000000) // CREATE_NO_WINDOW
-            .spawn();
-    }
+    let _ = std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", url])
+        .spawn();
     #[cfg(not(target_os = "windows"))]
     let _ = std::process::Command::new("xdg-open").arg(url).spawn();
 }
