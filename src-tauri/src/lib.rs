@@ -7,6 +7,10 @@ pub fn run() {
         log::error!("PANIC: {panic_info}");
     }));
 
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("install rustls crypto provider");
+
     #[cfg(target_os = "linux")]
     // WebKit's DMA-BUF renderer breaks under XWayland and some Wayland compositors
     unsafe {
