@@ -219,14 +219,7 @@ export interface NewsResult {
 }
 
 export type SortOption =
-    | 'downloads'
-    | 'likes'
-    | 'views'
-    | 'score'
-    | 'published_at'
-    | 'bumped_at'
-    | 'name'
-    | 'best_match'
+    'downloads' | 'likes' | 'views' | 'score' | 'published_at' | 'bumped_at' | 'name' | 'best_match'
 
 export interface ListModsParams {
     query?: string
