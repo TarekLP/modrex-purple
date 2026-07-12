@@ -12,6 +12,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Changed
 
+- Loading placeholders now use one consistent design across mod cards, mod details, galleries, downloads, and formatted text.
 - Replaced the native title bar with a custom one, unified across all platforms.
 - Improved app startup time.
 - Mod licenses now show as their own tab on the mod page with full formatting.

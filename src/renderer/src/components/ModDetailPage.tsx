@@ -74,8 +74,47 @@ import { LightboxImage, ImagesTab } from './modDetail/ImagesTab'
 import { DownloadsTab } from './modDetail/DownloadsTab'
 import { DepsTab } from './modDetail/DepsTab'
 import { formatDate } from './modDetail/format'
+import { SkeletonBar } from './Skeleton'
 
 type Tab = 'description' | 'images' | 'downloads' | 'changelog' | 'license' | 'deps'
+
+function ModDetailSkeleton() {
+    return (
+        <div className="flex-1 overflow-hidden animate-pulse" aria-hidden="true">
+            <SkeletonBar className="w-full aspect-[4/1] max-h-72 rounded-none" />
+            <div className="flex items-start gap-6 px-6">
+                <div className="min-w-0 flex-1">
+                    <div className="py-5 border-b border-border flex flex-col gap-3">
+                        <SkeletonBar className="h-5 w-1/2" />
+                        <div className="flex gap-1.5">
+                            <SkeletonBar className="h-5 w-16 rounded-full" />
+                            <SkeletonBar className="h-5 w-20 rounded-full" />
+                        </div>
+                    </div>
+                    <div className="flex gap-6 py-3 border-b border-border">
+                        <SkeletonBar className="h-2.5 w-16" />
+                        <SkeletonBar className="h-2.5 w-14" />
+                        <SkeletonBar className="h-2.5 w-20" />
+                    </div>
+                    <div className="py-5 flex flex-col gap-2">
+                        <SkeletonBar className="h-2.5 w-full" />
+                        <SkeletonBar className="h-2.5 w-5/6" />
+                        <SkeletonBar className="h-2.5 w-2/3" />
+                    </div>
+                </div>
+                <div className="w-1/3 min-w-64 max-w-md my-5 rounded-lg bg-surface-raised border border-border p-4 flex flex-col gap-4">
+                    <div className="grid grid-cols-3 gap-4">
+                        <SkeletonBar className="h-8" />
+                        <SkeletonBar className="h-8" />
+                        <SkeletonBar className="h-8" />
+                    </div>
+                    <SkeletonBar className="h-2.5 w-3/4" />
+                    <SkeletonBar className="h-2.5 w-1/2" />
+                </div>
+            </div>
+        </div>
+    )
+}
 
 // The member roles shown in the header credits line, mirroring modworkshop's
 // mod page (its right pane lists collaborator/maintainer/contributor; viewers
@@ -199,6 +238,9 @@ export function ModDetailPage({
     const [links, setLinks] = useState<ModLink[]>(() => getLinksCacheEntry(modId)?.links ?? [])
     // Skip full-page spinner when any mod data is available; skip files spinner when files are cached.
     const [loading, setLoading] = useState(() => !getModCacheEntry(modId) && !initialMod)
+    const [detailsLoading, setDetailsLoading] = useState(
+        () => !getModCacheEntry(modId) && initialMod !== undefined
+    )
     const [filesLoading, setFilesLoading] = useState(() => !getFilesCacheEntry(modId))
     const [error, setError] = useState<string | null>(null)
     const [actionLoading, setActionLoading] = useState(false)
@@ -253,7 +295,10 @@ export function ModDetailPage({
         // Mod and files/links fetch in parallel; each resolves independently so
         // the header renders as soon as mod data is available.
         getCachedMod(modId)
-            .then((modData) => setMod(modData))
+            .then((modData) => {
+                setMod(modData)
+                setDetailsLoading(false)
+            })
             .catch((e) => setError(String(e)))
             .finally(() => {
                 setLoading(false)
@@ -766,11 +811,7 @@ export function ModDetailPage({
                 </div>
             )}
 
-            {loading && (
-                <div className="flex items-center justify-center flex-1 text-text-subtle text-sm">
-                    {t('common.loading')}
-                </div>
-            )}
+            {loading && <ModDetailSkeleton />}
 
             {error && (
                 <div className="flex items-center justify-center flex-1">
@@ -796,7 +837,16 @@ export function ModDetailPage({
                         <div className="min-w-0 flex-1">
                             <div className="py-5 border-b border-border">
                                 <h1 className="text-xl font-bold leading-tight">{mod.name}</h1>
-                                {mod.tags && mod.tags.length > 0 && (
+                                {detailsLoading ? (
+                                    <div
+                                        className="flex gap-1.5 mt-3 animate-pulse"
+                                        aria-hidden="true"
+                                    >
+                                        <SkeletonBar className="h-5 w-16 rounded-full" />
+                                        <SkeletonBar className="h-5 w-20 rounded-full" />
+                                        <SkeletonBar className="h-5 w-12 rounded-full" />
+                                    </div>
+                                ) : mod.tags && mod.tags.length > 0 ? (
                                     <div className="flex flex-wrap gap-1.5 mt-3">
                                         {mod.tags.map((tag) => (
                                             <span
@@ -812,7 +862,7 @@ export function ModDetailPage({
                                             </span>
                                         ))}
                                     </div>
-                                )}
+                                ) : null}
                             </div>
 
                             <Tabs.Root defaultValue="description">
@@ -826,6 +876,14 @@ export function ModDetailPage({
                                             <span className="relative">{tabItem.label}</span>
                                         </Tabs.Trigger>
                                     ))}
+                                    {detailsLoading && (
+                                        <div
+                                            className="px-3 py-2.5 flex items-center animate-pulse"
+                                            aria-hidden="true"
+                                        >
+                                            <SkeletonBar className="h-2.5 w-14" />
+                                        </div>
+                                    )}
                                 </Tabs.List>
 
                                 <Tabs.Content
@@ -841,7 +899,11 @@ export function ModDetailPage({
                                     <LicenseTab mod={mod} />
                                 </Tabs.Content>
                                 <Tabs.Content value="images" className="py-5 focus:outline-none">
-                                    <ImagesTab mod={mod} onOpenImage={setLightboxIndex} />
+                                    <ImagesTab
+                                        mod={mod}
+                                        loading={detailsLoading}
+                                        onOpenImage={setLightboxIndex}
+                                    />
                                 </Tabs.Content>
                                 <Tabs.Content value="downloads" className="py-5 focus:outline-none">
                                     <DownloadsTab

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import type { EmbedDef } from '../embeds'
+import { SkeletonText } from './Skeleton'
 
 const Impl = lazy(() =>
     import('./MarkdownContentImpl').then((m) => ({ default: m.MarkdownContent }))
@@ -10,7 +11,7 @@ setTimeout(() => void import('./MarkdownContentImpl'), 2000)
 
 export function MarkdownContent(props: { text: string; embeds?: EmbedDef[] }) {
     return (
-        <Suspense fallback={null}>
+        <Suspense fallback={<SkeletonText />}>
             <Impl {...props} />
         </Suspense>
     )

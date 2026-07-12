@@ -1,6 +1,7 @@
 import type { Mod } from '../../../../shared/types'
 import { useThumbnail } from '../../hooks/useThumbnail'
 import { t } from '../../i18n'
+import { SkeletonBar } from '../Skeleton'
 
 export function LightboxImage({ file }: { file: string }) {
     const src = useThumbnail(file, true)
@@ -27,11 +28,25 @@ function GalleryImage({ file }: { file: string }) {
 
 export function ImagesTab({
     mod,
+    loading,
     onOpenImage,
 }: {
     mod: Mod
+    loading: boolean
     onOpenImage: (index: number) => void
 }) {
+    if (loading) {
+        return (
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-3 animate-pulse" aria-hidden="true">
+                {Array.from({ length: 6 }, (_, i) => (
+                    <div key={i} className="rounded-lg overflow-hidden border border-border">
+                        <SkeletonBar className="w-full h-40 rounded-none" />
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
     const images = mod.images ?? []
     if (images.length === 0) {
         return <p className="text-sm text-text-subtle">{t('detail.images.none')}</p>

@@ -5,6 +5,7 @@ import { Dialog } from './Dialog'
 import { MarkdownContent } from './MarkdownContent'
 import { t } from '../i18n'
 import { getCachedMod } from '../modCache'
+import { SkeletonText } from './Skeleton'
 
 export function isUnrecognizedArchive(error: string): boolean {
     return error.includes('UNRECOGNIZED_ARCHIVE')
@@ -61,7 +62,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
             <div className="px-5 py-4 overflow-y-auto flex flex-col gap-3">
                 <p className="text-sm text-text-muted">{t('unrecognized.body')}</p>
                 {instructions === null ? (
-                    <p className="text-sm text-text-subtle">{t('common.loading')}</p>
+                    <SkeletonText />
                 ) : instructions ? (
                     <div className="rounded-lg border border-border bg-surface-hover px-4 py-3 text-sm">
                         <MarkdownContent text={instructions} />

@@ -20,6 +20,29 @@ import type { CbFlatArchivePayload } from '../CrimeBossFlatArchiveModal'
 import { UnrecognizedArchiveModal } from '../UnrecognizedArchiveModal'
 import { NonPakConfirmModal } from '../NonPakConfirmModal'
 import { formatBytes, formatDate } from './format'
+import { SkeletonBar } from '../Skeleton'
+
+function DownloadsSkeleton() {
+    return (
+        <div className="flex flex-col gap-3 animate-pulse" aria-hidden="true">
+            {Array.from({ length: 3 }, (_, i) => (
+                <div
+                    key={i}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-surface-hover border border-border"
+                >
+                    <SkeletonBar className="w-14 h-14 rounded-lg bg-surface-active shrink-0" />
+                    <div className="min-w-0 flex-1 flex flex-col gap-2">
+                        <SkeletonBar className="h-3 w-2/5 bg-surface-active" />
+                        <SkeletonBar className="h-2.5 w-3/4 bg-surface-active" />
+                        <SkeletonBar className="h-2.5 w-1/3 bg-surface-active" />
+                    </div>
+                    <SkeletonBar className="h-8 w-24 rounded-lg bg-surface-active shrink-0" />
+                    <SkeletonBar className="h-8 w-8 rounded-lg bg-surface-active shrink-0" />
+                </div>
+            ))}
+        </div>
+    )
+}
 
 export function DownloadsTab({
     files,
@@ -110,11 +133,7 @@ export function DownloadsTab({
     }
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-10 text-text-subtle text-sm">
-                {t('common.loading')}
-            </div>
-        )
+        return <DownloadsSkeleton />
     }
 
     if (files.length === 0 && links.length === 0) {
