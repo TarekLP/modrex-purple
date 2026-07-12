@@ -1,5 +1,8 @@
 import { Component, type ReactNode } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
+import { X } from 'lucide-react'
+import { api } from '../api'
+import { Button } from './ui/Button'
 
 interface Props {
     children: ReactNode
@@ -22,12 +25,31 @@ export class ErrorBoundary extends Component<Props, State> {
 
     render() {
         if (this.state.error) {
+            // The window is undecorated — this fallback replaces the custom title
+            // bar too, so it must provide its own drag region and close button or a
+            // crash leaves the window impossible to move or close.
             return (
-                <div className="flex flex-col items-center justify-center h-screen gap-4 text-text-subtle">
-                    <p className="text-sm">Something went wrong.</p>
-                    <pre className="text-xs max-w-lg overflow-auto text-danger-text">
-                        {this.state.error.message}
-                    </pre>
+                <div className="flex flex-col h-screen text-text-subtle">
+                    <div
+                        data-tauri-drag-region
+                        className="shrink-0 h-10 flex items-center justify-end border-b border-border"
+                    >
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Close"
+                            onClick={() => api.windowClose()}
+                            className="h-10 w-11 rounded-none hover:bg-danger hover:text-text"
+                        >
+                            <X className="w-4 h-4" />
+                        </Button>
+                    </div>
+                    <div className="flex flex-col items-center justify-center flex-1 gap-4">
+                        <p className="text-sm">Something went wrong.</p>
+                        <pre className="text-xs max-w-lg overflow-auto text-danger-text">
+                            {this.state.error.message}
+                        </pre>
+                    </div>
                 </div>
             )
         }

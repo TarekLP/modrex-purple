@@ -22,6 +22,7 @@ import { ModDetailPage } from './components/ModDetailPage'
 import { SettingsPage } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
+import { ResizeHandles } from './components/ResizeHandles'
 import { SupportPromptBanner } from './components/SupportPromptBanner'
 import { api } from './api'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
@@ -391,6 +392,7 @@ export default function App() {
     return (
         <TooltipProvider delayDuration={400}>
             <div className="flex flex-col h-screen bg-surface text-text">
+                {navigator.userAgent.includes('Linux') && <ResizeHandles />}
                 {readyGames.size === 0 && (
                     <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-4 z-50">
                         <img src={appIcon} alt="Modrex" className="w-16 h-16 opacity-90" />

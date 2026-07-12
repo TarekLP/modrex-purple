@@ -1,5 +1,11 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+
+// The library declares this union without exporting it.
+export type ResizeDirection = Parameters<
+    ReturnType<typeof getCurrentWindow>['startResizeDragging']
+>[0]
 import type {
     Mod,
     ModFile,
@@ -458,5 +464,36 @@ export const api = {
     },
     checkForUpdates(): Promise<void> {
         return invoke('check_for_update')
+    },
+
+    // ── Window controls (custom title bar) ─────────────────────────────────────
+    windowMinimize(): Promise<void> {
+        return getCurrentWindow().minimize()
+    },
+    windowToggleMaximize(): Promise<void> {
+        return getCurrentWindow().toggleMaximize()
+    },
+    windowClose(): Promise<void> {
+        return getCurrentWindow().close()
+    },
+    windowIsMaximized(): Promise<boolean> {
+        return getCurrentWindow().isMaximized()
+    },
+    windowStartResizeDragging(direction: ResizeDirection): Promise<void> {
+        return getCurrentWindow().startResizeDragging(direction)
+    },
+    onWindowResized(callback: () => void): () => void {
+        let unlisten: (() => void) | null = null
+        let cancelled = false
+        getCurrentWindow()
+            .onResized(() => callback())
+            .then((fn) => {
+                if (cancelled) fn()
+                else unlisten = fn
+            })
+        return () => {
+            cancelled = true
+            unlisten?.()
+        }
     },
 }

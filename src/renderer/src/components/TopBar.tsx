@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from './ui/Button'
 import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
 import { Dialog } from './Dialog'
+import { WindowControls } from './WindowControls'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
@@ -148,20 +149,13 @@ export function TopBar({
 
     return (
         <>
-            {launchError && (
-                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-danger border-b border-danger-hover text-xs text-danger-text">
-                    <span>{launchError}</span>
-                    <button
-                        onClick={() => setLaunchError(null)}
-                        className="shrink-0 hover:text-text transition-colors"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            )}
-            <div className="shrink-0 bg-surface border-b border-border">
-                <div className="h-10 flex items-center justify-between px-4">
-                    <div className="flex items-end gap-2">
+            {/* z-[60] keeps the title bar above the startup splash (z-50) and Radix
+                dialog overlays (z-50); pointer-events-auto re-enables it under Radix's
+                modal body pointer-events lock, so the window stays draggable and
+                closable during startup and while any modal is open. */}
+            <div className="shrink-0 bg-surface border-b border-border relative z-[60] pointer-events-auto">
+                <div data-tauri-drag-region className="h-10 flex items-center justify-between pl-4">
+                    <div className="flex items-end gap-2 pointer-events-none">
                         <span
                             style={{
                                 fontFamily: "'Bebas Neue', sans-serif",
@@ -180,7 +174,7 @@ export function TopBar({
                             {import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP_VERSION}`}
                         </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 h-full">
                         {update?.phase === 'ready' && (
                             <>
                                 <button
@@ -238,6 +232,8 @@ export function TopBar({
                                     </Button>
                                 </>
                             ))}
+                        <div className="w-px h-4 bg-border ml-1" />
+                        <WindowControls />
                     </div>
                 </div>
                 {update?.phase === 'downloading' && (
@@ -249,6 +245,17 @@ export function TopBar({
                     </div>
                 )}
             </div>
+            {launchError && (
+                <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-danger border-b border-danger-hover text-xs text-danger-text">
+                    <span>{launchError}</span>
+                    <button
+                        onClick={() => setLaunchError(null)}
+                        className="shrink-0 hover:text-text transition-colors"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
 
             <Dialog
                 open={showWarning}

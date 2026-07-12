@@ -38,6 +38,10 @@
         "launchWithoutMods": "Launch without mods",
         "launchModded": "Launch modded",
         "launching": "Launching...",
+        "minimize": "Minimize",
+        "maximize": "Maximize",
+        "restore": "Restore",
+        "close": "Close",
         "missingLaunchOption": {
             "title": "Missing launch option",
             "bodyPre": "is recommended for most mods to load correctly. Add it in",
