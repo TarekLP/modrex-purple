@@ -27,6 +27,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed the download progress bar sometimes remaining visible after a mod finished installing.
 - Fixed the game picker's "Installed only" filter sometimes hiding installed games.
 - Fixed installed mods not being recognized on slower internet connections, where the mod identification data could time out before it finished downloading.
 - Fixed a rare case where an interrupted background update left the mod identification data unreadable, keeping installed mods unrecognized until the next refresh.

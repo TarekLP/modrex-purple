@@ -428,6 +428,11 @@ export function ModDetailPage({
             })
             if (!handled) throw e
         } finally {
+            setDownloadMap((prev) => {
+                const next = new Map(prev)
+                next.delete(`mod:${modId}`)
+                return next
+            })
             setActionLoading(false)
         }
     }
