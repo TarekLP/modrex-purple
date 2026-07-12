@@ -61,19 +61,70 @@ function splitEmbeds(text: string, defs: EmbedDef[]): Part[] {
     return parts.length > 0 ? parts : [{ type: 'text', text }]
 }
 
-// Modworkshop uses {#HEX}(text) or {ColorName}(text) for inline colored text.
-// Tags can be nested, so run repeatedly until no more replacements are made.
-function parseColorTags(text: string): string {
-    let result = text
-    let prev = ''
-    while (result !== prev) {
-        prev = result
-        result = result.replace(
-            /\{(#[0-9A-Fa-f]{3,8}|[A-Za-z]+)\}\(((?:[^()]*|\([^)]*\))*)\)/g,
-            (_, color, content) => `<span style="color:${color}">${content}</span>`
-        )
+interface ColorFrame {
+    color: string
+    tokenIndex: number
+    parenDepth: number
+}
+
+function colorTagAt(text: string, start: number): { color: string; end: number } | null {
+    if (text[start] !== '{') return null
+
+    let i = start + 1
+    if (text[i] === '#') {
+        const hexStart = ++i
+        while (i - hexStart < 9 && /[0-9A-Fa-f]/.test(text[i] ?? '')) i++
+        if (i - hexStart < 3 || i - hexStart > 8) return null
+    } else {
+        const nameStart = i
+        while (/[A-Za-z]/.test(text[i] ?? '')) i++
+        if (i === nameStart) return null
     }
-    return result
+
+    if (text[i] !== '}' || text[i + 1] !== '(') return null
+    return { color: text.slice(start + 1, i), end: i + 2 }
+}
+
+// Modworkshop uses {#HEX}(text) or {ColorName}(text) for inline colored text.
+// Parse it with a stack so nested tags and parentheses remain linear in the input size.
+function parseColorTags(text: string): string {
+    const output: string[] = []
+    const stack: ColorFrame[] = []
+
+    for (let i = 0; i < text.length;) {
+        const tag = colorTagAt(text, i)
+        if (tag) {
+            const tokenIndex = output.length
+            output.push(text.slice(i, tag.end))
+            stack.push({
+                color: tag.color,
+                tokenIndex,
+                parenDepth: 0,
+            })
+            i = tag.end
+            continue
+        }
+
+        const frame = stack.at(-1)
+        const char = text[i]
+        if (frame && char === '(') {
+            frame.parenDepth++
+        } else if (frame && char === ')') {
+            if (frame.parenDepth === 0) {
+                stack.pop()
+                output[frame.tokenIndex] = `<span style="color:${frame.color}">`
+                output.push('</span>')
+                i++
+                continue
+            }
+            frame.parenDepth--
+        }
+
+        output.push(char)
+        i++
+    }
+
+    return output.join('')
 }
 
 // Modworkshop uses !!! Title ... !!! as a collapsible section syntax not in standard markdown.

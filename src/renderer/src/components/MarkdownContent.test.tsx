@@ -89,6 +89,20 @@ describe('MarkdownContent sanitization', () => {
         expect(getByText('hot text').style.color).toBe('rgb(255, 0, 0)')
     })
 
+    it('handles nested color tags and parentheses', () => {
+        const { getByText } = render(
+            <MarkdownContent text={'{Red}(outer (text) {#00ff00}(inner))'} />
+        )
+        expect(getByText(/outer/).style.color).toBe('red')
+        expect(getByText('inner').style.color).toBe('rgb(0, 255, 0)')
+    })
+
+    it('handles long malformed color tags without backtracking', () => {
+        const text = '{Red}(' + '()'.repeat(2_000)
+        const { container } = render(<MarkdownContent text={text} />)
+        expect(container.textContent).toBe(text)
+    })
+
     it('keeps syntax-highlight classes (sanitize must run before rehype-highlight)', () => {
         const { container } = render(<MarkdownContent text={'```js\nconst x = 1\n```'} />)
         expect(container.querySelector('.hljs-keyword')).not.toBeNull()
