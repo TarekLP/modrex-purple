@@ -40,7 +40,7 @@ fn authorize_url_carries_all_oauth_params() {
     let params: std::collections::HashMap<String, String> =
         parsed.query_pairs().into_owned().collect();
     assert_eq!(params["response_type"], "code");
-    assert_eq!(params["scope"], "openid profile email");
+    assert_eq!(params["scope"], "public openid profile");
     assert_eq!(params["code_challenge_method"], "S256");
     assert_eq!(params["client_id"], CLIENT_ID);
     assert_eq!(params["redirect_uri"], REDIRECT_URI);

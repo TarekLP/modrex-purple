@@ -25,7 +25,10 @@ const OAUTH_BASE: &str = "https://users.nexusmods.com/oauth";
 pub(crate) const CLIENT_ID: &str = "modrex";
 pub(crate) const REDIRECT_URI: &str = "modrex://oauth/callback";
 
-const SCOPE: &str = "openid profile email";
+// The three scopes Nexus's registration offers (confirmed by support):
+// public covers API access, openid the sign-in itself, profile the user's
+// display name/avatar for the settings page.
+const SCOPE: &str = "public openid profile";
 
 pub(crate) struct Pkce {
     pub verifier: String,
