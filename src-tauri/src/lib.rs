@@ -114,9 +114,6 @@ pub fn run() {
             commands::settings::dismiss_deps_warning,
             commands::settings::get_analytics_consent,
             commands::settings::set_analytics_consent,
-            commands::settings::set_nexus_api_key,
-            commands::settings::clear_nexus_api_key,
-            commands::settings::nexus_key_configured,
             commands::analytics::track_event,
             // mods
             commands::mods::get_installed,

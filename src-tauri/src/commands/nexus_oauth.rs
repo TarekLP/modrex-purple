@@ -214,29 +214,28 @@ fn needs_refresh(expires_at: i64, now: i64) -> bool {
 // refresh tokens the losing request would invalidate the winner's grant.
 static REFRESH_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-// None = not signed in via OAuth (caller decides its fallback).
-pub(crate) async fn access_token(app: &AppHandle) -> Result<Option<String>, String> {
+pub(crate) async fn access_token(app: &AppHandle) -> Result<String, String> {
     let Some(tokens) = read_settings(app).nexus_oauth else {
-        return Ok(None);
+        return Err("nexus oauth: sign in required".to_string());
     };
     if !needs_refresh(tokens.expires_at, chrono::Utc::now().timestamp()) {
-        return Ok(Some(tokens.access_token));
+        return Ok(tokens.access_token);
     }
 
     let _guard = REFRESH_LOCK.lock().await;
     // Another request may have refreshed while this one waited on the lock.
     let Some(tokens) = read_settings(app).nexus_oauth else {
-        return Ok(None);
+        return Err("nexus oauth: sign in required".to_string());
     };
     if !needs_refresh(tokens.expires_at, chrono::Utc::now().timestamp()) {
-        return Ok(Some(tokens.access_token));
+        return Ok(tokens.access_token);
     }
 
     let fresh = refresh_tokens(app, &tokens.refresh_token)
         .await
         .map_err(|e| format!("nexus oauth: token refresh failed ({e}), sign in again"))?;
     store_tokens(app, &fresh);
-    Ok(Some(fresh.access_token))
+    Ok(fresh.access_token)
 }
 
 pub(crate) fn store_tokens(app: &AppHandle, tokens: &TokenResponse) {

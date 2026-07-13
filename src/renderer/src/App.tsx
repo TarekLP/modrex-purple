@@ -397,7 +397,6 @@ export default function App() {
 
     const goToSettings = useCallback(() => handleSidebarChange('settings'), [handleSidebarChange])
 
-    // The Nexus API key lives on the Advanced tab, so its configure link lands there.
     const goToNexusSettings = useCallback(() => {
         saveSettingsTab('advanced')
         handleSidebarChange('settings')

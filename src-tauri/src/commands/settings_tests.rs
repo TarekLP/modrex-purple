@@ -123,6 +123,14 @@ fn unknown_fields_ignored() {
 }
 
 #[test]
+fn legacy_nexus_api_key_is_not_serialized() {
+    let settings: Settings = serde_json::from_str(r#"{"nexusApiKey":"secret"}"#).unwrap();
+    let serialized = serde_json::to_string(&settings).unwrap();
+    assert!(!serialized.contains("nexusApiKey"));
+    assert!(!serialized.contains("secret"));
+}
+
+#[test]
 fn migration_from_legacy_flat_fields() {
     let mut f = NamedTempFile::new().unwrap();
     write!(

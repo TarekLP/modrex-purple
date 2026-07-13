@@ -102,17 +102,7 @@ export const api = {
         return invoke('open_log_file')
     },
 
-    // ── Nexus (prototype) ───────────────────────────────────────────────────────
-    // Dev/testing only: personal-key auth is not allowed in a public build per Nexus AUP.
-    isNexusKeyConfigured(): Promise<boolean> {
-        return invoke('nexus_key_configured')
-    },
-    setNexusApiKey(key: string): Promise<void> {
-        return invoke('set_nexus_api_key', { key })
-    },
-    clearNexusApiKey(): Promise<void> {
-        return invoke('clear_nexus_api_key')
-    },
+    // Nexus
     // OAuth2 PKCE sign-in: opens the browser to users.nexusmods.com; the result
     // comes back asynchronously via the nexus-oauth:signed-in / failed events.
     nexusOAuthStart(): Promise<void> {

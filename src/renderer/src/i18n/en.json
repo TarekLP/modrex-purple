@@ -93,7 +93,7 @@
         "noMods": "No mods found",
         "loadFailed": "Couldn't load mods",
         "modCount": "{total} mods",
-        "keyMissing": "Add your Nexus Mods API key to browse mods from Nexus.",
+        "signInRequired": "Sign in with Nexus Mods to browse mods from Nexus.",
         "goToSettings": "Configure in Settings",
         "sort": {
             "lastUpdated": "Last Updated",
@@ -357,15 +357,6 @@
             "signOut": "Sign out",
             "signedIn": "Signed in to Nexus Mods.",
             "failed": "Sign-in failed: {error}"
-        },
-        "nexusPrototype": {
-            "title": "Nexus Mods API Key (Prototype)",
-            "description": "Internal testing only — not a supported download source yet. The key is stored locally and never leaves this device.",
-            "placeholder": "Paste your personal API key",
-            "save": "Save",
-            "clear": "Clear",
-            "configured": "A key is saved.",
-            "notConfigured": "No key saved."
         },
         "crimeBossInstallMode": {
             "title": "New Mod Installs",

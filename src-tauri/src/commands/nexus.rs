@@ -1,6 +1,3 @@
-// Auth prefers an OAuth2 Bearer token (nexus_oauth.rs); a manually entered
-// personal API key remains as the dev/testing fallback only. Nexus's
-// Acceptable Use Policy forbids the personal-key mode in a public build.
 // REST v1's listing endpoints (updated/latest_added/trending) have no
 // free-text search; real search goes through the GraphQL v2 mods query
 // instead (api.nexusmods.com/v2/graphql, verified live via introspection).
@@ -14,7 +11,6 @@ use tauri::AppHandle;
 
 use crate::commands::api::{http_client, parse_remaining_header, user_agent, TokenBucket};
 use crate::commands::nexus_oauth;
-use crate::commands::settings::read_settings;
 
 const BASE: &str = "https://api.nexusmods.com/v1";
 const GRAPHQL_BASE: &str = "https://api.nexusmods.com/v2/graphql";
@@ -60,20 +56,10 @@ pub(crate) fn game_id_for_domain(domain: &str) -> Result<&'static str, String> {
     }
 }
 
-fn nexus_api_key(app: &AppHandle) -> Result<String, String> {
-    read_settings(app)
-        .nexus_api_key
-        .filter(|k| !k.trim().is_empty())
-        .ok_or_else(|| "nexus: not signed in and no API key configured".to_string())
-}
-
 async fn nexus_headers(app: &AppHandle) -> Result<Vec<(&'static str, String)>, String> {
-    let auth = match nexus_oauth::access_token(app).await? {
-        Some(token) => ("Authorization", format!("Bearer {token}")),
-        None => ("apikey", nexus_api_key(app)?),
-    };
+    let token = nexus_oauth::access_token(app).await?;
     Ok(vec![
-        auth,
+        ("Authorization", format!("Bearer {token}")),
         ("User-Agent", user_agent(app)),
         ("Application-Name", "Modrex".to_string()),
         (

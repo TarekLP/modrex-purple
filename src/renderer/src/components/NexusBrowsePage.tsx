@@ -227,7 +227,7 @@ export function NexusBrowsePage({
     const [result, setResult] = useState<NexusResult | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null)
+    const [signedIn, setSignedIn] = useState<boolean | null>(null)
     const [busyUid, setBusyUid] = useState<string | null>(null)
     const [downloadMap, setDownloadMap] = useState<
         ReadonlyMap<number, { downloaded: number; total: number; fileId: number }>
@@ -312,13 +312,13 @@ export function NexusBrowsePage({
         }
     }, [activeGame])
 
-    // Re-checked on every activation so saving a key in Settings takes effect
-    // without an app restart.
+    // Re-check on activation because sign-in and sign-out happen in Settings while
+    // this page remains mounted in a hidden pane.
     useEffect(() => {
         if (!isActive) return
         let cancelled = false
-        api.isNexusKeyConfigured().then((configured) => {
-            if (!cancelled) setKeyConfigured(configured)
+        api.isNexusSignedIn().then((isSignedIn) => {
+            if (!cancelled) setSignedIn(isSignedIn)
         })
         return () => {
             cancelled = true
@@ -326,7 +326,7 @@ export function NexusBrowsePage({
     }, [isActive])
 
     useEffect(() => {
-        if (!isActive || keyConfigured !== true || !domain) return
+        if (!isActive || signedIn !== true || !domain) return
         const filters = JSON.stringify([page, query, sort])
         // Successful results stay valid across tab switches; only param changes
         // or a prior failure warrant hitting the rate-limited API again.
@@ -366,7 +366,7 @@ export function NexusBrowsePage({
             if (debounceRef.current) clearTimeout(debounceRef.current)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- result/error are fetch outputs, not fetch inputs; domain/activeGame are stable per mount via key={activeGame}
-    }, [isActive, keyConfigured, page, query, sort])
+    }, [isActive, signedIn, page, query, sort])
 
     function handleQueryChange(val: string) {
         setQuery(val)
@@ -409,9 +409,9 @@ export function NexusBrowsePage({
                 </div>
             )}
 
-            {keyConfigured === false ? (
+            {signedIn === false ? (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-text-subtle">
-                    <span>{t('nexus.keyMissing')}</span>
+                    <span>{t('nexus.signInRequired')}</span>
                     <button
                         onClick={onGoToSettings}
                         className="text-xs text-accent hover:text-accent-bright underline transition-colors"

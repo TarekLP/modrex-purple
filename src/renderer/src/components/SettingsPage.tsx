@@ -129,9 +129,6 @@ export function SettingsPage({
     )
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() => readSavedTab(globalOnly))
-    const [nexusKeyConfigured, setNexusKeyConfigured] = useState<boolean | null>(null)
-    const [nexusKeyInput, setNexusKeyInput] = useState('')
-    const [nexusKeySaving, setNexusKeySaving] = useState(false)
     const [nexusSignedIn, setNexusSignedIn] = useState<boolean | null>(null)
     const [nexusSignInError, setNexusSignInError] = useState<string | null>(null)
 
@@ -182,9 +179,6 @@ export function SettingsPage({
 
     useEffect(() => {
         let cancelled = false
-        api.isNexusKeyConfigured().then((configured) => {
-            if (!cancelled) setNexusKeyConfigured(configured)
-        })
         api.isNexusSignedIn().then((signedIn) => {
             if (!cancelled) setNexusSignedIn(signedIn)
         })
@@ -250,18 +244,6 @@ export function SettingsPage({
         await api.setSuppressCrashReporter(value, activeGame)
     }
 
-    async function handleSaveNexusKey() {
-        if (!nexusKeyInput.trim()) return
-        setNexusKeySaving(true)
-        try {
-            await api.setNexusApiKey(nexusKeyInput)
-            setNexusKeyInput('')
-            setNexusKeyConfigured(true)
-        } finally {
-            setNexusKeySaving(false)
-        }
-    }
-
     function handleNexusSignIn() {
         setNexusSignInError(null)
         api.nexusOAuthStart()
@@ -270,16 +252,6 @@ export function SettingsPage({
     async function handleNexusSignOut() {
         await api.nexusSignOut()
         setNexusSignedIn(false)
-    }
-
-    async function handleClearNexusKey() {
-        setNexusKeySaving(true)
-        try {
-            await api.clearNexusApiKey()
-            setNexusKeyConfigured(false)
-        } finally {
-            setNexusKeySaving(false)
-        }
     }
 
     if (settings === null) return null
@@ -565,47 +537,6 @@ export function SettingsPage({
                                             {t('settings.nexusAccount.failed', {
                                                 error: nexusSignInError,
                                             })}
-                                        </p>
-                                    )}
-                                </Section>
-
-                                <Section
-                                    title={t('settings.nexusPrototype.title')}
-                                    description={t('settings.nexusPrototype.description')}
-                                >
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <input
-                                            type="password"
-                                            value={nexusKeyInput}
-                                            onChange={(e) => setNexusKeyInput(e.target.value)}
-                                            placeholder={t('settings.nexusPrototype.placeholder')}
-                                            disabled={nexusKeySaving}
-                                            className="flex-1 text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                                        />
-                                        <Button
-                                            variant="accent"
-                                            size="md"
-                                            disabled={nexusKeySaving || !nexusKeyInput.trim()}
-                                            onClick={handleSaveNexusKey}
-                                        >
-                                            {t('settings.nexusPrototype.save')}
-                                        </Button>
-                                        <Button
-                                            variant="secondary"
-                                            size="md"
-                                            disabled={nexusKeySaving || nexusKeyConfigured !== true}
-                                            onClick={handleClearNexusKey}
-                                        >
-                                            {t('settings.nexusPrototype.clear')}
-                                        </Button>
-                                    </div>
-                                    {nexusKeyConfigured !== null && (
-                                        <p
-                                            className={`text-xs ${nexusKeyConfigured ? 'text-success-text' : 'text-text-subtle'}`}
-                                        >
-                                            {nexusKeyConfigured
-                                                ? t('settings.nexusPrototype.configured')
-                                                : t('settings.nexusPrototype.notConfigured')}
                                         </p>
                                     )}
                                 </Section>

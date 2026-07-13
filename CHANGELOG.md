@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Added Nexus Mods browsing and installs through OAuth sign-in and website mod-manager downloads.
+
 ## 0.12.1
 
 ### Added
