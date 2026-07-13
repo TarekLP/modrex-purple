@@ -1,5 +1,8 @@
 mod commands;
 
+#[cfg(windows)]
+mod windows_fullscreen;
+
 use tauri::Manager;
 
 pub fn run() {
@@ -38,6 +41,8 @@ pub fn run() {
         .setup(|app| {
             log::info!("Modrex started");
             if let Some(window) = app.get_webview_window("main") {
+                #[cfg(windows)]
+                windows_fullscreen::install(&window)?;
                 let _ = window.show();
             }
             Ok(())
