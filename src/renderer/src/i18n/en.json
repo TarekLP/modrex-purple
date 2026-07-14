@@ -220,6 +220,7 @@
             "updated": "Updated",
             "repository": "Repository",
             "link": "Link",
+            "tags": "Tags",
             "members": "Members",
             "owner": "Owner"
         },

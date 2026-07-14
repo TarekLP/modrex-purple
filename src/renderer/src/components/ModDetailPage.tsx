@@ -84,12 +84,8 @@ function ModDetailSkeleton() {
             <SkeletonBar className="w-full aspect-[4/1] max-h-72 rounded-none" />
             <div className="flex items-start gap-6 px-6">
                 <div className="min-w-0 flex-1">
-                    <div className="py-5 border-b border-border flex flex-col gap-3">
+                    <div className="py-5 border-b border-border">
                         <SkeletonBar className="h-5 w-1/2" />
-                        <div className="flex gap-1.5">
-                            <SkeletonBar className="h-5 w-16 rounded-full" />
-                            <SkeletonBar className="h-5 w-20 rounded-full" />
-                        </div>
                     </div>
                     <div className="flex gap-6 py-3 border-b border-border">
                         <SkeletonBar className="h-2.5 w-16" />
@@ -110,6 +106,10 @@ function ModDetailSkeleton() {
                     </div>
                     <SkeletonBar className="h-2.5 w-3/4" />
                     <SkeletonBar className="h-2.5 w-1/2" />
+                    <div className="flex gap-1.5">
+                        <SkeletonBar className="h-5 w-16 rounded-full" />
+                        <SkeletonBar className="h-5 w-20 rounded-full" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -842,32 +842,6 @@ export function ModDetailPage({
                         <div className="min-w-0 flex-1">
                             <div className="py-5 border-b border-border">
                                 <h1 className="text-xl font-bold leading-tight">{mod.name}</h1>
-                                {detailsLoading ? (
-                                    <div
-                                        className="flex gap-1.5 mt-3 animate-pulse"
-                                        aria-hidden="true"
-                                    >
-                                        <SkeletonBar className="h-5 w-16 rounded-full" />
-                                        <SkeletonBar className="h-5 w-20 rounded-full" />
-                                        <SkeletonBar className="h-5 w-12 rounded-full" />
-                                    </div>
-                                ) : mod.tags && mod.tags.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5 mt-3">
-                                        {mod.tags.map((tag) => (
-                                            <span
-                                                key={tag.id}
-                                                className="text-xs px-2 py-0.5 rounded-full border"
-                                                style={{
-                                                    borderColor: tag.color + '80',
-                                                    color: tag.color,
-                                                    backgroundColor: tag.color + '18',
-                                                }}
-                                            >
-                                                {tag.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : null}
                             </div>
 
                             <Tabs.Root defaultValue="description">
@@ -994,6 +968,47 @@ export function ModDetailPage({
                                     }
                                 />
                             )}
+                            {detailsLoading ? (
+                                <>
+                                    <div
+                                        className="flex items-center gap-1.5 text-xs text-text-subtle"
+                                        aria-hidden="true"
+                                    >
+                                        <TagIcon className="w-3.5 h-3.5" />
+                                        {t('detail.info.tags')}
+                                    </div>
+                                    <div
+                                        className="flex flex-wrap gap-1.5 animate-pulse"
+                                        aria-hidden="true"
+                                    >
+                                        <SkeletonBar className="h-5 w-16 rounded-full" />
+                                        <SkeletonBar className="h-5 w-20 rounded-full" />
+                                        <SkeletonBar className="h-5 w-12 rounded-full" />
+                                    </div>
+                                </>
+                            ) : mod.tags && mod.tags.length > 0 ? (
+                                <>
+                                    <div className="flex items-center gap-1.5 text-xs text-text-subtle">
+                                        <TagIcon className="w-3.5 h-3.5" />
+                                        {t('detail.info.tags')}
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {mod.tags.map((tag) => (
+                                            <span
+                                                key={tag.id}
+                                                className="text-xs px-2 py-0.5 rounded-full border"
+                                                style={{
+                                                    borderColor: tag.color + '80',
+                                                    color: tag.color,
+                                                    backgroundColor: tag.color + '18',
+                                                }}
+                                            >
+                                                {tag.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : null}
                             <div className="h-px bg-border" />
                             <div className="flex items-center gap-1.5 text-xs text-text-subtle">
                                 <Users className="w-3.5 h-3.5" />
