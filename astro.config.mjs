@@ -114,6 +114,14 @@ export default defineConfig({
                     tag: 'link',
                     attrs: { rel: 'apple-touch-icon', href: '/icon.png' },
                 },
+                {
+                    tag: 'link',
+                    attrs: { rel: 'manifest', href: '/site.webmanifest' },
+                },
+                {
+                    tag: 'meta',
+                    attrs: { name: 'theme-color', content: '#131313' },
+                },
             ],
         }),
         mdx(),

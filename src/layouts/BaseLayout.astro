@@ -6,6 +6,7 @@ interface Props {
     title: string
     description?: string
     ogImage?: string
+    ogImageAlt?: string
     ogImageWidth?: number
     ogImageHeight?: number
 }
@@ -14,6 +15,7 @@ const {
     title,
     description = 'Free, open-source desktop mod manager for game mods.',
     ogImage: ogImageProp,
+    ogImageAlt = 'Modrex, a desktop mod manager',
     ogImageWidth,
     ogImageHeight,
 } = Astro.props
@@ -31,6 +33,7 @@ const ogImage = ogImageProp ?? new URL('/logo.png', Astro.site).href
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#131313" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <meta name="description" content={description} />
@@ -47,6 +50,7 @@ const ogImage = ogImageProp ?? new URL('/logo.png', Astro.site).href
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={ogImage} />
+        <meta property="og:image:alt" content={ogImageAlt} />
         {ogImageWidth && <meta property="og:image:width" content={String(ogImageWidth)} />}
         {ogImageHeight && <meta property="og:image:height" content={String(ogImageHeight)} />}
         <meta property="og:image:type" content="image/png" />
@@ -56,11 +60,13 @@ const ogImage = ogImageProp ?? new URL('/logo.png', Astro.site).href
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={ogImage} />
+        <meta name="twitter:image:alt" content={ogImageAlt} />
 
         <title>{pageTitle}</title>
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
-        <link rel="icon" href="/icon.png" type="image/png" sizes="512x512" />
+        <link rel="icon" href="/icon.png" type="image/png" sizes="500x500" />
         <link rel="apple-touch-icon" href="/icon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
         <slot name="head" />
 
         <!-- Google Analytics (Consent Mode v2: denied by default) -->

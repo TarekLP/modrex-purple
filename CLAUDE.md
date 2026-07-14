@@ -106,11 +106,11 @@ GA4 and the consent banner exist only on `BaseLayout` pages (`index`, `privacy`,
 
 `astro.config.mjs` sets `site: 'https://modrex.net'` — this powers `Astro.site` and `Astro.url` throughout the app. The sitemap integration auto-generates `/sitemap-index.xml` at build time from all static routes, excluding `/privacy` and `/terms` via its `filter`.
 
-`BaseLayout.astro` emits: `<meta name="description">`, `<link rel="canonical">`, Open Graph tags (`og:title/description/image/url/type/site_name`), and Twitter card tags. The default `og:image` is `/logo.png` resolved to an absolute URL via `new URL('/logo.png', Astro.site)`. `BaseLayout` has a `<slot name="head" />` inside `<head>` for page-specific injections.
+`BaseLayout.astro` emits: `<meta name="description">`, `<link rel="canonical">`, `<meta name="theme-color">` (`#131313`, matching `--color-surface`), Open Graph tags (`og:title/description/image/image:alt/url/type/site_name`), Twitter card tags (including `twitter:image:alt`), and `<link rel="manifest" href="/site.webmanifest">`. The default `og:image` is `/logo.png` resolved to an absolute URL via `new URL('/logo.png', Astro.site)`; `og:image:alt`/`twitter:image:alt` share the `ogImageAlt` prop (default generic, overridden on `index.astro` for the screenshot). No `twitter:site`/`twitter:creator` — Modrex has no X account. `BaseLayout` has a `<slot name="head" />` inside `<head>` for page-specific injections.
 
 `src/pages/index.astro` injects a `SoftwareApplication` JSON-LD block via `<script type="application/ld+json" is:inline set:html={...} slot="head">`. The `is:inline` directive is required when using `set:html` on a script tag.
 
-Docs pages get their structured data from the Starlight `Head` override (`src/components/starlight/Head.astro`): a `BreadcrumbList` per docs page (section labels for `games`/`concepts`) and a `HowTo` block on `/docs/getting-started`. A `google-site-verification` meta tag is injected on docs pages via the `head` array in the starlight config.
+Docs pages get their structured data from the Starlight `Head` override (`src/components/starlight/Head.astro`): a `BreadcrumbList` per docs page (section labels for `games`/`concepts`) and a `HowTo` block on `/docs/getting-started`. The starlight config `head` array injects the shared site-wide head tags on docs pages: `google-site-verification`, `apple-touch-icon`, the web manifest link, and `theme-color` (Starlight emits none of these itself, so there is no duplicate).
 
 `public/robots.txt` allows all crawlers and points to the sitemap URL. If the domain changes, update `site` in `astro.config.mjs`, the sitemap URL in `robots.txt`, and the `url`/`downloadUrl` in the JSON-LD in `index.astro` — all three must match.
 
