@@ -11,6 +11,7 @@ import type {
     ModFile,
     ModLink,
     Category,
+    ModTag,
     Paginated,
     InstalledMod,
     ModFolder,
@@ -81,6 +82,9 @@ export const api = {
     },
     listCategories(gameId: number): Promise<Paginated<Category>> {
         return invoke('list_categories', { gameId })
+    },
+    listTags(gameId: number): Promise<Paginated<ModTag>> {
+        return invoke('list_tags', { gameId })
     },
     getMod(id: number): Promise<Mod> {
         return invoke('get_mod', { id })

@@ -54,6 +54,7 @@ pub fn run() {
             commands::api::list_mod_files,
             commands::api::list_mod_links,
             commands::api::list_categories,
+            commands::api::list_tags,
             // discord
             commands::discord::set_discord_presence_enabled,
             commands::discord::update_discord_presence,

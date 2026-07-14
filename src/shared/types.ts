@@ -228,6 +228,8 @@ export interface ListModsParams {
     category_id?: number
     page?: number
     ids?: number[]
+    tags?: number[]
+    block_tags?: number[]
 }
 
 export interface Paginated<T> {

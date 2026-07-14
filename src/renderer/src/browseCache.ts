@@ -1,7 +1,8 @@
-import type { Mod, Category, Paginated, SortOption } from '../../shared/types'
+import type { Mod, Category, ModTag, Paginated, SortOption } from '../../shared/types'
 
 const TTL_MS = 5 * 60 * 1000
 const CATEGORIES_TTL_MS = 60 * 60 * 1000
+const TAGS_TTL_MS = 60 * 60 * 1000
 
 interface BrowseCacheEntry {
     result: Paginated<Mod>
@@ -10,15 +11,20 @@ interface BrowseCacheEntry {
 
 const cache = new Map<string, BrowseCacheEntry>()
 const categoriesCache = new Map<number, { categories: Category[]; fetchedAt: number }>()
+const tagsCache = new Map<number, { tags: ModTag[]; fetchedAt: number }>()
 
 function makeKey(
     workshopId: number,
     page: number,
     query: string,
     sort: SortOption,
-    categoryId: number | undefined
+    categoryId: number | undefined,
+    includeTags: number[] = [],
+    excludeTags: number[] = []
 ): string {
-    return `${workshopId}:${page}:${query}:${sort}:${categoryId ?? ''}`
+    const inc = [...includeTags].sort((a, b) => a - b).join(',')
+    const exc = [...excludeTags].sort((a, b) => a - b).join(',')
+    return `${workshopId}:${page}:${query}:${sort}:${categoryId ?? ''}:${inc}:${exc}`
 }
 
 export function getBrowseCache(
@@ -26,9 +32,13 @@ export function getBrowseCache(
     page: number,
     query: string,
     sort: SortOption,
-    categoryId: number | undefined
+    categoryId: number | undefined,
+    includeTags: number[] = [],
+    excludeTags: number[] = []
 ): { result: Paginated<Mod>; stale: boolean } | null {
-    const entry = cache.get(makeKey(workshopId, page, query, sort, categoryId))
+    const entry = cache.get(
+        makeKey(workshopId, page, query, sort, categoryId, includeTags, excludeTags)
+    )
     if (!entry) return null
     return { result: entry.result, stale: Date.now() - entry.fetchedAt >= TTL_MS }
 }
@@ -39,9 +49,14 @@ export function setBrowseCache(
     query: string,
     sort: SortOption,
     categoryId: number | undefined,
-    result: Paginated<Mod>
+    result: Paginated<Mod>,
+    includeTags: number[] = [],
+    excludeTags: number[] = []
 ): void {
-    cache.set(makeKey(workshopId, page, query, sort, categoryId), { result, fetchedAt: Date.now() })
+    cache.set(makeKey(workshopId, page, query, sort, categoryId, includeTags, excludeTags), {
+        result,
+        fetchedAt: Date.now(),
+    })
 }
 
 export function getCategoriesCache(workshopId: number): Category[] | null {
@@ -53,4 +68,15 @@ export function getCategoriesCache(workshopId: number): Category[] | null {
 
 export function setCategoriesCache(workshopId: number, categories: Category[]): void {
     categoriesCache.set(workshopId, { categories, fetchedAt: Date.now() })
+}
+
+export function getTagsCache(workshopId: number): ModTag[] | null {
+    const entry = tagsCache.get(workshopId)
+    if (!entry) return null
+    if (Date.now() - entry.fetchedAt >= TAGS_TTL_MS) return null
+    return entry.tags
+}
+
+export function setTagsCache(workshopId: number, tags: ModTag[]): void {
+    tagsCache.set(workshopId, { tags, fetchedAt: Date.now() })
 }

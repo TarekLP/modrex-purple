@@ -181,6 +181,8 @@ pub struct ListModsParams {
     // returns just A and B, full list-item shape). Lets bulk metadata refresh
     // use one request per ~50 ids instead of one `get_mod` per id.
     pub ids: Option<Vec<u32>>,
+    pub tags: Option<Vec<u32>>,
+    pub block_tags: Option<Vec<u32>>,
 }
 
 #[tauri::command]
@@ -211,6 +213,16 @@ pub async fn list_mods(
                 query.push(("ids[]", id.to_string()));
             }
         }
+        if let Some(tags) = &p.tags {
+            for id in tags {
+                query.push(("tags[]", id.to_string()));
+            }
+        }
+        if let Some(block) = &p.block_tags {
+            for id in block {
+                query.push(("block_tags[]", id.to_string()));
+            }
+        }
     }
     api_get(&app, &format!("/games/{}/mods", game_id), query).await
 }
@@ -233,6 +245,16 @@ pub async fn list_mod_links(app: AppHandle, mod_id: u32) -> Result<Value, String
 #[tauri::command]
 pub async fn list_categories(app: AppHandle, game_id: u32) -> Result<Value, String> {
     api_get(&app, &format!("/games/{}/categories", game_id), vec![]).await
+}
+
+#[tauri::command]
+pub async fn list_tags(app: AppHandle, game_id: u32) -> Result<Value, String> {
+    api_get(
+        &app,
+        &format!("/games/{}/tags", game_id),
+        vec![("type", "mod".to_string()), ("global", "1".to_string())],
+    )
+    .await
 }
 
 
