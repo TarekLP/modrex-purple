@@ -9,7 +9,17 @@ permissions:
     contents: write
 
 jobs:
+    validate-version:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 22
+            - run: node scripts/check-version.mjs "$GITHUB_REF_NAME"
+
     build-windows:
+        needs: validate-version
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v7
@@ -35,6 +45,89 @@ jobs:
                   MODREX_GA_MEASUREMENT_ID: ${{ secrets.MODREX_GA_MEASUREMENT_ID }}
                   MODREX_GA_API_SECRET: ${{ secrets.MODREX_GA_API_SECRET }}
 
+            - name: Smoke-test NSIS installer
+              shell: pwsh
+              run: |
+                  $ErrorActionPreference = 'Stop'
+                  $expectedVersion = '${{ github.ref_name }}' -replace '^v', ''
+                  $installDir = Join-Path $env:RUNNER_TEMP 'modrex-nsis-smoke'
+                  $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Modrex'
+                  $installers = @(Get-ChildItem 'src-tauri/target/release/bundle/nsis/*.exe')
+
+                  if ($installers.Count -ne 1) {
+                      throw "Expected one NSIS installer, found $($installers.Count)"
+                  }
+
+                  $installer = $installers[0]
+                  if ($installer.VersionInfo.ProductVersion -ne $expectedVersion) {
+                      throw "Installer version is $($installer.VersionInfo.ProductVersion), expected $expectedVersion"
+                  }
+
+                  try {
+                      foreach ($attempt in 'fresh install', 'reinstall') {
+                          $process = Start-Process $installer.FullName `
+                            -ArgumentList '/S', "/D=$installDir" `
+                            -Wait -PassThru
+                          if ($process.ExitCode -ne 0) {
+                              throw "NSIS $attempt failed with exit code $($process.ExitCode)"
+                          }
+                      }
+
+                      $executable = Join-Path $installDir 'modrex.exe'
+                      $uninstaller = Join-Path $installDir 'uninstall.exe'
+                      if (!(Test-Path -LiteralPath $executable)) {
+                          throw 'Installed executable was not created'
+                      }
+                      if (!(Test-Path -LiteralPath $uninstaller)) {
+                          throw 'NSIS uninstaller was not created'
+                      }
+
+                      $installedVersion = (Get-Item -LiteralPath $executable).VersionInfo.ProductVersion
+                      if ($installedVersion -ne $expectedVersion) {
+                          throw "Installed version is $installedVersion, expected $expectedVersion"
+                      }
+
+                      $registration = Get-ItemProperty $uninstallKey
+                      if ($registration.DisplayName -ne 'Modrex') {
+                          throw "Registered display name is $($registration.DisplayName), expected Modrex"
+                      }
+                      if ($registration.DisplayVersion -ne $expectedVersion) {
+                          throw "Registered version is $($registration.DisplayVersion), expected $expectedVersion"
+                      }
+                      if ($registration.Publisher -ne 'modrex') {
+                          throw "Registered publisher is $($registration.Publisher), expected modrex"
+                      }
+                      if ($registration.InstallLocation.Trim('"') -ne $installDir) {
+                          throw "Registered install location is $($registration.InstallLocation), expected $installDir"
+                      }
+
+                      $process = Start-Process $uninstaller -ArgumentList '/S' -Wait -PassThru
+                      if ($process.ExitCode -ne 0) {
+                          throw "NSIS uninstall failed with exit code $($process.ExitCode)"
+                      }
+
+                      for ($i = 0; $i -lt 20 -and (Test-Path -LiteralPath $installDir); $i++) {
+                          Start-Sleep -Milliseconds 250
+                      }
+                      if (Test-Path -LiteralPath $installDir) {
+                          throw 'Silent uninstall left the installation directory behind'
+                      }
+                      if (Test-Path $uninstallKey) {
+                          throw 'Silent uninstall left the uninstall registration behind'
+                      }
+                  } finally {
+                      $uninstaller = Join-Path $installDir 'uninstall.exe'
+                      if (Test-Path -LiteralPath $uninstaller) {
+                          Start-Process $uninstaller -ArgumentList '/S' -Wait
+                      }
+                      if (Test-Path -LiteralPath $installDir) {
+                          Remove-Item -LiteralPath $installDir -Recurse -Force
+                      }
+                      if (Test-Path $uninstallKey) {
+                          Remove-Item $uninstallKey -Recurse -Force
+                      }
+                  }
+
             - uses: actions/upload-artifact@v7
               with:
                   name: windows-nsis
@@ -43,6 +136,7 @@ jobs:
                       src-tauri/target/release/bundle/nsis/*.sig
 
     build-linux:
+        needs: validate-version
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v7

@@ -10,6 +10,7 @@ pnpm build        # Production build — installer written to src-tauri/target/r
 pnpm dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
 pnpm dist:linux   # Package Linux AppImage + .deb
 pnpm typecheck    # Type-check renderer without emitting (same as: pnpm tsc --noEmit)
+pnpm check-version # Verify package, Tauri, Cargo, and lockfile versions agree
 pnpm check-commands # Verify api.ts invoke() names match generate_handler! in lib.rs, and that invoke stays api.ts-only (also runs in pre-commit and CI)
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
