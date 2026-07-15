@@ -676,8 +676,13 @@ export default function App() {
                     </div>
                 </Dialog>
 
+                {/* Window-global dialogs must not be gated by `view`. The welcome/game
+                    picker is a content pane in this same window, not a separate window, and
+                    this dialog portals above it like the update dialog. It is a forced
+                    first-run choice, and first run is always `view === 'welcome'`, so gating
+                    on view hid it on first launch until a game was picked. */}
                 <TelemetryConsentDialog
-                    open={analyticsConsent === null && view !== 'welcome'}
+                    open={analyticsConsent === null}
                     onChoice={handleAnalyticsConsent}
                 />
             </div>
