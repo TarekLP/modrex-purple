@@ -18,6 +18,7 @@ import { t } from '../i18n'
 import { Select } from './Select'
 import { Toggle } from './Toggle'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
+import { StorageSettings } from './StorageSettings'
 import { api } from '../api'
 import type { GameSettings } from '../api'
 import { getSettingsCache, setSettingsCache, patchSettingsCache } from '../settingsCache'
@@ -549,21 +550,25 @@ export function SettingsPage({
                         )}
 
                         {activeTab === 'advanced' && (
-                            <Section
-                                title={t('settings.logs.title')}
-                                description={t('settings.logs.description')}
-                            >
-                                <div className="mt-1">
-                                    <Button
-                                        variant="secondary"
-                                        size="md"
-                                        onClick={() => api.openLog()}
-                                    >
-                                        <ScrollText className="w-3.5 h-3.5" />
-                                        {t('settings.logs.open')}
-                                    </Button>
-                                </div>
-                            </Section>
+                            <>
+                                <Section
+                                    title={t('settings.logs.title')}
+                                    description={t('settings.logs.description')}
+                                >
+                                    <div className="mt-1">
+                                        <Button
+                                            variant="secondary"
+                                            size="md"
+                                            onClick={() => api.openLog()}
+                                        >
+                                            <ScrollText className="w-3.5 h-3.5" />
+                                            {t('settings.logs.open')}
+                                        </Button>
+                                    </div>
+                                </Section>
+
+                                <StorageSettings />
+                            </>
                         )}
                     </div>
                 </div>
