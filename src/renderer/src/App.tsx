@@ -7,8 +7,8 @@ import {
     useRef,
     startTransition,
 } from 'react'
+import { error as logError } from '@tauri-apps/plugin-log'
 import { Button } from './components/ui/Button'
-import appIcon from '../../../assets/icon.png'
 import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId, Mod } from '../../shared/types'
 import { GAMES } from '../../shared/types'
@@ -24,7 +24,7 @@ import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { ResizeHandles } from './components/ResizeHandles'
 import { SupportPromptBanner } from './components/SupportPromptBanner'
-import { api } from './api'
+import { api, type StartupPhase } from './api'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
 import { useModIdentificationTracking } from './lib/analytics/useModIdentificationTracking'
 import { getSettingsCache, setSettingsCache } from './settingsCache'
@@ -48,6 +48,12 @@ function warmSettingsCache(game: GameId) {
 export type View = 'browse' | 'installed' | 'news' | 'detail' | 'settings' | 'welcome'
 
 const DETECT_RETRY_MS = 5 * 60 * 1000
+
+function reportStartupPhase(phase: StartupPhase) {
+    void api
+        .reportStartupPhase(phase)
+        .catch((error) => logError('Failed to report startup phase: ' + String(error)))
+}
 
 function getInitialView(): View {
     const game = localStorage.getItem('modrex:active-game')
@@ -73,8 +79,9 @@ export default function App() {
     const [gamePathReady, setGamePathReady] = useState(false)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
     const [folders, setFolders] = useState<ModFolder[]>([])
-    // Empty set = startup splash; per-game membership gates the "no mods" empty state.
+    // Per-game membership gates the "no mods" empty state until the first fetch completes.
     const [readyGames, setReadyGames] = useState<ReadonlySet<GameId>>(new Set())
+    const startupPending = useRef(true)
     const [modsHidden, setModsHidden] = useState(false)
     const [restoreError, setRestoreError] = useState<string | null>(null)
     const [update, setUpdate] = useState<{
@@ -242,12 +249,21 @@ export default function App() {
     // before get_installed reads it — fetching concurrently can return a false-empty
     // list that gets cached as truth.
     const refreshAll = useCallback(async () => {
+        const starting = startupPending.current
+        if (starting) reportStartupPhase('game')
         try {
             await refreshGamePath()
         } catch {
             // detection failure must not block the installed fetch
         }
-        await refreshInstalled()
+        if (starting) reportStartupPhase('mods')
+        try {
+            await refreshInstalled()
+        } catch (error) {
+            if (!starting) throw error
+            logError('Initial installed-mod refresh failed: ' + String(error))
+            reportStartupPhase('error')
+        }
     }, [refreshGamePath, refreshInstalled])
 
     // Manual path pick must bypass the failed-detection throttle — the user just
@@ -256,6 +272,10 @@ export default function App() {
         delete failedDetectAt.current[activeGameRef.current]
         await refreshAll()
     }, [refreshAll])
+
+    useEffect(() => {
+        reportStartupPhase('interface')
+    }, [])
 
     useEffect(() => {
         refreshAll()
@@ -270,6 +290,12 @@ export default function App() {
             if (timer) clearTimeout(timer)
         }
     }, [refreshAll])
+
+    useEffect(() => {
+        if (!startupPending.current || readyGames.size === 0) return
+        startupPending.current = false
+        reportStartupPhase('ready')
+    }, [readyGames])
 
     useEffect(() => {
         warmSettingsCache(activeGame)
@@ -397,23 +423,6 @@ export default function App() {
         <TooltipProvider delayDuration={400}>
             <div className="flex flex-col h-screen bg-surface text-text">
                 {navigator.userAgent.includes('Linux') && <ResizeHandles />}
-                {readyGames.size === 0 && (
-                    <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center gap-4 z-50">
-                        <img src={appIcon} alt="Modrex" className="w-16 h-16 opacity-90" />
-                        <span
-                            style={{
-                                fontFamily: "'Bebas Neue', sans-serif",
-                                fontSize: '2.5rem',
-                                letterSpacing: '0.05em',
-                                lineHeight: 1,
-                            }}
-                        >
-                            <span style={{ color: 'var(--color-text)' }}>MOD</span>
-                            <span style={{ color: 'var(--color-accent)' }}>REX</span>
-                        </span>
-                        <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
-                    </div>
-                )}
                 <>
                     <TopBar
                         gamePath={gamePath}

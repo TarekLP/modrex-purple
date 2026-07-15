@@ -1,23 +1,75 @@
 @import 'tailwindcss';
 
-@theme {
-    --color-surface: #131313;
-    --color-surface-raised: #1e1b1a;
-    --color-surface-hover: #272221;
-    --color-surface-active: #342f2d;
-    --color-surface-light: #47413f;
-    --color-border: #2e2a28;
-    --color-text: #f4f4f3;
-    --color-text-muted: #928c87;
-    --color-text-subtle: #756f6b;
-    --color-accent: #e36300;
-    --color-accent-bright: #f87d36;
-    --color-danger: #5a2204;
-    --color-danger-hover: #7a3508;
-    --color-danger-text: #fda578;
-    --color-success: #053d1c;
-    --color-success-text: #00df72;
-    --color-warning: #d4a017;
+:root {
+    color-scheme: dark;
+    --modrex-surface: #131313;
+    --modrex-surface-raised: #1e1b1a;
+    --modrex-surface-hover: #272221;
+    --modrex-surface-active: #342f2d;
+    --modrex-surface-light: #47413f;
+    --modrex-border: #2e2a28;
+    --modrex-text: #f4f4f3;
+    --modrex-text-muted: #928c87;
+    --modrex-text-subtle: #756f6b;
+    --modrex-accent: #e36300;
+    --modrex-accent-bright: #f87d36;
+    --modrex-danger: #5a2204;
+    --modrex-danger-hover: #7a3508;
+    --modrex-danger-text: #fda578;
+    --modrex-success: #053d1c;
+    --modrex-success-text: #00df72;
+    --modrex-warning: #d4a017;
+
+    --color-surface: var(--modrex-surface);
+    --color-surface-raised: var(--modrex-surface-raised);
+    --color-surface-hover: var(--modrex-surface-hover);
+    --color-surface-active: var(--modrex-surface-active);
+    --color-surface-light: var(--modrex-surface-light);
+    --color-border: var(--modrex-border);
+    --color-text: var(--modrex-text);
+    --color-text-muted: var(--modrex-text-muted);
+    --color-text-subtle: var(--modrex-text-subtle);
+    --color-accent: var(--modrex-accent);
+    --color-accent-bright: var(--modrex-accent-bright);
+    --color-danger: var(--modrex-danger);
+    --color-danger-hover: var(--modrex-danger-hover);
+    --color-danger-text: var(--modrex-danger-text);
+    --color-success: var(--modrex-success);
+    --color-success-text: var(--modrex-success-text);
+    --color-warning: var(--modrex-warning);
+}
+
+@theme inline {
+    --color-surface: var(--modrex-surface);
+    --color-surface-raised: var(--modrex-surface-raised);
+    --color-surface-hover: var(--modrex-surface-hover);
+    --color-surface-active: var(--modrex-surface-active);
+    --color-surface-light: var(--modrex-surface-light);
+    --color-border: var(--modrex-border);
+    --color-text: var(--modrex-text);
+    --color-text-muted: var(--modrex-text-muted);
+    --color-text-subtle: var(--modrex-text-subtle);
+    --color-accent: var(--modrex-accent);
+    --color-accent-bright: var(--modrex-accent-bright);
+    --color-danger: var(--modrex-danger);
+    --color-danger-hover: var(--modrex-danger-hover);
+    --color-danger-text: var(--modrex-danger-text);
+    --color-success: var(--modrex-success);
+    --color-success-text: var(--modrex-success-text);
+    --color-warning: var(--modrex-warning);
+}
+
+html,
+body,
+#root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: var(--color-surface);
+}
+
+body {
+    overflow: hidden;
 }
 
 button:not(:disabled),

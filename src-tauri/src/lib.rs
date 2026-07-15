@@ -3,7 +3,7 @@ mod commands;
 #[cfg(windows)]
 mod windows_fullscreen;
 
-use tauri::Manager;
+use tauri::{webview::PageLoadEvent, Manager};
 
 pub fn run() {
     std::panic::set_hook(Box::new(|panic_info| {
@@ -24,6 +24,7 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .manage(commands::updater::UpdaterState::new())
+        .manage(commands::startup::StartupState::default())
         .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {
             commands::thumbnails::handle_thumb_protocol(ctx.app_handle(), request)
@@ -43,11 +44,25 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 #[cfg(windows)]
                 windows_fullscreen::install(&window)?;
-                let _ = window.show();
             }
             Ok(())
         })
+        .on_page_load(|webview, payload| {
+            if webview.label() != "splash" || payload.event() != PageLoadEvent::Finished {
+                return;
+            }
+            if webview.state::<commands::startup::StartupState>().is_ready() {
+                return;
+            }
+            if let Err(error) = webview.window().show() {
+                log::error!("failed to show loaded startup window: {error}");
+            }
+        })
         .invoke_handler(tauri::generate_handler![
+            // startup
+            commands::startup::report_startup_phase,
+            commands::startup::get_startup_phase,
+            commands::startup::finish_startup,
             // api
             commands::api::list_mods,
             commands::api::get_mod,

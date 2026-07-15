@@ -17,6 +17,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Loading placeholders now use one consistent design across mod cards, mod details, galleries, downloads, and formatted text.
 - Replaced the native title bar with a custom one, unified across all platforms.
 - Improved app startup time.
+- Redesigned the startup screen as a compact window with loading progress.
 - Mod licenses now show as their own tab on the mod page with full formatting.
 - Redesigned the mod page:
   - Mod details (downloads, likes, views, version, dates, and links) moved into an info panel that stays visible while you scroll.

@@ -1,0 +1,124 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
+        sans-serif;
+    user-select: none;
+}
+
+.splash {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 24px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.splash__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(-12px);
+}
+
+.splash__icon {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+}
+
+.splash__wordmark {
+    font-family: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+    font-size: 38px;
+    line-height: 1;
+    letter-spacing: 0.05em;
+}
+
+.splash__wordmark-accent {
+    color: var(--color-accent);
+}
+
+.splash__version {
+    margin: 0;
+    color: var(--color-text-subtle);
+    font-size: 10px;
+}
+
+.splash__recovery {
+    position: absolute;
+    right: 24px;
+    bottom: 58px;
+    display: none;
+    padding: 7px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 11px;
+}
+
+.splash[data-status='error'] .splash__recovery {
+    display: block;
+}
+
+.splash__footer {
+    position: absolute;
+    right: 24px;
+    bottom: 20px;
+    left: 24px;
+}
+
+.splash__progress {
+    height: 3px;
+    overflow: hidden;
+    background: var(--color-border);
+}
+
+.splash__progress > div {
+    width: 100%;
+    height: 100%;
+    transform: scaleX(0.2);
+    transform-origin: left;
+    background: var(--color-accent);
+    transition: transform 220ms ease;
+}
+
+.splash__progress-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    color: var(--color-text-muted);
+    font-size: 10px;
+}
+
+#percentage {
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .splash__progress > div {
+        transition: none;
+    }
+}

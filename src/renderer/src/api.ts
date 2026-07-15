@@ -38,6 +38,8 @@ export type GameSettings = {
     crimebossInstallMode?: string
 }
 
+export type StartupPhase = 'prepare' | 'interface' | 'game' | 'mods' | 'ready' | 'error'
+
 // Feeds the one-time "star us on GitHub" prompt (settings.rs::record_successful_install).
 // Picker sentinels (ZIP_MULTI_PAK etc.) are flow control, not failures, so they don't
 // poison the session; any real install error suppresses the prompt for this session.
@@ -76,6 +78,20 @@ function onEvent<T>(eventName: string, callback: (payload: T) => void): () => vo
 }
 
 export const api = {
+    // ── Startup ────────────────────────────────────────────────────────────────
+    reportStartupPhase(phase: StartupPhase): Promise<void> {
+        return invoke('report_startup_phase', { phase })
+    },
+    getStartupPhase(): Promise<StartupPhase> {
+        return invoke('get_startup_phase')
+    },
+    finishStartup(): Promise<void> {
+        return invoke('finish_startup')
+    },
+    onStartupProgress(callback: (phase: StartupPhase) => void): () => void {
+        return onEvent<StartupPhase>('startup:progress', callback)
+    },
+
     // ── Browse / API ───────────────────────────────────────────────────────────
     listMods(gameId: number, params?: ListModsParams): Promise<Paginated<Mod>> {
         return invoke('list_mods', { gameId, params: params ?? {} })

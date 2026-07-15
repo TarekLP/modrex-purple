@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Starting Modrex</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="/src/index.css" />
+        <link rel="stylesheet" href="/src/splash.css" />
+    </head>
+    <body>
+        <main class="splash" data-tauri-drag-region>
+            <section class="splash__brand" data-tauri-drag-region>
+                <img class="splash__icon" src="../../assets/icon.png" alt="" />
+                <div class="splash__wordmark" aria-label="Modrex">
+                    <span>MOD</span><span class="splash__wordmark-accent">REX</span>
+                </div>
+                <p class="splash__version" id="version"></p>
+            </section>
+
+            <button class="splash__recovery" id="recovery" type="button">Open Modrex</button>
+
+            <footer class="splash__footer" role="status" aria-live="polite">
+                <div class="splash__progress" aria-hidden="true">
+                    <div id="progress-bar"></div>
+                </div>
+                <div class="splash__progress-meta">
+                    <span id="status">Preparing application data</span>
+                    <span id="percentage">20%</span>
+                </div>
+            </footer>
+        </main>
+        <script type="module" src="/src/splash.ts"></script>
+    </body>
+</html>
