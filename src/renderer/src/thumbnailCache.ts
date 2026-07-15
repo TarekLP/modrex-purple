@@ -9,6 +9,12 @@ export function getCachedThumbnailUrl(filename: string, full = false): string | 
     return resolved.get(variantKey(filename, full))
 }
 
+// Drops the in-memory URL dedup map after the disk cache is cleared, so the
+// next request re-downloads instead of resolving to a now-deleted file.
+export function clearResolvedThumbnails(): void {
+    resolved.clear()
+}
+
 export async function getLocalImage(filename: string, full = false): Promise<string> {
     const key = variantKey(filename, full)
     const hit = resolved.get(key)

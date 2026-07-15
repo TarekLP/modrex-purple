@@ -10,6 +10,13 @@ const LINKS_STORAGE_KEY = 'modrex:links-cache'
 const INSTALLED_META_STORAGE_KEY = 'modrex:installed-meta-cache'
 const INSTALLED_META_CHUNK_SIZE = 50
 
+const CACHE_STORAGE_KEYS = [
+    MOD_STORAGE_KEY,
+    FILES_STORAGE_KEY,
+    LINKS_STORAGE_KEY,
+    INSTALLED_META_STORAGE_KEY,
+]
+
 // Freshness window for bulk installed-mod metadata (see fetchInstalledModsMeta).
 // Exported so useModData's own staleness check stays in lockstep with what
 // this cache actually serves. Longer than the 5-min mod/files/links TTL above
@@ -155,6 +162,35 @@ export function getLinksCacheEntry(id: number): LinksCacheEntry | undefined {
 
 export function getInstalledMetaEntry(id: number): InstalledMetaCacheEntry | undefined {
     return installedMetaCache.get(id)
+}
+
+// Byte estimate of the persisted mod/files/links/installed-meta caches. Rust
+// can't see localStorage, so the Settings storage view sizes this side here.
+export function getModCacheSize(): number {
+    let total = 0
+    for (const key of CACHE_STORAGE_KEYS) {
+        total += localStorage.getItem(key)?.length ?? 0
+    }
+    return total
+}
+
+// Wipes the in-memory maps and their persisted copies, returning the bytes
+// freed. Cancels the pending debounced write first, so it can't re-persist the
+// now-empty maps right after.
+export function clearModCache(): number {
+    const freed = getModCacheSize()
+    if (saveTimer !== null) {
+        clearTimeout(saveTimer)
+        saveTimer = null
+    }
+    modCache.clear()
+    filesCache.clear()
+    linksCache.clear()
+    installedMetaCache.clear()
+    for (const key of CACHE_STORAGE_KEYS) {
+        localStorage.removeItem(key)
+    }
+    return freed
 }
 
 export async function getCachedMod(id: number): Promise<Mod> {

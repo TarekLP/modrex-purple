@@ -13,6 +13,9 @@ function makeLocalStorage() {
         setItem: (key: string, value: string) => {
             store[key] = value
         },
+        removeItem: (key: string) => {
+            delete store[key]
+        },
     }
 }
 
@@ -101,6 +104,30 @@ describe('getModCacheEntry', () => {
         expect(entry).toBeDefined()
         expect(entry!.mod).toBe(mod)
         expect(entry!.fetchedAt).toBe(0)
+    })
+})
+
+describe('clearModCache', () => {
+    it('reports freed bytes and wipes the maps and storage', async () => {
+        mockGetMod.mockResolvedValue(makeMod(1))
+        await cache.getCachedMod(1)
+        await vi.advanceTimersByTimeAsync(2000)
+        expect(cache.getModCacheSize()).toBeGreaterThan(0)
+
+        const freed = cache.clearModCache()
+        expect(freed).toBeGreaterThan(0)
+        expect(cache.getModCacheSize()).toBe(0)
+        expect(cache.getModCacheEntry(1)).toBeUndefined()
+        expect(storage.getItem('modrex:mod-cache')).toBeNull()
+    })
+
+    it('cancels the pending debounced write so it cannot re-persist', async () => {
+        mockGetMod.mockResolvedValue(makeMod(1))
+        await cache.getCachedMod(1)
+        cache.clearModCache()
+        await vi.advanceTimersByTimeAsync(2000)
+        expect(cache.getModCacheSize()).toBe(0)
+        expect(storage.getItem('modrex:mod-cache')).toBeNull()
     })
 })
 
