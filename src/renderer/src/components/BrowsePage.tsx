@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo, startTransition } from 'react'
-import { Search } from 'lucide-react'
+import { Search, LayoutGrid, ArrowDownUp } from 'lucide-react'
 import type {
     Mod,
     ModFile,
     Paginated,
     InstalledMod,
     Category,
+    ModTag,
     ModDependency,
     SortOption,
     GameId,
@@ -17,11 +18,14 @@ import {
     setBrowseCache,
     getCategoriesCache,
     setCategoriesCache,
+    getTagsCache,
+    setTagsCache,
 } from '../browseCache'
 import { SearchClearButton } from './ui/SearchClearButton'
 import { ModCard } from './ModCard'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
+import { TagFilter } from './TagFilter'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
@@ -222,6 +226,8 @@ export function BrowsePage({
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [categoryId, setCategoryId] = useState<number | undefined>()
+    const [includeTags, setIncludeTags] = useState<number[]>([])
+    const [excludeTags, setExcludeTags] = useState<number[]>([])
     const workshopId = GAMES[activeGame].workshopId
     const initialSort = getSavedSort(activeGame)
     const [sort, setSort] = useState<SortOption>(initialSort)
@@ -230,6 +236,7 @@ export function BrowsePage({
     const [categories, setCategories] = useState<Category[]>(
         () => getCategoriesCache(workshopId) ?? []
     )
+    const [tags, setTags] = useState<ModTag[]>(() => getTagsCache(workshopId) ?? [])
     const [loadingMods, setLoadingMods] = useState(!initialCache)
     const [installingMods, setInstallingMods] = useState<ReadonlySet<number>>(new Set())
     const [downloadMap, setDownloadMap] = useState<
@@ -314,9 +321,16 @@ export function BrowsePage({
     }, [gamePath, isActive]) // eslint-disable-line react-hooks/exhaustive-deps -- activeGame is stable per mount; BrowsePage remounts on game change via key={activeGame}
 
     const fetchMods = useCallback(
-        async (p: number, q: string, cat: number | undefined, s: SortOption) => {
+        async (
+            p: number,
+            q: string,
+            cat: number | undefined,
+            s: SortOption,
+            inc: number[],
+            exc: number[]
+        ) => {
             const id = ++fetchIdRef.current
-            const cached = getBrowseCache(workshopId, p, q, s, cat)
+            const cached = getBrowseCache(workshopId, p, q, s, cat, inc, exc)
             if (cached) {
                 setResult(cached.result)
                 setLoadingMods(false)
@@ -331,9 +345,11 @@ export function BrowsePage({
                     sort: s,
                     query: q || undefined,
                     category_id: cat,
+                    tags: inc.length ? inc : undefined,
+                    block_tags: exc.length ? exc : undefined,
                 })
                 if (fetchIdRef.current !== id) return
-                setBrowseCache(workshopId, p, q, s, cat, data)
+                setBrowseCache(workshopId, p, q, s, cat, data, inc, exc)
                 if (q) trackSearch(activeGame, q.length, data.meta.total)
                 startTransition(() => {
                     setResult(data)
@@ -362,6 +378,20 @@ export function BrowsePage({
         })
     }, [workshopId]) // stable per mount — BrowsePage remounts on game change via key={activeGame}
 
+    useEffect(() => {
+        const cached = getTagsCache(workshopId)
+        if (cached) {
+            setTags(cached)
+            return
+        }
+        api.listTags(workshopId)
+            .then((r) => {
+                setTagsCache(workshopId, r.data)
+                setTags(r.data)
+            })
+            .catch(() => {})
+    }, [workshopId]) // stable per mount — BrowsePage remounts on game change via key={activeGame}
+
     // Fetches only while the page is visible. Re-runs on activation (isActive
     // false → true) so stale cache entries get a background refresh — fresh ones
     // early-return inside fetchMods. Scroll resets only on a filter change, not
@@ -377,7 +407,7 @@ export function BrowsePage({
     }, [result])
     useEffect(() => {
         if (!isActive) return
-        const filters = JSON.stringify([page, query, categoryId, sort])
+        const filters = JSON.stringify([page, query, categoryId, sort, includeTags, excludeTags])
         const filtersChanged = filters !== lastFiltersRef.current
         if (filtersChanged) {
             lastFiltersRef.current = filters
@@ -388,14 +418,14 @@ export function BrowsePage({
         if (debounceRef.current) clearTimeout(debounceRef.current)
         debounceRef.current = setTimeout(
             () => {
-                fetchMods(page, query, categoryId, sort)
+                fetchMods(page, query, categoryId, sort, includeTags, excludeTags)
             },
             query ? 400 : 0
         )
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current)
         }
-    }, [isActive, fetchMods, page, query, categoryId, sort])
+    }, [isActive, fetchMods, page, query, categoryId, sort, includeTags, excludeTags])
 
     function handleQueryChange(val: string) {
         setQuery(val)
@@ -404,6 +434,12 @@ export function BrowsePage({
 
     function handleCategoryChange(val: string) {
         setCategoryId(val ? Number(val) : undefined)
+        setPage(1)
+    }
+
+    function handleTagsChange(inc: number[], exc: number[]) {
+        setIncludeTags(inc)
+        setExcludeTags(exc)
         setPage(1)
     }
 
@@ -787,14 +823,24 @@ export function BrowsePage({
                         value={categoryId?.toString() ?? ''}
                         onChange={handleCategoryChange}
                         placeholder={t('browse.allCategories')}
+                        icon={<LayoutGrid className="w-3.5 h-3.5 text-text-subtle" />}
                         options={[
                             { value: '', label: t('browse.allCategories') },
                             ...categories.map((c) => ({ value: String(c.id), label: c.name })),
                         ]}
                     />
+                    {tags.length > 0 && (
+                        <TagFilter
+                            tags={tags}
+                            include={includeTags}
+                            exclude={excludeTags}
+                            onChange={handleTagsChange}
+                        />
+                    )}
                     <Select
                         value={sort}
                         onChange={handleSortChange}
+                        icon={<ArrowDownUp className="w-3.5 h-3.5 text-text-subtle" />}
                         options={SORT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
                     />
                 </div>
