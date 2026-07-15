@@ -129,6 +129,14 @@ pub fn game_settings<'a>(s: &'a Settings, game_id: &str) -> Option<&'a GameSetti
     s.games.as_ref()?.get(game_id)
 }
 
+/// Factory-resets settings.json to defaults: clears every configured game path,
+/// launcher choice, launch options, analytics consent + id, and all other
+/// preferences. Does not touch installed mods, game files, or the on-disk caches.
+#[tauri::command]
+pub fn reset_app_settings(app: AppHandle) {
+    update_settings(&app, |s| *s = Settings::default());
+}
+
 /// On first launch after the Electron-to-Tauri migration, copy settings.json
 /// and mod-index.db from the old Electron userData path to the new Tauri path.
 /// Safe to remove once no Electron installs remain in the wild.

@@ -136,6 +136,24 @@ export const api = {
         return invoke('open_log_file')
     },
 
+    // ── Storage / data management ─────────────────────────────────────────────
+    // Cache sizes/clears are in bytes; clear commands return the bytes freed.
+    getStorageUsage(): Promise<{ thumbnails: number; indexDb: number; news: number }> {
+        return invoke('get_storage_usage')
+    },
+    clearThumbnailCache(): Promise<number> {
+        return invoke('clear_thumbnail_cache')
+    },
+    clearIndexCache(): Promise<number> {
+        return invoke('clear_index_cache')
+    },
+    clearNewsCache(): Promise<number> {
+        return invoke('clear_news_cache')
+    },
+    resetAppSettings(): Promise<void> {
+        return invoke('reset_app_settings')
+    },
+
     // ── Analytics ────────────────────────────────────────────────────────────────
     // Fire-and-forget: the Rust side gates on consent and swallows errors, so callers
     // never need to await or catch.

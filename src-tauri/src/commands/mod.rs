@@ -10,6 +10,7 @@ pub mod news;
 pub mod pdth_overrides;
 pub mod raid_superblt;
 pub mod settings;
+pub mod storage;
 pub mod superblt;
 pub mod thumbnails;
 pub mod ue4ss;

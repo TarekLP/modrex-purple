@@ -126,6 +126,12 @@ pub fn run() {
             commands::news::fetch_news,
             commands::news::refresh_news,
             commands::news::fetch_news_page,
+            // storage / data management
+            commands::storage::get_storage_usage,
+            commands::storage::clear_thumbnail_cache,
+            commands::storage::clear_index_cache,
+            commands::storage::clear_news_cache,
+            commands::settings::reset_app_settings,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
