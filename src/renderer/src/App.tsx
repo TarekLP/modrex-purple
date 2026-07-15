@@ -52,8 +52,8 @@ const DETECT_RETRY_MS = 5 * 60 * 1000
 function getInitialView(): View {
     const game = localStorage.getItem('modrex:active-game')
     if (!game) return 'welcome'
+    if (localStorage.getItem('modrex:on-welcome') === '1') return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
-    if (v === 'welcome') return 'welcome'
     if (v === 'news' && !GAMES[game as GameId]?.hasNews) return 'browse'
     return v === 'browse' || v === 'installed' || v === 'news' || v === 'settings' ? v : 'browse'
 }
@@ -160,13 +160,14 @@ export default function App() {
     }, [activeGame])
 
     function handleShowWelcome() {
-        localStorage.setItem('modrex:active-view', 'welcome')
+        localStorage.setItem('modrex:on-welcome', '1')
         setDetailStack([])
         setView('welcome')
     }
 
     function handleGameChange(g: GameId) {
         localStorage.setItem('modrex:active-game', g)
+        localStorage.removeItem('modrex:on-welcome')
         const cachedPath = gamePathCache.current[g]
         const cachedInstalled = installedCache.current[g]
         const saved = localStorage.getItem('modrex:active-view')
@@ -370,7 +371,10 @@ export default function App() {
             if (v === 'settings') setSettingsGlobalOnly(isGlobalOnly)
             // Don't persist global-only settings to localStorage — it's a transient
             // overlay on the picker, not the user's intended destination after game select.
-            if (!isGlobalOnly) localStorage.setItem('modrex:active-view', v)
+            if (!isGlobalOnly) {
+                localStorage.setItem('modrex:active-view', v)
+                localStorage.removeItem('modrex:on-welcome')
+            }
             setDetailStack([])
             setView(v)
         },
