@@ -517,6 +517,26 @@ pub fn open_log_file(app: AppHandle) {
     open_path_on_system(&log_dir.to_string_lossy());
 }
 
+#[tauri::command]
+pub fn open_data_folder(app: AppHandle) {
+    use tauri::Manager;
+    let Ok(dir) = app.path().app_data_dir() else {
+        return;
+    };
+    open_path_on_system(&dir.to_string_lossy());
+}
+
+#[tauri::command]
+pub fn open_app_folder() {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let Some(dir) = exe.parent() else {
+        return;
+    };
+    open_path_on_system(&dir.to_string_lossy());
+}
+
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod tests;

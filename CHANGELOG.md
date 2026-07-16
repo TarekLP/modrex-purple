@@ -11,6 +11,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added support for RAID: World War II: browse, install, and manage its mods (SuperBLT and legacy RaidBLT script mods plus asset override packs, all installed into the game's `mods` folder as the current loader expects), with one-click install and dependency detection for the RAID-SuperBLT mod loader.
 - Browse now lets you filter mods by tag, choosing tags to include or exclude.
 - New Storage section in Settings to clear cached data and reset app settings to defaults.
+- New buttons in Settings to open the game folder, each of its mod folders, and Modrex's data and install folders.
 
 ### Changed
 

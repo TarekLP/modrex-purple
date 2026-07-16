@@ -1237,5 +1237,40 @@ pub fn open_mods_folder(app: AppHandle, game_id: Option<String>) {
     let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModFolderInfo {
+    pub tag: String,
+    pub label_key: String,
+}
+
+#[tauri::command]
+pub fn list_mod_folders(game_id: Option<String>) -> Vec<ModFolderInfo> {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    cfg.targets
+        .iter()
+        .map(|t| ModFolderInfo {
+            tag: t.tag.to_string(),
+            label_key: t.label_key.to_string(),
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub fn open_mod_folder(app: AppHandle, game_id: Option<String>, tag: String) {
+    let gid = game_id.as_deref().unwrap_or("pd3");
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else {
+        return;
+    };
+    let cfg = engine_for_game(gid);
+    let dir = mods_base(&game_path, cfg.target_for(Some(&tag)));
+    let _ = std::fs::create_dir_all(&dir);
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("explorer").arg(&dir).spawn();
+    #[cfg(target_os = "linux")]
+    let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
+}
+
 #[cfg(test)]
 mod tests;

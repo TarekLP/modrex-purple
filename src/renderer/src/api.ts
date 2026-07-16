@@ -151,6 +151,12 @@ export const api = {
     openLog(): Promise<void> {
         return invoke('open_log_file')
     },
+    openDataFolder(): Promise<void> {
+        return invoke('open_data_folder')
+    },
+    openAppFolder(): Promise<void> {
+        return invoke('open_app_folder')
+    },
 
     // ── Storage / data management ─────────────────────────────────────────────
     // Cache sizes/clears are in bytes; clear commands return the bytes freed.
@@ -198,6 +204,12 @@ export const api = {
     },
     openModsFolder(gameId?: string): Promise<void> {
         return gameId ? invoke('open_mods_folder', { gameId }) : invoke('open_mods_folder')
+    },
+    listModFolders(gameId: string): Promise<{ tag: string; labelKey: string }[]> {
+        return invoke('list_mod_folders', { gameId })
+    },
+    openModFolder(gameId: string, tag: string): Promise<void> {
+        return invoke('open_mod_folder', { gameId, tag })
     },
     installMod(modId: number, gamePath: string, gameId?: string): Promise<void> {
         return trackInstall(invoke('install_mod', { modId, gamePath, gameId }))

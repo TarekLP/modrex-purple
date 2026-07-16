@@ -351,6 +351,19 @@
             "description": "If something goes wrong, open the log file and attach it to your bug report.",
             "open": "Open log file"
         },
+        "folders": {
+            "title": "Folders",
+            "description": "Open these locations in your file manager.",
+            "gameFolder": "Open game folder",
+            "dataFolder": "Open data folder",
+            "appFolder": "Open app folder",
+            "open": "Open {name}",
+            "mods": "Mods",
+            "modkitMods": "ModKit mods",
+            "legacyPaks": "Legacy paks",
+            "overrides": "Asset overrides",
+            "ue4ssMods": "UE4SS mods"
+        },
         "storage": {
             "title": "Storage",
             "dangerZone": "Danger zone",

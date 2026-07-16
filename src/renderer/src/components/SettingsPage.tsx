@@ -43,6 +43,14 @@ const LAUNCHER_OPTIONS = [
     { value: 'xbox', label: 'Xbox', icon: <XboxIcon className={iconClass} /> },
 ]
 
+const FOLDER_LABELS: Record<string, string> = {
+    mods: t('settings.folders.mods'),
+    modkitMods: t('settings.folders.modkitMods'),
+    legacyPaks: t('settings.folders.legacyPaks'),
+    overrides: t('settings.folders.overrides'),
+    ue4ssMods: t('settings.folders.ue4ssMods'),
+}
+
 type SettingsTab = 'game' | 'application' | 'advanced' | 'about'
 
 const GAME_TAB_KEY = 'modrex:settings-tab'
@@ -138,10 +146,15 @@ export function SettingsPage({
     )
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() => readSavedTab(globalOnly))
+    const [modFolders, setModFolders] = useState<{ tag: string; labelKey: string }[]>([])
 
     useEffect(() => {
         setActiveTabState(readSavedTab(globalOnly))
     }, [globalOnly])
+
+    useEffect(() => {
+        api.listModFolders(activeGame).then(setModFolders)
+    }, [activeGame])
 
     function setActiveTab(tab: SettingsTab) {
         setActiveTabState(tab)
@@ -563,6 +576,59 @@ export function SettingsPage({
                                         >
                                             <ScrollText className="w-3.5 h-3.5" />
                                             {t('settings.logs.open')}
+                                        </Button>
+                                    </div>
+                                </Section>
+
+                                <Section
+                                    title={t('settings.folders.title')}
+                                    description={t('settings.folders.description')}
+                                >
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                        {!globalOnly && gamePath && (
+                                            <>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => api.openPath(gamePath)}
+                                                >
+                                                    <FolderOpen className="w-3.5 h-3.5" />
+                                                    {t('settings.folders.gameFolder')}
+                                                </Button>
+                                                {modFolders.map((f) => (
+                                                    <Button
+                                                        key={f.tag}
+                                                        variant="secondary"
+                                                        size="md"
+                                                        onClick={() =>
+                                                            api.openModFolder(activeGame, f.tag)
+                                                        }
+                                                    >
+                                                        <FolderOpen className="w-3.5 h-3.5" />
+                                                        {t('settings.folders.open', {
+                                                            name:
+                                                                FOLDER_LABELS[f.labelKey] ??
+                                                                f.labelKey,
+                                                        })}
+                                                    </Button>
+                                                ))}
+                                            </>
+                                        )}
+                                        <Button
+                                            variant="secondary"
+                                            size="md"
+                                            onClick={() => api.openDataFolder()}
+                                        >
+                                            <FolderOpen className="w-3.5 h-3.5" />
+                                            {t('settings.folders.dataFolder')}
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="md"
+                                            onClick={() => api.openAppFolder()}
+                                        >
+                                            <FolderOpen className="w-3.5 h-3.5" />
+                                            {t('settings.folders.appFolder')}
                                         </Button>
                                     </div>
                                 </Section>

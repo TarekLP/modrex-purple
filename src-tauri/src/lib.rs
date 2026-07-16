@@ -106,6 +106,8 @@ pub fn run() {
             commands::mods::rename_folder,
             commands::mods::delete_folder,
             commands::mods::open_mods_folder,
+            commands::mods::list_mod_folders,
+            commands::mods::open_mod_folder,
             // superblt / pdth_overrides / dahm
             commands::superblt::check_superblt,
             commands::superblt::install_superblt,
@@ -129,6 +131,8 @@ pub fn run() {
             commands::launchers::shell_open_external,
             commands::launchers::shell_open_path,
             commands::launchers::open_log_file,
+            commands::launchers::open_data_folder,
+            commands::launchers::open_app_folder,
             // updater
             commands::updater::check_for_update,
             commands::updater::download_update,
