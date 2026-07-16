@@ -38,6 +38,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed mods whose names contain characters such as `%` or `_` not being recognized by name.
 - Fixed the app not remembering which tab you were on after switching games.
 - Fixed the analytics consent prompt not appearing on first launch until a game was selected.
+- Fixed the game picker still acting on the previously selected game, which could show a game-specific notice or the wrong Discord status while no game was chosen.
 
 ### Security
 

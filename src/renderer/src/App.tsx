@@ -66,6 +66,8 @@ function getInitialView(): View {
 
 export default function App() {
     const [view, setView] = useState<View>(getInitialView)
+    const [settingsGlobalOnly, setSettingsGlobalOnly] = useState(false)
+    const inPicker = view === 'welcome' || (view === 'settings' && settingsGlobalOnly)
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [activeGame, setActiveGame] = useState<GameId>(() => {
         const saved = localStorage.getItem('modrex:active-game')
@@ -133,8 +135,8 @@ export default function App() {
         void api.setDiscordPresenceEnabled(enabled)
     }, [])
     useEffect(() => {
-        void api.updateDiscordPresence(GAMES[activeGame].name)
-    }, [activeGame])
+        void api.updateDiscordPresence(inPicker ? '' : GAMES[activeGame].name)
+    }, [activeGame, inPicker])
 
     // undefined = not yet loaded; null = path not found this session.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
@@ -378,18 +380,17 @@ export default function App() {
         setDetailStack([])
     }
 
-    const [settingsGlobalOnly, setSettingsGlobalOnly] = useState(false)
     const [showDiesel3Notice, setShowDiesel3Notice] = useState(false)
     const [diesel3NoticeDontShow, setDiesel3NoticeDontShow] = useState(false)
 
     useEffect(() => {
-        if (activeGame !== 'pd2' || !gamePath) {
+        if (activeGame !== 'pd2' || !gamePath || inPicker) {
             setShowDiesel3Notice(false)
             return
         }
         if (localStorage.getItem('modrex:pd2:diesel3-notice-dismissed')) return
         api.isPd2Diesel3(gamePath).then(setShowDiesel3Notice)
-    }, [activeGame, gamePath])
+    }, [activeGame, gamePath, inPicker])
 
     const handleSidebarChange = useCallback(
         (v: 'browse' | 'installed' | 'news' | 'settings') => {
@@ -461,11 +462,7 @@ export default function App() {
                             onViewChange={handleSidebarChange}
                             activeGame={activeGame}
                             onShowWelcome={handleShowWelcome}
-                            mode={
-                                view === 'welcome' || (view === 'settings' && settingsGlobalOnly)
-                                    ? 'picker'
-                                    : 'app'
-                            }
+                            mode={inPicker ? 'picker' : 'app'}
                         />
                         {/* Pages are stacked absolute panes toggled with visibility, not
                                 display:none — un-hiding a display:none subtree re-layouts it

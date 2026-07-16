@@ -12,9 +12,12 @@ const RETRY_INTERVAL: Duration = Duration::from_secs(15);
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(30);
 
 fn build_activity<'a>(game: &'a str, start_ts: i64) -> activity::Activity<'a> {
-    activity::Activity::new()
-        .details(game)
-        .state("Managing mods")
+    let activity = activity::Activity::new()
+        .details(if game.is_empty() {
+            "Choosing a game"
+        } else {
+            game
+        })
         .assets(
             activity::Assets::new()
                 .large_image("logo")
@@ -24,7 +27,12 @@ fn build_activity<'a>(game: &'a str, start_ts: i64) -> activity::Activity<'a> {
             "Get Modrex",
             "https://modrex.net",
         )])
-        .timestamps(activity::Timestamps::new().start(start_ts))
+        .timestamps(activity::Timestamps::new().start(start_ts));
+    if game.is_empty() {
+        activity
+    } else {
+        activity.state("Managing mods")
+    }
 }
 
 pub fn start(enabled: Arc<AtomicBool>, rx: mpsc::Receiver<String>) {
