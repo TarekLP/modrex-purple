@@ -38,7 +38,7 @@ pnpm test:renderer -- -t "returns stale"
 
 In `pnpm dev`, renderer changes (`src/renderer/`) apply instantly via Vite HMR — no restart needed. Rust changes (`src-tauri/`) trigger an automatic `cargo` recompile via Tauri's file watcher; the window reloads when done.
 
-**Pre-commit hooks** (`.husky/pre-commit`): runs `prettier --check` then `eslint` — both must pass before a commit is accepted. Run `pnpm format` and `pnpm lint:fix` to fix failures. `commit-msg` runs `commitlint` to enforce the conventional commit format.
+**Pre-commit hooks** (`.husky/pre-commit`): runs `prettier --check`, `eslint`, then `pnpm check-commands` — all three must pass before a commit is accepted. Run `pnpm format` and `pnpm lint:fix` to fix the first two. When dep files (`Cargo.toml`/`Cargo.lock`/`package.json`/`pnpm-lock.yaml`) are staged it also regenerates `THIRD_PARTY_LICENSES.md` (~15 s) and stages it. `commit-msg` runs `commitlint` to enforce the conventional commit format.
 
 ## Architecture
 
@@ -59,6 +59,10 @@ src/shared/types.ts       ← TypeScript types shared by renderer and api.ts
 
 Missing any of these three breaks the channel silently at the type level. `pnpm check-commands` (pre-commit + CI) mechanically enforces the lib.rs/api.ts halves in both directions: an invoked-but-unregistered name and a registered-but-never-invoked name both fail the check.
 
+### Startup: two hidden windows, phased splash
+
+`tauri.conf.json` defines two windows, both starting hidden: `main` (the app) and `splash` (`splash.html`, its own non-React entry `src/renderer/src/splash.ts`). `lib.rs`'s `on_page_load` hook shows the splash when its page finishes loading (skipped if startup already completed). The main renderer reports progress through `report_startup_phase` (`prepare → interface → game → mods → ready`, plus `error`; tracked in `commands/startup.rs` and re-emitted to the splash as `startup:progress`). On `ready` the splash calls `finish_startup`, which shows + focuses `main` and closes the splash; the splash's recovery button (surfaced on the `error` state) invokes the same command, so a failed startup still lets the user into the app.
+
 ### Per-module details (load on demand)
 
 Deep per-file architecture and invariants live in path-scoped rule files under
@@ -66,6 +70,8 @@ Deep per-file architecture and invariants live in path-scoped rule files under
 
 - **`.claude/rules/backend.md`** (`src-tauri/**`) — Rust backend modules: the `mods/` engine, launchers, loaders (SuperBLT/DAHM/PDTHModOverrides/UE4SS), `settings`, `api`, `mod_index`, `thumbnails`, `news`.
 - **`.claude/rules/renderer.md`** (`src/renderer/**`) — React renderer: `api.ts`, the `App.tsx` state model, the caches, `BrowsePage`/`ModDetailPage`/`InstalledPage` families, styling, i18n, and the archive-install flow.
+- **`.claude/rules/analytics.md`** (`analytics.rs`, `src/renderer/src/lib/analytics/**`, TelemetryConsent components) — GA4 telemetry design and local proxy-testing steps.
+- **`.claude/rules/code-style.md`** (no path filter — applies to every code edit) — the five blocker-level AI patterns and the final-pass audit checklist; the detailed pattern catalog lives in `AI_DANGER_PATTERNS.md`.
 
 ## Key domain facts
 
@@ -99,7 +105,10 @@ Deep per-file architecture and invariants live in path-scoped rule files under
 - `ModDependency.mod` is `Mod | null` — the modworkshop API returns `null` when a dependency mod has been deleted. Always guard with `d.mod !== null` before accessing any field. `allDeps` arrays must be filtered with `.filter((d) => d.mod !== null)` at the source before being passed downstream.
 - **modworkshop has two distinct version fields**: `/mods/{id}` returns a `version` field (e.g. `"2.11"`) and `/mods/{id}/files/latest` returns its own `version` field (e.g. `"1.9.4"`). `InstalledMod.version` must store the **mod-level** value so it matches what `getCachedMod` returns and `useModData` can compare them. Never store the file-level version.
 - **Mod folders**: arbitrary nesting. `ModFolder.parentId` is `string | null` (null = root). Disk paths built by `get_folder_path` walking the `parentId` chain. Priority scoped to siblings within the same parent.
+- **Discord Rich Presence** (`commands/discord.rs`): a dedicated worker thread owns the Discord IPC client (connect retry 15 s, keepalive 30 s); `lib.rs` starts it with the persisted `discord_rich_presence_enabled` setting (default on). The renderer sets the displayed game via `update_discord_presence` (an mpsc send to the worker); the Settings toggle calls `set_discord_presence_enabled`, which flips the worker's shared `AtomicBool` and persists the setting — disabling clears the presence on the next worker wake, no restart needed.
+- **`windows_fullscreen.rs`** (Windows-only, installed on the main window in `lib.rs` setup): a comctl32 window subclass that consumes `WM_NCCALCSIZE` only while the window is borderless-fullscreen-with-`WS_MAXIMIZE`, because Tao 0.35 otherwise clamps a fullscreen window entered from the maximized state to the taskbar work area.
 - Tauri `identifier` is `modrex` (changed from `io.github.shulhaoleh.pd3modmanager` in v0.10.0). `productName` is `Modrex` — Tauri uses this for `userData` path on Windows. The full upgrade chain (Electron → old Tauri identifier → current) is handled by `nsis/installer-hooks.nsi` (removes the old install via its registry uninstall key) and `migrate_from_old_identifier()` / `migrate_from_electron()` in `settings.rs` (migrates app data on first launch).
+- **`install.config.json`** (repo root) is live install infrastructure, not local config: the modrex-site Pages Function behind `modrex.net/install.sh` fetches it from this repo's **`main` branch on every request** and prepends it (flattened to `CFG_*` shell exports) to the pinned mget install engine — a push to `main` that touches it changes the live Linux installer immediately, with no release or site deploy involved. Field meanings are defined by mget's config schema (`mget/README.md`). `scripts/install.sh` is the older self-contained Linux installer (package-manager-first, AppImage fallback) that the mget path superseded — still reachable via its raw.githubusercontent URL (its own piped-install uninstall hint points there), but no longer what `modrex.net/install.sh` serves.
 
 ### Companion repo: modrex-index
 
@@ -113,7 +122,7 @@ through `modrex.net`. Full design + local proxy-testing steps live in
 
 ## Testing
 
-Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`, or inline in the module file itself. 268 tests across 12 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests; `tokio = { version = "1", features = ["rt", "macros"] }` is in `[dev-dependencies]` (in addition to the production dep) to enable `#[tokio::test]` for async filesystem tests.
+Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`, or inline in the module file itself. 273 tests across 12 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests; `tokio = { version = "1", features = ["rt", "macros"] }` is in `[dev-dependencies]` (in addition to the production dep) to enable `#[tokio::test]` for async filesystem tests.
 
 - `mods/tests.rs` — pure functions + state I/O (naming, paths, zip, state); multi-target engine routing; `InstalledMod.location` round-trip; four async `find_untracked_paks` filesystem tests (primary=None location, secondary location tag, known-set cross-target isolation, backup-skip per target)
 - `launchers/mod_tests.rs` — VDF parser + launcher identification
@@ -128,7 +137,7 @@ Rust unit tests live in separate test files referenced from the module via `#[cf
 - `ue4ss_tests.rs` — loader presence detection per game/launcher (including both PD3 proxy DLL variants), unverified-launcher no-ops, directory-named-like-the-proxy-file edge case
 - `commands/mods/pdmod.rs` (inline `#[cfg(test)] mod tests`) — `hash64` determinism and known-value round-trip against the embedded hashlist, `safe_output` path-traversal rejection and backslash normalisation, `extract_pdmod` full ZipCrypto round-trip (builds a real encrypted archive in memory, extracts, verifies output path and bytes), unknown-hash skip returning the correct error string
 
-Renderer tests use Vitest (`pnpm test:renderer`). The default environment is `node` (`vitest.config.ts`, matching `src/**/*.test.{ts,tsx}`) — pure-logic test files need no browser APIs. Ten test files, 184 tests:
+Renderer tests use Vitest (`pnpm test:renderer`). The default environment is `node` (`vitest.config.ts`, matching `src/**/*.test.{ts,tsx}`) — pure-logic test files need no browser APIs. Ten test files, 188 tests:
 
 - `src/renderer/src/formatCheck.test.ts` — `isUnsupportedFormat`: type field, URL extension fallback, tar double-extensions, invalid URLs
 - `src/renderer/src/installSentinels.test.ts` — `handleInstallSentinel` routing: each of the four archive sentinels reaches only its own handler and returns true; an ordinary error returns false and calls nothing
@@ -161,7 +170,8 @@ Reusable skills live in `.agents/skills/` and are listed in `AGENTS.md`. Availab
 - `/commit` — read the current diff and propose a conventional commit message; waits for confirmation before committing.
 - `/deslop` — audit the branch diff for AI-generated slop (unnecessary comments, defensive checks, wrong abstractions, project convention violations) and fix each issue found.
 - `/changelog` — add user-facing entries (Keep a Changelog categories: Added/Changed/Fixed/Security) to `CHANGELOG.md`'s `## Unreleased` section for recent commits or uncommitted changes. Run this after any user-facing change, not just at release time — it's what keeps release notes from requiring a re-read of every commit.
+- `/danger-audit`, `/control-flow`, `/comment-audit`, `/ai-review` — the audit passes from `.claude/rules/code-style.md`'s final-pass checklist (dangerous-pattern scan, branching flatten, comment cleanup, pre-PR review); `AGENTS.md` describes when each applies.
 
 **Deferred work**: tracked in `.TODO`. Do NOT act on anything in it unless the user explicitly says "do the TODO: <name>" — never infer intent from the file on your own.
 
-**Releasing**: run `pnpm version patch|minor|major` — bumps `package.json`, commits as `chore(release): X.Y.Z`, creates a `vX.Y.Z` tag. As part of the version bump, `scripts/version.mjs` stamps `CHANGELOG.md`'s `## Unreleased` section into a `## X.Y.Z` section (no brackets, no date — opening a fresh empty `Unreleased` above it) and stages it into the release commit — so `/changelog` entries written before the version number was known land in the right place automatically. Pushing the tag triggers the CI release workflow, which extracts that section (`scripts/changelog-section.mjs`) as the GitHub release body instead of an auto-generated commit dump, and publishes the release as `vX.Y.Z` (not "Modrex vX.Y.Z").
+**Releasing**: run `pnpm version patch|minor|major` — bumps `package.json`, commits as `chore(release): X.Y.Z`, creates a `vX.Y.Z` tag. As part of the version bump, `scripts/version.mjs` stamps `CHANGELOG.md`'s `## Unreleased` section into a `## X.Y.Z` section (no brackets, no date — opening a fresh empty `Unreleased` above it) and stages it into the release commit — so `/changelog` entries written before the version number was known land in the right place automatically. Pushing the tag triggers the CI release workflow, which extracts that section (`scripts/changelog-section.mjs`) as the GitHub release body instead of an auto-generated commit dump, and publishes the release as `vX.Y.Z` (not "Modrex vX.Y.Z"). Publishing the release also fires `.github/workflows/site-deploy-hook.yml`, which POSTs a Cloudflare Pages deploy hook so modrex.net rebuilds with the new release metadata.
