@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 pnpm dev          # Start Tauri app (launches Vite dev server then Tauri)
-pnpm build        # Production build — installer written to src-tauri/target/release/bundle/nsis/ even if it exits 1 (signing requires TAURI_SIGNING_PRIVATE_KEY, CI-only)
+pnpm build        # Local production build, unsigned (tauri.local.conf.json disables updater artifacts) — exits 0, installer in src-tauri/target/release/bundle/nsis/
+pnpm build:signed # CI production build with updater artifacts — requires TAURI_SIGNING_PRIVATE_KEY (release.yml only; exits 1 without the key)
 pnpm dist:win     # Same as build but with explicit --target x86_64-pc-windows-msvc
-pnpm dist:linux   # Package Linux AppImage + .deb
+pnpm dist:linux   # Package Linux AppImage + .deb (unsigned, like build)
 pnpm typecheck    # Type-check renderer without emitting (same as: pnpm tsc --noEmit)
 pnpm check-version # Verify package, Tauri, Cargo, and lockfile versions agree
 pnpm check-commands # Verify api.ts invoke() names match generate_handler! in lib.rs, and that invoke stays api.ts-only (also runs in pre-commit and CI)

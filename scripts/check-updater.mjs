@@ -72,6 +72,12 @@ if (!jqFilter) {
     }
 }
 
+if (!release.includes('run: pnpm build:signed')) {
+    problems.push(
+        'release.yml must build with pnpm build:signed (plain pnpm build skips updater signatures)'
+    )
+}
+
 const publishIdx = release.indexOf('Publish release')
 if (publishIdx === -1) {
     problems.push('release.yml has no "Publish release" step')

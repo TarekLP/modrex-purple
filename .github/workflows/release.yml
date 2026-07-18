@@ -38,7 +38,7 @@ jobs:
 
             - run: pnpm install --frozen-lockfile
             - run: pnpm typecheck
-            - run: pnpm build
+            - run: pnpm build:signed
               env:
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -165,7 +165,7 @@ jobs:
             - run: pnpm install --frozen-lockfile
             - run: pnpm typecheck
             - run: pnpm test
-            - run: pnpm build
+            - run: pnpm build:signed
               env:
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
