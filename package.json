@@ -16,6 +16,7 @@
         "check-commands": "node scripts/check-commands.mjs",
         "check-csp": "node scripts/check-csp.mjs",
         "check-updater": "node scripts/check-updater.mjs",
+        "checks": "pnpm check-version && pnpm check-commands && pnpm check-csp && pnpm check-updater && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
         "prepare": "husky",
         "version": "node scripts/version.mjs",
         "test": "cargo test --manifest-path src-tauri/Cargo.toml && vitest run",

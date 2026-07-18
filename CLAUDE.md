@@ -12,6 +12,9 @@ pnpm dist:linux   # Package Linux AppImage + .deb
 pnpm typecheck    # Type-check renderer without emitting (same as: pnpm tsc --noEmit)
 pnpm check-version # Verify package, Tauri, Cargo, and lockfile versions agree
 pnpm check-commands # Verify api.ts invoke() names match generate_handler! in lib.rs, and that invoke stays api.ts-only (also runs in pre-commit and CI)
+pnpm check-csp    # Verify csp and devCsp in tauri.conf.json agree on all external origins (also runs in pre-commit and CI)
+pnpm check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
+pnpm checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
 pnpm lint         # ESLint on renderer source (src/renderer/src/)
