@@ -503,7 +503,10 @@ PD3's directories - a data-corruption class of bug.
   subsystems anyway (crimeboss_settings.rs, pdmod.rs, host_mods.rs,
   ue4ss_modstxt.rs) - roughly 60% config, 40% reverse-engineering. A data-driven
   game registry only pays off if game count grows past what hand-written modules
-  sustain; revisit then, not preemptively.
+  sustain; revisit then, not preemptively. UPDATE 2026-07-17: the owner decided to
+  pursue exactly that scalability (toward 20-100+ games), so the registry is now
+  planned - see the game-registry TODO below. kill-pd3-fallback's Result-returning
+  change folds into that registry's Stage 1.
 
 ---
 
@@ -705,5 +708,411 @@ untested on any real Debian/Ubuntu/Fedora machine as of this writing.
   `raw.githubusercontent.com/modrexio/modrex/main/scripts/install.sh` before deleting
   (grep across modrex-main and modrex-site; this was the exact search done when adding
   the new command, so it should be a quick re-check, not a fresh audit)
+
+---
+
+# Architecture review 2026-07-17 (all gated on nexus-prototype-merge)
+
+The entries below came out of a full architecture/security/performance review on
+2026-07-17. EVERY entry in this section is blocked on `nexus-prototype-merge` and must
+NOT be started until the `feature/nexus-prototype` branch is merged to main. The reason
+is concrete, not cautious: the Nexus branch touches ~39 files / +3133 lines, heavily in
+lib.rs, api.ts, types.ts, App.tsx, SettingsPage.tsx, Sidebar.tsx, mods/mod.rs,
+identify.rs, and types.rs - which are exactly the files most of this work rewrites. Doing
+any of it before the merge multiplies rebase conflicts on a branch that is itself gated
+on an external dependency (the Nexus support team, via email). Note also that the Nexus
+branch ALREADY fixed the `open_url` cmd-metacharacter finding (it switched to rundll32);
+do not re-address that.
+
+Recommended post-merge order (each makes the next cheaper):
+typed-ipc-codegen -> typed-install-results -> backend-state-lock ->
+game-registry (+ loader-registry) -> the rest. index-lookup-connection-reuse,
+extract-deps-check-hook, and ci-security-and-invariant-checks are independent and can
+slot in whenever. modrex-core-crate and plugin-system are far-future, each with its own
+additional trigger.
+
+---
+
+## TODO: index-lookup-connection-reuse
+
+Performance. Small (~1h). Post-nexus only because identify.rs is lightly touched by the
+branch - do it right after merge to avoid a trivial conflict.
+
+### The problem
+
+`upgrade_negative_ids` (src-tauri/src/commands/mods/identify.rs, ~line 180) loops every
+unidentified installed mod and calls `mod_index::lookup_sha256`, then on a miss
+`mod_index::lookup_by_name`. Both PUBLIC wrappers (mod_index.rs ~line 277 and ~286)
+REOPEN index.db from disk on every call via `open_conn`. So N unidentified mods cause up
+to 2N SQLite file-opens. This runs inside `get_installed`, which fires at startup, on
+every window focus (500ms debounce), and after every path change - a hot path.
+
+The sibling pass already does it right: `identify_untracked` opens the connection ONCE
+via `mod_index::open_index` (mods/mod.rs ~line 224) and passes the shared
+`&rusqlite::Connection` to the private `query_sha256` / `query_by_name` helpers.
+
+### The fix
+
+- In `upgrade_negative_ids`, open the index once at the top (`mod_index::open_index(app)`),
+  return early if None (index absent - same as today's implicit per-call existence check),
+  then call the private `mod_index::query_sha256(&conn, sha, game_name)` /
+  `query_by_name(&conn, name, game_name)` inside the loop instead of the reopening public
+  wrappers. Those private helpers are already `pub(crate)` and take `&Connection`.
+- Check the other caller of `lookup_sha256` first: get_installed's host-pack recovery loop
+  (mods/mod.rs ~line 140) also calls it per discovered host pack. Either hoist the same
+  single connection there too, or leave it (host packs are rare). Do not remove the public
+  wrappers unless this was their last use.
+- Pure I/O reduction, no behavior change. Existing mod_index_tests already cover the query
+  functions; add nothing unless you change a signature.
+
+---
+
+## TODO: typed-ipc-codegen
+
+Reliability foundation. Medium-Large. Blocked on: nexus-prototype-merge (touches every
+command signature plus lib.rs/api.ts/types.ts - the branch's hottest files - and must
+cover the new nexus/nxm/oauth commands). DO THIS FIRST of the post-merge architecture
+work; typed-install-results and the source-* refactors build on a typed surface.
+
+### The problem
+
+The Rust<->TS wire contract is maintained BY HAND in two places: the serde structs in
+src-tauri (rename_all camelCase) and the interfaces in src/shared/types.ts.
+`pnpm check-commands` (scripts/check-commands.mjs, pre-commit + CI) enforces that command
+NAMES and arity line up between `generate_handler!` (lib.rs) and the `invoke(...)` calls
+(api.ts) - but it does NOT verify payload SHAPES. Rename or retype a struct field on one
+side without mirroring it and both sides compile while the channel breaks at runtime.
+Confirmed there is no codegen today (no ts-rs/specta/typeshare in Cargo.toml).
+
+### The fix
+
+- Adopt `tauri-specta` + `specta`. Derive `specta::Type` on command param/return structs
+  and enums; collect commands via `tauri_specta::Builder`; emit a generated TS module
+  (e.g. src/renderer/src/bindings.ts) at build time.
+- api.ts stays the single IPC boundary (the renderer.md invariant) - it imports the
+  generated typed functions instead of hand-writing `invoke` string names.
+- src/shared/types.ts: replace hand-written WIRE types with re-exports of the generated
+  types. Keep renderer-only VIEW types (things never sent over IPC) separate and hand-written.
+- Replace or augment check-commands.mjs with a CI "generated bindings are up to date"
+  git-diff check (mirror the check-licenses job pattern in ci.yml: regenerate, `git diff
+  --exit-code`).
+- DOMAIN vs WIRE caveat: this codegen encodes the CURRENT modworkshop-shaped wire types.
+  The later mod-source-domain-model TODO replaces those with neutral domain types. Do
+  typed-ipc-codegen first (mechanical), then domain-model on top of an already-typed surface.
+
+### Verification
+
+Full `pnpm typecheck` + `pnpm test`, then smoke-run the app (get_installed, an install, a
+browse fetch) to confirm no serialization regressions - specta camelCase/rename settings
+must match the existing serde rename_all exactly or every field silently mismatches.
+
+---
+
+## TODO: typed-install-results
+
+Reliability. Large. Blocked on: typed-ipc-codegen (and therefore nexus-prototype-merge).
+
+### The problem
+
+Install commands signal "this archive needs a user decision" by returning `Err(String)`
+whose text is a sentinel-prefixed JSON blob: `ZIP_MULTI_PAK:{...}`, `HOST_MOD_PACK:{...}`,
+`CB_FLAT_ARCHIVE:{...}`, `UNRECOGNIZED_ARCHIVE:{...}` (produced by
+`resolve_archive_download` / `classify_archive_dirs` in mods/zip.rs; plus an internal
+`UE4SS_LOADER:` sentinel handled entirely in Rust). The renderer parses these out of the
+error string in every install entry point's catch block via `handleInstallSentinel`
+(src/renderer/src/installSentinels.ts) + `parseZipMultiPak` / `parseHostModPack` /
+`parseCbFlatArchive` / `isUnrecognizedArchive`. This is an untyped protocol on the ERROR
+channel. CLAUDE.md/renderer.md record two real regressions from an entry point forgetting
+a sentinel (the reinstall path, then the Updates modal), each surfacing a raw `**:{...}`
+string to the user.
+
+### The fix
+
+- Rust: model the result as a typed discriminated union in the Ok channel, e.g.
+  `enum InstallOutcome { Installed, NeedsPicker(ZipMultiPakPayload),
+  NeedsHostChoice(HostPackPayload), NeedsCbFlatConfirm(CbFlatPayload),
+  Unrecognized(UnrecognizedPayload) }` (specta::Type, typed end-to-end via
+  typed-ipc-codegen). Genuine failures stay `Err`.
+- Renderer: replace catch-block sentinel parsing with an exhaustive `switch` on the typed
+  outcome. TypeScript exhaustiveness then makes "handle all cases" a COMPILE error if an
+  entry point misses one - this eliminates the exact regression class the prose invariant
+  currently guards.
+- Migrate ALL entry points (that is the point): BrowsePage.handleInstall,
+  ModDetailPage.handleInstall + DownloadsTab, InstalledPage reinstall
+  (useModActions.handleReinstall), UpdatesModal, FileSelectModal.
+- Nexus tie-in: the branch's install_nexus_download currently returns an honest error for
+  these sentinels because the picker modals are modworkshop-shaped. This refactor is where
+  Nexus installs return the same typed outcomes so the pickers work for Nexus too
+  (coordinate with the nexus-prototype-merge sentinel-story decision).
+
+---
+
+## TODO: backend-state-lock
+
+Reliability. Medium. Blocked on: nexus-prototype-merge (the branch adds new install entry
+points in mods/mod.rs that must be covered).
+
+### The problem
+
+Concurrent writes to a game's `.modrex.json` are prevented today by RENDERER discipline:
+the `isRefreshingInstalled` ref in App.tsx stops two `get_installed` calls racing, and
+callers are expected to serialize. `save_state` (mods/state.rs) is atomic PER WRITE (temp
++ rename), but there is no backend mutual exclusion, so two commands that read-modify-write
+state (e.g. an install firing while a focus-triggered get_installed reconciles) can
+interleave and lose updates - the exact race the renderer guard papers over. With one UI
+caller it is survivable; with Nexus deep-link installs (nxm:// can fire while the UI is
+doing something else) and any future automation/CLI/plugin caller, renderer discipline is
+not enough.
+
+### The fix
+
+- Add a PER-GAME async lock in managed Tauri state (e.g. a
+  `Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>` keyed by game_id, or a
+  single-writer task per game). Every state-mutating command acquires the game's lock for
+  the read-modify-write span: install_mod, install_file, install_from_zip_entry,
+  install_cb_flat_archive, install_host_pack, uninstall_mod, enable_mod, disable_mod,
+  move_crimeboss_mod_target, the folder ops (create/rename/delete/move/reorder), and
+  get_installed's reconcile-and-save tail.
+- Per-game, so operations on different games stay parallel.
+- CRITICAL: do not hold the lock across the network download in install_mod/install_file.
+  Download to temp first, acquire the lock only for the disk-write + state-update phase, or
+  a slow download serializes unrelated installs.
+- Leave the renderer's `isRefreshingInstalled` guard in place as a cheap client-side
+  debounce; update its comment to say the backend is now authoritative. Do not remove it in
+  the same change.
+
+---
+
+## TODO: game-registry
+
+Scalability. Medium (Stages 1+3 are behavior-preserving). Blocked on:
+nexus-prototype-merge (conflicts with the branch's App.tsx/SettingsPage/Sidebar/types.ts
+edits, and the registry should absorb the Nexus per-game `nexusDomain` axis in one pass
+rather than being reshaped twice). This SUPERSEDES the "do not act now" note at the bottom
+of kill-pd3-fallback: the owner decided on 2026-07-17 to pursue game-count scalability
+toward 20-100+ games.
+
+### The problem (measured)
+
+Adding one game touches ~15 wiring files. Measured against the RAID merge
+(feat/raid-ww2-support): 25 files / ~530 insertions, of which ~10 are irreducible (novel
+behavior + tests + docs) and ~15 are pure wiring. Game identity is restated in many
+places: launchers/games/<game>.rs (`GameDef`), launchers/games/mod.rs (registration),
+launchers/mod.rs (`game_def_for_id` dispatch arm), mods/engine.rs (the `*_ENGINE` static +
+`engine_for_game` dispatch arm), src/shared/types.ts (`GameId` union + `GAMES` record),
+App.tsx (hardcoded valid-GameId list in the activeGame initializer), WelcomeScreen.tsx
+(picker entry). At 20+ games this is unsustainable and typo-prone.
+
+### The fix (do NOT try to remove the irreducible ~10 files - novel per-game behavior and
+reverse-engineering always cost; the target is the ~15 wiring files)
+
+- Stage 1 (backend single source of truth): introduce a `GameSpec` bundling everything for
+  one game - identity (id, display names), storefront ids (the `GameDef` fields:
+  executables/process_names/steam/epic/xbox), the engine config (`ModEngineConfig`, or an
+  engine-family reference + params), the loader list (see loader-registry), and
+  `index_game_name`. One file per game exposes its `GameSpec`; a `GAME_REGISTRY` array (or
+  map) replaces the scattered statics. `engine_for_game`, `game_def_for_id`, and the
+  detection loops all DERIVE from the registry. A family-conforming new game becomes: one
+  new spec file + one registry line.
+- Stage 1 also folds in kill-pd3-fallback: `engine_for_game` / `game_def_for_id` return
+  Result/Option, and an unknown game id is a hard error, never a silent `&PD3_ENGINE`.
+- Stage 3 (renderer derives from GAMES): App.tsx's valid-id list becomes
+  `Object.keys(GAMES)`; WelcomeScreen iterates the `GAMES` record; per-game UI quirks
+  become spec fields (e.g. `launchFlags: ['fileopenlog']` for pd3) instead of
+  `activeGame === 'pd3'` conditionals in TopBar/SettingsPage. `GameId` stays
+  `keyof typeof GAMES`.
+- Stage 4 (behavior hooks - this is what stops the SHARED files growing per game): add
+  optional hook fields to `GameSpec` for the novel 20%, so game-specific logic lives in
+  that game's module instead of `game_id == "x"` branches in the big shared files -
+  `archive_resolver` (Crime Boss skeleton synthesis in zip.rs), `enabled_sync` (Crime Boss
+  ModSettings in crimeboss_settings.rs, UE4SS mods.txt in ue4ss_modstxt.rs),
+  `embedded_id_parser` (BeardLib main.xml / RAID supermod.xml + mod.xml in identify.rs).
+  Migrate opportunistically (whenever a `game_id ==` branch is touched), not big-bang.
+  zip.rs is already 1176 lines and every CB special case lands there today - highest
+  structural value.
+
+Ordering: Stage 1 -> Stage 3 -> Stage 4, each behavior-preserving on top of the existing
+461 tests. Coordinate with loader-registry (the loader list is a GameSpec field) and
+conformance-test-suite below.
+
+---
+
+## TODO: loader-registry
+
+Scalability - highest payoff-to-churn of the add-a-game work. Medium-Large. Blocked on:
+nexus-prototype-merge (minor add-add conflicts in lib.rs/api.ts). Can land before or with
+game-registry Stage 1.
+
+### The problem
+
+Each mod loader is wired as a bespoke command pair plus scattered renderer awareness.
+Backend command pairs: check_superblt/install_superblt (superblt.rs),
+check_pdth_overrides/install_pdth_overrides (pdth_overrides.rs), check_dahm/install_dahm
+(dahm.rs), check_raid_superblt/install_raid_superblt (raid_superblt.rs), check_ue4ss
+(ue4ss.rs; install goes through the normal mod flow via the UE4SS_LOADER sentinel).
+Renderer: deps.ts carries hardcoded loader-id tables and per-loader logic (`loaderModIds`,
+`buildLoaderModIds`, `isUe4ssLoaderId`, `ue4ssLoaderIdsFor`, `RAID_SUPERBLT_ID`,
+`isRaidLoaderId`, `loaderIdsForGame`), consumed at ~4-5 UI call sites (BrowsePage,
+ModDetailPage, DepsTab, healthCheck.ts, installDepCheck.ts). Adding a game's loader means
+teaching all of those a new modworkshop id - the RAID merge touched 7 renderer files for
+what is conceptually one table row. This is the piece that genuinely does not survive 20
+games.
+
+### The fix
+
+- Define a `LoaderSpec { id, modworkshop_ids: &[i64], games: &[game_id], detect:
+  DetectStrategy, install: InstallStrategy }`. DetectStrategy is a list of root-level marker
+  files (WSOCK32.dll/IPHLPAPI.dll for SuperBLT and RAID-SuperBLT; DINPUT8.dll +
+  PDTHModOverrides.dll for PDTHModOverrides; lightfx.dll for DAHM; the per-game UE4SS proxy
+  DLLs). InstallStrategy is one of: `DirectUrl(url)` (DAHM's dahm.neonsynth.de, SuperBLT's
+  sblt-update.znix.xyz), `ModworkshopDownload(id)` (RAID-SuperBLT
+  api.modworkshop.net/mods/49744/download), or `ViaModFlow` (UE4SS - no canonical URL,
+  installs through resolve_archive_download).
+- Replace the five per-loader command pairs with generic `check_loader(game_id, loader_id)`
+  / `install_loader(game_id, loader_id)` that dispatch over the spec's strategy. Keep the
+  existing strategy IMPLEMENTATIONS (they are already correct) - just route them through the
+  spec instead of hardcoded commands.
+- Renderer: deps.ts's per-loader tables collapse to one lookup over the LoaderSpec list
+  (expose it to the renderer as data, ideally through the typed-ipc bindings so ids are not
+  restated in TS). The ~4-5 UI call sites stop being per-loader aware: "is this dependency a
+  loader for this game, and is it installed?" becomes a single spec query.
+- Result: a new game's loader is ONE spec entry with ZERO renderer edits. SuperBLT's
+  offsite-dependency heuristic (no modworkshop page, detected by a `blt` substring in deps)
+  and UE4SS's via-mod-flow oddity remain as strategy variants, not exceptions scattered
+  across components.
+- The loader list becomes a `GameSpec` field (game-registry) - these dovetail.
+- PRESERVE every verified detail from the loader modules and .claude/rules/backend.md (the
+  per-game UE4SS proxy DLL variants, the "IPHLPAPI may be the discontinued RaidBLT" note,
+  DAHM/RAID full-zip extraction vs SuperBLT DLL-only). Do not lose reverse-engineered
+  specifics in the generalization.
+
+---
+
+## TODO: conformance-test-suite
+
+Scalability (test infrastructure). Small-Medium. Blocked on: game-registry (needs uniform
+GameSpecs to parameterize over). Follows game-registry Stage 1.
+
+Once every game is a uniform `GameSpec`, replace hand-written per-game tests with a suite
+that is PARAMETERIZED over `GAME_REGISTRY`: write each invariant check once and run it for
+every spec. Candidate universal checks: engine roundtrip (state save/read), target routing
+(`target_for` returns the right ScanTarget per location tag), `disabled_suffix` /
+`priority_prefix_enabled` consistency with the ModUnit, and a detection sanity check.
+Keep game-specific behavior tests (crimeboss_settings, pdmod, RAID marker parsing) as their
+own targeted tests - the parameterized suite covers the uniform contract, not the novel 20%.
+Net effect: adding a family-conforming game gets test coverage for free.
+
+---
+
+## TODO: extract-deps-check-hook
+
+Renderer cleanup that lowers future per-game/per-source cost. Medium. Blocked on:
+nexus-prototype-merge (BrowsePage/ModDetailPage are lightly touched by the branch, and
+NexusBrowsePage would otherwise become a THIRD copy).
+
+### The problem
+
+The dependency-warning STATE and EFFECTS are duplicated by hand across BrowsePage.tsx and
+ModDetailPage.tsx - renderer.md itself records that each "has its own parallel copy of the
+surrounding state/effects, kept in sync by hand" around the shared deps.ts helpers
+(collectDeps / isOffsiteDep / isLoaderDep / missingRequiredDeps / offsiteDepHost). The
+Nexus branch adds NexusBrowsePage.tsx, a third place this logic would be copied.
+
+### The fix
+
+Extract the shared dependency-check state + effects into a `useDepsCheck` hook
+(src/renderer/src/hooks/) consumed by BrowsePage, ModDetailPage, and NexusBrowsePage. The
+pure functions in deps.ts stay; only the React state/effect wiring around them is
+deduplicated. Coordinate with loader-registry (the loader-id lookups inside this logic
+simplify once loaders are declarative).
+
+---
+
+## TODO: ci-security-and-invariant-checks
+
+CI hygiene. Small-Medium. Independent of the architecture work; can land any time after
+nexus-prototype-merge. NOTE: the Nexus branch already fixed the open_url cmd-metacharacter
+finding (it switched to rundll32) - do not re-address that.
+
+Add mechanical enforcement for things currently guarded only by prose:
+- Security dependency audit job in .github/workflows/ci.yml: run `cargo audit` (in
+  src-tauri) and `pnpm audit`. As of 2026-07-17: pnpm audit is CLEAN; cargo audit flags
+  quick-xml 7.5 advisories, but its only path is a BUILD dependency
+  (plist -> tauri-utils -> tauri-build), not shipped runtime input - add an audit ignore
+  (audit.toml or `--ignore RUSTSEC-...`) with a comment that it clears when Tauri bumps
+  tauri-utils, so the job fails only on NEW or runtime advisories. Refract_MC's
+  .github/workflows/security-audit.yml is a working reference for the job shape.
+- CSP dual-list sync check: a small script asserting every origin in `csp` also appears in
+  `devCsp` in src-tauri/tauri.conf.json (the invariant CLAUDE.md states - a missed origin
+  fails silently as blank images / broken embeds). Wire into CI.
+- Updater-manifest shape assertion: a CI check that the generated latest.json matches the
+  shape tauri-plugin-updater expects and the endpoint in tauri.conf.json. The update
+  pipeline is the "never break" invariant (a bad latest.json silently strands all users on
+  the current release). Assert the release.yml "Generate latest.json" output structure.
+- Optional, low priority: add scheme/shape validation to `shell_open_path`
+  (launchers/mod.rs). Its only caller passes the settings-derived gamePath so it is safe
+  today, but it is an unguarded command handing its argument to explorer.exe.
+
+---
+
+## TODO: modrex-core-crate
+
+Far-future architecture. Large. Blocked on: nexus-prototype-merge AND a concrete second
+consumer existing (a CLI, automation, or the first plugin experiment). Do NOT do
+preemptively - an extracted core with no second consumer is dead weight, the exact failure
+mode visible in the neighboring Refract_MC repo whose packages/core is Electron-era code
+the app only imports for types.
+
+### Goal
+
+Make the mod engine host-independent so it can back more than the Tauri app (a headless
+CLI, automation, or plugins). Today the ops in commands/mods/ thread `AppHandle` through
+everything, coupling the domain logic to Tauri and the renderer IPC lifecycle, and making
+core logic untestable without Tauri machinery.
+
+### Approach when the trigger fires
+
+- The ops mostly need three narrow things from `AppHandle`: settings access, event
+  emission (progress), and index lookups. Define small traits (e.g. `SettingsStore`,
+  `ProgressSink`, `ModIndex`) or pass plain data, so the core takes those instead of
+  `AppHandle`.
+- Lift commands/mods (engine, install, state, paths, reorder, folders, zip, identify) + the
+  loader specs into a `modrex-core` crate depending on none of Tauri. The Tauri app becomes
+  a thin adapter implementing the traits over `AppHandle`.
+- Payoff: core tests run without Tauri; a CLI or plugin host drives the same engine; the
+  "its own API" idea (programmatic/headless modrex) falls out nearly for free.
+- Prerequisite ordering: typed-ipc-codegen and mod-source-domain-model land first so the
+  crate's public types are the neutral domain types, not modworkshop wire shapes.
+
+---
+
+## TODO: plugin-system
+
+Far-future ecosystem. Large. Blocked on: modrex-core-crate AND real ecosystem demand.
+Security-critical: Modrex's core job is extracting attacker-controlled archives into game
+directories, so plugin isolation matters unusually much.
+
+### Goal
+
+Let third parties extend Modrex along the axis the app already grows on: games, loaders,
+and sources. Build in escalating capability, cheapest and safest first, and only build the
+tier that demand actually requires.
+
+- Tier 1 - declarative manifest plugins (do first): a game or loader definition shipped as
+  DATA (a manifest conforming to the GameSpec/LoaderSpec shape), loaded at runtime. Covers
+  the most likely community contribution (a new family-conforming game or a loader),
+  executes NO third-party code, minimal security surface. Direct continuation of
+  game-registry/loader-registry: once those are data-driven, "shippable as a manifest
+  between releases" is a small step. This also relieves cross-repo game-definition
+  duplication (a game today must be added to modrex-main AND modrex-index's game list AND
+  modrex-site's docsGames.ts - a shared manifest all three consume is the endgame).
+- Tier 2 - sandboxed logic hooks (only if real ones are demanded): for behavior a manifest
+  cannot express (a novel archive_resolver / enabled_sync / embedded_id_parser). Use WASM
+  (wasmtime or extism), NOT webview-JS (UI access = weak isolation) and NOT native dylibs
+  (ABI + security, hard no). The plugin gets a narrow capability API (the modrex-core
+  traits), no ambient filesystem/network. This is where the extracted core and its trait
+  boundaries pay off.
+- The public plugin-api surface (cf. Refract_MC's packages/plugin-api) should be EXTRACTED
+  from a working core when Tier 2 is real, never declared up front.
 
 ---
