@@ -523,8 +523,8 @@ export function useDragDrop({
         const key = (ev: KeyboardEvent) => {
             if (ev.key === 'Escape') cancelDrag()
         }
-        // Images/links are natively draggable; with dragDropEnabled: false the webview's
-        // HTML5 drag would otherwise fire and preempt our pointermove. Cancel it.
+        // Images and links are natively draggable, so their HTML5 dragstart still fires
+        // even with dragDropEnabled: true; cancel it so it can't preempt our pointermove.
         const drag = (ev: DragEvent) => ev.preventDefault()
         listenersRef.current = { move, up, cancel, key, drag }
         window.addEventListener('pointermove', move)
