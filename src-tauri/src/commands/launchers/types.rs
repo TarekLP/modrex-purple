@@ -9,6 +9,7 @@ pub struct EpicDef {
 
 pub struct XboxDef {
     pub product_id: &'static str,
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     pub executable: &'static str,
 }
 

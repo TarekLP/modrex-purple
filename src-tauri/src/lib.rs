@@ -39,10 +39,10 @@ pub fn run() {
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
                 .build(),
         )
-        .setup(|app| {
+        .setup(|_app| {
             log::info!("Modrex started");
-            if let Some(window) = app.get_webview_window("main") {
-                #[cfg(windows)]
+            #[cfg(windows)]
+            if let Some(window) = _app.get_webview_window("main") {
                 windows_fullscreen::install(&window)?;
             }
             Ok(())

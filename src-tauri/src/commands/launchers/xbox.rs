@@ -5,6 +5,7 @@ use std::path::Path;
 #[cfg(target_os = "windows")]
 use std::path::PathBuf;
 
+#[cfg(target_os = "windows")]
 const GAMING_APP: &str = "Microsoft.GamingApp_8wekyb3d8bbwe";
 
 pub struct Xbox;
