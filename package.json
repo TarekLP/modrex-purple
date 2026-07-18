@@ -14,6 +14,7 @@
         "typecheck": "tsc --noEmit",
         "check-version": "node scripts/check-version.mjs",
         "check-commands": "node scripts/check-commands.mjs",
+        "check-csp": "node scripts/check-csp.mjs",
         "prepare": "husky",
         "version": "node scripts/version.mjs",
         "test": "cargo test --manifest-path src-tauri/Cargo.toml && vitest run",
