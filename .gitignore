@@ -143,10 +143,13 @@ vite.config.ts.timestamp-*
 # electron-vite output
 out/
 
-# Claude Code — ignore everything except shared slash commands and path-scoped rules
+# Claude Code — ignore everything except shared slash commands, path-scoped rules,
+# project hooks, and shared settings
 .claude/*
 !.claude/commands/
 !.claude/rules/
+!.claude/hooks/
+!.claude/settings.json
 
 # Mod index build artifacts (belong in modrex-index repo)
 scripts/index.json
