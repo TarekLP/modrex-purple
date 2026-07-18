@@ -67,3 +67,33 @@ jobs:
 
             - name: Fail if THIRD_PARTY_LICENSES.md is stale
               run: git diff --exit-code THIRD_PARTY_LICENSES.md
+
+    security-audit:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: pnpm/action-setup@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 22
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+
+            - name: Audit npm dependencies
+              run: pnpm audit
+
+            - name: Cache cargo-audit
+              id: cache-cargo-audit
+              uses: actions/cache@v6
+              with:
+                  path: ~/.cargo/bin/cargo-audit
+                  key: cargo-audit-${{ runner.os }}
+
+            - name: Install cargo-audit
+              if: steps.cache-cargo-audit.outputs.cache-hit != 'true'
+              run: cargo install cargo-audit --locked
+
+            - name: Audit Rust dependencies
+              working-directory: src-tauri
+              run: cargo audit
