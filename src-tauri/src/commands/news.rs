@@ -222,7 +222,7 @@ async fn download_news(game_id: &str, page: u32) -> Result<NewsResult, String> {
     })
 }
 
-/// Page 1 only — this is the cached, TTL-backed entry point used on first
+/// Page 1 only: the cached, TTL-backed entry point used on first
 /// load and by the Refresh button.
 #[tauri::command]
 #[specta::specta]
@@ -248,7 +248,7 @@ pub async fn refresh_news(app: AppHandle, game_id: Option<String>) -> Result<New
     Ok(result)
 }
 
-/// Pages other than 1 — fetched on demand, never cached (the disk cache
+/// Pages other than 1, fetched on demand, never cached (the disk cache
 /// exists to make the default page-1 view instant, not to mirror the whole
 /// site).
 #[tauri::command]

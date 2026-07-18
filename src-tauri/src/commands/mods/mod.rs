@@ -859,7 +859,7 @@ pub(crate) async fn install_nexus_download(
 
 /// Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 /// The file carries no modworkshop identity, so it is installed as an unidentified entry
-/// (negative id, "unknown" version) exactly like an ambiently-discovered pak — `get_installed`'s
+/// (negative id, "unknown" version) exactly like an ambiently-discovered pak; get_installed's
 /// SHA256 upgrade resolves its real identity on the next refresh. The dropped file is copied into
 /// temp first so resolution/cleanup never touches the user's original.
 #[tauri::command]
@@ -1251,10 +1251,10 @@ pub async fn install_from_zip_entry(
 }
 
 /// Installs a Crime Boss archive whose content has no enclosing folder (every entry sits at the
-/// zip root) — the renderer reaches this after a user confirms a `CB_FLAT_ARCHIVE` dialog. There's
-/// only one possible destination (the primary `mods` target, which blanket-accepts any directory),
-/// so unlike `install_from_zip_entry` there's no entry to pick: the whole archive is extracted flat
-/// and installed as a single `mods/<name>` folder named from the mod's display name.
+/// zip root); the renderer reaches this after a user confirms a CB_FLAT_ARCHIVE dialog. There's
+/// only one possible destination (the primary mods target, which blanket-accepts any directory),
+/// so unlike install_from_zip_entry there's no entry to pick: the whole archive is extracted flat
+/// and installed as a single mods/<name> folder named from the mod's display name.
 #[tauri::command]
 #[specta::specta]
 #[allow(clippy::too_many_arguments)]
@@ -1343,8 +1343,8 @@ pub async fn install_cb_flat_archive(
 }
 
 /// Installs a content set from an already-downloaded archive into a host mod's folder (e.g. a
-/// Menu Backgrounds set into `mods/Menu Backgrounds/Assets/`). The renderer reaches this after a
-/// `HOST_MOD_PACK` sentinel; the zip is left in place for multi-set installs (caller deletes it).
+/// Menu Backgrounds set into mods/Menu Backgrounds/Assets/). The renderer reaches this after a
+/// HOST_MOD_PACK sentinel; the zip is left in place for multi-set installs (caller deletes it).
 // The arg list outgrew specta's function arity; the renderer passes these under one args key.
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

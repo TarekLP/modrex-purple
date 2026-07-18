@@ -124,8 +124,8 @@ fn inject_defaults(app: &AppHandle, params: &mut Value) {
         .or_insert_with(|| json!(100));
 }
 
-/// Renderer-origin events route through here; Rust-native events call `track`
-/// directly. Both share the consent gate in `send_event`.
+/// Renderer-origin events route through here; Rust-native events call track
+/// directly. Both share the consent gate in send_event.
 #[tauri::command]
 #[specta::specta]
 pub fn track_event(app: AppHandle, name: String, params: Option<crate::commands::api::Json>) {

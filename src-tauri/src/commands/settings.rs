@@ -237,7 +237,7 @@ pub fn migrate_from_electron(app: &AppHandle) {
 }
 
 /// Returns a backwards-compatible flat view of PD3 settings for the renderer.
-/// Commit 4 will switch callers to `get_game_settings` once the game switcher lands.
+/// Commit 4 will switch callers to get_game_settings once the game switcher lands.
 #[tauri::command]
 #[specta::specta]
 pub fn get_settings(app: AppHandle) -> crate::commands::api::Json {
@@ -320,7 +320,7 @@ pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
     update_settings(&app, |s| s.skip_file_open_log_warning = Some(skip));
 }
 
-/// Current analytics consent: `None` = not yet asked, `Some(true/false)` = chosen.
+/// Current analytics consent: None = not yet asked, Some(true/false) = chosen.
 #[tauri::command]
 #[specta::specta]
 pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {

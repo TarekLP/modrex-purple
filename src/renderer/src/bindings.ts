@@ -30,7 +30,7 @@ export const commands = {
 	updateDiscordPresence: (game: string) => __TAURI_INVOKE<void>("update_discord_presence", { game }),
 	/**
 	 *  Returns a backwards-compatible flat view of PD3 settings for the renderer.
-	 *  Commit 4 will switch callers to `get_game_settings` once the game switcher lands.
+	 *  Commit 4 will switch callers to get_game_settings once the game switcher lands.
 	 */
 	getSettings: () => __TAURI_INVOKE<unknown>("get_settings"),
 	getGameSettings: (gameId: string) => __TAURI_INVOKE<GameSettings>("get_game_settings", { gameId }),
@@ -47,7 +47,7 @@ export const commands = {
 	 *  prompt can never fire twice while settings.json survives.
 	 */
 	recordSuccessfulInstall: (cleanSession: boolean) => __TAURI_INVOKE<void>("record_successful_install", { cleanSession }),
-	/**  Current analytics consent: `None` = not yet asked, `Some(true/false)` = chosen. */
+	/**  Current analytics consent: None = not yet asked, Some(true/false) = chosen. */
 	getAnalyticsConsent: () => __TAURI_INVOKE<boolean | null>("get_analytics_consent"),
 	/**
 	 *  Records the user's explicit analytics choice. Generates the anonymous install
@@ -55,8 +55,8 @@ export const commands = {
 	 */
 	setAnalyticsConsent: (enabled: boolean) => __TAURI_INVOKE<void>("set_analytics_consent", { enabled }),
 	/**
-	 *  Renderer-origin events route through here; Rust-native events call `track`
-	 *  directly. Both share the consent gate in `send_event`.
+	 *  Renderer-origin events route through here; Rust-native events call track
+	 *  directly. Both share the consent gate in send_event.
 	 */
 	trackEvent: (name: string, params: unknown | null) => __TAURI_INVOKE<void>("track_event", { name, params }),
 	getInstalled: (gameId: string | null) => __TAURI_INVOKE<InstalledResponse_Serialize>("get_installed", { gameId }),
@@ -65,7 +65,7 @@ export const commands = {
 	/**
 	 *  Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 	 *  The file carries no modworkshop identity, so it is installed as an unidentified entry
-	 *  (negative id, "unknown" version) exactly like an ambiently-discovered pak — `get_installed`'s
+	 *  (negative id, "unknown" version) exactly like an ambiently-discovered pak; get_installed's
 	 *  SHA256 upgrade resolves its real identity on the next refresh. The dropped file is copied into
 	 *  temp first so resolution/cleanup never touches the user's original.
 	 */
@@ -73,10 +73,10 @@ export const commands = {
 	installFromZipEntry: (args: InstallFromZipEntryArgs) => __TAURI_INVOKE<null>("install_from_zip_entry", { args }),
 	/**
 	 *  Installs a Crime Boss archive whose content has no enclosing folder (every entry sits at the
-	 *  zip root) — the renderer reaches this after a user confirms a `CB_FLAT_ARCHIVE` dialog. There's
-	 *  only one possible destination (the primary `mods` target, which blanket-accepts any directory),
-	 *  so unlike `install_from_zip_entry` there's no entry to pick: the whole archive is extracted flat
-	 *  and installed as a single `mods/<name>` folder named from the mod's display name.
+	 *  zip root); the renderer reaches this after a user confirms a CB_FLAT_ARCHIVE dialog. There's
+	 *  only one possible destination (the primary mods target, which blanket-accepts any directory),
+	 *  so unlike install_from_zip_entry there's no entry to pick: the whole archive is extracted flat
+	 *  and installed as a single mods/<name> folder named from the mod's display name.
 	 */
 	installCbFlatArchive: (zipPath: string, modId: number, modName: string, fileId: number, fileType: string, modVersion: string, gamePath: string, folderId: string | null) => __TAURI_INVOKE<null>("install_cb_flat_archive", { zipPath, modId, modName, fileId, fileType, modVersion, gamePath, folderId }),
 	installHostPack: (args: InstallHostPackArgs) => __TAURI_INVOKE<null>("install_host_pack", { args }),
@@ -145,13 +145,13 @@ export const commands = {
 	getThumbnail: (filename: string, full: boolean | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, full }),
 	getIndexModFiles: (modId: number, gameId: string | null) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),
 	/**
-	 *  Page 1 only — this is the cached, TTL-backed entry point used on first
+	 *  Page 1 only: the cached, TTL-backed entry point used on first
 	 *  load and by the Refresh button.
 	 */
 	fetchNews: (gameId: string | null) => __TAURI_INVOKE<NewsResult>("fetch_news", { gameId }),
 	refreshNews: (gameId: string | null) => __TAURI_INVOKE<NewsResult>("refresh_news", { gameId }),
 	/**
-	 *  Pages other than 1 — fetched on demand, never cached (the disk cache
+	 *  Pages other than 1, fetched on demand, never cached (the disk cache
 	 *  exists to make the default page-1 view instant, not to mirror the whole
 	 *  site).
 	 */
@@ -199,8 +199,8 @@ export type InstallFromZipEntryArgs = {
 
 /**
  *  Installs a content set from an already-downloaded archive into a host mod's folder (e.g. a
- *  Menu Backgrounds set into `mods/Menu Backgrounds/Assets/`). The renderer reaches this after a
- *  `HOST_MOD_PACK` sentinel; the zip is left in place for multi-set installs (caller deletes it).
+ *  Menu Backgrounds set into mods/Menu Backgrounds/Assets/). The renderer reaches this after a
+ *  HOST_MOD_PACK sentinel; the zip is left in place for multi-set installs (caller deletes it).
  */
 export type InstallHostPackArgs = {
 	zipPath: string,
