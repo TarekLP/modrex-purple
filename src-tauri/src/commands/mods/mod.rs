@@ -384,7 +384,7 @@ pub async fn install_mod(
                 None
             }
         });
-        let was_disabled = existing_entry.map_or(false, |e| !e.enabled);
+        let was_disabled = existing_entry.is_some_and(|e| !e.enabled);
         // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
         let effective_folder_id = folder_id.or_else(|| {
             if remote_id > 0 && saved.mods.iter().filter(|m| m.id == remote_id).count() > 1 {
@@ -499,6 +499,7 @@ pub async fn install_mod(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn install_file(
     app: AppHandle,
     mod_id: i64,
@@ -870,6 +871,7 @@ pub async fn install_dropped_file(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn install_from_zip_entry(
     app: AppHandle,
     zip_path: String,
@@ -1055,6 +1057,7 @@ pub async fn install_from_zip_entry(
 /// so unlike `install_from_zip_entry` there's no entry to pick: the whole archive is extracted flat
 /// and installed as a single `mods/<name>` folder named from the mod's display name.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn install_cb_flat_archive(
     app: AppHandle,
     zip_path: String,
@@ -1143,6 +1146,7 @@ pub async fn install_cb_flat_archive(
 /// Menu Backgrounds set into `mods/Menu Backgrounds/Assets/`). The renderer reaches this after a
 /// `HOST_MOD_PACK` sentinel; the zip is left in place for multi-set installs (caller deletes it).
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn install_host_pack(
     app: AppHandle,
     zip_path: String,

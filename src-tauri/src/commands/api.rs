@@ -257,7 +257,6 @@ pub async fn list_tags(app: AppHandle, game_id: u32) -> Result<Value, String> {
     .await
 }
 
-
 #[cfg(test)]
 #[path = "api_tests.rs"]
 mod tests;

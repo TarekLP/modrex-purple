@@ -62,6 +62,7 @@ pub(crate) fn set_enabled_in_mods_txt(
 /// Reads `mod_name`'s current `: 1`/`: 0` value out of an existing `mods.txt`. `None` covers
 /// "file doesn't exist", "mod has no entry yet" (UE4SS defaults a missing entry to enabled, but
 /// callers must treat this as unknown rather than assume either value), and a malformed value.
+#[allow(dead_code)]
 pub(crate) fn read_enabled_from_mods_txt(path: &Path, mod_name: &str) -> Option<bool> {
     let content = fs::read_to_string(path).ok()?;
     content.lines().find_map(|line| {
@@ -90,6 +91,7 @@ pub fn sync_enabled(mods_txt_path: &Path, mod_name: &str, enabled: bool) {
 /// Reads the real enabled value back from `mods.txt` — the player (or UE4SS's own in-game UI,
 /// if it has one) can toggle a sub-mod by editing this file directly, and Modrex's tracked flag
 /// has no way to learn about that on its own.
+#[allow(dead_code)]
 pub fn read_enabled(mods_txt_path: &Path, mod_name: &str) -> Option<bool> {
     read_enabled_from_mods_txt(mods_txt_path, mod_name)
 }

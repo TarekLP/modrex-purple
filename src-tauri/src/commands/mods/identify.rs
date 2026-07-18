@@ -395,9 +395,7 @@ pub(crate) async fn hash_untracked(
                             disabled_base(&game_path, entry_target).join(&rel_path)
                         };
                         if entry_markers.is_empty() {
-                            let Some(p) = hashable_file_for_mod_dir(&mod_dir) else {
-                                return None;
-                            };
+                            let p = hashable_file_for_mod_dir(&mod_dir)?;
                             return compute_sha256(&p).await.ok();
                         }
                         entry_markers

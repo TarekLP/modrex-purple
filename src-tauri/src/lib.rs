@@ -51,7 +51,10 @@ pub fn run() {
             if webview.label() != "splash" || payload.event() != PageLoadEvent::Finished {
                 return;
             }
-            if webview.state::<commands::startup::StartupState>().is_ready() {
+            if webview
+                .state::<commands::startup::StartupState>()
+                .is_ready()
+            {
                 return;
             }
             if let Err(error) = webview.window().show() {

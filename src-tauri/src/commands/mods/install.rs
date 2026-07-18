@@ -600,7 +600,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
         if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
             copy_dir_all(&entry.path(), &dest)?;
         } else {
-            fs::copy(&entry.path(), &dest).map_err(|e| e.to_string())?;
+            fs::copy(entry.path(), &dest).map_err(|e| e.to_string())?;
         }
     }
     Ok(())

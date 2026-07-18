@@ -40,6 +40,8 @@ jobs:
             - run: pnpm check-csp
             - run: pnpm check-updater
             - run: pnpm typecheck
+            - run: cargo clippy --all-targets -- -D warnings
+              working-directory: src-tauri
             - run: pnpm test
 
     check-licenses:

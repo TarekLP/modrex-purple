@@ -80,7 +80,7 @@ pub fn move_mod_to_folder_op(
         .filter(|m| m.folder_id == target_folder_id && m.uid != uid)
         .cloned()
         .collect();
-    target_mods.sort_by(|a, b| b.priority.unwrap_or(0).cmp(&a.priority.unwrap_or(0)));
+    target_mods.sort_by_key(|m| std::cmp::Reverse(m.priority.unwrap_or(0)));
     let pos = target_position.min(target_mods.len());
     target_mods.insert(pos, moving.clone());
     let total = target_mods.len() as i64;
