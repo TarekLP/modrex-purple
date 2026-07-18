@@ -22,6 +22,7 @@ reqwest = { version = "0.13", default-features = false, features = [
     "http2",
     "system-proxy",
     "json",
+    "form",
     "stream",
     "gzip",
     "brotli",
@@ -47,6 +48,12 @@ unrar = "0.5"
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 scraper = "0.27"
 discord-rich-presence = "1"
+tauri-plugin-deep-link = "2"
+rand = "0.9"
+base64 = "0.22"
+
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [dev-dependencies]
 tempfile = "3"

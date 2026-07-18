@@ -4,6 +4,14 @@ mod commands;
 mod windows_fullscreen;
 
 use tauri::{webview::PageLoadEvent, Manager};
+use tauri_plugin_deep_link::DeepLinkExt;
+
+fn route_deep_link(app: &tauri::AppHandle, url: &tauri::Url) {
+    match url.scheme() {
+        "modrex" => commands::nexus_oauth::spawn_handle_oauth_callback(app, url.to_string()),
+        _ => commands::nxm::spawn_handle_nxm_url(app, url.to_string()),
+    }
+}
 
 pub fn run() {
     std::panic::set_hook(Box::new(|panic_info| {
@@ -22,7 +30,22 @@ pub fn run() {
 
     let (discord_state, discord_rx) = commands::discord::DiscordState::new(true);
 
-    let app = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // Not argv itself, it can carry an nxm:// URL with a real download token.
+            log::info!("second instance launched with {} arg(s)", argv.len());
+            // A second launch is the user asking for the app, so surface the existing window.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }));
+    }
+
+    let app = builder
         .manage(commands::updater::UpdaterState::new())
         .manage(commands::startup::StartupState::default())
         .manage(discord_state)
@@ -31,6 +54,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Warn)
@@ -39,12 +63,34 @@ pub fn run() {
                 .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
                 .build(),
         )
-        .setup(|_app| {
+        .setup(|app| {
             log::info!("Modrex started");
             #[cfg(windows)]
-            if let Some(window) = _app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
                 windows_fullscreen::install(&window)?;
             }
+
+            #[cfg(desktop)]
+            {
+                app.deep_link().register("nxm")?;
+                app.deep_link().register("modrex")?;
+            }
+
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    route_deep_link(&handle, &url);
+                }
+            });
+
+            // A link that launched this very process isn't replayed through
+            // on_open_url on Windows/Linux, it only surfaces via get_current.
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    route_deep_link(app.handle(), &url);
+                }
+            }
+
             Ok(())
         })
         .on_page_load(|webview, payload| {
@@ -72,6 +118,11 @@ pub fn run() {
             commands::api::list_mod_files,
             commands::api::list_mod_links,
             commands::api::list_categories,
+            // nexus
+            commands::nexus::nexus_search_mods,
+            commands::nexus_oauth::nexus_oauth_start,
+            commands::nexus_oauth::nexus_oauth_signed_in,
+            commands::nexus_oauth::nexus_oauth_sign_out,
             commands::api::list_tags,
             // discord
             commands::discord::set_discord_presence_enabled,

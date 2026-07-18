@@ -177,6 +177,30 @@ export const api = {
         return invoke('reset_app_settings')
     },
 
+    // Nexus
+    // OAuth2 PKCE sign-in: opens the browser to users.nexusmods.com; the result
+    // comes back asynchronously via the nexus-oauth:signed-in / failed events.
+    nexusOAuthStart(): Promise<void> {
+        return invoke('nexus_oauth_start')
+    },
+    isNexusSignedIn(): Promise<boolean> {
+        return invoke('nexus_oauth_signed_in')
+    },
+    nexusSignOut(): Promise<void> {
+        return invoke('nexus_oauth_sign_out')
+    },
+    // GraphQL v2 search, verified live via schema introspection. Empty query omits
+    // the name filter (browse-by-sort instead of search). sort is one of
+    // "relevance" | "downloads" | "endorsements" | "updatedAt".
+    nexusSearchMods(
+        gameId: string,
+        query: string,
+        sort: string,
+        offset?: number
+    ): Promise<{ totalCount: number; nodes: unknown[] }> {
+        return invoke('nexus_search_mods', { gameId, query, sort, offset })
+    },
+
     // ── Analytics ────────────────────────────────────────────────────────────────
     // Fire-and-forget: the Rust side gates on consent and swallows errors, so callers
     // never need to await or catch.
@@ -488,6 +512,33 @@ export const api = {
     },
     onInstallScan(callback: (info: { phase: string; total: number }) => void): () => void {
         return onEvent<{ phase: string; total: number }>('installed:scan', callback)
+    },
+    // Fired by the nxm:// handoff as soon as a link is accepted, before any
+    // network work, so the UI can react instantly.
+    onNxmInstallStarted(
+        callback: (info: { gameId: string; modId: number; fileId: number }) => void
+    ): () => void {
+        return onEvent<{ gameId: string; modId: number; fileId: number }>(
+            'nxm:install-started',
+            callback
+        )
+    },
+    onNxmInstallComplete(
+        callback: (info: { gameId: string; modId: number; fileId: number; name: string }) => void
+    ): () => void {
+        return onEvent<{ gameId: string; modId: number; fileId: number; name: string }>(
+            'nxm:install-complete',
+            callback
+        )
+    },
+    onNexusOAuthSignedIn(callback: () => void): () => void {
+        return onEvent<null>('nexus-oauth:signed-in', () => callback())
+    },
+    onNexusOAuthFailed(callback: (error: string) => void): () => void {
+        return onEvent<string>('nexus-oauth:failed', callback)
+    },
+    onNxmInstallFailed(callback: (error: string) => void): () => void {
+        return onEvent<string>('nxm:install-failed', callback)
     },
     onUpdateAvailable(
         callback: (info: {

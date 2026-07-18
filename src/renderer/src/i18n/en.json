@@ -59,6 +59,8 @@
         "expandTitle": "Expand sidebar",
         "collapseTitle": "Collapse sidebar",
         "changeGame": "Change game",
+        "nexus": "Nexus Mods",
+        "nexusBeta": "Beta",
         "docs": "Documentation",
         "docsTitle": "Open documentation",
         "discord": "Discord",
@@ -92,6 +94,21 @@
             "mostLiked": "Most Liked",
             "newest": "Newest",
             "name": "Name"
+        }
+    },
+    "nexus": {
+        "title": "Nexus Mods",
+        "searchPlaceholder": "Search mods…",
+        "noMods": "No mods found",
+        "loadFailed": "Couldn't load mods",
+        "modCount": "{total} mods",
+        "signInRequired": "Sign in with Nexus Mods to browse mods from Nexus.",
+        "goToSettings": "Configure in Settings",
+        "sort": {
+            "lastUpdated": "Last Updated",
+            "mostDownloaded": "Most Downloaded",
+            "mostEndorsed": "Most Endorsed",
+            "relevance": "Relevance"
         }
     },
     "installed": {
@@ -147,6 +164,7 @@
             "open": "Options",
             "manageFiles": "Manage files"
         },
+        "nexusBadge": "Nexus",
         "crimeBossMove": {
             "modkitBadge": "ModKit",
             "legacyBadge": "Legacy",
@@ -350,6 +368,14 @@
             "title": "Logs",
             "description": "If something goes wrong, open the log file and attach it to your bug report.",
             "open": "Open log file"
+        },
+        "nexusAccount": {
+            "title": "Nexus Mods Account",
+            "description": "Sign in with your Nexus Mods account in your browser. Tokens are stored locally and never leave this device.",
+            "signIn": "Sign in with Nexus Mods",
+            "signOut": "Sign out",
+            "signedIn": "Signed in to Nexus Mods.",
+            "failed": "Sign-in failed: {error}"
         },
         "folders": {
             "title": "Folders",

@@ -9,15 +9,16 @@ import {
     CircleHelp,
 } from 'lucide-react'
 import { siDiscord } from 'simple-icons'
+import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import { api } from '../api'
-import type { LucideIcon } from 'lucide-react'
+import type { ComponentType } from 'react'
 import { t } from '../i18n'
 import type { StringKey } from '../i18n'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { Tooltip } from './Tooltip'
 
-type NavView = 'browse' | 'installed' | 'news' | 'settings'
+type NavView = 'browse' | 'nexus' | 'installed' | 'news' | 'settings'
 
 interface Props {
     view: NavView
@@ -27,8 +28,13 @@ interface Props {
     mode?: 'app' | 'picker'
 }
 
-const navItems: { id: NavView; labelKey: StringKey; icon: LucideIcon }[] = [
+const navItems: {
+    id: NavView
+    labelKey: StringKey
+    icon: ComponentType<{ className?: string }>
+}[] = [
     { id: 'browse', labelKey: 'sidebar.browse', icon: Compass },
+    { id: 'nexus', labelKey: 'sidebar.nexus', icon: NexusIcon },
     { id: 'installed', labelKey: 'sidebar.installed', icon: Package },
     { id: 'news', labelKey: 'sidebar.news', icon: Newspaper },
 ]
@@ -38,9 +44,11 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
         () => localStorage.getItem('modrex:sidebar-collapsed') === 'true'
     )
     const isPicker = mode === 'picker'
-    const visibleNavItems = navItems.filter(
-        (item) => item.id !== 'news' || GAMES[activeGame].hasNews
-    )
+    const visibleNavItems = navItems.filter((item) => {
+        if (item.id === 'news') return GAMES[activeGame].hasNews
+        if (item.id === 'nexus') return GAMES[activeGame].nexusDomain !== undefined
+        return true
+    })
 
     return (
         <aside
@@ -108,6 +116,13 @@ export function Sidebar({ view, onViewChange, activeGame, onShowWelcome, mode = 
                                     >
                                         {t(item.labelKey)}
                                     </span>
+                                    {item.id === 'nexus' && (
+                                        <span
+                                            className={`text-[10px] uppercase px-1.5 py-0.5 rounded bg-accent/15 text-accent transition-opacity duration-200 ${collapsed ? 'opacity-0' : 'opacity-100'}`}
+                                        >
+                                            {t('sidebar.nexusBeta')}
+                                        </span>
+                                    )}
                                 </button>
                             </Tooltip>
                         )

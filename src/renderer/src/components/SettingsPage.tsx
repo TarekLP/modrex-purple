@@ -56,6 +56,12 @@ type SettingsTab = 'game' | 'application' | 'advanced' | 'about'
 const GAME_TAB_KEY = 'modrex:settings-tab'
 const GLOBAL_TAB_KEY = 'modrex:settings-tab:global'
 
+// For navigation into a specific tab from outside the page: the page re-reads
+// the saved tab on every activation, so writing before switching views lands there.
+export function saveSettingsTab(tab: SettingsTab) {
+    localStorage.setItem(GAME_TAB_KEY, tab)
+}
+
 function readSavedTab(globalOnly: boolean): SettingsTab {
     const saved = localStorage.getItem(globalOnly ? GLOBAL_TAB_KEY : GAME_TAB_KEY)
     if (globalOnly) {
@@ -95,6 +101,7 @@ function Section({
 
 interface Props {
     activeGame: GameId
+    isActive: boolean
     gamePath: string | null
     gamePathReady: boolean
     onGamePathChange: () => Promise<void>
@@ -112,6 +119,7 @@ function effectiveLauncher(gs: GameSettings, installed: string[]): string {
 
 export function SettingsPage({
     activeGame,
+    isActive,
     gamePath,
     gamePathReady,
     onGamePathChange,
@@ -146,11 +154,15 @@ export function SettingsPage({
     )
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() => readSavedTab(globalOnly))
+    const [nexusSignedIn, setNexusSignedIn] = useState<boolean | null>(null)
+    const [nexusSignInError, setNexusSignInError] = useState<string | null>(null)
     const [modFolders, setModFolders] = useState<{ tag: string; labelKey: string }[]>([])
 
+    // Re-read on activation, not just mount: the page stays mounted as a hidden
+    // pane, and other pages can request a tab via saveSettingsTab before navigating.
     useEffect(() => {
-        setActiveTabState(readSavedTab(globalOnly))
-    }, [globalOnly])
+        if (isActive) setActiveTabState(readSavedTab(globalOnly))
+    }, [isActive, globalOnly])
 
     useEffect(() => {
         api.listModFolders(activeGame).then(setModFolders)
@@ -194,6 +206,23 @@ export function SettingsPage({
         }, 500)
         return () => clearTimeout(timer)
     }, [launchOptions, activeGame])
+
+    useEffect(() => {
+        let cancelled = false
+        api.isNexusSignedIn().then((signedIn) => {
+            if (!cancelled) setNexusSignedIn(signedIn)
+        })
+        const offSignedIn = api.onNexusOAuthSignedIn(() => {
+            setNexusSignedIn(true)
+            setNexusSignInError(null)
+        })
+        const offFailed = api.onNexusOAuthFailed((error) => setNexusSignInError(error))
+        return () => {
+            cancelled = true
+            offSignedIn()
+            offFailed()
+        }
+    }, [])
 
     const availableLaunchers = LAUNCHER_OPTIONS.filter((o) => installedLaunchers.includes(o.value))
 
@@ -243,6 +272,16 @@ export function SettingsPage({
         setSuppressCrashReporter(value)
         patchSettingsCache(activeGame, { suppressCrashReporter: value })
         await api.setSuppressCrashReporter(value, activeGame)
+    }
+
+    function handleNexusSignIn() {
+        setNexusSignInError(null)
+        api.nexusOAuthStart()
+    }
+
+    async function handleNexusSignOut() {
+        await api.nexusSignOut()
+        setNexusSignedIn(false)
     }
 
     if (settings === null) return null
@@ -580,6 +619,42 @@ export function SettingsPage({
                                     </div>
                                 </Section>
 
+                                <Section
+                                    title={t('settings.nexusAccount.title')}
+                                    description={t('settings.nexusAccount.description')}
+                                >
+                                    <div className="flex items-center gap-3 mt-1">
+                                        {nexusSignedIn === true ? (
+                                            <>
+                                                <span className="text-xs text-success-text">
+                                                    {t('settings.nexusAccount.signedIn')}
+                                                </span>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={handleNexusSignOut}
+                                                >
+                                                    {t('settings.nexusAccount.signOut')}
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Button
+                                                variant="accent"
+                                                size="md"
+                                                onClick={handleNexusSignIn}
+                                            >
+                                                {t('settings.nexusAccount.signIn')}
+                                            </Button>
+                                        )}
+                                    </div>
+                                    {nexusSignInError !== null && (
+                                        <p className="text-xs text-danger-text">
+                                            {t('settings.nexusAccount.failed', {
+                                                error: nexusSignInError,
+                                            })}
+                                        </p>
+                                    )}
+                                </Section>
                                 <Section
                                     title={t('settings.folders.title')}
                                     description={t('settings.folders.description')}

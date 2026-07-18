@@ -17,6 +17,15 @@ pub struct GameSettings {
     pub crimeboss_install_mode: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct NexusOAuthTokens {
+    pub access_token: String,
+    pub refresh_token: String,
+    // Unix seconds, computed from the token response's expires_in at receipt.
+    pub expires_at: i64,
+}
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -30,6 +39,9 @@ pub struct Settings {
     pub analytics_enabled: Option<bool>,
     pub analytics_id: Option<String>,
     pub discord_rich_presence_enabled: Option<bool>,
+    // OAuth credentials are persisted only in local settings and sent only to
+    // Nexus's OAuth and API endpoints.
+    pub nexus_oauth: Option<NexusOAuthTokens>,
     // One-time "star us on GitHub" prompt bookkeeping. Lives here (not localStorage)
     // so it shares the telemetry consent's lifecycle: survives uninstall/reinstall
     // (the NSIS uninstaller never touches app data) and only resets on a full
@@ -88,7 +100,7 @@ pub fn read_settings(app: &AppHandle) -> Settings {
     migrate_settings(s)
 }
 
-fn write_settings(app: &AppHandle, settings: &Settings) {
+pub(crate) fn write_settings(app: &AppHandle, settings: &Settings) {
     let path = settings_path(app);
     if let Some(parent) = path.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {

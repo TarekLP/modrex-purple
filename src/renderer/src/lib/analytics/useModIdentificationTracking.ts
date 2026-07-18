@@ -9,7 +9,8 @@ import { trackModIdentification } from './events'
  * don't spam the event. This is modrex's index.db coverage signal in the wild.
  *
  * A mod is "unidentified" when its modworkshop id is negative (the index.db SHA256
- * and name passes couldn't match it).
+ * and name passes couldn't match it). Nexus-sourced installs are excluded: their
+ * negative id is deliberate, and counting them would corrupt the coverage signal.
  */
 export function useModIdentificationTracking(installed: InstalledMod[], game: GameId): void {
     const lastSignature = useRef('')
@@ -19,7 +20,7 @@ export function useModIdentificationTracking(installed: InstalledMod[], game: Ga
         // without recording a signature so the true count still fires when it lands.
         if (total === 0) return
 
-        const unidentified = installed.filter((m) => m.id < 0).length
+        const unidentified = installed.filter((m) => m.id < 0 && m.source !== 'nexus').length
         const signature = `${game}:${total}:${unidentified}`
         if (signature === lastSignature.current) return
         lastSignature.current = signature

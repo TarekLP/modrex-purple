@@ -696,6 +696,164 @@ pub async fn install_file(
     result
 }
 
+pub(crate) struct NexusInstallMeta {
+    pub mod_id: u32,
+    pub file_id: u32,
+    pub name: String,
+    pub version: String,
+    pub author: Option<String>,
+    pub thumbnail_url: Option<String>,
+    pub file_type: String,
+}
+
+// Keep Nexus identity separate unless an exact SHA256 match proves the mod was
+// cross-posted. Picker sentinels cannot be forwarded because their UI requires
+// modworkshop metadata that this handoff does not have.
+pub(crate) async fn install_nexus_download(
+    app: &AppHandle,
+    game_id: &str,
+    game_path: &str,
+    downloaded: PathBuf,
+    meta: NexusInstallMeta,
+) -> Result<(), String> {
+    let NexusInstallMeta {
+        mod_id: nexus_mod_id,
+        file_id: nexus_file_id,
+        name: mod_name,
+        version: mod_version,
+        author: mod_author,
+        thumbnail_url,
+        file_type,
+    } = meta;
+    let cfg = engine_for_game(game_id);
+    let dl_path = downloaded.clone();
+    let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
+        Err(e) if e.starts_with("UE4SS_LOADER:") => {
+            let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
+            let settings = read_settings(app);
+            let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+            let result = crate::commands::ue4ss::install_loader(
+                cfg.game_id,
+                game_path,
+                launcher.as_deref(),
+                &zip_path,
+            );
+            let _ = std::fs::remove_file(&zip_path);
+            return result;
+        }
+        Err(e)
+            if e.starts_with("ZIP_MULTI_PAK:")
+                || e.starts_with("HOST_MOD_PACK:")
+                || e.starts_with("CB_FLAT_ARCHIVE:")
+                || e.starts_with("UNRECOGNIZED_ARCHIVE") =>
+        {
+            let _ = std::fs::remove_file(&dl_path);
+            let kind = e.split(':').next().unwrap_or("archive");
+            return Err(format!(
+                "nexus: '{mod_name}' needs a manual install choice ({kind}) that Nexus downloads don't support yet"
+            ));
+        }
+        result => match result {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}");
+                return Err(e);
+            }
+        },
+    };
+    let target = cfg.target_for(location_tag.as_deref());
+
+    let result = async {
+        let sha256 = match &target.unit {
+            engine::ModUnit::File { .. } => compute_sha256(&tmp).await?,
+            engine::ModUnit::Directory { entry_markers, .. } => {
+                let hash_path = if entry_markers.is_empty() {
+                    hashable_file_for_mod_dir(&tmp)
+                        .ok_or_else(|| "mod directory is empty".to_string())?
+                } else {
+                    entry_markers
+                        .iter()
+                        .map(|m| tmp.join(m))
+                        .find(|p| p.exists())
+                        .unwrap_or_else(|| tmp.join(entry_markers[0]))
+                };
+                compute_sha256(&hash_path).await?
+            }
+        };
+        let uid = format!("nexus:{nexus_mod_id}:{nexus_file_id}");
+        let sp = get_state_path(game_path, cfg);
+        let saved = read_state(&sp);
+        let existing = saved.mods.iter().find(|m| m.uid == uid);
+        let folder_id = existing.and_then(|e| e.folder_id.clone());
+        let filename = existing
+            .map(|m| m.filename.clone())
+            .unwrap_or_else(|| match &target.unit {
+                engine::ModUnit::File { .. } => pak_filename(&mod_name),
+                engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
+                    naming::mod_folder_name(&mod_name)
+                }
+                engine::ModUnit::Directory { .. } => tmp
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(&mod_name)
+                    .to_string(),
+            });
+
+        install_mod_from_path(
+            game_path,
+            &sp,
+            InstalledMod {
+                uid,
+                id: -(nexus_mod_id as i64),
+                name: mod_name.clone(),
+                version: mod_version,
+                filename,
+                enabled: true,
+                installed_at: Utc::now().to_rfc3339(),
+                source: "nexus".to_string(),
+                author: mod_author,
+                thumbnail_url,
+                file_id: Some(nexus_file_id as i64),
+                file_type: Some(file_type.clone()),
+                sha256: Some(sha256),
+                ..InstalledMod::default()
+            },
+            &tmp,
+            folder_id,
+            cfg,
+            target,
+        )
+    }
+    .await;
+
+    match &target.unit {
+        engine::ModUnit::File { .. } => {
+            let _ = tokio::fs::remove_file(&tmp).await;
+            for ext in naming::PAK_SIDECAR_EXTENSIONS {
+                let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
+            }
+        }
+        // Crime Boss's synthesized skeleton is tmp itself, one level under the OS
+        // temp dir; tmp.parent() there would be the OS temp dir, which must never
+        // be passed to remove_dir_all.
+        engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
+            let _ = tokio::fs::remove_dir_all(&tmp).await;
+        }
+        engine::ModUnit::Directory { .. } => {
+            if let Some(parent) = tmp.parent() {
+                let _ = tokio::fs::remove_dir_all(parent).await;
+            }
+        }
+    }
+    if let Some(orig) = zip_orig {
+        let _ = tokio::fs::remove_file(&orig).await;
+    }
+    if let Err(e) = &result {
+        log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}");
+    }
+    result
+}
+
 /// Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 /// The file carries no modworkshop identity, so it is installed as an unidentified entry
 /// (negative id, "unknown" version) exactly like an ambiently-discovered pak — `get_installed`'s

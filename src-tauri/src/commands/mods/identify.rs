@@ -199,6 +199,12 @@ pub(crate) fn upgrade_negative_ids(
             any = true;
             continue;
         }
+        // A nexus-sourced negative id is a deliberate identity, not a failed
+        // identification; only the exact SHA256 match above may upgrade it (a
+        // cross-posted mod), never the fuzzy name fallback below.
+        if m.source == "nexus" {
+            continue;
+        }
         if let Some(remote_id) = mod_index::lookup_by_name(app, &m.name, game_name) {
             m.id = remote_id;
             // The SHA256 check above just failed against the index's current file for this
@@ -225,7 +231,7 @@ pub(crate) fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
         .map(|m| (m.name.to_lowercase(), m.id))
         .collect();
     for m in mods.iter_mut() {
-        if m.id >= 0 {
+        if m.id >= 0 || m.source == "nexus" {
             continue;
         }
         if let Some(pos) = m.name.rfind(' ') {

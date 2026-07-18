@@ -16,10 +16,11 @@ import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
 import { BrowsePage } from './components/BrowsePage'
+import { NexusBrowsePage } from './components/NexusBrowsePage'
 import { InstalledPage } from './components/InstalledPage'
 import { NewsPage } from './components/NewsPage'
 import { ModDetailPage } from './components/ModDetailPage'
-import { SettingsPage } from './components/SettingsPage'
+import { SettingsPage, saveSettingsTab } from './components/SettingsPage'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { ResizeHandles } from './components/ResizeHandles'
@@ -50,7 +51,7 @@ function warmSettingsCache(game: GameId) {
         .catch(() => {})
 }
 
-export type View = 'browse' | 'installed' | 'news' | 'detail' | 'settings' | 'welcome'
+export type View = 'browse' | 'nexus' | 'installed' | 'news' | 'detail' | 'settings' | 'welcome'
 
 const DETECT_RETRY_MS = 5 * 60 * 1000
 
@@ -66,7 +67,10 @@ function getInitialView(): View {
     if (localStorage.getItem('modrex:on-welcome') === '1') return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
     if (v === 'news' && !GAMES[game as GameId]?.hasNews) return 'browse'
-    return v === 'browse' || v === 'installed' || v === 'news' || v === 'settings' ? v : 'browse'
+    if (v === 'nexus' && !GAMES[game as GameId]?.nexusDomain) return 'browse'
+    return v === 'browse' || v === 'nexus' || v === 'installed' || v === 'news' || v === 'settings'
+        ? v
+        : 'browse'
 }
 
 export default function App() {
@@ -187,10 +191,12 @@ export default function App() {
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
             (saved === 'browse' ||
+                saved === 'nexus' ||
                 saved === 'installed' ||
                 saved === 'news' ||
                 saved === 'settings') &&
-            (saved !== 'news' || GAMES[g].hasNews)
+            (saved !== 'news' || GAMES[g].hasNews) &&
+            (saved !== 'nexus' || GAMES[g].nexusDomain !== undefined)
                 ? saved
                 : 'browse'
         localStorage.setItem('modrex:active-view', dest)
@@ -315,6 +321,14 @@ export default function App() {
         api.checkForUpdates().catch(() => {})
     }, [])
 
+    // A Nexus install arrives via the OS nxm:// deep link, not an in-app action,
+    // so nothing else triggers the installed-list refresh for it.
+    useEffect(() => {
+        return api.onNxmInstallComplete(({ gameId }) => {
+            if (gameId === activeGameRef.current) void refreshInstalled()
+        })
+    }, [refreshInstalled])
+
     useEffect(() => {
         const offAvailable = api.onUpdateAvailable(({ version, strategy, body, releaseUrl }) => {
             setUpdate({
@@ -398,7 +412,7 @@ export default function App() {
     }, [activeGame, gamePath, inPicker])
 
     const handleSidebarChange = useCallback(
-        (v: 'browse' | 'installed' | 'news' | 'settings') => {
+        (v: 'browse' | 'nexus' | 'installed' | 'news' | 'settings') => {
             const isGlobalOnly = v === 'settings' && viewRef.current === 'welcome'
             if (v === 'settings') setSettingsGlobalOnly(isGlobalOnly)
             // Don't persist global-only settings to localStorage — it's a transient
@@ -420,10 +434,15 @@ export default function App() {
 
     const goToSettings = useCallback(() => handleSidebarChange('settings'), [handleSidebarChange])
 
+    const goToNexusSettings = useCallback(() => {
+        saveSettingsTab('advanced')
+        handleSidebarChange('settings')
+    }, [handleSidebarChange])
+
     const sidebarView =
         view === 'detail' || view === 'welcome'
             ? prevView
-            : (view as 'browse' | 'installed' | 'news' | 'settings')
+            : (view as 'browse' | 'nexus' | 'installed' | 'news' | 'settings')
 
     const {
         dragging: fileDragging,
@@ -550,6 +569,21 @@ export default function App() {
                                 />
                             </div>
                             <div
+                                className={`absolute inset-0 ${view === 'nexus' ? '' : 'invisible pointer-events-none'}`}
+                            >
+                                {GAMES[activeGame].nexusDomain !== undefined && (
+                                    <NexusBrowsePage
+                                        key={activeGame}
+                                        activeGame={activeGame}
+                                        isActive={view === 'nexus'}
+                                        gamePath={gamePath}
+                                        installed={installed}
+                                        onRefreshInstalled={refreshInstalled}
+                                        onGoToSettings={goToNexusSettings}
+                                    />
+                                )}
+                            </div>
+                            <div
                                 className={`absolute inset-0 ${view === 'installed' ? '' : 'invisible pointer-events-none'}`}
                             >
                                 <InstalledPageMemo
@@ -574,6 +608,7 @@ export default function App() {
                                 <SettingsPage
                                     key={activeGame}
                                     activeGame={activeGame}
+                                    isActive={view === 'settings'}
                                     gamePath={gamePath}
                                     gamePathReady={gamePathReady}
                                     onGamePathChange={handleGamePathSet}

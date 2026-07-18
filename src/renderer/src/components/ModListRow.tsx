@@ -7,6 +7,7 @@ import type { Mod, InstalledMod } from '../../../shared/types'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
+import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 
 interface Props {
     mod: Mod
@@ -53,7 +54,10 @@ export function ModListRow({
             <div
                 className={`flex items-stretch transition-opacity ${isDragging || loading ? 'opacity-40' : 'opacity-100'}`}
             >
-                <div onClick={onOpen} className="shrink-0 w-28 bg-surface-hover cursor-pointer">
+                <div
+                    onClick={onOpen}
+                    className="relative shrink-0 w-28 bg-surface-hover cursor-pointer"
+                >
                     {thumbSrc ? (
                         <img
                             src={thumbSrc}
@@ -65,8 +69,18 @@ export function ModListRow({
                             onLoad={() => setThumbLoaded(true)}
                             className={`w-full h-full object-cover transition-[filter,opacity] ${thumbLoaded ? '' : 'opacity-0'} ${!installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}
                         />
+                    ) : installed.source === 'nexus' ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <NexusIcon className="w-6 h-6 text-text-subtle" />
+                        </div>
                     ) : (
                         <div className="w-full h-full" />
+                    )}
+                    {installed.source === 'nexus' && (
+                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none flex items-center gap-1">
+                            <NexusIcon className="w-3 h-3" />
+                            {t('installed.nexusBadge')}
+                        </div>
                     )}
                 </div>
 

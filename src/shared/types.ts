@@ -136,9 +136,17 @@ export const GAMES: Record<
         workshopId: number
         storageKey: string
         hasNews: boolean
+        nexusDomain?: string
     }
 > = {
-    pd3: { name: 'PAYDAY 3', shortName: 'PD3', workshopId: 853, storageKey: 'pd3', hasNews: true },
+    pd3: {
+        name: 'PAYDAY 3',
+        shortName: 'PD3',
+        workshopId: 853,
+        storageKey: 'pd3',
+        hasNews: true,
+        nexusDomain: 'payday3',
+    },
     pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2', hasNews: true },
     pdth: {
         name: 'PAYDAY: The Heist',
@@ -153,6 +161,7 @@ export const GAMES: Record<
         workshopId: 857,
         storageKey: 'cb',
         hasNews: false,
+        nexusDomain: 'crimebossrockaycity',
     },
     raid: {
         name: 'RAID: World War II',
@@ -182,6 +191,8 @@ export interface InstalledMod {
     enabled: boolean
     installedAt: string
     source?: string // mod source slug; absent = "modworkshop"
+    author?: string // only recorded for non-modworkshop sources
+    thumbnailUrl?: string // absolute CDN URL; only recorded for non-modworkshop sources
     fileId?: number
     fileType?: string
     sha256?: string
