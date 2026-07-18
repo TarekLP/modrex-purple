@@ -127,6 +127,7 @@ struct PendingLogin {
 static PENDING_LOGIN: Mutex<Option<PendingLogin>> = Mutex::new(None);
 
 #[tauri::command]
+#[specta::specta]
 pub fn nexus_oauth_start() {
     let pkce = generate_pkce();
     let state = uuid::Uuid::new_v4().to_string();
@@ -247,11 +248,13 @@ pub(crate) fn store_tokens(app: &AppHandle, tokens: &TokenResponse) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn nexus_oauth_signed_in(app: AppHandle) -> bool {
     read_settings(&app).nexus_oauth.is_some()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn nexus_oauth_sign_out(app: AppHandle) {
     let mut settings = read_settings(&app);
     settings.nexus_oauth = None;

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum StartupPhase {
     #[default]
@@ -27,6 +27,7 @@ impl StartupState {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn report_startup_phase(
     app: AppHandle,
     state: State<'_, StartupState>,
@@ -38,11 +39,13 @@ pub fn report_startup_phase(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_startup_phase(state: State<'_, StartupState>) -> StartupPhase {
     *state.0.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn finish_startup(app: AppHandle) -> Result<(), String> {
     let main = app
         .get_webview_window("main")

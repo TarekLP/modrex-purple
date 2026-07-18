@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ModFolder {
     pub id: String,
@@ -10,7 +10,7 @@ pub struct ModFolder {
     pub parent_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "type")]
 pub enum TopLevelItem {
     #[serde(rename = "folder")]
@@ -23,7 +23,7 @@ fn default_source() -> String {
     "modworkshop".to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledMod {
     #[serde(default)]
@@ -91,7 +91,7 @@ pub struct ModsState {
     pub mods: Vec<InstalledMod>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledResponse {
     pub mods: Vec<InstalledMod>,

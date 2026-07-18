@@ -15,6 +15,7 @@ const LOADER_DOWNLOAD_URL: &str =
     "https://sblt-update.znix.xyz/pd2update/download/get.php?src=modrex&id=payday2bltwsockdll";
 
 #[tauri::command]
+#[specta::specta]
 pub fn check_superblt(game_path: String) -> bool {
     let dir = Path::new(&game_path);
     LOADER_FILES.iter().any(|f| dir.join(f).is_file())
@@ -24,6 +25,7 @@ pub fn check_superblt(game_path: String) -> bool {
 /// fetched by the loader itself: on next launch it prompts the user to
 /// download it if missing.
 #[tauri::command]
+#[specta::specta]
 pub async fn install_superblt(app: tauri::AppHandle, game_path: String) -> Result<(), String> {
     let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip", "loader:superblt").await?;
     let dest = Path::new(&game_path).join(LOADER_FILES[0]);
@@ -36,6 +38,7 @@ pub async fn install_superblt(app: tauri::AppHandle, game_path: String) -> Resul
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn is_pd2_diesel3(game_path: String) -> bool {
     Path::new(&game_path).join("PAYDAY2.exe").is_file()
 }

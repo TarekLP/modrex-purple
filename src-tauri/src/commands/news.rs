@@ -12,7 +12,7 @@ const MAX_AGE_SECS: u64 = 3600;
 const BROWSER_UA: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct NewsItem {
     pub title: String,
@@ -23,7 +23,7 @@ pub struct NewsItem {
     pub categories: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct NewsResult {
     pub items: Vec<NewsItem>,
@@ -225,6 +225,7 @@ async fn download_news(game_id: &str, page: u32) -> Result<NewsResult, String> {
 /// Page 1 only — this is the cached, TTL-backed entry point used on first
 /// load and by the Refresh button.
 #[tauri::command]
+#[specta::specta]
 pub async fn fetch_news(app: AppHandle, game_id: Option<String>) -> Result<NewsResult, String> {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let path = cache_path(&app, &game_id);
@@ -239,6 +240,7 @@ pub async fn fetch_news(app: AppHandle, game_id: Option<String>) -> Result<NewsR
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn refresh_news(app: AppHandle, game_id: Option<String>) -> Result<NewsResult, String> {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let result = download_news(&game_id, 1).await?;
@@ -250,6 +252,7 @@ pub async fn refresh_news(app: AppHandle, game_id: Option<String>) -> Result<New
 /// exists to make the default page-1 view instant, not to mirror the whole
 /// site).
 #[tauri::command]
+#[specta::specta]
 pub async fn fetch_news_page(game_id: Option<String>, page: u32) -> Result<NewsResult, String> {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     download_news(&game_id, page.max(1)).await

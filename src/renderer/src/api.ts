@@ -303,18 +303,20 @@ export const api = {
     ): Promise<void> {
         return trackInstall(
             invoke('install_from_zip_entry', {
-                zipPath,
-                entryName,
-                modId,
-                modName,
-                fileId,
-                fileType,
-                modVersion,
-                gamePath,
-                folderId,
-                gameId,
-                locationTag,
-                entryKind,
+                args: {
+                    zipPath,
+                    entryName,
+                    modId,
+                    modName,
+                    fileId,
+                    fileType,
+                    modVersion,
+                    gamePath,
+                    folderId,
+                    gameId,
+                    locationTag,
+                    entryKind,
+                },
             })
         )
     },
@@ -356,17 +358,19 @@ export const api = {
     ): Promise<void> {
         return trackInstall(
             invoke('install_host_pack', {
-                zipPath,
-                entryName,
-                modId,
-                modName,
-                fileId,
-                fileType,
-                modVersion,
-                gamePath,
-                hostModId,
-                hostSubpath,
-                gameId,
+                args: {
+                    zipPath,
+                    entryName,
+                    modId,
+                    modName,
+                    fileId,
+                    fileType,
+                    modVersion,
+                    gamePath,
+                    hostModId,
+                    hostSubpath,
+                    gameId,
+                },
             })
         )
     },

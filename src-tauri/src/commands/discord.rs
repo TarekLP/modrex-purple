@@ -100,6 +100,7 @@ impl DiscordState {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_discord_presence_enabled(
     app: AppHandle,
     state: tauri::State<DiscordState>,
@@ -112,6 +113,7 @@ pub fn set_discord_presence_enabled(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_discord_presence(state: tauri::State<DiscordState>, game: String) {
     let _ = state.game_tx.send(game);
 }

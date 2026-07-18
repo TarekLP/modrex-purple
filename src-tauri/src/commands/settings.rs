@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GameSettings {
     pub game_path: Option<String>,
@@ -145,6 +144,7 @@ pub fn game_settings<'a>(s: &'a Settings, game_id: &str) -> Option<&'a GameSetti
 /// launcher choice, launch options, analytics consent + id, and all other
 /// preferences. Does not touch installed mods, game files, or the on-disk caches.
 #[tauri::command]
+#[specta::specta]
 pub fn reset_app_settings(app: AppHandle) {
     update_settings(&app, |s| *s = Settings::default());
 }
@@ -239,19 +239,21 @@ pub fn migrate_from_electron(app: &AppHandle) {
 /// Returns a backwards-compatible flat view of PD3 settings for the renderer.
 /// Commit 4 will switch callers to `get_game_settings` once the game switcher lands.
 #[tauri::command]
-pub fn get_settings(app: AppHandle) -> Value {
+#[specta::specta]
+pub fn get_settings(app: AppHandle) -> crate::commands::api::Json {
     let s = read_settings(&app);
     let gs = s.games.as_ref().and_then(|g| g.get("pd3"));
-    serde_json::json!({
+    crate::commands::api::Json(serde_json::json!({
         "gamePath": gs.and_then(|g| g.game_path.as_deref()),
         "launcher": gs.and_then(|g| g.launcher.as_deref()),
         "launchOptions": gs.and_then(|g| g.launch_options.as_deref()),
         "skipFileOpenLogWarning": s.skip_file_open_log_warning,
         "dismissedDepsWarnings": s.dismissed_deps_warnings,
-    })
+    }))
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_game_settings(app: AppHandle, game_id: String) -> GameSettings {
     let s = read_settings(&app);
     s.games
@@ -262,6 +264,7 @@ pub fn get_game_settings(app: AppHandle, game_id: String) -> GameSettings {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     update_settings(&app, |s| {
@@ -274,6 +277,7 @@ pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_launch_options(app: AppHandle, game_id: Option<String>, launch_options: String) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     update_settings(&app, |s| {
@@ -286,6 +290,7 @@ pub fn set_launch_options(app: AppHandle, game_id: Option<String>, launch_option
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_crimeboss_install_mode(app: AppHandle, mode: String) {
     update_settings(&app, |s| {
         s.games
@@ -297,6 +302,7 @@ pub fn set_crimeboss_install_mode(app: AppHandle, mode: String) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_suppress_crash_reporter(app: AppHandle, game_id: Option<String>, suppress: bool) {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     update_settings(&app, |s| {
@@ -309,12 +315,14 @@ pub fn set_suppress_crash_reporter(app: AppHandle, game_id: Option<String>, supp
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
     update_settings(&app, |s| s.skip_file_open_log_warning = Some(skip));
 }
 
 /// Current analytics consent: `None` = not yet asked, `Some(true/false)` = chosen.
 #[tauri::command]
+#[specta::specta]
 pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {
     read_settings(&app).analytics_enabled
 }
@@ -322,6 +330,7 @@ pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {
 /// Records the user's explicit analytics choice. Generates the anonymous install
 /// ID lazily on first opt-in, so a user who never enables analytics never gets one.
 #[tauri::command]
+#[specta::specta]
 pub fn set_analytics_consent(app: AppHandle, enabled: bool) {
     update_settings(&app, |s| {
         s.analytics_enabled = Some(enabled);
@@ -358,6 +367,7 @@ pub(crate) fn support_prompt_eligible(installs: u64, first_install_at: u64, now_
 /// persisted *before* the renderer displays anything (write-on-show), so the
 /// prompt can never fire twice while settings.json survives.
 #[tauri::command]
+#[specta::specta]
 pub fn record_successful_install(app: AppHandle, clean_session: bool) {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -382,6 +392,7 @@ pub fn record_successful_install(app: AppHandle, clean_session: bool) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn dismiss_deps_warning(app: AppHandle, mod_id: i32) {
     update_settings(&app, |s| {
         let warnings = s.dismissed_deps_warnings.get_or_insert_with(Vec::new);

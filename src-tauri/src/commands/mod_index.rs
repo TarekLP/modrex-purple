@@ -14,7 +14,7 @@ pub struct IndexMatch {
     pub version: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexModFile {
     pub file_remote_id: i64,
@@ -265,6 +265,7 @@ pub fn lookup_mod_files(app: &AppHandle, mod_remote_id: i64, game_name: &str) ->
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_index_mod_files(
     app: AppHandle,
     mod_id: i64,

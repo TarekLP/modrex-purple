@@ -58,6 +58,7 @@ async fn fetch_image(app: &AppHandle, file: &str) -> Result<Vec<u8>, String> {
 /// {filename}, used by the detail page (banner, lightbox), where the CDN's
 /// missing cache headers would otherwise cost a revalidation round-trip per view.
 #[tauri::command]
+#[specta::specta]
 pub async fn get_thumbnail(
     app: AppHandle,
     filename: String,

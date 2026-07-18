@@ -51,6 +51,9 @@ discord-rich-presence = "1"
 tauri-plugin-deep-link = "2"
 rand = "0.9"
 base64 = "0.22"
+specta = { version = "=2.0.0-rc.25", features = ["derive", "function", "serde_json"] }
+specta-typescript = "=0.0.12"
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }

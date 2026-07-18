@@ -13,101 +13,15 @@ fn route_deep_link(app: &tauri::AppHandle, url: &tauri::Url) {
     }
 }
 
-pub fn run() {
-    std::panic::set_hook(Box::new(|panic_info| {
-        log::error!("PANIC: {panic_info}");
-    }));
-
-    rustls::crypto::ring::default_provider()
-        .install_default()
-        .expect("install rustls crypto provider");
-
-    #[cfg(target_os = "linux")]
-    // WebKit's DMA-BUF renderer breaks under XWayland and some Wayland compositors
-    unsafe {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-    }
-
-    let (discord_state, discord_rx) = commands::discord::DiscordState::new(true);
-
-    let mut builder = tauri::Builder::default();
-    #[cfg(desktop)]
-    {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            // Not argv itself, it can carry an nxm:// URL with a real download token.
-            log::info!("second instance launched with {} arg(s)", argv.len());
-            // A second launch is the user asking for the app, so surface the existing window.
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-        }));
-    }
-
-    let app = builder
-        .manage(commands::updater::UpdaterState::new())
-        .manage(commands::startup::StartupState::default())
-        .manage(discord_state)
-        .register_uri_scheme_protocol("thumb", |ctx, request| {
-            commands::thumbnails::handle_thumb_protocol(ctx.app_handle(), request)
-        })
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_deep_link::init())
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Warn)
-                .level_for("modrex_lib", log::LevelFilter::Info)
-                .max_file_size(5_000_000)
-                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
-                .build(),
-        )
-        .setup(|app| {
-            log::info!("Modrex started");
-            #[cfg(windows)]
-            if let Some(window) = app.get_webview_window("main") {
-                windows_fullscreen::install(&window)?;
-            }
-
-            #[cfg(desktop)]
-            {
-                app.deep_link().register("nxm")?;
-                app.deep_link().register("modrex")?;
-            }
-
-            let handle = app.handle().clone();
-            app.deep_link().on_open_url(move |event| {
-                for url in event.urls() {
-                    route_deep_link(&handle, &url);
-                }
-            });
-
-            // A link that launched this very process isn't replayed through
-            // on_open_url on Windows/Linux, it only surfaces via get_current.
-            if let Ok(Some(urls)) = app.deep_link().get_current() {
-                for url in urls {
-                    route_deep_link(app.handle(), &url);
-                }
-            }
-
-            Ok(())
-        })
-        .on_page_load(|webview, payload| {
-            if webview.label() != "splash" || payload.event() != PageLoadEvent::Finished {
-                return;
-            }
-            if webview
-                .state::<commands::startup::StartupState>()
-                .is_ready()
-            {
-                return;
-            }
-            if let Err(error) = webview.window().show() {
-                log::error!("failed to show loaded startup window: {error}");
-            }
-        })
-        .invoke_handler(tauri::generate_handler![
+/// The one registry of the IPC surface: registers the invoke handler and drives the
+/// TypeScript bindings export (export_typescript_bindings below).
+fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
+    tauri_specta::Builder::<tauri::Wry>::new()
+        .error_handling(tauri_specta::ErrorHandlingMode::Throw)
+        // i64 ids already cross the IPC as JS numbers today; source-identity-refactor
+        // moves remote ids to strings before any 64-bit id source (Steam) lands.
+        .dangerously_cast_bigints_to_number()
+        .commands(tauri_specta::collect_commands![
             // startup
             commands::startup::report_startup_phase,
             commands::startup::get_startup_phase,
@@ -207,6 +121,103 @@ pub fn run() {
             commands::storage::clear_news_cache,
             commands::settings::reset_app_settings,
         ])
+}
+
+pub fn run() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        log::error!("PANIC: {panic_info}");
+    }));
+
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("install rustls crypto provider");
+
+    #[cfg(target_os = "linux")]
+    // WebKit's DMA-BUF renderer breaks under XWayland and some Wayland compositors
+    unsafe {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
+    let (discord_state, discord_rx) = commands::discord::DiscordState::new(true);
+
+    let mut builder = tauri::Builder::default();
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // Not argv itself, it can carry an nxm:// URL with a real download token.
+            log::info!("second instance launched with {} arg(s)", argv.len());
+            // A second launch is the user asking for the app, so surface the existing window.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }));
+    }
+
+    let app = builder
+        .manage(commands::updater::UpdaterState::new())
+        .manage(commands::startup::StartupState::default())
+        .manage(discord_state)
+        .register_uri_scheme_protocol("thumb", |ctx, request| {
+            commands::thumbnails::handle_thumb_protocol(ctx.app_handle(), request)
+        })
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Warn)
+                .level_for("modrex_lib", log::LevelFilter::Info)
+                .max_file_size(5_000_000)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
+                .build(),
+        )
+        .setup(|app| {
+            log::info!("Modrex started");
+            #[cfg(windows)]
+            if let Some(window) = app.get_webview_window("main") {
+                windows_fullscreen::install(&window)?;
+            }
+
+            #[cfg(desktop)]
+            {
+                app.deep_link().register("nxm")?;
+                app.deep_link().register("modrex")?;
+            }
+
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    route_deep_link(&handle, &url);
+                }
+            });
+
+            // A link that launched this very process isn't replayed through
+            // on_open_url on Windows/Linux, it only surfaces via get_current.
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    route_deep_link(app.handle(), &url);
+                }
+            }
+
+            Ok(())
+        })
+        .on_page_load(|webview, payload| {
+            if webview.label() != "splash" || payload.event() != PageLoadEvent::Finished {
+                return;
+            }
+            if webview
+                .state::<commands::startup::StartupState>()
+                .is_ready()
+            {
+                return;
+            }
+            if let Err(error) = webview.window().show() {
+                log::error!("failed to show loaded startup window: {error}");
+            }
+        })
+        .invoke_handler(ipc_builder().invoke_handler())
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
@@ -250,4 +261,19 @@ pub fn run() {
     }
 
     app.run(|_, _| {});
+}
+
+/// Regenerates src/renderer/src/bindings.ts from the command registry; CI asserts the
+/// regenerated file matches the committed one. Driven by tests/export_bindings.rs,
+/// deliberately an integration test: referencing ipc_builder() links the whole command
+/// surface, including rfd's comctl32 v6 dialog imports, which need the common-controls
+/// manifest that build.rs embeds only into test targets.
+#[doc(hidden)]
+pub fn export_typescript_bindings() {
+    ipc_builder()
+        .export(
+            specta_typescript::Typescript::default(),
+            "../src/renderer/src/bindings.ts",
+        )
+        .expect("failed to export typescript bindings");
 }

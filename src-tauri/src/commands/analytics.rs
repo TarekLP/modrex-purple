@@ -127,6 +127,11 @@ fn inject_defaults(app: &AppHandle, params: &mut Value) {
 /// Renderer-origin events route through here; Rust-native events call `track`
 /// directly. Both share the consent gate in `send_event`.
 #[tauri::command]
-pub fn track_event(app: AppHandle, name: String, params: Option<Value>) {
-    track(&app, &name, params.unwrap_or_else(|| json!({})));
+#[specta::specta]
+pub fn track_event(app: AppHandle, name: String, params: Option<crate::commands::api::Json>) {
+    track(
+        &app,
+        &name,
+        params.map(|p| p.0).unwrap_or_else(|| json!({})),
+    );
 }

@@ -192,6 +192,7 @@ pub struct DetectedGame {
 // SMB timeout on a dead network drive, sync commands run on the main thread,
 // so all detection work goes through spawn_blocking.
 #[tauri::command]
+#[specta::specta]
 pub async fn installed_launchers(game_id: Option<String>) -> Vec<String> {
     let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"));
     tauri::async_runtime::spawn_blocking(move || {
@@ -256,6 +257,7 @@ fn resolve_and_save_game_path(app: &AppHandle, game_id: Option<String>, game_pat
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn configure_game_path(
     app: AppHandle,
     game_id: Option<String>,
@@ -268,6 +270,7 @@ pub async fn configure_game_path(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option<String> {
     use tauri_plugin_dialog::DialogExt;
     tauri::async_runtime::spawn_blocking(move || {
@@ -318,6 +321,7 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn launch_game(app: AppHandle, game_id: Option<String>) {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
@@ -344,6 +348,7 @@ pub fn launch_game(app: AppHandle, game_id: Option<String>) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
@@ -412,6 +417,7 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn restore_mods(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
@@ -455,6 +461,7 @@ fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn is_game_running(game_id: Option<String>) -> bool {
     let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_names;
     tauri::async_runtime::spawn_blocking(move || {
@@ -468,6 +475,7 @@ pub async fn is_game_running(game_id: Option<String>) -> bool {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn stop_game(game_id: Option<String>) {
     let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_names;
     let sys = refresh_process_list();
@@ -492,6 +500,7 @@ fn sanitize_external_url(url: &str) -> Option<&str> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn shell_open_external(url: String) {
     if let Some(safe) = sanitize_external_url(&url) {
         open_url(safe);
@@ -499,11 +508,13 @@ pub fn shell_open_external(url: String) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn shell_open_path(path: String) {
     open_path_on_system(&path);
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn open_log_file(app: AppHandle) {
     use tauri::Manager;
     let Ok(log_dir) = app.path().app_log_dir() else {
@@ -521,6 +532,7 @@ pub fn open_log_file(app: AppHandle) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn open_data_folder(app: AppHandle) {
     use tauri::Manager;
     let Ok(dir) = app.path().app_data_dir() else {
@@ -530,6 +542,7 @@ pub fn open_data_folder(app: AppHandle) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn open_app_folder() {
     let Ok(exe) = std::env::current_exe() else {
         return;

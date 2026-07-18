@@ -9,3 +9,4 @@ CHANGELOG.md
 CLAUDE.md
 AGENTS.md
 .agents/
+src/renderer/src/bindings.ts

@@ -13,7 +13,7 @@ const tailwindColor =
     '(50|100|200|300|400|500|600|700|800|900|950)'
 
 export default tseslint.config(
-    { ignores: ['node_modules/**', 'out/**', 'src-tauri/**'] },
+    { ignores: ['node_modules/**', 'out/**', 'src-tauri/**', 'src/renderer/src/bindings.ts'] },
     {
         files: ['src/renderer/src/**/*.{ts,tsx}'],
         extends: [js.configs.recommended, ...tseslint.configs.recommended],

@@ -21,6 +21,7 @@ impl UpdaterState {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn check_for_update(app: AppHandle) -> Result<(), String> {
     let Ok(updater) = app.updater() else {
         return Ok(());
@@ -53,6 +54,7 @@ pub async fn check_for_update(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn download_update(app: AppHandle) -> Result<(), String> {
     let state = app.state::<UpdaterState>();
     let guard = state.update.lock().await;
@@ -83,6 +85,7 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
     let state = app.state::<UpdaterState>();
     let update = state

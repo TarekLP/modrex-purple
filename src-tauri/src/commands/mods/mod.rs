@@ -84,6 +84,7 @@ struct ScanEvent {
 
 // Mod identification (get_installed pipeline) lives in identify.rs
 #[tauri::command]
+#[specta::specta]
 pub async fn get_installed(
     app: AppHandle,
     game_id: Option<String>,
@@ -249,6 +250,7 @@ pub async fn get_installed(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn install_mod(
     app: AppHandle,
     mod_id: u32,
@@ -499,6 +501,7 @@ pub async fn install_mod(
 }
 
 #[tauri::command]
+#[specta::specta]
 #[allow(clippy::too_many_arguments)]
 pub async fn install_file(
     app: AppHandle,
@@ -860,6 +863,7 @@ pub(crate) async fn install_nexus_download(
 /// SHA256 upgrade resolves its real identity on the next refresh. The dropped file is copied into
 /// temp first so resolution/cleanup never touches the user's original.
 #[tauri::command]
+#[specta::specta]
 pub async fn install_dropped_file(
     app: AppHandle,
     path: String,
@@ -1049,23 +1053,44 @@ fn stale_entry_for_zip_install<'a>(
     Some(same[0])
 }
 
+// The arg list outgrew specta's function arity; the renderer passes these under one args key.
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallFromZipEntryArgs {
+    pub zip_path: String,
+    pub entry_name: String,
+    pub mod_id: i64,
+    pub mod_name: String,
+    pub file_id: i64,
+    pub file_type: String,
+    pub mod_version: String,
+    pub game_path: String,
+    pub folder_id: Option<String>,
+    pub game_id: Option<String>,
+    pub location_tag: Option<String>,
+    pub entry_kind: Option<String>,
+}
+
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
+#[specta::specta]
 pub async fn install_from_zip_entry(
     app: AppHandle,
-    zip_path: String,
-    entry_name: String,
-    mod_id: i64,
-    mod_name: String,
-    file_id: i64,
-    file_type: String,
-    mod_version: String,
-    game_path: String,
-    folder_id: Option<String>,
-    game_id: Option<String>,
-    location_tag: Option<String>,
-    entry_kind: Option<String>,
+    args: InstallFromZipEntryArgs,
 ) -> Result<(), String> {
+    let InstallFromZipEntryArgs {
+        zip_path,
+        entry_name,
+        mod_id,
+        mod_name,
+        file_id,
+        file_type,
+        mod_version,
+        game_path,
+        folder_id,
+        game_id,
+        location_tag,
+        entry_kind,
+    } = args;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let target = cfg.target_for(location_tag.as_deref());
     let zip = PathBuf::from(&zip_path);
@@ -1231,6 +1256,7 @@ pub async fn install_from_zip_entry(
 /// so unlike `install_from_zip_entry` there's no entry to pick: the whole archive is extracted flat
 /// and installed as a single `mods/<name>` folder named from the mod's display name.
 #[tauri::command]
+#[specta::specta]
 #[allow(clippy::too_many_arguments)]
 pub async fn install_cb_flat_archive(
     app: AppHandle,
@@ -1319,22 +1345,39 @@ pub async fn install_cb_flat_archive(
 /// Installs a content set from an already-downloaded archive into a host mod's folder (e.g. a
 /// Menu Backgrounds set into `mods/Menu Backgrounds/Assets/`). The renderer reaches this after a
 /// `HOST_MOD_PACK` sentinel; the zip is left in place for multi-set installs (caller deletes it).
+// The arg list outgrew specta's function arity; the renderer passes these under one args key.
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallHostPackArgs {
+    pub zip_path: String,
+    pub entry_name: String,
+    pub mod_id: i64,
+    pub mod_name: String,
+    pub file_id: i64,
+    pub file_type: String,
+    pub mod_version: String,
+    pub game_path: String,
+    pub host_mod_id: i64,
+    pub host_subpath: String,
+    pub game_id: Option<String>,
+}
+
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
-pub async fn install_host_pack(
-    app: AppHandle,
-    zip_path: String,
-    entry_name: String,
-    mod_id: i64,
-    mod_name: String,
-    file_id: i64,
-    file_type: String,
-    mod_version: String,
-    game_path: String,
-    host_mod_id: i64,
-    host_subpath: String,
-    game_id: Option<String>,
-) -> Result<(), String> {
+#[specta::specta]
+pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Result<(), String> {
+    let InstallHostPackArgs {
+        zip_path,
+        entry_name,
+        mod_id,
+        mod_name,
+        file_id,
+        file_type,
+        mod_version,
+        game_path,
+        host_mod_id,
+        host_subpath,
+        game_id,
+    } = args;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
@@ -1378,11 +1421,13 @@ pub async fn install_host_pack(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_temp_file(path: String) {
     let _ = tokio::fs::remove_file(&path).await;
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn uninstall_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
@@ -1394,6 +1439,7 @@ pub fn uninstall_mod(app: AppHandle, game_path: String, uid: String, game_id: Op
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let settings = read_settings(&app);
@@ -1414,6 +1460,7 @@ pub fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Optio
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let settings = read_settings(&app);
@@ -1434,6 +1481,7 @@ pub fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Opti
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn move_crimeboss_mod_target(
     app: AppHandle,
     game_path: String,
@@ -1460,6 +1508,7 @@ pub fn move_crimeboss_mod_target(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn reorder_in_folder(
     game_path: String,
     folder_id: Option<String>,
@@ -1477,6 +1526,7 @@ pub fn reorder_in_folder(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn move_to_folder(
     game_path: String,
     uid: String,
@@ -1496,6 +1546,7 @@ pub fn move_to_folder(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn reorder_children(
     game_path: String,
     parent_id: Option<String>,
@@ -1513,6 +1564,7 @@ pub fn reorder_children(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn move_folder(
     game_path: String,
     folder_id: String,
@@ -1530,6 +1582,7 @@ pub fn move_folder(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn create_folder(
     game_path: String,
     display_name: String,
@@ -1547,6 +1600,7 @@ pub fn create_folder(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn rename_folder(
     game_path: String,
     folder_id: String,
@@ -1564,6 +1618,7 @@ pub fn rename_folder(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn delete_folder(game_path: String, folder_id: String, game_id: Option<String>) {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     delete_folder_op(
@@ -1575,6 +1630,7 @@ pub fn delete_folder(game_path: String, folder_id: String, game_id: Option<Strin
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn open_mods_folder(app: AppHandle, game_id: Option<String>) {
     let gid = game_id.as_deref().unwrap_or("pd3");
     let settings = read_settings(&app);
@@ -1589,7 +1645,7 @@ pub fn open_mods_folder(app: AppHandle, game_id: Option<String>) {
     let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ModFolderInfo {
     pub tag: String,
@@ -1597,6 +1653,7 @@ pub struct ModFolderInfo {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn list_mod_folders(game_id: Option<String>) -> Vec<ModFolderInfo> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     cfg.targets
@@ -1609,6 +1666,7 @@ pub fn list_mod_folders(game_id: Option<String>) -> Vec<ModFolderInfo> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn open_mod_folder(app: AppHandle, game_id: Option<String>, tag: String) {
     let gid = game_id.as_deref().unwrap_or("pd3");
     let settings = read_settings(&app);

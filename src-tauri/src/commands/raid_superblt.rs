@@ -16,6 +16,7 @@ const LOADER_FILES: &[&str] = &["WSOCK32.dll", "IPHLPAPI.dll"];
 const LOADER_DOWNLOAD_URL: &str = "https://api.modworkshop.net/mods/49744/download";
 
 #[tauri::command]
+#[specta::specta]
 pub fn check_raid_superblt(game_path: String) -> bool {
     let dir = Path::new(&game_path);
     LOADER_FILES.iter().any(|f| dir.join(f).is_file())
@@ -26,6 +27,7 @@ pub fn check_raid_superblt(game_path: String) -> bool {
 /// launch), the RAID zip ships the basemod inside, so a full extraction is
 /// the complete install.
 #[tauri::command]
+#[specta::specta]
 pub async fn install_raid_superblt(app: tauri::AppHandle, game_path: String) -> Result<(), String> {
     let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip", "loader:raid").await?;
     let dest_dir = Path::new(&game_path).to_path_buf();

@@ -6,7 +6,7 @@ use crate::commands::mod_index::index_path;
 /// Sizes in bytes of the app's regenerable on-disk caches, for the Settings
 /// storage view. settings.json (user data) and the renderer's localStorage
 /// mod-metadata cache are measured and cleared elsewhere.
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageUsage {
     pub thumbnails: u64,
@@ -85,6 +85,7 @@ fn remove_file_freed(path: &Path) -> u64 {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_storage_usage(app: AppHandle) -> StorageUsage {
     let thumbnails = thumbnails_dir(&app).map(|d| dir_size(&d)).unwrap_or(0);
     let index_db = std::fs::metadata(index_path(&app))
@@ -103,6 +104,7 @@ pub fn get_storage_usage(app: AppHandle) -> StorageUsage {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn clear_thumbnail_cache(app: AppHandle) -> u64 {
     thumbnails_dir(&app)
         .map(|d| remove_files_in(&d))
@@ -110,11 +112,13 @@ pub fn clear_thumbnail_cache(app: AppHandle) -> u64 {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn clear_index_cache(app: AppHandle) -> u64 {
     remove_file_freed(&index_path(&app))
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn clear_news_cache(app: AppHandle) -> u64 {
     news_files(&app).iter().map(|p| remove_file_freed(p)).sum()
 }

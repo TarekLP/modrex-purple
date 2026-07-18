@@ -8,6 +8,19 @@ use std::time::{Duration, Instant};
 use tauri::AppHandle;
 use tokio::sync::Semaphore;
 
+/// Raw provider JSON in command signatures, exported to TypeScript as unknown.
+/// specta's own impl for serde_json::Value recurses infinitely at export time;
+/// serde(transparent) keeps the wire shape identical to a bare Value.
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Json(pub Value);
+
+impl specta::Type for Json {
+    fn definition(_: &mut specta::Types) -> specta::datatype::DataType {
+        specta::datatype::DataType::Reference(specta_typescript::define("unknown"))
+    }
+}
+
 const BASE: &str = "https://api.modworkshop.net";
 const MAX_CONCURRENT: usize = 3;
 // modworkshop enforces 90 req/min per IP, shared across every endpoint
@@ -175,7 +188,7 @@ pub(crate) async fn api_get(
     Err(format!("modworkshop API 429: {}", path))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 pub struct ListModsParams {
     pub query: Option<String>,
     pub limit: Option<u32>,
@@ -192,11 +205,12 @@ pub struct ListModsParams {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn list_mods(
     app: AppHandle,
     game_id: u32,
     params: Option<ListModsParams>,
-) -> Result<Value, String> {
+) -> Result<Json, String> {
     let mut query: Vec<(&str, String)> = vec![];
     if let Some(p) = &params {
         if let Some(v) = &p.query {
@@ -230,37 +244,53 @@ pub async fn list_mods(
             }
         }
     }
-    api_get(&app, &format!("/games/{}/mods", game_id), query).await
+    api_get(&app, &format!("/games/{}/mods", game_id), query)
+        .await
+        .map(Json)
 }
 
 #[tauri::command]
-pub async fn get_mod(app: AppHandle, id: u32) -> Result<Value, String> {
-    api_get(&app, &format!("/mods/{}", id), vec![]).await
+#[specta::specta]
+pub async fn get_mod(app: AppHandle, id: u32) -> Result<Json, String> {
+    api_get(&app, &format!("/mods/{}", id), vec![])
+        .await
+        .map(Json)
 }
 
 #[tauri::command]
-pub async fn list_mod_files(app: AppHandle, mod_id: u32) -> Result<Value, String> {
-    api_get(&app, &format!("/mods/{}/files", mod_id), vec![]).await
+#[specta::specta]
+pub async fn list_mod_files(app: AppHandle, mod_id: u32) -> Result<Json, String> {
+    api_get(&app, &format!("/mods/{}/files", mod_id), vec![])
+        .await
+        .map(Json)
 }
 
 #[tauri::command]
-pub async fn list_mod_links(app: AppHandle, mod_id: u32) -> Result<Value, String> {
-    api_get(&app, &format!("/mods/{}/links", mod_id), vec![]).await
+#[specta::specta]
+pub async fn list_mod_links(app: AppHandle, mod_id: u32) -> Result<Json, String> {
+    api_get(&app, &format!("/mods/{}/links", mod_id), vec![])
+        .await
+        .map(Json)
 }
 
 #[tauri::command]
-pub async fn list_categories(app: AppHandle, game_id: u32) -> Result<Value, String> {
-    api_get(&app, &format!("/games/{}/categories", game_id), vec![]).await
+#[specta::specta]
+pub async fn list_categories(app: AppHandle, game_id: u32) -> Result<Json, String> {
+    api_get(&app, &format!("/games/{}/categories", game_id), vec![])
+        .await
+        .map(Json)
 }
 
 #[tauri::command]
-pub async fn list_tags(app: AppHandle, game_id: u32) -> Result<Value, String> {
+#[specta::specta]
+pub async fn list_tags(app: AppHandle, game_id: u32) -> Result<Json, String> {
     api_get(
         &app,
         &format!("/games/{}/tags", game_id),
         vec![("type", "mod".to_string()), ("global", "1".to_string())],
     )
     .await
+    .map(Json)
 }
 
 #[cfg(test)]

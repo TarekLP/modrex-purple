@@ -12,11 +12,13 @@ const LOADER_DOWNLOAD_URL: &str =
     "https://github.com/HW12Dev/PDTHModOverrides/releases/latest/download/PDTHModOverrides.zip";
 
 #[tauri::command]
+#[specta::specta]
 pub fn check_pdth_overrides(game_path: String) -> bool {
     Path::new(&game_path).join(LOADER_FILES[0]).is_file()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn install_pdth_overrides(
     app: tauri::AppHandle,
     game_path: String,

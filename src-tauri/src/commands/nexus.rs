@@ -228,13 +228,14 @@ fn validate_sort_field(sort: &str) -> Result<&str, String> {
 // One query for both browse and search: an empty query string omits the
 // name filter entirely rather than sending a WILDCARD match-everything.
 #[tauri::command]
+#[specta::specta]
 pub async fn nexus_search_mods(
     app: AppHandle,
     game_id: String,
     query: String,
     sort: String,
     offset: Option<u32>,
-) -> Result<Value, String> {
+) -> Result<crate::commands::api::Json, String> {
     let domain = nexus_domain(&game_id)?;
     let headers = nexus_headers(&app).await?;
     let sort_field = validate_sort_field(&sort)?;
@@ -281,6 +282,7 @@ pub async fn nexus_search_mods(
         .get("data")
         .and_then(|d| d.get("mods"))
         .cloned()
+        .map(crate::commands::api::Json)
         .ok_or_else(|| "nexus: malformed graphql response".to_string())
 }
 

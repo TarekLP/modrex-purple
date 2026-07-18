@@ -6657,6 +6657,25 @@ limitations under the License.
 
 ---
 
+## BSD 2-Clause "Simplified" License
+
+Used by: Inflector 0.11.4
+
+```
+Copyright (c) <year> <owner> 
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+```
+
+---
+
 ## BSD 3-Clause "New" or "Revised" License
 
 Used by: alloc-no-stdlib 2.0.4, brotli 8.0.4
@@ -11789,7 +11808,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: modrex 0.12.2, brotli-decompressor 5.0.3, cargo_toml 0.22.3, chrono 0.4.45, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, siphasher 1.0.3, tauri-build 2.6.3, tauri-codegen 2.6.3, tauri-macros 2.6.3, tauri-plugin-deep-link 2.4.9, tauri-plugin-dialog 2.7.1, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.8.0, tauri-plugin-single-instance 2.4.3, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.3, tauri-runtime 2.11.3, tauri-utils 2.9.3, tauri 2.11.3, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-collections 0.3.2, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-future 0.3.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-numerics 0.3.1, windows-registry 0.5.3, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-threading 0.2.1, windows-version 0.1.7, windows 0.61.3, windows 0.62.2, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
+Used by: modrex 0.12.2, brotli-decompressor 5.0.3, cargo_toml 0.22.3, chrono 0.4.45, dlopen2 0.8.2, dlopen2_derive 0.4.3, dpi 0.1.2, minisign-verify 0.2.5, siphasher 1.0.3, specta-macros 2.0.0-rc.25, specta-serde 0.0.12, specta-typescript 0.0.12, specta-util 0.0.12, specta 2.0.0-rc.25, tauri-build 2.6.3, tauri-codegen 2.6.3, tauri-macros 2.6.3, tauri-plugin-deep-link 2.4.9, tauri-plugin-dialog 2.7.1, tauri-plugin-fs 2.5.1, tauri-plugin-log 2.8.0, tauri-plugin-single-instance 2.4.3, tauri-plugin-updater 2.10.1, tauri-plugin 2.6.2, tauri-runtime-wry 2.11.3, tauri-runtime 2.11.3, tauri-specta-macros 2.0.0-rc.25, tauri-specta 2.0.0-rc.25, tauri-utils 2.9.3, tauri 2.11.3, unic-char-property 0.9.0, unic-char-range 0.9.0, unic-common 0.9.0, unic-ucd-ident 0.9.0, unic-ucd-version 0.9.0, unrar_sys 0.5.8, webview2-com-macros 0.8.1, webview2-com-sys 0.38.2, webview2-com 0.38.2, windows-collections 0.2.0, windows-collections 0.3.2, windows-core 0.61.2, windows-core 0.62.2, windows-future 0.2.1, windows-future 0.3.2, windows-implement 0.60.2, windows-interface 0.59.3, windows-link 0.1.3, windows-link 0.2.1, windows-numerics 0.2.0, windows-numerics 0.3.1, windows-registry 0.5.3, windows-registry 0.6.1, windows-result 0.3.4, windows-result 0.4.1, windows-strings 0.4.2, windows-strings 0.5.1, windows-sys 0.52.0, windows-sys 0.59.0, windows-sys 0.60.2, windows-sys 0.61.2, windows-targets 0.52.6, windows-targets 0.53.5, windows-threading 0.1.0, windows-threading 0.2.1, windows-version 0.1.7, windows 0.61.3, windows 0.62.2, windows_x86_64_gnu 0.52.6, windows_x86_64_gnu 0.53.1, windows_x86_64_msvc 0.52.6, windows_x86_64_msvc 0.53.1
 
 ```
 MIT License
@@ -12041,7 +12060,7 @@ DEALINGS IN THE SOFTWARE.
 
 ## MIT License
 
-Used by: adler2 2.0.1, anyhow 1.0.102, async-channel 2.5.0, async-executor 1.14.0, async-io 2.6.0, async-lock 3.4.2, async-process 2.5.0, async-signal 0.2.14, async-task 4.7.1, async-trait 0.1.89, atomic-waker 1.1.2, blocking 1.6.2, camino 1.2.4, cargo-platform 0.1.9, cargo_metadata 0.19.2, concurrent-queue 2.5.0, displaydoc 0.2.6, dtoa 1.0.11, dyn-clone 1.0.20, endi 1.1.1, erased-serde 0.4.10, event-listener-strategy 0.5.4, event-listener 5.4.1, fastrand 2.4.1, futures-lite 2.6.1, itoa 1.0.18, linux-raw-sys 0.12.1, once_cell 1.21.4, ordered-stream 0.2.0, parking 2.2.1, pin-project-lite 0.2.17, piper 0.2.5, polling 3.11.0, proc-macro-crate 1.3.1, proc-macro-crate 2.0.2, proc-macro-crate 3.5.0, proc-macro2 1.0.106, quote 1.0.46, rustix 1.1.4, semver 1.0.28, serde-untagged 0.1.9, serde 1.0.228, serde_core 1.0.228, serde_derive 1.0.228, serde_derive_internals 0.29.1, serde_json 1.0.150, serde_repr 0.1.20, servo_arc 0.4.3, syn 1.0.109, syn 2.0.118, system-deps 6.2.2, thiserror-impl 1.0.69, thiserror-impl 2.0.18, thiserror 1.0.69, thiserror 2.0.18, typeid 1.0.3, unicode-ident 1.0.24, unrar 0.5.8, utf-8 0.7.6, x11-dl 2.21.0, x11 2.21.0, zmij 1.0.21, zvariant_utils 3.4.0
+Used by: adler2 2.0.1, anyhow 1.0.102, async-channel 2.5.0, async-executor 1.14.0, async-io 2.6.0, async-lock 3.4.2, async-process 2.5.0, async-signal 0.2.14, async-task 4.7.1, async-trait 0.1.89, atomic-waker 1.1.2, blocking 1.6.2, camino 1.2.4, cargo-platform 0.1.9, cargo_metadata 0.19.2, concurrent-queue 2.5.0, displaydoc 0.2.6, dtoa 1.0.11, dyn-clone 1.0.20, endi 1.1.1, erased-serde 0.4.10, event-listener-strategy 0.5.4, event-listener 5.4.1, fastrand 2.4.1, futures-lite 2.6.1, itoa 1.0.18, linux-raw-sys 0.12.1, once_cell 1.21.4, ordered-stream 0.2.0, parking 2.2.1, paste 1.0.15, pin-project-lite 0.2.17, piper 0.2.5, polling 3.11.0, proc-macro-crate 1.3.1, proc-macro-crate 2.0.2, proc-macro-crate 3.5.0, proc-macro2 1.0.106, quote 1.0.46, rustix 1.1.4, semver 1.0.28, serde-untagged 0.1.9, serde 1.0.228, serde_core 1.0.228, serde_derive 1.0.228, serde_derive_internals 0.29.1, serde_json 1.0.150, serde_repr 0.1.20, servo_arc 0.4.3, syn 1.0.109, syn 2.0.118, system-deps 6.2.2, thiserror-impl 1.0.69, thiserror-impl 2.0.18, thiserror 1.0.69, thiserror 2.0.18, typeid 1.0.3, unicode-ident 1.0.24, unrar 0.5.8, utf-8 0.7.6, x11-dl 2.21.0, x11 2.21.0, zmij 1.0.21, zvariant_utils 3.4.0
 
 ```
 Permission is hereby granted, free of charge, to any
