@@ -47,6 +47,7 @@ export function FolderSection({ folder }: Props) {
         gamePath,
         isFiltering,
         visibleFolderIds,
+        hiddenFolderIds,
         renderMods,
         folders,
         dragItem,
@@ -77,7 +78,13 @@ export function FolderSection({ folder }: Props) {
     const isDropBeforeThis = dropTarget?.kind === 'before-child' && dropTarget.id === folder.id
     const isDropInto = dropTarget?.kind === 'into-folder' && dropTarget.folderId === folder.id
 
-    const children = computeChildren(renderMods, folders, folder.id, visibleFolderIds)
+    const children = computeChildren(
+        renderMods,
+        folders,
+        folder.id,
+        visibleFolderIds,
+        hiddenFolderIds
+    )
     const isEmpty = children.length === 0
     const folderMods = getAllModsInFolder(renderMods, folders, folder.id)
     const normalizedCount = new Set(

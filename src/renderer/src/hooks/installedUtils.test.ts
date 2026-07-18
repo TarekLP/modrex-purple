@@ -8,6 +8,7 @@ import {
     getAllModsInFolder,
     filterInstalled,
     normalizeModScopes,
+    foldersEmptiedByNormalize,
     computeChildren,
     groupChildren,
     findSuspectDuplicateGroups,
@@ -262,6 +263,48 @@ describe('normalizeModScopes', () => {
         ]
         const result = normalizeModScopes(mods)
         expect(result.find((m) => m.uid === 'b')!.folderId).toBe('f2')
+    })
+})
+
+describe('foldersEmptiedByNormalize', () => {
+    const folder = (id: string, parentId: string | null = null): ModFolder => ({
+        id,
+        diskName: id,
+        displayName: id,
+        priority: 1,
+        parentId,
+    })
+
+    it('hides a folder whose only mod was pulled to root', () => {
+        // Real shape (Dark Matter Skins): a multi-pak archive in a folder plus a separate
+        // required bare pak at root — normalize collapses the group to root, and the folder
+        // would otherwise render as an empty duplicate next to the mod's card.
+        const raw = [
+            makeMod('100_a', 1, 'A', { folderId: 'f1' }),
+            makeMod('100_b', 1, 'B', { folderId: 'f1' }),
+            makeMod('200', 1, 'C', { folderId: null }),
+        ]
+        const normalized = normalizeModScopes(raw)
+        const emptied = foldersEmptiedByNormalize(raw, normalized, [folder('f1')])
+        expect(emptied).toEqual(new Set(['f1']))
+    })
+
+    it('keeps folders that were already empty before normalization', () => {
+        const raw = [makeMod('a', 1, 'A', { folderId: null })]
+        const emptied = foldersEmptiedByNormalize(raw, raw, [folder('f1')])
+        expect(emptied.size).toBe(0)
+    })
+
+    it('keeps a parent whose subtree still has mods in another child folder', () => {
+        const folders = [folder('f1'), folder('f2', 'f1')]
+        const raw = [
+            makeMod('100_a', 1, 'A', { folderId: 'f1' }),
+            makeMod('200', 1, 'B', { folderId: null }),
+            makeMod('x', 2, 'X', { folderId: 'f2' }),
+        ]
+        const normalized = normalizeModScopes(raw)
+        const emptied = foldersEmptiedByNormalize(raw, normalized, folders)
+        expect(emptied.size).toBe(0)
     })
 })
 

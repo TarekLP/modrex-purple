@@ -2806,3 +2806,59 @@ fn move_crimeboss_mod_preserves_disabled_state() {
         .join(format!("{}.disabled", m.filename));
     assert!(disabled_path.exists());
 }
+
+// ── stale_entry_for_zip_install ───────────────────────────────────────────────
+// Real-world regression shape (Dark Matter Skins, modworkshop 56976): a select-all batch
+// install of a 36-entry archive left only the last entry, because every install saw exactly
+// one same-id entry — the sibling installed a moment earlier — and pre-removed it.
+
+fn zip_install_entry(uid: &str, id: i64, file_id: i64) -> InstalledMod {
+    InstalledMod {
+        uid: uid.to_string(),
+        id,
+        filename: format!("{uid}.pak"),
+        enabled: true,
+        file_id: Some(file_id),
+        ..InstalledMod::default()
+    }
+}
+
+#[test]
+fn stale_entry_keeps_same_archive_sibling() {
+    let mods = vec![zip_install_entry("98276_zDarkMatter_AG-9", 56976, 98276)];
+    assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_ATK-7", 56976, 98276).is_none());
+}
+
+#[test]
+fn stale_entry_removes_bare_packaging_of_same_file() {
+    let mods = vec![zip_install_entry("98276", 56976, 98276)];
+    let stale = stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, 98276);
+    assert_eq!(stale.map(|m| m.uid.as_str()), Some("98276"));
+}
+
+#[test]
+fn stale_entry_removes_older_file_id() {
+    for old_uid in ["90000", "90000_OldEntry"] {
+        let mods = vec![zip_install_entry(old_uid, 56976, 90000)];
+        let stale = stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, 98276);
+        assert_eq!(stale.map(|m| m.uid.as_str()), Some(old_uid));
+    }
+}
+
+#[test]
+fn stale_entry_none_when_uid_already_installed() {
+    let mods = vec![zip_install_entry("98276_zDarkMatter_AG-9", 56976, 98276)];
+    assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, 98276).is_none());
+}
+
+#[test]
+fn stale_entry_none_for_multi_entry_mods_and_negative_ids() {
+    let mods = vec![
+        zip_install_entry("90000", 56976, 90000),
+        zip_install_entry("90001", 56976, 90001),
+    ];
+    assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, 98276).is_none());
+
+    let mods = vec![zip_install_entry("Foo", -42, 0)];
+    assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", -42, 98276).is_none());
+}

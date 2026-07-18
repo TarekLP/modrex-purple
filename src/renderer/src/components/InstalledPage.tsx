@@ -34,6 +34,7 @@ import {
     computeChildren,
     groupChildren,
     normalizeModScopes,
+    foldersEmptiedByNormalize,
     filterInstalled,
     groupInstalledByIdentity,
 } from '../hooks/installedUtils'
@@ -203,9 +204,14 @@ export function InstalledPage({
 
     const renderMods = useMemo(() => normalizeModScopes(displayMods), [displayMods])
 
+    const hiddenFolderIds = useMemo(
+        () => foldersEmptiedByNormalize(displayMods, renderMods, folders),
+        [displayMods, renderMods, folders]
+    )
+
     const rootChildren = useMemo(
-        () => computeChildren(renderMods, folders, null, visibleFolderIds),
-        [renderMods, folders, visibleFolderIds]
+        () => computeChildren(renderMods, folders, null, visibleFolderIds, hiddenFolderIds),
+        [renderMods, folders, visibleFolderIds, hiddenFolderIds]
     )
 
     function renderRootMod(mods: InstalledMod[], isFolderDropZone = false) {
@@ -249,6 +255,7 @@ export function InstalledPage({
         gamePath,
         isFiltering,
         visibleFolderIds,
+        hiddenFolderIds,
         renderMods,
         folders,
         installed,

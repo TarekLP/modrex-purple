@@ -12,6 +12,7 @@ export interface InstalledContextValue {
     gamePath: string | null
     isFiltering: boolean
     visibleFolderIds: Set<string> | undefined
+    hiddenFolderIds: Set<string>
     renderMods: InstalledMod[]
     folders: ModFolder[]
     installed: InstalledMod[]

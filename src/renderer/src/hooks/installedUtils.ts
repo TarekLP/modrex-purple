@@ -98,6 +98,22 @@ export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
     return mods.map((m) => (overrides.has(m.uid) ? { ...m, folderId: overrides.get(m.uid) } : m))
 }
 
+// Folders whose entire subtree was pulled to root by normalizeModScopes — rendering them
+// would show an empty duplicate next to the mod's root card. Folders that were already
+// empty before normalization (freshly created drop targets) stay visible.
+export function foldersEmptiedByNormalize(
+    raw: InstalledMod[],
+    normalized: InstalledMod[],
+    folders: ModFolder[]
+): Set<string> {
+    const emptied = new Set<string>()
+    for (const f of folders) {
+        if (getAllModsInFolder(raw, folders, f.id).length === 0) continue
+        if (getAllModsInFolder(normalized, folders, f.id).length === 0) emptied.add(f.id)
+    }
+    return emptied
+}
+
 export interface InstalledGroup {
     key: string
     id: number
@@ -199,7 +215,8 @@ export function computeChildren(
     mods: InstalledMod[],
     folders: ModFolder[],
     parentId: string | null,
-    visibleFolderIds?: Set<string>
+    visibleFolderIds?: Set<string>,
+    hiddenFolderIds?: Set<string>
 ): ChildEntry[] {
     const scopedMods = mods.filter((m) => (m.folderId ?? null) === parentId)
     const groupMap = new Map<number, InstalledMod[]>()
@@ -213,7 +230,10 @@ export function computeChildren(
         items.push({ type: 'mod', mods: groupMods })
     }
     for (const folder of folders.filter(
-        (f) => f.parentId === parentId && (!visibleFolderIds || visibleFolderIds.has(f.id))
+        (f) =>
+            f.parentId === parentId &&
+            (!visibleFolderIds || visibleFolderIds.has(f.id)) &&
+            !hiddenFolderIds?.has(f.id)
     )) {
         items.push({ type: 'folder', folder })
     }

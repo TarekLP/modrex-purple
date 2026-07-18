@@ -870,6 +870,27 @@ pub async fn install_dropped_file(
     result
 }
 
+/// The single same-mod entry to uninstall before an archive-entry install lands under a new uid:
+/// an older version under a different file id, or this file's previous bare-pak packaging
+/// (uid == "{file_id}"). An archive-scheme sibling of the same file (uid "{file_id}_...") is
+/// another entry of the archive being installed right now — removing it would make a multi-entry
+/// batch install delete each predecessor, leaving only the last selected entry.
+fn stale_entry_for_zip_install<'a>(
+    mods: &'a [InstalledMod],
+    uid: &str,
+    mod_id: i64,
+    file_id: i64,
+) -> Option<&'a InstalledMod> {
+    if mod_id <= 0 || mods.iter().any(|m| m.uid == uid) {
+        return None;
+    }
+    let same: Vec<_> = mods.iter().filter(|m| m.id == mod_id).collect();
+    if same.len() != 1 || same[0].uid.starts_with(&format!("{file_id}_")) {
+        return None;
+    }
+    Some(same[0])
+}
+
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn install_from_zip_entry(
@@ -979,14 +1000,9 @@ pub async fn install_from_zip_entry(
             .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
         let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
 
-        // If the mod had a single previously-installed entry under a different uid (e.g. an
-        // older version that shipped as a bare file rather than this archive entry's uid scheme),
-        // remove it first so install_mod_from_path doesn't produce two entries for the same mod.
-        if saved.mods.iter().all(|m| m.uid != uid) && mod_id > 0 {
-            let same: Vec<_> = saved.mods.iter().filter(|m| m.id == mod_id).collect();
-            if same.len() == 1 {
-                uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg);
-            }
+        if let Some(stale) = stale_entry_for_zip_install(&saved.mods, &uid, mod_id, file_id) {
+            let stale_uid = stale.uid.clone();
+            uninstall_mod_op(&game_path, &sp, &stale_uid, cfg);
         }
 
         // Never inherit folderId from existing entries; callers always supply the target folder.
