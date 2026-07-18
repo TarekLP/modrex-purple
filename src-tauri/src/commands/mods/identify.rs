@@ -182,6 +182,9 @@ pub(crate) fn upgrade_negative_ids(
     mods: &mut [InstalledMod],
     game_name: &str,
 ) -> bool {
+    let Some(conn) = mod_index::open_index(app) else {
+        return false;
+    };
     let mut any = false;
     for m in mods {
         if m.id >= 0 {
@@ -190,7 +193,7 @@ pub(crate) fn upgrade_negative_ids(
         if let Some(hit) = m
             .sha256
             .as_deref()
-            .and_then(|sha| mod_index::lookup_sha256(app, sha, game_name))
+            .and_then(|sha| mod_index::query_sha256(&conn, sha, game_name))
         {
             m.id = hit.mod_remote_id;
             m.name = hit.mod_name;
@@ -205,7 +208,7 @@ pub(crate) fn upgrade_negative_ids(
         if m.source == "nexus" {
             continue;
         }
-        if let Some(remote_id) = mod_index::lookup_by_name(app, &m.name, game_name) {
+        if let Some(remote_id) = mod_index::query_by_name(&conn, &m.name, game_name) {
             m.id = remote_id;
             // The SHA256 check above just failed against the index's current file for this
             // mod, so unlike the embedded-id "no declared version" fallback (which has zero
