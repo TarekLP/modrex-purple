@@ -23,14 +23,17 @@ export function displayFilename(filename: string): string {
     return stripped || filename
 }
 
+const SOURCE_LABELS: Record<string, string> = { nexus: 'Nexus Mods' }
+
 export function syntheticMod(ins: InstalledMod): Mod {
-    const fromNexus = ins.source === 'nexus'
+    const source = ins.source
+    const external = source !== undefined && source !== 'modworkshop'
     return {
         id: ins.id,
         name: ins.name,
         desc: '',
-        short_desc: fromNexus
-            ? 'Installed from Nexus Mods'
+        short_desc: external
+            ? `Installed from ${SOURCE_LABELS[source] ?? source}`
             : 'Manually installed — not on modworkshop',
         version: ins.version,
         downloads: 0,
@@ -44,7 +47,7 @@ export function syntheticMod(ins: InstalledMod): Mod {
         // URL can ride the normal thumbnail field.
         thumbnail: ins.thumbnailUrl ? { file: ins.thumbnailUrl } : null,
         download: null,
-        user: { name: fromNexus ? (ins.author ?? '') : 'Unknown' },
+        user: { name: external ? (ins.author ?? '') : 'Unknown' },
     }
 }
 
@@ -156,9 +159,9 @@ export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
                 (g.mods.some((m) => m.version === 'outdated') ||
                     g.mods.some((m) => m.fileId != null && suspectFileIds.has(m.fileId)))
         ),
-        // Nexus installs carry a negative id by design; they're identified, just
-        // not on modworkshop, so they don't belong here.
-        unidentified: groups.filter((g) => g.id < 0 && g.mods.every((m) => m.source !== 'nexus')),
+        // Installs from other sources carry a negative id by design; a recorded
+        // remoteId means identified, just not on modworkshop.
+        unidentified: groups.filter((g) => g.id < 0 && g.mods.every((m) => !m.remoteId)),
     }
 }
 

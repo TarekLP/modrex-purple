@@ -237,11 +237,11 @@ export function NexusBrowsePage({
     const lastFetchedRef = useRef('')
     const scrollRef = useRef<HTMLDivElement>(null)
 
-    // Nexus installs are tracked as id = -nexusModId with source "nexus".
+    // Nexus installs carry their nexus mod id in remoteId.
     const installedByNexusId = useMemo(() => {
         const map = new Map<number, InstalledMod>()
         for (const m of installed) {
-            if (m.source === 'nexus' && m.id < 0) map.set(-m.id, m)
+            if (m.source === 'nexus' && m.remoteId) map.set(Number(m.remoteId), m)
         }
         return map
     }, [installed])

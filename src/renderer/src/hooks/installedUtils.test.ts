@@ -349,6 +349,13 @@ describe('computeHealthSummary', () => {
         expect(summary.unidentified[0].id).toBe(-1)
     })
 
+    it('does not flag negative-id groups carrying a source remoteId as unidentified', () => {
+        const mods = [
+            makeMod('nexus:123:456', -123, 'Nexus Mod', { source: 'nexus', remoteId: '123' }),
+        ]
+        expect(computeHealthSummary(mods).unidentified).toEqual([])
+    })
+
     it('flags positive-id groups as outdated when any file has version "outdated"', () => {
         const mods = [makeMod('a', 1, 'A', { version: 'outdated' })]
         const summary = computeHealthSummary(mods)

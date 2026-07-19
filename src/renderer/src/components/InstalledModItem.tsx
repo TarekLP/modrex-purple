@@ -64,13 +64,17 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         archiveBroken: mods.some((m) => m.archiveBroken) ? true : undefined,
     }
     // Nexus-sourced mods have no in-app detail page; their mod page on
-    // nexusmods.com is the equivalent destination (id encodes -nexusModId).
+    // nexusmods.com is the equivalent destination.
     const nexusDomain = GAMES[activeGame].nexusDomain
+    const nexusRemoteId = ins.source === 'nexus' ? ins.remoteId : undefined
     const handleOpen =
         apiMod !== undefined
             ? () => onOpenDetail(id)
-            : ins.source === 'nexus' && nexusDomain !== undefined
-              ? () => api.openExternal(`https://www.nexusmods.com/${nexusDomain}/mods/${-id}`)
+            : nexusRemoteId !== undefined && nexusDomain !== undefined
+              ? () =>
+                    api.openExternal(
+                        `https://www.nexusmods.com/${nexusDomain}/mods/${nexusRemoteId}`
+                    )
               : () => {}
 
     // CB-only: the primary mods/ (ModKit) and legacy ~mods targets are alternate shapes of the
