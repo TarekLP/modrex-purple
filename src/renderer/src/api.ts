@@ -1,7 +1,7 @@
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
-import { commands } from '../../shared/bindings'
+import { commands, type InstallOutcome } from '../../shared/bindings'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -53,6 +53,18 @@ const INSTALL_SENTINEL_PREFIXES = [
 ]
 
 let installErrorThisSession = false
+
+// Legacy sentinel adapter: install entry points still parse sentinel strings out of
+// thrown errors, so a needs-a-decision outcome is rethrown in that shape until the
+// entry points switch to handling the typed outcome directly.
+async function unwrapInstallOutcome(pending: Promise<InstallOutcome>): Promise<void> {
+    const o = await pending
+    if (o === 'installed') return
+    if (o === 'unrecognized') throw 'UNRECOGNIZED_ARCHIVE'
+    if ('needsPicker' in o) throw 'ZIP_MULTI_PAK:' + JSON.stringify(o.needsPicker)
+    if ('needsHostChoice' in o) throw 'HOST_MOD_PACK:' + JSON.stringify(o.needsHostChoice)
+    throw 'CB_FLAT_ARCHIVE:' + JSON.stringify(o.needsCbFlatConfirm)
+}
 
 async function trackInstall(install: Promise<unknown>): Promise<void> {
     try {
@@ -255,7 +267,9 @@ export const api = {
         return commands.openModFolder(gameId, tag)
     },
     installMod(modId: number, gamePath: string, gameId?: string): Promise<void> {
-        return trackInstall(commands.installMod(modId, gamePath, null, gameId ?? null))
+        return trackInstall(
+            unwrapInstallOutcome(commands.installMod(modId, gamePath, null, gameId ?? null))
+        )
     },
     installDroppedFile(
         path: string,
@@ -264,7 +278,9 @@ export const api = {
         gameId?: string
     ): Promise<void> {
         return trackInstall(
-            commands.installDroppedFile(path, gamePath, folderId ?? null, gameId ?? null)
+            unwrapInstallOutcome(
+                commands.installDroppedFile(path, gamePath, folderId ?? null, gameId ?? null)
+            )
         )
     },
     installModFile(
@@ -278,15 +294,17 @@ export const api = {
         gameId?: string
     ): Promise<void> {
         return trackInstall(
-            commands.installFile(
-                modId,
-                modName,
-                fileId,
-                downloadUrl,
-                fileType,
-                modVersion,
-                gamePath,
-                gameId ?? null
+            unwrapInstallOutcome(
+                commands.installFile(
+                    modId,
+                    modName,
+                    fileId,
+                    downloadUrl,
+                    fileType,
+                    modVersion,
+                    gamePath,
+                    gameId ?? null
+                )
             )
         )
     },

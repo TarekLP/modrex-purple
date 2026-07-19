@@ -83,6 +83,30 @@ struct ScanEvent {
     total: usize,
 }
 
+/// What an install command produced: a finished install, or an archive that needs a
+/// user decision first. Returned in the Ok channel so the renderer handles every case
+/// with an exhaustive switch instead of parsing sentinel strings out of errors.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum InstallOutcome {
+    Installed,
+    NeedsPicker(zip::ZipMultiPakPayload),
+    NeedsHostChoice(zip::HostPackPayload),
+    NeedsCbFlatConfirm(zip::CbFlatPayload),
+    Unrecognized,
+}
+
+impl From<InstallPrompt> for InstallOutcome {
+    fn from(p: InstallPrompt) -> Self {
+        match p {
+            InstallPrompt::ZipMultiPak(p) => InstallOutcome::NeedsPicker(p),
+            InstallPrompt::HostModPack(p) => InstallOutcome::NeedsHostChoice(p),
+            InstallPrompt::CbFlatArchive(p) => InstallOutcome::NeedsCbFlatConfirm(p),
+            InstallPrompt::UnrecognizedArchive => InstallOutcome::Unrecognized,
+        }
+    }
+}
+
 // Mod identification (get_installed pipeline) lives in identify.rs
 #[tauri::command]
 #[specta::specta]
@@ -258,7 +282,7 @@ pub async fn install_mod(
     game_path: String,
     folder_id: Option<String>,
     game_id: Option<String>,
-) -> Result<(), String> {
+) -> Result<InstallOutcome, String> {
     let prep = async {
         let mod_val = api_get(&app, &format!("/mods/{}", mod_id), vec![]).await?;
 
@@ -323,10 +347,10 @@ pub async fn install_mod(
                 &zip_path,
             );
             let _ = std::fs::remove_file(&zip_path);
-            return result;
+            return result.map(|()| InstallOutcome::Installed);
         }
         Err(ResolveError::Prompt(prompt)) => {
-            return Err((*prompt)
+            return Ok((*prompt)
                 .with_mod_context(ModContext {
                     mod_id: remote_id,
                     mod_name: mod_name.clone(),
@@ -334,7 +358,7 @@ pub async fn install_mod(
                     file_type: file_type.clone(),
                     mod_version: mod_version.clone(),
                 })
-                .to_sentinel());
+                .into());
         }
         Err(ResolveError::Failure(e)) => {
             log::warn!("install_mod {mod_id}: {e}");
@@ -487,7 +511,7 @@ pub async fn install_mod(
         ),
         Err(e) => log::warn!("install_mod {mod_id}: {e}"),
     }
-    result
+    result.map(|()| InstallOutcome::Installed)
 }
 
 #[tauri::command]
@@ -503,7 +527,7 @@ pub async fn install_file(
     mod_version: String,
     game_path: String,
     game_id: Option<String>,
-) -> Result<(), String> {
+) -> Result<InstallOutcome, String> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let download_id = format!("file:{mod_id}:{file_id}");
     let downloaded = match download_file(&app, &download_url, &file_type, &download_id).await {
@@ -524,10 +548,10 @@ pub async fn install_file(
                 &zip_path,
             );
             let _ = std::fs::remove_file(&zip_path);
-            return result;
+            return result.map(|()| InstallOutcome::Installed);
         }
         Err(ResolveError::Prompt(prompt)) => {
-            return Err((*prompt)
+            return Ok((*prompt)
                 .with_mod_context(ModContext {
                     mod_id,
                     mod_name: mod_name.clone(),
@@ -535,7 +559,7 @@ pub async fn install_file(
                     file_type: file_type.clone(),
                     mod_version: mod_version.clone(),
                 })
-                .to_sentinel());
+                .into());
         }
         Err(ResolveError::Failure(e)) => {
             log::warn!("install_file {mod_id}/{file_id}: {e}");
@@ -675,7 +699,7 @@ pub async fn install_file(
         ),
         Err(e) => log::warn!("install_file {mod_id} file={file_id}: {e}"),
     }
-    result
+    result.map(|()| InstallOutcome::Installed)
 }
 
 pub(crate) struct NexusInstallMeta {
@@ -848,7 +872,7 @@ pub async fn install_dropped_file(
     game_path: String,
     folder_id: Option<String>,
     game_id: Option<String>,
-) -> Result<(), String> {
+) -> Result<InstallOutcome, String> {
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let src = PathBuf::from(&path);
     let file_stem = src
@@ -877,7 +901,7 @@ pub async fn install_dropped_file(
                 &zip_path,
             );
             let _ = std::fs::remove_file(&zip_path);
-            return result;
+            return result.map(|()| InstallOutcome::Installed);
         }
         // The picker / host-pack / CB-flat modals install directly from the temp copy (which they
         // delete afterwards), so forward the prompt enriched with a synthetic identity, mirroring
@@ -888,7 +912,7 @@ pub async fn install_dropped_file(
             if !matches!(*prompt, InstallPrompt::UnrecognizedArchive) =>
         {
             let syn = hash_filename(&file_stem);
-            return Err((*prompt)
+            return Ok((*prompt)
                 .with_mod_context(ModContext {
                     mod_id: syn,
                     mod_name: file_stem.clone(),
@@ -900,7 +924,7 @@ pub async fn install_dropped_file(
                         .to_string(),
                     mod_version: "unknown".to_string(),
                 })
-                .to_sentinel());
+                .into());
         }
         Err(ResolveError::Failure(e)) => {
             let _ = tokio::fs::remove_file(&temp).await;
@@ -1007,7 +1031,7 @@ pub async fn install_dropped_file(
         ),
         Err(e) => log::warn!("install_dropped_file {path}: {e}"),
     }
-    result
+    result.map(|()| InstallOutcome::Installed)
 }
 
 /// The single same-mod entry to uninstall before an archive-entry install lands under a new uid:

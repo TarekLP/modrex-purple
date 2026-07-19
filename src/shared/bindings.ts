@@ -60,8 +60,8 @@ export const commands = {
 	 */
 	trackEvent: (name: string, params: unknown | null) => __TAURI_INVOKE<void>("track_event", { name, params }),
 	getInstalled: (gameId: string | null) => __TAURI_INVOKE<InstalledResponse_Serialize>("get_installed", { gameId }),
-	installMod: (modId: number, gamePath: string, folderId: string | null, gameId: string | null) => __TAURI_INVOKE<null>("install_mod", { modId, gamePath, folderId, gameId }),
-	installFile: (modId: number, modName: string, fileId: number, downloadUrl: string, fileType: string, modVersion: string, gamePath: string, gameId: string | null) => __TAURI_INVOKE<null>("install_file", { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath, gameId }),
+	installMod: (modId: number, gamePath: string, folderId: string | null, gameId: string | null) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, gamePath, folderId, gameId }),
+	installFile: (modId: number, modName: string, fileId: number, downloadUrl: string, fileType: string, modVersion: string, gamePath: string, gameId: string | null) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_file", { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath, gameId }),
 	/**
 	 *  Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 	 *  The file carries no modworkshop identity, so it is installed as an unidentified entry
@@ -69,7 +69,7 @@ export const commands = {
 	 *  SHA256 upgrade resolves its real identity on the next refresh. The dropped file is copied into
 	 *  temp first so resolution/cleanup never touches the user's original.
 	 */
-	installDroppedFile: (path: string, gamePath: string, folderId: string | null, gameId: string | null) => __TAURI_INVOKE<null>("install_dropped_file", { path, gamePath, folderId, gameId }),
+	installDroppedFile: (path: string, gamePath: string, folderId: string | null, gameId: string | null) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_dropped_file", { path, gamePath, folderId, gameId }),
 	installFromZipEntry: (args: InstallFromZipEntryArgs) => __TAURI_INVOKE<null>("install_from_zip_entry", { args }),
 	/**
 	 *  Installs a Crime Boss archive whose content has no enclosing folder (every entry sits at the
@@ -169,12 +169,60 @@ export const commands = {
 };
 
 /* Types */
+export type CbFlatPayload = CbFlatPayload_Serialize | CbFlatPayload_Deserialize;
+
+export type CbFlatPayload_Deserialize = {
+	zipPath: string,
+	modId?: number | null,
+	modName?: string | null,
+	fileId?: number | null,
+	fileType?: string | null,
+	modVersion?: string | null,
+};
+
+export type CbFlatPayload_Serialize = {
+	zipPath: string,
+	modId?: number | null,
+	modName?: string | null,
+	fileId?: number | null,
+	fileType?: string | null,
+	modVersion?: string | null,
+};
+
 export type GameSettings = {
 	gamePath: string | null,
 	launcher: string | null,
 	launchOptions: string | null,
 	suppressCrashReporter: boolean | null,
 	crimebossInstallMode: string | null,
+};
+
+export type HostPackPayload = HostPackPayload_Serialize | HostPackPayload_Deserialize;
+
+export type HostPackPayload_Deserialize = {
+	zipPath: string,
+	entries: string[],
+	hostModId: number,
+	hostName: string,
+	hostSubpath: string,
+	modId?: number | null,
+	modName?: string | null,
+	fileId?: number | null,
+	fileType?: string | null,
+	modVersion?: string | null,
+};
+
+export type HostPackPayload_Serialize = {
+	zipPath: string,
+	entries: string[],
+	hostModId: number,
+	hostName: string,
+	hostSubpath: string,
+	modId?: number | null,
+	modName?: string | null,
+	fileId?: number | null,
+	fileType?: string | null,
+	modVersion?: string | null,
 };
 
 export type IndexModFile = {
@@ -215,6 +263,27 @@ export type InstallHostPackArgs = {
 	hostSubpath: string,
 	gameId: string | null,
 };
+
+/**
+ *  What an install command produced: a finished install, or an archive that needs a
+ *  user decision first. Returned in the Ok channel so the renderer handles every case
+ *  with an exhaustive switch instead of parsing sentinel strings out of errors.
+ */
+export type InstallOutcome = InstallOutcome_Serialize | InstallOutcome_Deserialize;
+
+/**
+ *  What an install command produced: a finished install, or an archive that needs a
+ *  user decision first. Returned in the Ok channel so the renderer handles every case
+ *  with an exhaustive switch instead of parsing sentinel strings out of errors.
+ */
+export type InstallOutcome_Deserialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never } | ({ needsHostChoice: HostPackPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsPicker?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Deserialize }) & { needsHostChoice?: never; needsPicker?: never } | "unrecognized";
+
+/**
+ *  What an install command produced: a finished install, or an archive that needs a
+ *  user decision first. Returned in the Ok channel so the renderer handles every case
+ *  with an exhaustive switch instead of parsing sentinel strings out of errors.
+ */
+export type InstallOutcome_Serialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Serialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never } | ({ needsHostChoice: HostPackPayload_Serialize }) & { needsCbFlatConfirm?: never; needsPicker?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Serialize }) & { needsHostChoice?: never; needsPicker?: never } | "unrecognized";
 
 export type InstalledMod = InstalledMod_Serialize | InstalledMod_Deserialize;
 
@@ -330,4 +399,50 @@ export type StorageUsage = {
 };
 
 export type TopLevelItem = { type: "folder"; id: string } | { type: "mod"; id: string };
+
+/**
+ *  Archive shapes that need a user decision before installing. Each variant carries the
+ *  payload its renderer modal renders from; the mod-context fields (mod_id, mod_name, ...)
+ *  are None here and filled by the install command via with_mod_context, since only the
+ *  command knows which mod the archive belongs to.
+ */
+export type ZipMultiPakPayload = ZipMultiPakPayload_Serialize | ZipMultiPakPayload_Deserialize;
+
+/**
+ *  Archive shapes that need a user decision before installing. Each variant carries the
+ *  payload its renderer modal renders from; the mod-context fields (mod_id, mod_name, ...)
+ *  are None here and filled by the install command via with_mod_context, since only the
+ *  command knows which mod the archive belongs to.
+ */
+export type ZipMultiPakPayload_Deserialize = {
+	zipPath: string,
+	entries: string[],
+	targetTag: string | null,
+	entryTags?: (string | null)[] | null,
+	entryKind?: string | null,
+	modId?: number | null,
+	modName?: string | null,
+	fileId?: number | null,
+	fileType?: string | null,
+	modVersion?: string | null,
+};
+
+/**
+ *  Archive shapes that need a user decision before installing. Each variant carries the
+ *  payload its renderer modal renders from; the mod-context fields (mod_id, mod_name, ...)
+ *  are None here and filled by the install command via with_mod_context, since only the
+ *  command knows which mod the archive belongs to.
+ */
+export type ZipMultiPakPayload_Serialize = {
+	zipPath: string,
+	entries: string[],
+	targetTag: string | null,
+	entryTags?: (string | null)[] | null,
+	entryKind?: string | null,
+	modId?: number | null,
+	modName?: string | null,
+	fileId?: number | null,
+	fileType?: string | null,
+	modVersion?: string | null,
+};
 
