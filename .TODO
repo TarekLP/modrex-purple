@@ -800,7 +800,15 @@ must match the existing serde rename_all exactly or every field silently mismatc
 
 ## TODO: typed-install-results
 
-Reliability. Large. Blocked on: typed-ipc-codegen (and therefore nexus-prototype-merge).
+Reliability. Large. DONE 2026-07-19: install_mod/install_file/install_dropped_file return
+a typed InstallOutcome (installed / needsPicker / needsHostChoice / needsCbFlatConfirm /
+unrecognized) in the Ok channel; zip.rs models prompts as InstallPrompt/ResolveError
+internally; every renderer entry point consumes the outcome through handleInstallOutcome
+(required-in-full handlers, missed prompt = compile error); the sentinel strings and
+their parsers are deleted. Nexus nxm:// installs still return the honest "needs a manual
+choice" error - they run in a background task with no renderer caller to prompt, so
+wiring pickers for them needs an event-driven prompt flow (mod-source-domain-model or
+later). Original context below.
 
 ### The problem
 

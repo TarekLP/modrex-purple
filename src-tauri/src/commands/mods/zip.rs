@@ -877,32 +877,6 @@ impl InstallPrompt {
         }
         self
     }
-
-    /// The legacy sentinel-string encoding, still the renderer wire protocol until
-    /// install commands return typed outcomes.
-    pub fn to_sentinel(&self) -> String {
-        match self {
-            InstallPrompt::ZipMultiPak(p) => {
-                format!(
-                    "ZIP_MULTI_PAK:{}",
-                    serde_json::to_string(p).unwrap_or_default()
-                )
-            }
-            InstallPrompt::HostModPack(p) => {
-                format!(
-                    "HOST_MOD_PACK:{}",
-                    serde_json::to_string(p).unwrap_or_default()
-                )
-            }
-            InstallPrompt::CbFlatArchive(p) => {
-                format!(
-                    "CB_FLAT_ARCHIVE:{}",
-                    serde_json::to_string(p).unwrap_or_default()
-                )
-            }
-            InstallPrompt::UnrecognizedArchive => "UNRECOGNIZED_ARCHIVE".to_string(),
-        }
-    }
 }
 
 fn multi_pak_payload(

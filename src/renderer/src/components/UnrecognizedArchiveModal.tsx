@@ -7,10 +7,6 @@ import { t } from '../i18n'
 import { getCachedMod } from '../modCache'
 import { SkeletonText } from './Skeleton'
 
-export function isUnrecognizedArchive(error: string): boolean {
-    return error.includes('UNRECOGNIZED_ARCHIVE')
-}
-
 interface Props {
     modId: number
     onClose: () => void

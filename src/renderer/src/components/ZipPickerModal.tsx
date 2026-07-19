@@ -28,16 +28,6 @@ export interface ZipMultiPakPayload {
     entryKind?: 'pak' | 'dir'
 }
 
-export function parseZipMultiPak(error: string): ZipMultiPakPayload | null {
-    const PREFIX = 'ZIP_MULTI_PAK:'
-    if (!error.startsWith(PREFIX)) return null
-    try {
-        return JSON.parse(error.slice(PREFIX.length)) as ZipMultiPakPayload
-    } catch {
-        return null
-    }
-}
-
 function computePrefix(entries: string[]): string {
     if (entries.length === 0) return ''
     let prefix = ''

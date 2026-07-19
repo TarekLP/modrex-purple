@@ -19,16 +19,6 @@ export interface HostPackPayload {
     modVersion: string
 }
 
-export function parseHostModPack(error: string): HostPackPayload | null {
-    const PREFIX = 'HOST_MOD_PACK:'
-    if (!error.startsWith(PREFIX)) return null
-    try {
-        return JSON.parse(error.slice(PREFIX.length)) as HostPackPayload
-    } catch {
-        return null
-    }
-}
-
 interface Props {
     payload: HostPackPayload
     gamePath: string

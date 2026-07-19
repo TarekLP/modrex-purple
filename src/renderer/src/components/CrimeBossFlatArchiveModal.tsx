@@ -14,16 +14,6 @@ export interface CbFlatArchivePayload {
     modVersion: string
 }
 
-export function parseCbFlatArchive(error: string): CbFlatArchivePayload | null {
-    const PREFIX = 'CB_FLAT_ARCHIVE:'
-    if (!error.startsWith(PREFIX)) return null
-    try {
-        return JSON.parse(error.slice(PREFIX.length)) as CbFlatArchivePayload
-    } catch {
-        return null
-    }
-}
-
 interface Props {
     payload: CbFlatArchivePayload
     gamePath: string

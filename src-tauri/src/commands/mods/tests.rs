@@ -2639,11 +2639,11 @@ fn crimeboss_bundle_archive_resolves_to_zip_multi_pak_with_both_entries() {
     let ResolveError::Prompt(prompt) = err else {
         panic!("expected a prompt, got {err:?}");
     };
-    assert!(matches!(*prompt, InstallPrompt::ZipMultiPak(_)));
-    // Assert on the sentinel string: it is still the renderer wire protocol.
-    let sentinel = prompt.to_sentinel();
-    let payload: serde_json::Value =
-        serde_json::from_str(sentinel.strip_prefix("ZIP_MULTI_PAK:").unwrap()).unwrap();
+    let InstallPrompt::ZipMultiPak(zip) = *prompt else {
+        panic!("expected a multi-pak prompt");
+    };
+    // Assert on the serialized shape: it is the renderer wire payload.
+    let payload = serde_json::to_value(&zip).unwrap();
     let entries: Vec<&str> = payload["entries"]
         .as_array()
         .unwrap()
