@@ -37,15 +37,18 @@ function makeMod(id: number): Mod {
     }
 }
 
-const ZIP_MULTI_PAK_FOR_MOD_1 = `ZIP_MULTI_PAK:${JSON.stringify({
-    zipPath: '/tmp/archive.zip',
-    entries: ['VariantA.pak', 'VariantB.pak'],
-    modId: 1,
-    modName: 'Mod 1',
-    fileId: 555,
-    fileType: 'zip',
-    modVersion: '2.0',
-})}`
+const PICKER_OUTCOME_FOR_MOD_1 = {
+    needsPicker: {
+        zipPath: '/tmp/archive.zip',
+        entries: ['VariantA.pak', 'VariantB.pak'],
+        targetTag: null,
+        modId: 1,
+        modName: 'Mod 1',
+        fileId: 555,
+        fileType: 'zip',
+        modVersion: '2.0',
+    },
+}
 
 let mockInstallMod: ReturnType<typeof vi.fn>
 let mockInstallFromZipEntry: ReturnType<typeof vi.fn>
@@ -75,11 +78,9 @@ describe('UpdatesModal batch update', () => {
     it('auto-installs all entries for a multi-pak mod without re-prompting, even when filenames changed', async () => {
         // mod 1's archive has entries whose names don't match any installed file (installed=[]
         // below), simulating a version where the author renamed the pak files.
-        mockInstallMod.mockImplementation(async (modId: number) => {
-            // Tauri command rejections surface as the raw string thrown on the Rust side, not
-            // wrapped in an Error — parseZipMultiPak matches against that raw string.
-            if (modId === 1) throw ZIP_MULTI_PAK_FOR_MOD_1
-        })
+        mockInstallMod.mockImplementation(async (modId: number) =>
+            modId === 1 ? PICKER_OUTCOME_FOR_MOD_1 : 'installed'
+        )
 
         const updatable = [makeInstalled(1), makeInstalled(2)]
         const modData = new Map([

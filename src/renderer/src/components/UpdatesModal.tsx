@@ -6,18 +6,18 @@ import { t } from '../i18n'
 import type { GameId, InstalledMod, Mod } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { api } from '../api'
+import type { InstallOutcome } from '../api'
 import {
     ZipPickerModal,
-    parseZipMultiPak,
     computeAutoUpdateSelection,
     installZipPickerEntries,
 } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
-import { HostPackModal, parseHostModPack } from './HostPackModal'
+import { HostPackModal } from './HostPackModal'
 import type { HostPackPayload } from './HostPackModal'
-import { CrimeBossFlatArchiveModal, parseCbFlatArchive } from './CrimeBossFlatArchiveModal'
+import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
 import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
-import { UnrecognizedArchiveModal, isUnrecognizedArchive } from './UnrecognizedArchiveModal'
+import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
 
 interface Props {
     updatable: InstalledMod[]
@@ -71,14 +71,17 @@ export function UpdatesModal({
 
     // The user already decided to update, so never re-prompt for file selection: re-apply
     // the prior selection when filenames match, otherwise install all entries.
-    // 'resolved' = handled silently; 'manual' = picker open, caller must pause; 'none' = not a sentinel.
-    async function resolveInstallSentinel(
-        e: unknown,
+    // 'resolved' = handled silently; 'manual' = picker open, caller must pause.
+    async function resolveInstallPrompt(
+        outcome: Exclude<InstallOutcome, 'installed'>,
         modId: number
-    ): Promise<'resolved' | 'manual' | 'none'> {
-        const errStr = String(e)
-        const zipData = parseZipMultiPak(errStr)
-        if (zipData) {
+    ): Promise<'resolved' | 'manual'> {
+        if (outcome === 'unrecognized') {
+            setUnrecognizedModId(modId)
+            return 'manual'
+        }
+        if ('needsPicker' in outcome) {
+            const zipData = outcome.needsPicker as unknown as ZipMultiPakPayload
             if (gamePath) {
                 const autoEntries = computeAutoUpdateSelection(zipData, installed)
                 const entriesToInstall = autoEntries ?? zipData.entries
@@ -99,21 +102,12 @@ export function UpdatesModal({
             setZipPickerData(zipData)
             return 'manual'
         }
-        const hostData = parseHostModPack(errStr)
-        if (hostData) {
-            setHostPackData(hostData)
+        if ('needsHostChoice' in outcome) {
+            setHostPackData(outcome.needsHostChoice as unknown as HostPackPayload)
             return 'manual'
         }
-        const cbFlatData = parseCbFlatArchive(errStr)
-        if (cbFlatData) {
-            setCbFlatArchiveData(cbFlatData)
-            return 'manual'
-        }
-        if (isUnrecognizedArchive(errStr)) {
-            setUnrecognizedModId(modId)
-            return 'manual'
-        }
-        return 'none'
+        setCbFlatArchiveData(outcome.needsCbFlatConfirm as unknown as CbFlatArchivePayload)
+        return 'manual'
     }
 
     async function handleUpdate(uid: string, modId: number) {
@@ -121,11 +115,14 @@ export function UpdatesModal({
         setLoadingMod(uid)
         setUpdateError(null)
         try {
-            await api.installMod(modId, gamePath, gameId)
-            await onRefreshInstalled()
-        } catch (e) {
-            const outcome = await resolveInstallSentinel(e, modId)
-            if (outcome === 'none') setUpdateError(t('installed.updatesModal.error'))
+            const outcome = await api.installMod(modId, gamePath, gameId)
+            if (outcome === 'installed') {
+                await onRefreshInstalled()
+            } else {
+                await resolveInstallPrompt(outcome, modId)
+            }
+        } catch {
+            setUpdateError(t('installed.updatesModal.error'))
         } finally {
             setLoadingMod(null)
         }
@@ -139,24 +136,20 @@ export function UpdatesModal({
             const ins = queueRef.current[0]
             queueRef.current = queueRef.current.slice(1)
             try {
-                await api.installMod(ins.id, gamePath, gameId)
+                const outcome = await api.installMod(ins.id, gamePath, gameId)
                 setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
-            } catch (e) {
-                const outcome = await resolveInstallSentinel(e, ins.id)
-                if (outcome === 'manual') {
-                    // Picker handles this mod; count it done so the counter advances when we pause.
-                    setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
-                    return
+                if (outcome !== 'installed') {
+                    const resolution = await resolveInstallPrompt(outcome, ins.id)
+                    // 'resolved' = auto-applied silently, continue with the next mod;
+                    // 'manual' = picker handles this mod, pause until its onClose resumes.
+                    if (resolution === 'manual') return
                 }
-                if (outcome === 'none') {
-                    setUpdateError(t('installed.updatesModal.error'))
-                    setUpdatingAll(false)
-                    setUpdateProgress(null)
-                    queueRef.current = []
-                    return
-                }
-                // 'resolved' — auto-applied silently, continue with the next mod.
-                setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
+            } catch {
+                setUpdateError(t('installed.updatesModal.error'))
+                setUpdatingAll(false)
+                setUpdateProgress(null)
+                queueRef.current = []
+                return
             }
         }
         await onRefreshInstalled()

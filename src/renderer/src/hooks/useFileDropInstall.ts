@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { GameId } from '../../../shared/types'
 import { api } from '../api'
 import { t } from '../i18n'
-import { handleInstallSentinel } from '../installSentinels'
+import { handleInstallOutcome } from '../installSentinels'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
 import type { HostPackPayload } from '../components/HostPackModal'
 import type { CbFlatArchivePayload } from '../components/CrimeBossFlatArchiveModal'
@@ -71,10 +71,13 @@ export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshIns
             const path = paths[i]
             setProgress({ current: i + 1, total: paths.length, name: baseName(path) })
             try {
-                await api.installDroppedFile(path, opts.gamePath, undefined, opts.activeGame)
-                ok++
-            } catch (e) {
-                const handled = handleInstallSentinel(String(e), {
+                const outcome = await api.installDroppedFile(
+                    path,
+                    opts.gamePath,
+                    undefined,
+                    opts.activeGame
+                )
+                const prompted = handleInstallOutcome(outcome, {
                     onZipMultiPak: (payload) => collected.push({ kind: 'zip', payload }),
                     onHostModPack: (payload) => collected.push({ kind: 'host', payload }),
                     onCbFlatArchive: (payload) => collected.push({ kind: 'cb', payload }),
@@ -82,7 +85,9 @@ export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshIns
                         unrecognized = true
                     },
                 })
-                if (!handled) failed.push(baseName(path))
+                if (!prompted) ok++
+            } catch {
+                failed.push(baseName(path))
             }
         }
         await opts.onRefreshInstalled()

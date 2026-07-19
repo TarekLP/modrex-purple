@@ -6,7 +6,7 @@ import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { MarkdownContent } from './MarkdownContent'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
-import { ZipPickerModal, parseZipMultiPak } from './ZipPickerModal'
+import { ZipPickerModal } from './ZipPickerModal'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { isUnsupportedFormat } from '../formatCheck'
 import { api } from '../api'
@@ -92,7 +92,7 @@ export function FileSelectModal({
             installingIdRef.current = file.id
             setDownloadProgress(null)
             try {
-                await api.installModFile(
+                const outcome = await api.installModFile(
                     mod.id,
                     mod.name,
                     file.id,
@@ -102,17 +102,8 @@ export function FileSelectModal({
                     gamePath,
                     gameId
                 )
-                await onRefreshInstalled()
-                setSelectedIds((prev) => {
-                    const next = new Set(prev)
-                    next.delete(file.id)
-                    return next
-                })
-            } catch (e) {
-                const errStr = String(e)
-                const zipData = parseZipMultiPak(errStr)
-                if (zipData) {
-                    setZipPayload(zipData)
+                if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
+                    setZipPayload(outcome.needsPicker as unknown as ZipMultiPakPayload)
                     await new Promise<void>((resolve) => {
                         zipResolveRef.current = resolve
                     })
@@ -124,7 +115,21 @@ export function FileSelectModal({
                     })
                     continue
                 }
-                setInstallError(errStr)
+                if (outcome !== 'installed') {
+                    // Host-pack / CB-flat / unrecognized prompts have no inline UI in this
+                    // modal (they never did); surface the kind instead of installing wrong.
+                    setInstallError(typeof outcome === 'string' ? outcome : Object.keys(outcome)[0])
+                    setInstallingId(null)
+                    return
+                }
+                await onRefreshInstalled()
+                setSelectedIds((prev) => {
+                    const next = new Set(prev)
+                    next.delete(file.id)
+                    return next
+                })
+            } catch (e) {
+                setInstallError(String(e))
                 setInstallingId(null)
                 return
             }

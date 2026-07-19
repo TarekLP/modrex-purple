@@ -51,7 +51,7 @@ import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
 import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
 import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
-import { handleInstallSentinel } from '../installSentinels'
+import { handleInstallOutcome } from '../installSentinels'
 import {
     collectDeps,
     isLoaderDep,
@@ -416,17 +416,19 @@ export function ModDetailPage({
                 await api.installRaidSuperblt(gamePath)
                 setRaidSuperbltInstalled(true)
             } else {
-                await api.installMod(mod.id, gamePath, activeGame)
+                const outcome = await api.installMod(mod.id, gamePath, activeGame)
+                if (
+                    handleInstallOutcome(outcome, {
+                        onZipMultiPak: setZipPickerData,
+                        onHostModPack: setHostPackData,
+                        onCbFlatArchive: setCbFlatArchiveData,
+                        onUnrecognizedArchive: () => setUnrecognizedModId(mod.id),
+                    })
+                ) {
+                    return
+                }
             }
             await onRefreshInstalled()
-        } catch (e) {
-            const handled = handleInstallSentinel(String(e), {
-                onZipMultiPak: setZipPickerData,
-                onHostModPack: setHostPackData,
-                onCbFlatArchive: setCbFlatArchiveData,
-                onUnrecognizedArchive: () => setUnrecognizedModId(mod.id),
-            })
-            if (!handled) throw e
         } finally {
             setDownloadMap((prev) => {
                 const next = new Map(prev)

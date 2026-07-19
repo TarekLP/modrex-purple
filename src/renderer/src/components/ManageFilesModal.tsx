@@ -17,7 +17,7 @@ import {
 } from '../hooks/installedUtils'
 import { getCachedModFiles } from '../modCache'
 import { getArchiveEntries, mergeArchiveEntries, setArchiveEntries } from '../archiveEntriesCache'
-import { parseZipMultiPak } from './ZipPickerModal'
+import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { useInstalledContext } from './InstalledContext'
 
 interface Props {
@@ -193,20 +193,18 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 setInstallError(t('installed.manageFiles.fileUnavailable'))
                 return
             }
-            try {
-                await api.installModFile(
-                    mods[0].id,
-                    modName,
-                    file.id,
-                    file.download_url,
-                    file.type ?? '',
-                    mods[0].version,
-                    gamePath,
-                    activeGame
-                )
-            } catch (e) {
-                const zip = parseZipMultiPak(String(e))
-                if (!zip) throw e
+            const outcome = await api.installModFile(
+                mods[0].id,
+                modName,
+                file.id,
+                file.download_url,
+                file.type ?? '',
+                mods[0].version,
+                gamePath,
+                activeGame
+            )
+            if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
+                const zip = outcome.needsPicker as unknown as ZipMultiPakPayload
                 // The archive is authoritative — heal the cache and resolve the
                 // real entry path (cached ghosts may carry a reconstructed one).
                 setArchiveEntries(activeGame, zip.fileId, zip.entries)

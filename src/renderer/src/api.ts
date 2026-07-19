@@ -2,6 +2,7 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commands, type InstallOutcome } from '../../shared/bindings'
+export type { InstallOutcome } from '../../shared/bindings'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -43,39 +44,32 @@ export type GameSettings = {
 }
 
 // Feeds the one-time "star us on GitHub" prompt (settings.rs::record_successful_install).
-// Picker sentinels (ZIP_MULTI_PAK etc.) are flow control, not failures, so they don't
-// poison the session; any real install error suppresses the prompt for this session.
-const INSTALL_SENTINEL_PREFIXES = [
-    'ZIP_MULTI_PAK:',
-    'HOST_MOD_PACK:',
-    'CB_FLAT_ARCHIVE:',
-    'UNRECOGNIZED_ARCHIVE',
-]
-
+// Any real install error suppresses the prompt for this session; a needs-a-decision
+// outcome is flow control, not a failure, so it neither counts nor poisons.
 let installErrorThisSession = false
-
-// Legacy sentinel adapter: install entry points still parse sentinel strings out of
-// thrown errors, so a needs-a-decision outcome is rethrown in that shape until the
-// entry points switch to handling the typed outcome directly.
-async function unwrapInstallOutcome(pending: Promise<InstallOutcome>): Promise<void> {
-    const o = await pending
-    if (o === 'installed') return
-    if (o === 'unrecognized') throw 'UNRECOGNIZED_ARCHIVE'
-    if ('needsPicker' in o) throw 'ZIP_MULTI_PAK:' + JSON.stringify(o.needsPicker)
-    if ('needsHostChoice' in o) throw 'HOST_MOD_PACK:' + JSON.stringify(o.needsHostChoice)
-    throw 'CB_FLAT_ARCHIVE:' + JSON.stringify(o.needsCbFlatConfirm)
-}
 
 async function trackInstall(install: Promise<unknown>): Promise<void> {
     try {
         await install
     } catch (e) {
-        if (!INSTALL_SENTINEL_PREFIXES.some((p) => String(e).startsWith(p))) {
-            installErrorThisSession = true
-        }
+        installErrorThisSession = true
         throw e
     }
     void commands.recordSuccessfulInstall(!installErrorThisSession)
+}
+
+async function trackInstallOutcome(install: Promise<InstallOutcome>): Promise<InstallOutcome> {
+    let outcome: InstallOutcome
+    try {
+        outcome = await install
+    } catch (e) {
+        installErrorThisSession = true
+        throw e
+    }
+    if (outcome === 'installed') {
+        void commands.recordSuccessfulInstall(!installErrorThisSession)
+    }
+    return outcome
 }
 
 function onEvent<T>(eventName: string, callback: (payload: T) => void): () => void {
@@ -266,21 +260,17 @@ export const api = {
     openModFolder(gameId: string, tag: string): Promise<void> {
         return commands.openModFolder(gameId, tag)
     },
-    installMod(modId: number, gamePath: string, gameId?: string): Promise<void> {
-        return trackInstall(
-            unwrapInstallOutcome(commands.installMod(modId, gamePath, null, gameId ?? null))
-        )
+    installMod(modId: number, gamePath: string, gameId?: string): Promise<InstallOutcome> {
+        return trackInstallOutcome(commands.installMod(modId, gamePath, null, gameId ?? null))
     },
     installDroppedFile(
         path: string,
         gamePath: string,
         folderId?: string,
         gameId?: string
-    ): Promise<void> {
-        return trackInstall(
-            unwrapInstallOutcome(
-                commands.installDroppedFile(path, gamePath, folderId ?? null, gameId ?? null)
-            )
+    ): Promise<InstallOutcome> {
+        return trackInstallOutcome(
+            commands.installDroppedFile(path, gamePath, folderId ?? null, gameId ?? null)
         )
     },
     installModFile(
@@ -292,19 +282,17 @@ export const api = {
         modVersion: string,
         gamePath: string,
         gameId?: string
-    ): Promise<void> {
-        return trackInstall(
-            unwrapInstallOutcome(
-                commands.installFile(
-                    modId,
-                    modName,
-                    fileId,
-                    downloadUrl,
-                    fileType,
-                    modVersion,
-                    gamePath,
-                    gameId ?? null
-                )
+    ): Promise<InstallOutcome> {
+        return trackInstallOutcome(
+            commands.installFile(
+                modId,
+                modName,
+                fileId,
+                downloadUrl,
+                fileType,
+                modVersion,
+                gamePath,
+                gameId ?? null
             )
         )
     },

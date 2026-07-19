@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import type { GameId, InstalledMod } from '../../../shared/types'
 import type { ZipMultiPakPayload } from '../components/ZipPickerModal'
-import { parseZipMultiPak, installZipPickerEntries } from '../components/ZipPickerModal'
+import { installZipPickerEntries } from '../components/ZipPickerModal'
 import type { HostPackPayload } from '../components/HostPackModal'
 import type { CbFlatArchivePayload } from '../components/CrimeBossFlatArchiveModal'
-import { handleInstallSentinel } from '../installSentinels'
+import { handleInstallOutcome } from '../installSentinels'
 import { entryFilename, stripPriorityPrefix } from './installedUtils'
 import { api } from '../api'
 
@@ -116,11 +116,9 @@ export function useModActions(
             if (download_id === targetId) setReinstallProgress({ downloaded, total })
         })
         try {
-            await api.installMod(mods[0].id, gamePath, activeGame)
-        } catch (e) {
-            const errStr = String(e)
-            const zipPayload = parseZipMultiPak(errStr)
-            if (zipPayload) {
+            const outcome = await api.installMod(mods[0].id, gamePath, activeGame)
+            if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
+                const zipPayload = outcome.needsPicker as unknown as ZipMultiPakPayload
                 // install_from_zip_entry's pre-removal only fires when exactly one other entry
                 // shares the mod id; for multi-pak mods (2+ entries) stale entries survive and
                 // keep the group outdated. missingMods were already removed above.
@@ -149,14 +147,15 @@ export function useModActions(
                     setZipPickerData(zipPayload)
                 }
             } else {
-                const handled = handleInstallSentinel(errStr, {
-                    onZipMultiPak: setZipPickerData, // unreachable: parseZipMultiPak already returned null
+                handleInstallOutcome(outcome, {
+                    onZipMultiPak: setZipPickerData, // unreachable: the needsPicker branch above
                     onHostModPack: setHostPackData,
                     onCbFlatArchive: setCbFlatArchiveData,
                     onUnrecognizedArchive: () => setUnrecognizedModId(mods[0].id),
                 })
-                if (!handled) setReinstallError(errStr)
             }
+        } catch (e) {
+            setReinstallError(String(e))
         } finally {
             unsub()
             setReinstallProgress(null)

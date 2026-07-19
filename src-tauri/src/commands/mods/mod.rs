@@ -906,11 +906,7 @@ pub async fn install_dropped_file(
         // The picker / host-pack / CB-flat modals install directly from the temp copy (which they
         // delete afterwards), so forward the prompt enriched with a synthetic identity, mirroring
         // install_file. get_installed reconciles the resulting entries by SHA256 on the next refresh.
-        // UNRECOGNIZED_ARCHIVE is intentionally not forwarded — its modal fetches a modworkshop mod
-        // page a local file has no id for — so it falls through to the plain-error arm below.
-        Err(ResolveError::Prompt(prompt))
-            if !matches!(*prompt, InstallPrompt::UnrecognizedArchive) =>
-        {
+        Err(ResolveError::Prompt(prompt)) => {
             let syn = hash_filename(&file_stem);
             return Ok((*prompt)
                 .with_mod_context(ModContext {
@@ -931,12 +927,7 @@ pub async fn install_dropped_file(
             log::warn!("install_dropped_file {path}: {e}");
             return Err(e);
         }
-        Err(ResolveError::Prompt(prompt)) => {
-            let _ = tokio::fs::remove_file(&temp).await;
-            let e = prompt.to_sentinel();
-            log::warn!("install_dropped_file {path}: {e}");
-            return Err(e);
-        }
+
         Ok(v) => v,
     };
     let target = cfg.target_for(location_tag.as_deref());

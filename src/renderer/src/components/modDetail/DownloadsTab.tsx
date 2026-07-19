@@ -6,7 +6,7 @@ import { THUMBNAIL_BASE_URL } from '../../../../shared/types'
 import { api } from '../../api'
 import { t } from '../../i18n'
 import { isUnsupportedFormat } from '../../formatCheck'
-import { handleInstallSentinel } from '../../installSentinels'
+import { handleInstallOutcome } from '../../installSentinels'
 import { useCrimeBossInstallTarget } from '../../hooks/useCrimeBossInstallTarget'
 import { MarkdownContent } from '../MarkdownContent'
 import { Tooltip } from '../Tooltip'
@@ -107,7 +107,7 @@ export function DownloadsTab({
         setInstallingId(file.id)
         setInstallError(null)
         try {
-            await api.installModFile(
+            const outcome = await api.installModFile(
                 mod.id,
                 mod.name,
                 file.id,
@@ -117,16 +117,19 @@ export function DownloadsTab({
                 gamePath,
                 activeGame
             )
+            if (
+                handleInstallOutcome(outcome, {
+                    onZipMultiPak: setZipPickerData,
+                    onHostModPack: setHostPackData,
+                    onCbFlatArchive: setCbFlatArchiveData,
+                    onUnrecognizedArchive: () => setUnrecognizedModId(mod.id),
+                })
+            ) {
+                return
+            }
             await onRefreshInstalled()
         } catch (e) {
-            const errStr = String(e)
-            const handled = handleInstallSentinel(errStr, {
-                onZipMultiPak: setZipPickerData,
-                onHostModPack: setHostPackData,
-                onCbFlatArchive: setCbFlatArchiveData,
-                onUnrecognizedArchive: () => setUnrecognizedModId(mod.id),
-            })
-            if (!handled) setInstallError(errStr)
+            setInstallError(String(e))
         } finally {
             setInstallingId(null)
         }

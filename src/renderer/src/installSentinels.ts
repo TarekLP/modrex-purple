@@ -1,22 +1,18 @@
-import { parseZipMultiPak } from './components/ZipPickerModal'
+import type { InstallOutcome } from './api'
 import type { ZipMultiPakPayload } from './components/ZipPickerModal'
-import { parseHostModPack } from './components/HostPackModal'
 import type { HostPackPayload } from './components/HostPackModal'
-import { parseCbFlatArchive } from './components/CrimeBossFlatArchiveModal'
 import type { CbFlatArchivePayload } from './components/CrimeBossFlatArchiveModal'
-import { isUnrecognizedArchive } from './components/UnrecognizedArchiveModal'
 
 /**
- * A Rust install command can return one of four "sentinel" error strings that mean
- * "this install needs a UI decision," not "this install failed":
- *   ZIP_MULTI_PAK · HOST_MOD_PACK · CB_FLAT_ARCHIVE · UNRECOGNIZED_ARCHIVE
- * Every install entry point must handle all four — missing one leaks a raw "*:{...}"
- * string to the user (the bug that hit the reinstall path and later the Updates modal).
+ * An install command resolves to a typed InstallOutcome: 'installed', or one of four
+ * "needs a UI decision" prompts (multi-pak picker, host-pack choice, Crime Boss flat
+ * archive confirm, unrecognized archive). Every install entry point must handle all
+ * four - missing one used to leak a raw "*:{...}" string to the user back when these
+ * rode the error channel as sentinel strings.
  *
  * This is the single dispatcher every caller routes through. The handlers object is
- * required in full, so forgetting a sentinel is a compile error, and adding a new
- * sentinel is one edit here that breaks every call site until it's handled. Parse order
- * matches the original hand-written catch blocks.
+ * required in full, so forgetting a prompt is a compile error, and a new outcome
+ * variant breaks this switch (and therefore every call site) until it's handled.
  */
 export interface InstallSentinelHandlers {
     onZipMultiPak: (payload: ZipMultiPakPayload) => void
@@ -26,28 +22,28 @@ export interface InstallSentinelHandlers {
 }
 
 /**
- * Returns `true` if `errStr` was a sentinel and the matching handler ran; `false` if it's
- * an ordinary error the caller should surface (throw, or show in an error banner).
+ * Returns `true` if the outcome was a prompt and the matching handler ran; `false`
+ * means the install completed. The command enriches every prompt payload with the
+ * mod context (modId, modName, ...) before it reaches the renderer, so the cast to
+ * the modal-facing payload types is sound.
  */
-export function handleInstallSentinel(errStr: string, handlers: InstallSentinelHandlers): boolean {
-    const zipData = parseZipMultiPak(errStr)
-    if (zipData) {
-        handlers.onZipMultiPak(zipData)
-        return true
-    }
-    const hostData = parseHostModPack(errStr)
-    if (hostData) {
-        handlers.onHostModPack(hostData)
-        return true
-    }
-    const cbFlatData = parseCbFlatArchive(errStr)
-    if (cbFlatData) {
-        handlers.onCbFlatArchive(cbFlatData)
-        return true
-    }
-    if (isUnrecognizedArchive(errStr)) {
+export function handleInstallOutcome(
+    outcome: InstallOutcome,
+    handlers: InstallSentinelHandlers
+): boolean {
+    if (outcome === 'installed') return false
+    if (outcome === 'unrecognized') {
         handlers.onUnrecognizedArchive()
         return true
     }
-    return false
+    if ('needsPicker' in outcome) {
+        handlers.onZipMultiPak(outcome.needsPicker as unknown as ZipMultiPakPayload)
+        return true
+    }
+    if ('needsHostChoice' in outcome) {
+        handlers.onHostModPack(outcome.needsHostChoice as unknown as HostPackPayload)
+        return true
+    }
+    handlers.onCbFlatArchive(outcome.needsCbFlatConfirm as unknown as CbFlatArchivePayload)
+    return true
 }

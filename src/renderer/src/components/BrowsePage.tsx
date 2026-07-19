@@ -36,7 +36,7 @@ import type { HostPackPayload } from './HostPackModal'
 import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
 import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
 import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
-import { handleInstallSentinel } from '../installSentinels'
+import { handleInstallOutcome } from '../installSentinels'
 import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
 import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
@@ -495,7 +495,17 @@ export function BrowsePage({
                 await api.installRaidSuperblt(gamePath)
                 setRaidSuperbltInstalled(true)
             } else {
-                await api.installMod(modId, gamePath, activeGame)
+                const outcome = await api.installMod(modId, gamePath, activeGame)
+                if (
+                    handleInstallOutcome(outcome, {
+                        onZipMultiPak: setZipPickerData,
+                        onHostModPack: setHostPackData,
+                        onCbFlatArchive: setCbFlatArchiveData,
+                        onUnrecognizedArchive: () => setUnrecognizedModId(modId),
+                    })
+                ) {
+                    return
+                }
                 // The loader package isn't tracked in the installed list — its own install
                 // (routed server-side via the UE4SS_LOADER sentinel) succeeds without an error,
                 // so a successful call here is the confirmation; mirrors the optimistic
@@ -569,14 +579,7 @@ export function BrowsePage({
                 }
                 await runCrimeBossInstall(modId, fullMod.name, () => doInstall(modId))
             } catch (e) {
-                const errStr = String(e)
-                const handled = handleInstallSentinel(errStr, {
-                    onZipMultiPak: setZipPickerData,
-                    onHostModPack: setHostPackData,
-                    onCbFlatArchive: setCbFlatArchiveData,
-                    onUnrecognizedArchive: () => setUnrecognizedModId(modId),
-                })
-                if (!handled) setError(errStr)
+                setError(String(e))
             } finally {
                 removeInstalling(modId)
             }
