@@ -847,8 +847,15 @@ string to the user.
 
 ## TODO: backend-state-lock
 
-Reliability. Medium. Blocked on: nexus-prototype-merge (the branch adds new install entry
-points in mods/mod.rs that must be covered).
+Reliability. Medium. DONE 2026-07-19: per-game StateLocks (managed Tauri state, tokio
+mutex per game id) serializes every .modrex.json read-modify-write. Acquired by
+get_installed's reconcile-and-save span and every state-mutating command (all install
+variants including install_nexus_download's nxm path, uninstall/enable/disable, the CB
+move op, folder and reorder ops); acquired only after downloads/extraction so network
+never holds the lock; games stay parallel. The formerly-sync mutators became async
+commands (the app-less ones take State<StateLocks> and now return Result, per tauri's
+async-with-references rule). The renderer's isRefreshingInstalled stays as a debounce
+with its comment updated. Original context below.
 
 ### The problem
 

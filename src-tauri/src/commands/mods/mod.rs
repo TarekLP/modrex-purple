@@ -1103,6 +1103,7 @@ pub async fn install_from_zip_entry(
     app: AppHandle,
     args: InstallFromZipEntryArgs,
 ) -> Result<(), String> {
+    let _state_guard = lock_game_state(&app, args.game_id.as_deref().unwrap_or("pd3")).await;
     let InstallFromZipEntryArgs {
         zip_path,
         entry_name,
@@ -1295,6 +1296,7 @@ pub async fn install_cb_flat_archive(
     game_path: String,
     folder_id: Option<String>,
 ) -> Result<(), String> {
+    let _state_guard = lock_game_state(&app, "cb").await;
     let cfg = engine_for_game("cb");
     let target = cfg.primary();
     let zip = PathBuf::from(&zip_path);
@@ -1391,6 +1393,7 @@ pub struct InstallHostPackArgs {
 #[tauri::command]
 #[specta::specta]
 pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Result<(), String> {
+    let _state_guard = lock_game_state(&app, args.game_id.as_deref().unwrap_or("pd3")).await;
     let InstallHostPackArgs {
         zip_path,
         entry_name,
@@ -1454,7 +1457,13 @@ pub async fn delete_temp_file(path: String) {
 
 #[tauri::command]
 #[specta::specta]
-pub fn uninstall_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
+pub async fn uninstall_mod(
+    app: AppHandle,
+    game_path: String,
+    uid: String,
+    game_id: Option<String>,
+) {
+    let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
     crate::commands::analytics::track(
@@ -1466,7 +1475,8 @@ pub fn uninstall_mod(app: AppHandle, game_path: String, uid: String, game_id: Op
 
 #[tauri::command]
 #[specta::specta]
-pub fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
+pub async fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
+    let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let settings = read_settings(&app);
     let launcher = game_settings(&settings, game_id.as_deref().unwrap_or("pd3"))
@@ -1487,7 +1497,8 @@ pub fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Optio
 
 #[tauri::command]
 #[specta::specta]
-pub fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
+pub async fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
+    let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let settings = read_settings(&app);
     let launcher = game_settings(&settings, game_id.as_deref().unwrap_or("pd3"))
@@ -1508,11 +1519,12 @@ pub fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Opti
 
 #[tauri::command]
 #[specta::specta]
-pub fn move_crimeboss_mod_target(
+pub async fn move_crimeboss_mod_target(
     app: AppHandle,
     game_path: String,
     uid: String,
 ) -> Result<(), String> {
+    let _state_guard = lock_game_state(&app, "cb").await;
     let cfg = engine_for_game("cb");
     let settings = read_settings(&app);
     let launcher = game_settings(&settings, "cb").and_then(|gs| gs.launcher.clone());
@@ -1535,12 +1547,14 @@ pub fn move_crimeboss_mod_target(
 
 #[tauri::command]
 #[specta::specta]
-pub fn reorder_in_folder(
+pub async fn reorder_in_folder(
+    state: tauri::State<'_, StateLocks>,
     game_path: String,
     folder_id: Option<String>,
     ordered_uids: Vec<String>,
     game_id: Option<String>,
-) {
+) -> Result<(), String> {
+    let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     reorder_mods_in_folder_op(
         &game_path,
@@ -1549,17 +1563,20 @@ pub fn reorder_in_folder(
         &ordered_uids,
         cfg,
     );
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn move_to_folder(
+pub async fn move_to_folder(
+    state: tauri::State<'_, StateLocks>,
     game_path: String,
     uid: String,
     target_folder_id: Option<String>,
     target_position: usize,
     game_id: Option<String>,
-) {
+) -> Result<(), String> {
+    let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     move_mod_to_folder_op(
         &game_path,
@@ -1569,16 +1586,19 @@ pub fn move_to_folder(
         target_position,
         cfg,
     );
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn reorder_children(
+pub async fn reorder_children(
+    state: tauri::State<'_, StateLocks>,
     game_path: String,
     parent_id: Option<String>,
     items: Vec<TopLevelItem>,
     game_id: Option<String>,
-) {
+) -> Result<(), String> {
+    let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     reorder_children_op(
         &game_path,
@@ -1587,16 +1607,19 @@ pub fn reorder_children(
         &items,
         cfg,
     );
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn move_folder(
+pub async fn move_folder(
+    state: tauri::State<'_, StateLocks>,
     game_path: String,
     folder_id: String,
     target_parent_id: Option<String>,
     game_id: Option<String>,
-) {
+) -> Result<(), String> {
+    let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     move_folder_op(
         &game_path,
@@ -1605,16 +1628,19 @@ pub fn move_folder(
         target_parent_id,
         cfg,
     );
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn create_folder(
+pub async fn create_folder(
+    state: tauri::State<'_, StateLocks>,
     game_path: String,
     display_name: String,
     parent_id: Option<String>,
     game_id: Option<String>,
 ) -> Result<ModFolder, String> {
+    let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     create_folder_op(
         &game_path,
@@ -1627,12 +1653,14 @@ pub fn create_folder(
 
 #[tauri::command]
 #[specta::specta]
-pub fn rename_folder(
+pub async fn rename_folder(
+    state: tauri::State<'_, StateLocks>,
     game_path: String,
     folder_id: String,
     display_name: String,
     game_id: Option<String>,
-) {
+) -> Result<(), String> {
+    let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     rename_folder_op(
         &game_path,
@@ -1641,11 +1669,18 @@ pub fn rename_folder(
         &display_name,
         cfg,
     );
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn delete_folder(game_path: String, folder_id: String, game_id: Option<String>) {
+pub async fn delete_folder(
+    state: tauri::State<'_, StateLocks>,
+    game_path: String,
+    folder_id: String,
+    game_id: Option<String>,
+) -> Result<(), String> {
+    let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     delete_folder_op(
         &game_path,
@@ -1653,6 +1688,7 @@ pub fn delete_folder(game_path: String, folder_id: String, game_id: Option<Strin
         &folder_id,
         cfg,
     );
+    Ok(())
 }
 
 #[tauri::command]

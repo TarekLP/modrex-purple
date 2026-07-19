@@ -114,8 +114,9 @@ export default function App() {
 
     // Kept in sync with activeGame after every commit so async callbacks can detect staleness.
     const activeGameRef = useRef<GameId>(activeGame)
-    // Guards against two concurrent get_installed Tauri commands — a second in-flight
-    // call would race the first's save_state and could overwrite positive IDs with negatives.
+    // Cheap client-side debounce against overlapping get_installed calls. Correctness no
+    // longer depends on it: the backend's per-game StateLocks serializes every state
+    // read-modify-write, this just avoids queueing redundant refreshes.
     const isRefreshingInstalled = useRef(false)
     useLayoutEffect(() => {
         activeGameRef.current = activeGame

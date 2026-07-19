@@ -408,38 +408,38 @@ export const api = {
     async moveCrimeBossModTarget(uid: string, gamePath: string): Promise<void> {
         await commands.moveCrimebossModTarget(gamePath, uid)
     },
-    reorderModsInFolder(
+    async reorderModsInFolder(
         folderId: string | null,
         orderedUids: string[],
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return commands.reorderInFolder(gamePath, folderId, orderedUids, gameId ?? null)
+        await commands.reorderInFolder(gamePath, folderId, orderedUids, gameId ?? null)
     },
-    moveModToFolder(
+    async moveModToFolder(
         uid: string,
         targetFolderId: string | null,
         targetPosition: number,
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return commands.moveToFolder(gamePath, uid, targetFolderId, targetPosition, gameId ?? null)
+        await commands.moveToFolder(gamePath, uid, targetFolderId, targetPosition, gameId ?? null)
     },
-    reorderChildren(
+    async reorderChildren(
         parentId: string | null,
         items: TopLevelItem[],
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return commands.reorderChildren(gamePath, parentId, items, gameId ?? null)
+        await commands.reorderChildren(gamePath, parentId, items, gameId ?? null)
     },
-    moveFolder(
+    async moveFolder(
         folderId: string,
         targetParentId: string | null,
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return commands.moveFolder(gamePath, folderId, targetParentId, gameId ?? null)
+        await commands.moveFolder(gamePath, folderId, targetParentId, gameId ?? null)
     },
     createFolder(
         displayName: string,
@@ -449,16 +449,16 @@ export const api = {
     ): Promise<ModFolder> {
         return commands.createFolder(gamePath, displayName, parentId, gameId ?? null)
     },
-    renameFolder(
+    async renameFolder(
         folderId: string,
         displayName: string,
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return commands.renameFolder(gamePath, folderId, displayName, gameId ?? null)
+        await commands.renameFolder(gamePath, folderId, displayName, gameId ?? null)
     },
-    deleteFolder(folderId: string, gamePath: string, gameId?: string): Promise<void> {
-        return commands.deleteFolder(gamePath, folderId, gameId ?? null)
+    async deleteFolder(folderId: string, gamePath: string, gameId?: string): Promise<void> {
+        await commands.deleteFolder(gamePath, folderId, gameId ?? null)
     },
 
     // ── SuperBLT ───────────────────────────────────────────────────────────────
