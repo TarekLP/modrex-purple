@@ -44,6 +44,11 @@ jobs:
               working-directory: src-tauri
             - run: pnpm test
 
+            # cargo test just regenerated src/shared/bindings.ts from the command
+            # registry; a diff means the committed bindings are stale.
+            - name: Fail if generated bindings are stale
+              run: git diff --exit-code src/shared/bindings.ts
+
     check-licenses:
         runs-on: ubuntu-latest
         steps:
