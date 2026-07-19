@@ -157,6 +157,7 @@ pub fn run() {
 
     let app = builder
         .manage(commands::updater::UpdaterState::new())
+        .manage(commands::mods::StateLocks::default())
         .manage(commands::startup::StartupState::default())
         .manage(discord_state)
         .register_uri_scheme_protocol("thumb", |ctx, request| {

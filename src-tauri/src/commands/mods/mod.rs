@@ -83,6 +83,34 @@ struct ScanEvent {
     total: usize,
 }
 
+/// Per-game async locks serializing every read-modify-write of a game's .modrex.json.
+/// save_state is atomic per write, but two interleaved commands (an nxm:// install
+/// landing mid focus-refresh, for example) can each read the same state and the second
+/// write silently drops the first's changes. Per game so different games stay parallel;
+/// never hold a guard across a network download, only the disk-write + state span.
+#[derive(Default)]
+pub struct StateLocks(
+    std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<tokio::sync::Mutex<()>>>>,
+);
+
+impl StateLocks {
+    pub async fn acquire(&self, game_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+        let lock = self
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .entry(game_id.to_string())
+            .or_default()
+            .clone();
+        lock.lock_owned().await
+    }
+}
+
+async fn lock_game_state(app: &AppHandle, game_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+    use tauri::Manager;
+    app.state::<StateLocks>().acquire(game_id).await
+}
+
 /// What an install command produced: a finished install, or an archive that needs a
 /// user decision first. Returned in the Ok channel so the renderer handles every case
 /// with an exhaustive switch instead of parsing sentinel strings out of errors.
@@ -126,6 +154,7 @@ pub async fn get_installed(
         });
     };
 
+    let _state_guard = lock_game_state(&app, game_id).await;
     let state_path = get_state_path(&game_path, cfg);
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
@@ -366,6 +395,7 @@ pub async fn install_mod(
         }
         Ok(v) => v,
     };
+    let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
@@ -567,6 +597,7 @@ pub async fn install_file(
         }
         Ok(v) => v,
     };
+    let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
@@ -764,6 +795,7 @@ pub(crate) async fn install_nexus_download(
         }
         Ok(v) => v,
     };
+    let _state_guard = lock_game_state(app, game_id).await;
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
@@ -930,6 +962,7 @@ pub async fn install_dropped_file(
 
         Ok(v) => v,
     };
+    let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
     let target = cfg.target_for(location_tag.as_deref());
 
     let result = async {
