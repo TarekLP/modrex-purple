@@ -780,9 +780,174 @@ fn extract_flat_rar(archive_path: &Path, dest: &Path) -> Result<(), String> {
     result
 }
 
+/// Archive shapes that need a user decision before installing. Each variant carries the
+/// payload its renderer modal renders from; the mod-context fields (mod_id, mod_name, ...)
+/// are None here and filled by the install command via with_mod_context, since only the
+/// command knows which mod the archive belongs to.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ZipMultiPakPayload {
+    pub zip_path: String,
+    pub entries: Vec<String>,
+    pub target_tag: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_tags: Option<Vec<Option<String>>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_version: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct HostPackPayload {
+    pub zip_path: String,
+    pub entries: Vec<String>,
+    pub host_mod_id: i64,
+    pub host_name: String,
+    pub host_subpath: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_version: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CbFlatPayload {
+    pub zip_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_version: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum InstallPrompt {
+    ZipMultiPak(ZipMultiPakPayload),
+    HostModPack(HostPackPayload),
+    CbFlatArchive(CbFlatPayload),
+    UnrecognizedArchive,
+}
+
+pub struct ModContext {
+    pub mod_id: i64,
+    pub mod_name: String,
+    pub file_id: i64,
+    pub file_type: String,
+    pub mod_version: String,
+}
+
+impl InstallPrompt {
+    pub fn with_mod_context(mut self, ctx: ModContext) -> Self {
+        macro_rules! fill {
+            ($p:expr) => {{
+                $p.mod_id = Some(ctx.mod_id);
+                $p.mod_name = Some(ctx.mod_name);
+                $p.file_id = Some(ctx.file_id);
+                $p.file_type = Some(ctx.file_type);
+                $p.mod_version = Some(ctx.mod_version);
+            }};
+        }
+        match &mut self {
+            InstallPrompt::ZipMultiPak(p) => fill!(p),
+            InstallPrompt::HostModPack(p) => fill!(p),
+            InstallPrompt::CbFlatArchive(p) => fill!(p),
+            InstallPrompt::UnrecognizedArchive => {}
+        }
+        self
+    }
+
+    /// The legacy sentinel-string encoding, still the renderer wire protocol until
+    /// install commands return typed outcomes.
+    pub fn to_sentinel(&self) -> String {
+        match self {
+            InstallPrompt::ZipMultiPak(p) => {
+                format!(
+                    "ZIP_MULTI_PAK:{}",
+                    serde_json::to_string(p).unwrap_or_default()
+                )
+            }
+            InstallPrompt::HostModPack(p) => {
+                format!(
+                    "HOST_MOD_PACK:{}",
+                    serde_json::to_string(p).unwrap_or_default()
+                )
+            }
+            InstallPrompt::CbFlatArchive(p) => {
+                format!(
+                    "CB_FLAT_ARCHIVE:{}",
+                    serde_json::to_string(p).unwrap_or_default()
+                )
+            }
+            InstallPrompt::UnrecognizedArchive => "UNRECOGNIZED_ARCHIVE".to_string(),
+        }
+    }
+}
+
+fn multi_pak_payload(
+    zip_path: String,
+    entries: Vec<String>,
+    target_tag: Option<String>,
+    entry_tags: Option<Vec<Option<String>>>,
+    entry_kind: Option<String>,
+) -> ZipMultiPakPayload {
+    ZipMultiPakPayload {
+        zip_path,
+        entries,
+        target_tag,
+        entry_tags,
+        entry_kind,
+        mod_id: None,
+        mod_name: None,
+        file_id: None,
+        file_type: None,
+        mod_version: None,
+    }
+}
+
+/// Non-success outcomes of archive resolution: a user decision is needed, the archive is
+/// the UE4SS loader package (installed via a dedicated path), or a real failure.
+#[derive(Debug)]
+pub enum ResolveError {
+    Prompt(Box<InstallPrompt>),
+    Ue4ssLoader(PathBuf),
+    Failure(String),
+}
+
+fn prompt_err(p: InstallPrompt) -> ResolveError {
+    ResolveError::Prompt(Box::new(p))
+}
+
+impl From<String> for ResolveError {
+    fn from(e: String) -> Self {
+        ResolveError::Failure(e)
+    }
+}
+
 /// Same shape `resolve_archive_download` resolves to: the extracted path, the original archive
 /// (for cleanup once installed), and the target's location tag (`None` for primary).
-type ResolvedArchive = Result<(PathBuf, Option<PathBuf>, Option<String>), String>;
+type ResolvedArchive = Result<(PathBuf, Option<PathBuf>, Option<String>), ResolveError>;
 
 /// Checks whether a zero-`.pak` archive instead contains directory-shaped content matching one
 /// of `cfg`'s Directory-unit targets — currently only `ue4ss_mods` ever matches here (a
@@ -823,22 +988,28 @@ fn try_classify_as_directory_target(
         let tmp = tmp_parent.join(&dir_name);
         return Some(
             extract_dir_entry(downloaded, dir, &tmp)
-                .map(|_| (tmp, Some(downloaded.to_path_buf()), location_tag.clone())),
+                .map(|_| (tmp, Some(downloaded.to_path_buf()), location_tag.clone()))
+                .map_err(ResolveError::from),
         );
     }
     let zip_path = downloaded.to_string_lossy().to_string();
-    let entry_names: Vec<&String> = dirs.iter().map(|(d, _)| d).collect();
+    let entry_names: Vec<String> = dirs.iter().map(|(d, _)| d.clone()).collect();
     let distinct_tags: HashSet<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
     // These entries are directory paths (from classify_archive_dirs), not .pak files — load-bearing
     // for Crime Boss, whose install_from_zip_entry otherwise assumes every entry is a single pak
     // file to wrap in its synthesized skeleton.
-    let payload = if distinct_tags.len() == 1 {
-        serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "targetTag": dirs[0].1, "entryKind": "dir" })
-    } else {
-        let entry_tags: Vec<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
-        serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "entryTags": entry_tags, "targetTag": serde_json::Value::Null, "entryKind": "dir" })
-    };
-    Some(Err(format!("ZIP_MULTI_PAK:{}", payload)))
+    let payload = multi_pak_payload(
+        zip_path,
+        entry_names,
+        if distinct_tags.len() == 1 {
+            dirs[0].1.clone()
+        } else {
+            None
+        },
+        (distinct_tags.len() > 1).then(|| dirs.iter().map(|(_, t)| t.clone()).collect()),
+        Some("dir".to_string()),
+    );
+    Some(Err(prompt_err(InstallPrompt::ZipMultiPak(payload))))
 }
 
 /// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
@@ -863,7 +1034,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             )),
             Err(e) => {
                 let _ = std::fs::remove_dir_all(&temp_dir);
-                Err(e)
+                Err(e.into())
             }
         };
     }
@@ -879,14 +1050,15 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             match entries.len() {
                 0 => {
                     if has_ue4ss_loader_signature(&downloaded) {
-                        let zip_path = downloaded.to_string_lossy().to_string();
-                        return Err(format!("UE4SS_LOADER:{zip_path}"));
+                        return Err(ResolveError::Ue4ssLoader(downloaded));
                     }
                     if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
                         return result;
                     }
                     let _ = std::fs::remove_file(&downloaded);
-                    Err("This mod is packaged as an archive with no .pak files inside.".to_string())
+                    Err(ResolveError::Failure(
+                        "This mod is packaged as an archive with no .pak files inside.".to_string(),
+                    ))
                 }
                 1 => {
                     let tmp =
@@ -896,8 +1068,9 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 }
                 _ => {
                     let zip_path = downloaded.to_string_lossy().to_string();
-                    let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries, "targetTag": serde_json::Value::Null });
-                    Err(format!("ZIP_MULTI_PAK:{}", payload))
+                    Err(prompt_err(InstallPrompt::ZipMultiPak(multi_pak_payload(
+                        zip_path, entries, None, None, None,
+                    ))))
                 }
             }
         }
@@ -918,14 +1091,18 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
             if cfg.game_id == "pd2" {
                 if let Some(m) = detect_host_pack(&names) {
                     let zip_path = downloaded.to_string_lossy().to_string();
-                    let payload = serde_json::json!({
-                        "zipPath": zip_path,
-                        "entries": m.dirs,
-                        "hostModId": m.host.host_mod_id,
-                        "hostName": m.host.host_name,
-                        "hostSubpath": m.host.subpath.join("/"),
-                    });
-                    return Err(format!("HOST_MOD_PACK:{}", payload));
+                    return Err(prompt_err(InstallPrompt::HostModPack(HostPackPayload {
+                        zip_path,
+                        entries: m.dirs,
+                        host_mod_id: m.host.host_mod_id,
+                        host_name: m.host.host_name.to_string(),
+                        host_subpath: m.host.subpath.join("/"),
+                        mod_id: None,
+                        mod_name: None,
+                        file_id: None,
+                        file_type: None,
+                        mod_version: None,
+                    })));
                 }
             }
             // A flat folder of loose files (no marker, no nested asset structure) can't be a real
@@ -941,12 +1118,12 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 .collect();
             if is_unplaceable_pack(&names, &engine_markers) {
                 let _ = std::fs::remove_file(&downloaded);
-                return Err("UNRECOGNIZED_ARCHIVE".to_string());
+                return Err(prompt_err(InstallPrompt::UnrecognizedArchive));
             }
             let dirs = classify_archive_dirs(&names, cfg);
             if dirs.is_empty() {
                 let _ = std::fs::remove_file(&downloaded);
-                return Err(
+                return Err(ResolveError::Failure(
                     if let ModUnit::Directory { entry_markers, .. } = &cfg.primary().unit {
                         if entry_markers.is_empty() {
                             "This mod is packaged as an archive with no mod directory found inside."
@@ -960,7 +1137,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                     } else {
                         "No valid mod directory found in archive.".to_string()
                     },
-                );
+                ));
             }
             if dirs.len() == 1 {
                 let (dir, location_tag) = &dirs[0];
@@ -977,19 +1154,23 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 return Ok((tmp, Some(downloaded), location_tag.clone()));
             }
             let zip_path = downloaded.to_string_lossy().to_string();
-            let entry_names: Vec<&String> = dirs.iter().map(|(d, _)| d).collect();
+            let entry_names: Vec<String> = dirs.iter().map(|(d, _)| d.clone()).collect();
             let distinct_tags: HashSet<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
-            if distinct_tags.len() == 1 {
-                // Single target: keep the legacy payload shape (one targetTag for all entries).
-                let payload = serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "targetTag": dirs[0].1 });
-                Err(format!("ZIP_MULTI_PAK:{}", payload))
-            } else {
-                // Mixed targets (e.g. a modpack spanning mods/ and assets/mod_overrides/):
-                // tag each entry individually so the picker routes it to the right place.
-                let entry_tags: Vec<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
-                let payload = serde_json::json!({ "zipPath": zip_path, "entries": entry_names, "entryTags": entry_tags, "targetTag": serde_json::Value::Null });
-                Err(format!("ZIP_MULTI_PAK:{}", payload))
-            }
+            // Single target keeps one targetTag for all entries; mixed targets (e.g. a
+            // modpack spanning mods/ and assets/mod_overrides/) tag each entry
+            // individually so the picker routes it to the right place.
+            let payload = multi_pak_payload(
+                zip_path,
+                entry_names,
+                if distinct_tags.len() == 1 {
+                    dirs[0].1.clone()
+                } else {
+                    None
+                },
+                (distinct_tags.len() > 1).then(|| dirs.iter().map(|(_, t)| t.clone()).collect()),
+                None,
+            );
+            Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
         }
     }
 }
@@ -1012,8 +1193,7 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
     match entries.len() {
         0 => {
             if has_ue4ss_loader_signature(&downloaded) {
-                let zip_path = downloaded.to_string_lossy().to_string();
-                return Err(format!("UE4SS_LOADER:{zip_path}"));
+                return Err(ResolveError::Ue4ssLoader(downloaded));
             }
             if let Some(result) = try_classify_as_directory_target(&downloaded, cfg) {
                 return result;
@@ -1024,10 +1204,14 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
             // download — the renderer can still install the whole archive as one mods/<name>
             // folder if the user confirms it's the right content.
             let zip_path = downloaded.to_string_lossy().to_string();
-            Err(format!(
-                "CB_FLAT_ARCHIVE:{}",
-                serde_json::json!({ "zipPath": zip_path })
-            ))
+            Err(prompt_err(InstallPrompt::CbFlatArchive(CbFlatPayload {
+                zip_path,
+                mod_id: None,
+                mod_name: None,
+                file_id: None,
+                file_type: None,
+                mod_version: None,
+            })))
         }
         1 => {
             let tmp = extract_entry_into_crimeboss_skeleton(&downloaded, &entries[0])?;
@@ -1035,8 +1219,8 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
         }
         _ => {
             let zip_path = downloaded.to_string_lossy().to_string();
-            let payload = serde_json::json!({ "zipPath": zip_path, "entries": entries, "targetTag": serde_json::Value::Null });
-            Err(format!("ZIP_MULTI_PAK:{}", payload))
+            let payload = multi_pak_payload(zip_path, entries, None, None, None);
+            Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
         }
     }
 }

@@ -161,7 +161,10 @@ fn genuinely_unplaceable_archive_errors_on_pd3() {
     let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
     let cfg = engine_for_game("pd3");
     let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
-    assert!(err.contains("no .pak files inside"), "{err}");
+    assert!(
+        matches!(err, ResolveError::Failure(ref m) if m.contains("no .pak files inside")),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -173,7 +176,10 @@ fn flat_crime_boss_archive_surfaces_confirm_sentinel_not_dead_end() {
     let cfg = engine_for_game("cb");
     let zip_path = zip.path().to_path_buf();
     let err = resolve_archive_download(zip_path.clone(), cfg).unwrap_err();
-    assert!(err.starts_with("CB_FLAT_ARCHIVE:"), "{err}");
+    assert!(
+        matches!(&err, ResolveError::Prompt(p) if matches!(**p, InstallPrompt::CbFlatArchive(_))),
+        "{err:?}"
+    );
     assert!(
         zip_path.exists(),
         "the source archive must survive so the user can confirm install"
@@ -2630,9 +2636,14 @@ fn crimeboss_bundle_archive_resolves_to_zip_multi_pak_with_both_entries() {
     let cfg = engine_for_game("cb");
 
     let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
-    assert!(err.starts_with("ZIP_MULTI_PAK:"), "{err}");
+    let ResolveError::Prompt(prompt) = err else {
+        panic!("expected a prompt, got {err:?}");
+    };
+    assert!(matches!(*prompt, InstallPrompt::ZipMultiPak(_)));
+    // Assert on the sentinel string: it is still the renderer wire protocol.
+    let sentinel = prompt.to_sentinel();
     let payload: serde_json::Value =
-        serde_json::from_str(err.strip_prefix("ZIP_MULTI_PAK:").unwrap()).unwrap();
+        serde_json::from_str(sentinel.strip_prefix("ZIP_MULTI_PAK:").unwrap()).unwrap();
     let entries: Vec<&str> = payload["entries"]
         .as_array()
         .unwrap()

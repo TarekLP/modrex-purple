@@ -45,7 +45,8 @@ pub(crate) use self::reorder::{
 pub(crate) use self::state::save_state;
 pub(crate) use self::zip::{
     extract_archive_flat, extract_dir_entry, extract_entry, extract_entry_into_crimeboss_skeleton,
-    extract_entry_with_sidecars, mark_archive_files, resolve_archive_download,
+    extract_entry_with_sidecars, mark_archive_files, resolve_archive_download, InstallPrompt,
+    ModContext, ResolveError,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
@@ -312,8 +313,7 @@ pub async fn install_mod(
 
     let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
-        Err(e) if e.starts_with("UE4SS_LOADER:") => {
-            let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
+        Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(&app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
             let result = crate::commands::ue4ss::install_loader(
@@ -325,32 +325,22 @@ pub async fn install_mod(
             let _ = std::fs::remove_file(&zip_path);
             return result;
         }
-        Err(e)
-            if e.starts_with("ZIP_MULTI_PAK:")
-                || e.starts_with("HOST_MOD_PACK:")
-                || e.starts_with("CB_FLAT_ARCHIVE:") =>
-        {
-            let prefix = e
-                .split_once(':')
-                .map(|(p, _)| format!("{p}:"))
-                .unwrap_or_default();
-            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e[prefix.len()..]) {
-                v["modId"] = serde_json::json!(remote_id);
-                v["modName"] = serde_json::json!(&mod_name);
-                v["fileId"] = serde_json::json!(file_id);
-                v["fileType"] = serde_json::json!(&file_type);
-                v["modVersion"] = serde_json::json!(&mod_version);
-                return Err(format!("{}{}", prefix, v));
-            }
+        Err(ResolveError::Prompt(prompt)) => {
+            return Err((*prompt)
+                .with_mod_context(ModContext {
+                    mod_id: remote_id,
+                    mod_name: mod_name.clone(),
+                    file_id,
+                    file_type: file_type.clone(),
+                    mod_version: mod_version.clone(),
+                })
+                .to_sentinel());
+        }
+        Err(ResolveError::Failure(e)) => {
+            log::warn!("install_mod {mod_id}: {e}");
             return Err(e);
         }
-        result => match result {
-            Ok(v) => v,
-            Err(e) => {
-                log::warn!("install_mod {mod_id}: {e}");
-                return Err(e);
-            }
-        },
+        Ok(v) => v,
     };
     let target = cfg.target_for(location_tag.as_deref());
 
@@ -524,8 +514,7 @@ pub async fn install_file(
         }
     };
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
-        Err(e) if e.starts_with("UE4SS_LOADER:") => {
-            let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
+        Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(&app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
             let result = crate::commands::ue4ss::install_loader(
@@ -537,32 +526,22 @@ pub async fn install_file(
             let _ = std::fs::remove_file(&zip_path);
             return result;
         }
-        Err(e)
-            if e.starts_with("ZIP_MULTI_PAK:")
-                || e.starts_with("HOST_MOD_PACK:")
-                || e.starts_with("CB_FLAT_ARCHIVE:") =>
-        {
-            let prefix = e
-                .split_once(':')
-                .map(|(p, _)| format!("{p}:"))
-                .unwrap_or_default();
-            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e[prefix.len()..]) {
-                v["modId"] = serde_json::json!(mod_id);
-                v["modName"] = serde_json::json!(&mod_name);
-                v["fileId"] = serde_json::json!(file_id);
-                v["fileType"] = serde_json::json!(&file_type);
-                v["modVersion"] = serde_json::json!(&mod_version);
-                return Err(format!("{}{}", prefix, v));
-            }
+        Err(ResolveError::Prompt(prompt)) => {
+            return Err((*prompt)
+                .with_mod_context(ModContext {
+                    mod_id,
+                    mod_name: mod_name.clone(),
+                    file_id,
+                    file_type: file_type.clone(),
+                    mod_version: mod_version.clone(),
+                })
+                .to_sentinel());
+        }
+        Err(ResolveError::Failure(e)) => {
+            log::warn!("install_file {mod_id}/{file_id}: {e}");
             return Err(e);
         }
-        result => match result {
-            Ok(v) => v,
-            Err(e) => {
-                log::warn!("install_file {mod_id}/{file_id}: {e}");
-                return Err(e);
-            }
-        },
+        Ok(v) => v,
     };
     let target = cfg.target_for(location_tag.as_deref());
 
@@ -731,8 +710,7 @@ pub(crate) async fn install_nexus_download(
     let cfg = engine_for_game(game_id);
     let dl_path = downloaded.clone();
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
-        Err(e) if e.starts_with("UE4SS_LOADER:") => {
-            let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
+        Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
             let result = crate::commands::ue4ss::install_loader(
@@ -744,25 +722,23 @@ pub(crate) async fn install_nexus_download(
             let _ = std::fs::remove_file(&zip_path);
             return result;
         }
-        Err(e)
-            if e.starts_with("ZIP_MULTI_PAK:")
-                || e.starts_with("HOST_MOD_PACK:")
-                || e.starts_with("CB_FLAT_ARCHIVE:")
-                || e.starts_with("UNRECOGNIZED_ARCHIVE") =>
-        {
+        Err(ResolveError::Prompt(prompt)) => {
             let _ = std::fs::remove_file(&dl_path);
-            let kind = e.split(':').next().unwrap_or("archive");
+            let kind = match *prompt {
+                InstallPrompt::ZipMultiPak(_) => "ZIP_MULTI_PAK",
+                InstallPrompt::HostModPack(_) => "HOST_MOD_PACK",
+                InstallPrompt::CbFlatArchive(_) => "CB_FLAT_ARCHIVE",
+                InstallPrompt::UnrecognizedArchive => "UNRECOGNIZED_ARCHIVE",
+            };
             return Err(format!(
                 "nexus: '{mod_name}' needs a manual install choice ({kind}) that Nexus downloads don't support yet"
             ));
         }
-        result => match result {
-            Ok(v) => v,
-            Err(e) => {
-                log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}");
-                return Err(e);
-            }
-        },
+        Err(ResolveError::Failure(e)) => {
+            log::warn!("install_nexus_download {nexus_mod_id}/{nexus_file_id}: {e}");
+            return Err(e);
+        }
+        Ok(v) => v,
     };
     let target = cfg.target_for(location_tag.as_deref());
 
@@ -891,8 +867,7 @@ pub async fn install_dropped_file(
         .map_err(|e| format!("could not read dropped file: {e}"))?;
 
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(temp.clone(), cfg) {
-        Err(e) if e.starts_with("UE4SS_LOADER:") => {
-            let zip_path = PathBuf::from(&e["UE4SS_LOADER:".len()..]);
+        Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(&app);
             let launcher = game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
             let result = crate::commands::ue4ss::install_loader(
@@ -905,39 +880,40 @@ pub async fn install_dropped_file(
             return result;
         }
         // The picker / host-pack / CB-flat modals install directly from the temp copy (which they
-        // delete afterwards), so forward the sentinel enriched with a synthetic identity, mirroring
+        // delete afterwards), so forward the prompt enriched with a synthetic identity, mirroring
         // install_file. get_installed reconciles the resulting entries by SHA256 on the next refresh.
         // UNRECOGNIZED_ARCHIVE is intentionally not forwarded — its modal fetches a modworkshop mod
         // page a local file has no id for — so it falls through to the plain-error arm below.
-        Err(e)
-            if e.starts_with("ZIP_MULTI_PAK:")
-                || e.starts_with("HOST_MOD_PACK:")
-                || e.starts_with("CB_FLAT_ARCHIVE:") =>
+        Err(ResolveError::Prompt(prompt))
+            if !matches!(*prompt, InstallPrompt::UnrecognizedArchive) =>
         {
-            let prefix = e
-                .split_once(':')
-                .map(|(p, _)| format!("{p}:"))
-                .unwrap_or_default();
-            if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&e[prefix.len()..]) {
-                let syn = hash_filename(&file_stem);
-                v["modId"] = serde_json::json!(syn);
-                v["modName"] = serde_json::json!(&file_stem);
-                v["fileId"] = serde_json::json!(syn);
-                v["fileType"] =
-                    serde_json::json!(src.extension().and_then(|s| s.to_str()).unwrap_or("zip"));
-                v["modVersion"] = serde_json::json!("unknown");
-                return Err(format!("{}{}", prefix, v));
-            }
+            let syn = hash_filename(&file_stem);
+            return Err((*prompt)
+                .with_mod_context(ModContext {
+                    mod_id: syn,
+                    mod_name: file_stem.clone(),
+                    file_id: syn,
+                    file_type: src
+                        .extension()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("zip")
+                        .to_string(),
+                    mod_version: "unknown".to_string(),
+                })
+                .to_sentinel());
+        }
+        Err(ResolveError::Failure(e)) => {
+            let _ = tokio::fs::remove_file(&temp).await;
+            log::warn!("install_dropped_file {path}: {e}");
             return Err(e);
         }
-        result => match result {
-            Ok(v) => v,
-            Err(e) => {
-                let _ = tokio::fs::remove_file(&temp).await;
-                log::warn!("install_dropped_file {path}: {e}");
-                return Err(e);
-            }
-        },
+        Err(ResolveError::Prompt(prompt)) => {
+            let _ = tokio::fs::remove_file(&temp).await;
+            let e = prompt.to_sentinel();
+            log::warn!("install_dropped_file {path}: {e}");
+            return Err(e);
+        }
+        Ok(v) => v,
     };
     let target = cfg.target_for(location_tag.as_deref());
 
