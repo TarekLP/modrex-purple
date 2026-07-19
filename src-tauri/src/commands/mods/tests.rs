@@ -1067,6 +1067,43 @@ fn reconcile_state_leaves_unparsable_source_uid_alone() {
     assert_eq!(state.mods[0].file_remote_id, None);
 }
 
+#[test]
+fn regroup_by_name_suffix_skips_entries_with_source_identity() {
+    let base = InstalledMod {
+        uid: "100".to_string(),
+        id: 100,
+        name: "Cool Mod".to_string(),
+        filename: "cool_mod.pak".to_string(),
+        enabled: true,
+        ..InstalledMod::default()
+    };
+    let unidentified = InstalledMod {
+        uid: "cool_mod_2".to_string(),
+        id: -5,
+        name: "Cool Mod 456".to_string(),
+        filename: "cool_mod_2.pak".to_string(),
+        enabled: true,
+        ..InstalledMod::default()
+    };
+    let sourced = InstalledMod {
+        uid: "nexus:9:9".to_string(),
+        id: -9,
+        name: "Cool Mod 789".to_string(),
+        filename: "cool_mod_3.pak".to_string(),
+        enabled: true,
+        source: "nexus".to_string(),
+        remote_id: Some("9".to_string()),
+        file_remote_id: Some("9".to_string()),
+        ..InstalledMod::default()
+    };
+
+    let mut mods = vec![base, unidentified, sourced];
+    super::identify::regroup_negative_ids_by_name_suffix(&mut mods);
+
+    assert_eq!(mods[1].id, 100);
+    assert_eq!(mods[2].id, -9);
+}
+
 // ── host-mod pack detection ───────────────────────────────────────────────
 
 fn detect_host(names: &[&str]) -> Option<super::host_mods::HostPackMatch> {
