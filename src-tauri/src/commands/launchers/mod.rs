@@ -29,10 +29,10 @@ fn all_launchers() -> [&'static dyn Launcher; 3] {
     [&STEAM, &EPIC, &XBOX]
 }
 
-fn game_def_for_id(game_id: &str) -> &'static GameDef {
+fn game_def_for_id(game_id: &str) -> Result<&'static GameDef, String> {
     crate::commands::games::game_spec(game_id)
         .map(|s| s.def)
-        .unwrap_or(&PD3)
+        .ok_or_else(|| format!("unknown game id '{game_id}'"))
 }
 
 // A stalled find_game leaves no trace in Modrex.log without the probe line before it.
@@ -190,8 +190,8 @@ pub struct DetectedGame {
 // so all detection work goes through spawn_blocking.
 #[tauri::command]
 #[specta::specta]
-pub async fn installed_launchers(game_id: Option<String>) -> Vec<String> {
-    let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"));
+pub async fn installed_launchers(game_id: Option<String>) -> Result<Vec<String>, String> {
+    let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"))?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut found = Vec::new();
         for launcher in all_launchers() {
@@ -206,12 +206,16 @@ pub async fn installed_launchers(game_id: Option<String>) -> Vec<String> {
         found
     })
     .await
-    .unwrap_or_default()
+    .map_err(|e| e.to_string())
 }
 
-fn resolve_and_save_game_path(app: &AppHandle, game_id: Option<String>, game_path: Option<String>) {
+fn resolve_and_save_game_path(
+    app: &AppHandle,
+    game_id: Option<String>,
+    game_path: Option<String>,
+) -> Result<(), String> {
     let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
-    let game_def = game_def_for_id(&game_id);
+    let game_def = game_def_for_id(&game_id)?;
     // Path validation and detection can stall for seconds (SMB timeouts, wedged
     // services), so resolve first and only take the settings lock to apply the
     // result — sync commands on the main thread must never wait behind a probe.
@@ -251,6 +255,7 @@ fn resolve_and_save_game_path(app: &AppHandle, game_id: Option<String>, game_pat
         entry.game_path = resolved_path;
         entry.launcher = resolved_launcher;
     });
+    Ok(())
 }
 
 #[tauri::command]
@@ -319,16 +324,16 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
 
 #[tauri::command]
 #[specta::specta]
-pub fn launch_game(app: AppHandle, game_id: Option<String>) {
+pub fn launch_game(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
     let game_id = game_id.as_deref().unwrap_or("pd3");
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
-        return;
+        return Ok(());
     };
     let Some(ref game_path) = gs.game_path else {
-        return;
+        return Ok(());
     };
-    let cfg = engine_for_game(game_id);
+    let cfg = engine_for_game(game_id)?;
     let _ = do_restore(game_path, cfg);
     maybe_suppress_crash_reporter(game_id, gs);
     crate::commands::analytics::track(
@@ -338,10 +343,11 @@ pub fn launch_game(app: AppHandle, game_id: Option<String>) {
     );
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
-        game_def_for_id(game_id),
+        game_def_for_id(game_id)?,
         game_path,
         gs.launch_options.as_deref(),
     );
+    Ok(())
 }
 
 #[tauri::command]
@@ -356,7 +362,7 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
         return Ok(());
     };
 
-    let cfg = engine_for_game(game_id);
+    let cfg = engine_for_game(game_id)?;
     for (i, target) in cfg.targets.iter().enumerate() {
         let mods_dir = mods_base(game_path, target);
         let mods_bak = backup_dir(game_path, target);
@@ -406,7 +412,7 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
     maybe_suppress_crash_reporter(game_id, gs);
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
-        game_def_for_id(game_id),
+        game_def_for_id(game_id)?,
         game_path,
         gs.launch_options.as_deref(),
     );
@@ -424,7 +430,7 @@ pub fn restore_mods(app: AppHandle, game_id: Option<String>) -> Result<(), Strin
     let Some(ref game_path) = gs.game_path else {
         return Ok(());
     };
-    let cfg = engine_for_game(game_id);
+    let cfg = engine_for_game(game_id)?;
     do_restore(game_path, cfg)
 }
 
@@ -459,8 +465,8 @@ fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn is_game_running(game_id: Option<String>) -> bool {
-    let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_names;
+pub async fn is_game_running(game_id: Option<String>) -> Result<bool, String> {
+    let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3"))?.process_names;
     tauri::async_runtime::spawn_blocking(move || {
         let sys = refresh_process_list();
         sys.processes()
@@ -468,13 +474,13 @@ pub async fn is_game_running(game_id: Option<String>) -> bool {
             .any(|p| process_names.iter().any(|n| process_matches(p, n)))
     })
     .await
-    .unwrap_or(false)
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn stop_game(game_id: Option<String>) {
-    let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3")).process_names;
+pub fn stop_game(game_id: Option<String>) -> Result<(), String> {
+    let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3"))?.process_names;
     let sys = refresh_process_list();
     for p in sys
         .processes()
@@ -483,6 +489,7 @@ pub fn stop_game(game_id: Option<String>) {
     {
         p.kill();
     }
+    Ok(())
 }
 
 /// Returns the URL only if it is safe to hand to the OS shell: an `http`, `https`, or

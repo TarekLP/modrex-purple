@@ -270,9 +270,9 @@ pub fn get_index_mod_files(
     app: AppHandle,
     mod_id: i64,
     game_id: Option<String>,
-) -> Vec<IndexModFile> {
-    let cfg = crate::commands::mods::engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    lookup_mod_files(&app, mod_id, cfg.index_game_name)
+) -> Result<Vec<IndexModFile>, String> {
+    let cfg = crate::commands::mods::engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
+    Ok(lookup_mod_files(&app, mod_id, cfg.index_game_name))
 }
 
 pub fn lookup_sha256(app: &AppHandle, sha256: &str, game_name: &str) -> Option<IndexMatch> {

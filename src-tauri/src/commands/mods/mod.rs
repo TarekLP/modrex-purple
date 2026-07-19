@@ -146,7 +146,7 @@ pub async fn get_installed(
     game_id: Option<String>,
 ) -> Result<InstalledResponse, String> {
     let game_id = game_id.as_deref().unwrap_or("pd3");
-    let cfg = engine_for_game(game_id);
+    let cfg = engine_for_game(game_id)?;
     let settings = read_settings(&app);
     let Some(game_path) = game_settings(&settings, game_id).and_then(|gs| gs.game_path.clone())
     else {
@@ -367,7 +367,7 @@ pub async fn install_mod(
         }
     };
 
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
             let settings = read_settings(&app);
@@ -561,7 +561,7 @@ pub async fn install_file(
     game_path: String,
     game_id: Option<String>,
 ) -> Result<InstallOutcome, String> {
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     let download_id = format!("file:{mod_id}:{file_id}");
     let downloaded = match download_file(&app, &download_url, &file_type, &download_id).await {
         Ok(v) => v,
@@ -765,7 +765,7 @@ pub(crate) async fn install_nexus_download(
         thumbnail_url,
         file_type,
     } = meta;
-    let cfg = engine_for_game(game_id);
+    let cfg = engine_for_game(game_id)?;
     let dl_path = downloaded.clone();
     let (tmp, zip_orig, location_tag) = match resolve_archive_download(downloaded, cfg) {
         Err(ResolveError::Ue4ssLoader(zip_path)) => {
@@ -908,7 +908,7 @@ pub async fn install_dropped_file(
     folder_id: Option<String>,
     game_id: Option<String>,
 ) -> Result<InstallOutcome, String> {
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     let src = PathBuf::from(&path);
     let file_stem = src
         .file_stem()
@@ -1121,7 +1121,7 @@ pub async fn install_from_zip_entry(
         location_tag,
         entry_kind,
     } = args;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     let target = cfg.target_for(location_tag.as_deref());
     let zip = PathBuf::from(&zip_path);
     let install_format = file_type.clone(); // file_type is moved before the success emit below
@@ -1300,7 +1300,7 @@ pub async fn install_cb_flat_archive(
     folder_id: Option<String>,
 ) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, "cb").await;
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb")?;
     let target = cfg.primary();
     let zip = PathBuf::from(&zip_path);
     let tmp_dir = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
@@ -1410,7 +1410,7 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
         host_subpath,
         game_id,
     } = args;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
     let mod_data = InstalledMod {
@@ -1465,22 +1465,28 @@ pub async fn uninstall_mod(
     game_path: String,
     uid: String,
     game_id: Option<String>,
-) {
+) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     uninstall_mod_op(&game_path, &get_state_path(&game_path, cfg), &uid, cfg);
     crate::commands::analytics::track(
         &app,
         "mod_uninstalled",
         serde_json::json!({ "game": game_id.as_deref().unwrap_or("pd3") }),
     );
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
+pub async fn enable_mod(
+    app: AppHandle,
+    game_path: String,
+    uid: String,
+    game_id: Option<String>,
+) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     let settings = read_settings(&app);
     let launcher = game_settings(&settings, game_id.as_deref().unwrap_or("pd3"))
         .and_then(|gs| gs.launcher.clone());
@@ -1496,13 +1502,19 @@ pub async fn enable_mod(app: AppHandle, game_path: String, uid: String, game_id:
         "mod_enabled",
         serde_json::json!({ "game": game_id.as_deref().unwrap_or("pd3") }),
     );
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id: Option<String>) {
+pub async fn disable_mod(
+    app: AppHandle,
+    game_path: String,
+    uid: String,
+    game_id: Option<String>,
+) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     let settings = read_settings(&app);
     let launcher = game_settings(&settings, game_id.as_deref().unwrap_or("pd3"))
         .and_then(|gs| gs.launcher.clone());
@@ -1518,6 +1530,7 @@ pub async fn disable_mod(app: AppHandle, game_path: String, uid: String, game_id
         "mod_disabled",
         serde_json::json!({ "game": game_id.as_deref().unwrap_or("pd3") }),
     );
+    Ok(())
 }
 
 #[tauri::command]
@@ -1528,7 +1541,7 @@ pub async fn move_crimeboss_mod_target(
     uid: String,
 ) -> Result<(), String> {
     let _state_guard = lock_game_state(&app, "cb").await;
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb")?;
     let settings = read_settings(&app);
     let launcher = game_settings(&settings, "cb").and_then(|gs| gs.launcher.clone());
     let result = move_crimeboss_mod_target_op(
@@ -1558,7 +1571,7 @@ pub async fn reorder_in_folder(
     game_id: Option<String>,
 ) -> Result<(), String> {
     let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     reorder_mods_in_folder_op(
         &game_path,
         &get_state_path(&game_path, cfg),
@@ -1580,7 +1593,7 @@ pub async fn move_to_folder(
     game_id: Option<String>,
 ) -> Result<(), String> {
     let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     move_mod_to_folder_op(
         &game_path,
         &get_state_path(&game_path, cfg),
@@ -1602,7 +1615,7 @@ pub async fn reorder_children(
     game_id: Option<String>,
 ) -> Result<(), String> {
     let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     reorder_children_op(
         &game_path,
         &get_state_path(&game_path, cfg),
@@ -1623,7 +1636,7 @@ pub async fn move_folder(
     game_id: Option<String>,
 ) -> Result<(), String> {
     let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     move_folder_op(
         &game_path,
         &get_state_path(&game_path, cfg),
@@ -1644,7 +1657,7 @@ pub async fn create_folder(
     game_id: Option<String>,
 ) -> Result<ModFolder, String> {
     let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     create_folder_op(
         &game_path,
         &get_state_path(&game_path, cfg),
@@ -1664,7 +1677,7 @@ pub async fn rename_folder(
     game_id: Option<String>,
 ) -> Result<(), String> {
     let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     rename_folder_op(
         &game_path,
         &get_state_path(&game_path, cfg),
@@ -1684,7 +1697,7 @@ pub async fn delete_folder(
     game_id: Option<String>,
 ) -> Result<(), String> {
     let _state_guard = state.acquire(game_id.as_deref().unwrap_or("pd3")).await;
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
     delete_folder_op(
         &game_path,
         &get_state_path(&game_path, cfg),
@@ -1696,18 +1709,19 @@ pub async fn delete_folder(
 
 #[tauri::command]
 #[specta::specta]
-pub fn open_mods_folder(app: AppHandle, game_id: Option<String>) {
+pub fn open_mods_folder(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
     let gid = game_id.as_deref().unwrap_or("pd3");
     let settings = read_settings(&app);
     let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else {
-        return;
+        return Ok(());
     };
-    let cfg = engine_for_game(gid);
+    let cfg = engine_for_game(gid)?;
     let dir = mods_base(&game_path, cfg.primary());
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(&dir).spawn();
     #[cfg(target_os = "linux")]
     let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
+    Ok(())
 }
 
 #[derive(serde::Serialize, specta::Type)]
@@ -1719,32 +1733,34 @@ pub struct ModFolderInfo {
 
 #[tauri::command]
 #[specta::specta]
-pub fn list_mod_folders(game_id: Option<String>) -> Vec<ModFolderInfo> {
-    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"));
-    cfg.targets
+pub fn list_mod_folders(game_id: Option<String>) -> Result<Vec<ModFolderInfo>, String> {
+    let cfg = engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
+    Ok(cfg
+        .targets
         .iter()
         .map(|t| ModFolderInfo {
             tag: t.tag.to_string(),
             label_key: t.label_key.to_string(),
         })
-        .collect()
+        .collect())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn open_mod_folder(app: AppHandle, game_id: Option<String>, tag: String) {
+pub fn open_mod_folder(app: AppHandle, game_id: Option<String>, tag: String) -> Result<(), String> {
     let gid = game_id.as_deref().unwrap_or("pd3");
     let settings = read_settings(&app);
     let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else {
-        return;
+        return Ok(());
     };
-    let cfg = engine_for_game(gid);
+    let cfg = engine_for_game(gid)?;
     let dir = mods_base(&game_path, cfg.target_for(Some(&tag)));
     let _ = std::fs::create_dir_all(&dir);
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(&dir).spawn();
     #[cfg(target_os = "linux")]
     let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
+    Ok(())
 }
 
 #[cfg(test)]

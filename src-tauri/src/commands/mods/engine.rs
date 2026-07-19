@@ -309,10 +309,10 @@ pub static RAID_ENGINE: ModEngineConfig = ModEngineConfig {
     }],
 };
 
-pub fn engine_for_game(game_id: &str) -> &'static ModEngineConfig {
+pub fn engine_for_game(game_id: &str) -> Result<&'static ModEngineConfig, String> {
     crate::commands::games::game_spec(game_id)
         .map(|s| s.engine)
-        .unwrap_or(&PD3_ENGINE)
+        .ok_or_else(|| format!("unknown game id '{game_id}'"))
 }
 
 pub fn mods_dir(game_path: &str, target: &ScanTarget) -> PathBuf {

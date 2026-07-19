@@ -129,7 +129,7 @@ fn extract_archive_flat_rejects_path_traversal() {
 #[test]
 fn crimeboss_standalone_submod_resolves_to_ue4ss_mods_target() {
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
 
     let (extracted, _orig, location_tag) =
         resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
@@ -146,7 +146,7 @@ fn pd3_standalone_submod_resolves_to_ue4ss_mods_target() {
     // PD3's primary unit is File (paks) — the fallback must still find the secondary
     // Directory target even though it isn't primary.
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game("pd3").unwrap();
 
     let (extracted, _orig, location_tag) =
         resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap();
@@ -159,7 +159,7 @@ fn genuinely_unplaceable_archive_errors_on_pd3() {
     // PD3 has no marker-less Directory target to fall back to (only ue4ss_mods, which requires
     // Scripts/main.lua), so a flat archive with nothing installable still hard-errors.
     let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game("pd3").unwrap();
     let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
     assert!(
         matches!(err, ResolveError::Failure(ref m) if m.contains("no .pak files inside")),
@@ -173,7 +173,7 @@ fn flat_crime_boss_archive_surfaces_confirm_sentinel_not_dead_end() {
     // enclosing folder at all) isn't classifiable but also isn't necessarily garbage — surface a
     // confirm dialog instead of deleting the download outright.
     let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let zip_path = zip.path().to_path_buf();
     let err = resolve_archive_download(zip_path.clone(), cfg).unwrap_err();
     assert!(
@@ -614,7 +614,7 @@ fn read_state_missing_location_is_none() {
 fn uninstall_mod_keeps_empty_folder() {
     let temp = TempDir::new().unwrap();
     let game = temp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game("pd3").unwrap();
     let state_path = get_state_path(game, cfg);
     let folders = vec![folder("f1", "001_KeepMe", None)];
     let folder_rel = get_folder_path(&folders, Some("f1")).unwrap();
@@ -655,7 +655,7 @@ fn uninstall_mod_keeps_empty_folder() {
 fn create_folder_reuses_existing_same_name_sibling() {
     let temp = TempDir::new().unwrap();
     let game = temp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let state_path = get_state_path(game, cfg);
 
     let first = create_folder_op(game, &state_path, "ImprovedRogue", None, cfg).unwrap();
@@ -670,7 +670,7 @@ fn create_folder_reuses_existing_same_name_sibling() {
 
 #[test]
 fn pd2_engine_has_two_targets() {
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     assert_eq!(cfg.targets.len(), 2);
     assert_eq!(cfg.targets[0].tag, "mods");
     assert_eq!(cfg.targets[1].tag, "mod_overrides");
@@ -678,19 +678,19 @@ fn pd2_engine_has_two_targets() {
 
 #[test]
 fn target_for_none_returns_primary() {
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     assert_eq!(cfg.target_for(None).tag, "mods");
 }
 
 #[test]
 fn target_for_secondary_tag_routes_correctly() {
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     assert_eq!(cfg.target_for(Some("mod_overrides")).tag, "mod_overrides");
 }
 
 #[test]
 fn target_for_unknown_tag_falls_back_to_primary() {
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     assert_eq!(cfg.target_for(Some("nonexistent")).tag, "mods");
 }
 
@@ -701,7 +701,7 @@ fn target_for_unknown_tag_falls_back_to_primary() {
 
 #[test]
 fn raid_engine_has_single_blanket_mods_target() {
-    let cfg = engine_for_game("raid");
+    let cfg = engine_for_game("raid").unwrap();
     assert_eq!(cfg.targets.len(), 1);
     assert_eq!(cfg.targets[0].tag, "mods");
     // Blanket-accept: no markers, so every non-infra folder in mods/ is a user mod.
@@ -737,7 +737,7 @@ fn raid_classify_script_and_asset_mods_all_route_to_mods() {
     .iter()
     .map(|s| s.to_string())
     .collect();
-    let dirs = classify_archive_dirs(&names, engine_for_game("raid"));
+    let dirs = classify_archive_dirs(&names, engine_for_game("raid").unwrap());
     assert_eq!(dirs.len(), 3);
     assert_eq!(tag_of(&dirs, "WolfgangHUD"), Some(&None));
     assert_eq!(tag_of(&dirs, "CarryStacker"), Some(&None));
@@ -748,7 +748,7 @@ fn raid_classify_script_and_asset_mods_all_route_to_mods() {
 
 fn classify(names: &[&str]) -> Vec<(String, Option<String>)> {
     let owned: Vec<String> = names.iter().map(|s| s.to_string()).collect();
-    classify_archive_dirs(&owned, engine_for_game("pd2"))
+    classify_archive_dirs(&owned, engine_for_game("pd2").unwrap())
 }
 
 fn tag_of<'a>(v: &'a [(String, Option<String>)], dir: &str) -> Option<&'a Option<String>> {
@@ -902,7 +902,7 @@ fn classify_ue4ss_submod_routes_to_ue4ss_mods_tag() {
     // Scripts/main.lua is a nested marker — classification must resolve to the mod's own
     // folder (Mods/CoolMod), not the Scripts/ subfolder the marker actually lives in.
     let names = vec!["Mods/CoolMod/Scripts/main.lua".to_string()];
-    let dirs = classify_archive_dirs(&names, engine_for_game("cb"));
+    let dirs = classify_archive_dirs(&names, engine_for_game("cb").unwrap());
     assert_eq!(
         dirs,
         vec![("Mods/CoolMod".to_string(), Some("ue4ss_mods".to_string()))]
@@ -912,7 +912,7 @@ fn classify_ue4ss_submod_routes_to_ue4ss_mods_tag() {
 #[test]
 fn target_for_ue4ss_mods_resolves_on_both_games() {
     for game_id in ["cb", "pd3"] {
-        let cfg = engine_for_game(game_id);
+        let cfg = engine_for_game(game_id).unwrap();
         let target = cfg.target_for(Some("ue4ss_mods"));
         assert_eq!(target.tag, "ue4ss_mods");
         assert!(target.is_directory_unit());
@@ -936,7 +936,7 @@ async fn find_untracked_paks_excludes_bundled_ue4ss_submods() {
     make_lua_mod("ActorDumperMod"); // bundled framework internal — must be excluded
     make_lua_mod("CoolMod"); // a genuine user sub-mod — must be reported
 
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
     let ue4ss_results: Vec<_> = results
         .iter()
@@ -954,7 +954,7 @@ fn reconcile_state_purges_already_tracked_bundled_ue4ss_submods() {
     // alone would never catch these; only the excluded_names check does.
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
     let mods_dir = tmp
@@ -997,7 +997,7 @@ fn reconcile_state_recovers_source_identity_from_uid() {
     // uid ({source}:{mod_id}:{file_id}); reconcile parses it back and persists.
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game("pd3").unwrap();
     let sp = get_state_path(game, cfg);
 
     let nexus_entry = InstalledMod {
@@ -1048,7 +1048,7 @@ fn reconcile_state_leaves_unparsable_source_uid_alone() {
     // shape stays unmigrated rather than gaining a guessed identity.
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game("pd3").unwrap();
     let sp = get_state_path(game, cfg);
 
     let entry = InstalledMod {
@@ -1236,7 +1236,7 @@ fn parse_host_location_roundtrip() {
 fn host_fixture() -> (TempDir, std::path::PathBuf, NamedTempFile) {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let host_dir = game.join("mods").join("Menu Backgrounds");
     fs::create_dir_all(&host_dir).unwrap();
     fs::write(host_dir.join("main.xml"), b"").unwrap();
@@ -1278,7 +1278,7 @@ fn bg_mod_data() -> InstalledMod {
 fn install_host_pack_op_places_set_and_records() {
     let (tmp, sp, zip) = host_fixture();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
 
     // Files land un-nested under the host's Assets folder.
@@ -1300,7 +1300,7 @@ fn install_host_pack_op_places_set_and_records() {
 fn install_host_pack_op_errors_when_host_missing() {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let sp = get_state_path(game, cfg);
     let zip = make_zip(&[("My Set/standard.png", b"a")]);
     let err =
@@ -1312,7 +1312,7 @@ fn install_host_pack_op_errors_when_host_missing() {
 fn reconcile_keeps_installed_host_pack() {
     let (tmp, sp, zip) = host_fixture();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
 
     let state = reconcile_state(game, &sp, cfg);
@@ -1327,7 +1327,7 @@ fn reconcile_keeps_installed_host_pack() {
 fn uninstall_removes_host_pack() {
     let (tmp, sp, zip) = host_fixture();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
 
     uninstall_mod_op(game, &sp, "999_My Set", cfg);
@@ -1354,7 +1354,7 @@ fn host_only_entry() -> InstalledMod {
 fn discovers_untracked_host_packs_excluding_bundled() {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let assets = game.join("mods/Menu Backgrounds/Assets");
     fs::create_dir_all(game.join("mods/Menu Backgrounds")).unwrap();
     fs::write(game.join("mods/Menu Backgrounds/main.xml"), b"").unwrap();
@@ -1390,7 +1390,7 @@ fn discovers_untracked_host_packs_excluding_bundled() {
 fn skips_already_tracked_host_packs() {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let assets = game.join("mods/Menu Backgrounds/Assets");
     fs::create_dir_all(game.join("mods/Menu Backgrounds")).unwrap();
     fs::write(game.join("mods/Menu Backgrounds/main.xml"), b"").unwrap();
@@ -1419,7 +1419,7 @@ fn skips_already_tracked_host_packs() {
 #[test]
 fn no_host_packs_when_host_absent() {
     let tmp = TempDir::new().unwrap();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     assert!(find_untracked_host_packs(tmp.path().to_str().unwrap(), cfg, &[], &[]).is_empty());
 }
 
@@ -1427,7 +1427,7 @@ fn no_host_packs_when_host_absent() {
 fn disable_then_enable_host_pack_moves_files() {
     let (tmp, sp, zip) = host_fixture();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
     let active = tmp.path().join("mods/Menu Backgrounds/Assets/My Set");
     let disabled = tmp.path().join("mods/disabled/host-17160/My Set");
@@ -1466,7 +1466,7 @@ fn disable_then_enable_host_pack_moves_files() {
 fn reconcile_keeps_disabled_host_pack() {
     let (tmp, sp, zip) = host_fixture();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
     disable_mod_op(game, &sp, "999_My Set", cfg, None);
 
@@ -1482,7 +1482,7 @@ fn reconcile_keeps_disabled_host_pack() {
 fn uninstall_removes_disabled_host_pack() {
     let (tmp, sp, zip) = host_fixture();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
     disable_mod_op(game, &sp, "999_My Set", cfg, None);
 
@@ -1526,7 +1526,7 @@ async fn find_untracked_paks_primary_has_no_location() {
     fs::create_dir_all(&mods_dir).unwrap();
     make_dir_mod(&mods_dir, "my_blt_mod", "mod.txt");
 
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
 
     assert_eq!(results.len(), 1);
@@ -1543,7 +1543,7 @@ async fn find_untracked_paks_secondary_has_location_tag() {
     fs::create_dir_all(&mo_dir).unwrap();
     make_dir_mod(&mo_dir, "my_beardlib_mod", "main.xml");
 
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
 
     assert_eq!(results.len(), 1);
@@ -1563,7 +1563,7 @@ async fn find_untracked_paks_known_filter_isolates_by_target() {
     make_dir_mod(&mods_dir, "shared_name", "mod.txt");
     make_dir_mod(&mo_dir, "shared_name", "main.xml");
 
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     // Mark the primary-target entry as known; secondary entry must still be reported.
     let known: HashSet<String> = [":shared_name".to_string()].into();
     let results = find_untracked_paks(tmp.path().to_str().unwrap(), &known, cfg).await;
@@ -1586,7 +1586,7 @@ async fn find_untracked_paks_skips_target_when_backup_exists() {
     make_dir_mod(&mods_dir, "blt_mod", "mod.txt");
     make_dir_mod(&mo_dir, "beardlib_mod", "main.xml");
 
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
 
     // Primary skipped (backup exists), only secondary returned.
@@ -1604,7 +1604,7 @@ async fn find_untracked_paks_skips_blt_basemod() {
     make_dir_mod(&mods_dir, "base", "mod.txt");
     make_dir_mod(&mods_dir, "my_blt_mod", "mod.txt");
 
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
 
     assert_eq!(results.len(), 1);
@@ -1617,7 +1617,7 @@ async fn find_untracked_paks_keeps_base_in_secondary_target() {
     let mo_dir = tmp.path().join("assets").join("mod_overrides");
     fs::create_dir_all(mo_dir.join("base")).unwrap();
 
-    let cfg = engine_for_game("pd2");
+    let cfg = engine_for_game("pd2").unwrap();
     let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
 
     assert_eq!(results.len(), 1);
@@ -1826,7 +1826,7 @@ fn run_identify(
         &untracked,
         &sha256s,
         &std::collections::HashMap::new(),
-        engine_for_game("pd2"),
+        engine_for_game("pd2").unwrap(),
         game.to_str().unwrap(),
         Some(conn),
     )
@@ -1987,7 +1987,7 @@ fn iostore_mod_data() -> InstalledMod {
 fn install_carries_iostore_sidecars_alongside_pak() {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
     let (_src, pak) = iostore_mod_source();
 
@@ -2024,7 +2024,7 @@ fn install_carries_iostore_sidecars_alongside_pak() {
 fn disable_then_enable_carries_iostore_sidecars() {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
     let (_src, pak) = iostore_mod_source();
     install_mod_from_path(
@@ -2067,7 +2067,7 @@ fn disable_then_enable_carries_iostore_sidecars() {
 fn uninstall_removes_iostore_sidecars() {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
     let (_src, pak) = iostore_mod_source();
     install_mod_from_path(
@@ -2129,7 +2129,7 @@ fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
 
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
     let (extracted, _orig, location_tag) =
@@ -2182,7 +2182,7 @@ fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
 
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
     let (extracted, _orig, location_tag) =
@@ -2396,7 +2396,7 @@ fn read_enabled_from_file_none_when_missing_or_malformed() {
 fn enable_mod_op_syncs_settings_when_files_are_at_active_path_but_state_says_disabled() {
     let game_tmp = TempDir::new().unwrap();
     let game = game_tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
 
     // Lay down the pak at the active location (files are here, as after a first install).
@@ -2530,7 +2530,7 @@ fn set_enabled_in_mods_txt_appends_a_new_line_for_an_unknown_mod() {
 fn disable_then_enable_ue4ss_submod_edits_mods_txt_not_files() {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let sp = get_state_path(game, cfg);
     let target = cfg.target_for(Some("ue4ss_mods"));
 
@@ -2633,7 +2633,7 @@ fn janitor_bundle_zip() -> NamedTempFile {
 #[test]
 fn crimeboss_bundle_archive_resolves_to_zip_multi_pak_with_both_entries() {
     let zip = janitor_bundle_zip();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
 
     let err = resolve_archive_download(zip.path().to_path_buf(), cfg).unwrap_err();
     let ResolveError::Prompt(prompt) = err else {
@@ -2660,7 +2660,7 @@ fn crimeboss_bundle_archive_resolves_to_zip_multi_pak_with_both_entries() {
 #[test]
 fn crimeboss_bundle_archive_each_entry_installs_independently_without_cross_contamination() {
     let zip = janitor_bundle_zip();
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
     let sp = get_state_path(game, cfg);
@@ -2720,7 +2720,7 @@ fn crimeboss_bundle_archive_each_entry_installs_independently_without_cross_cont
 fn reorder_skips_priority_prefix_for_targets_that_dont_use_it() {
     // Crime Boss's primary `mods` target manages order via ModSettings JSON, not filename
     // prefixes (engine.rs: priority_prefix: false) — reordering must leave the folder name as-is.
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
     let sp = get_state_path(game, cfg);
@@ -2755,7 +2755,7 @@ fn reorder_skips_priority_prefix_for_targets_that_dont_use_it() {
 #[test]
 fn reorder_applies_priority_prefix_for_targets_that_use_it() {
     // PD3's `paks` target relies on the numeric prefix for UE5's alphabetical pak load order.
-    let cfg = engine_for_game("pd3");
+    let cfg = engine_for_game("pd3").unwrap();
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
     let sp = get_state_path(game, cfg);
@@ -2800,7 +2800,7 @@ fn write_skeleton_pak(skeleton_root: &Path, pak_name: &str, content: &[u8]) {
 
 #[test]
 fn move_crimeboss_mod_unwraps_skeleton_into_legacy_paks() {
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
     let sp = get_state_path(game, cfg);
@@ -2845,7 +2845,7 @@ fn move_crimeboss_mod_unwraps_skeleton_into_legacy_paks() {
 
 #[test]
 fn move_crimeboss_mod_wraps_legacy_pak_into_skeleton() {
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
     let sp = get_state_path(game, cfg);
@@ -2897,7 +2897,7 @@ fn move_crimeboss_mod_wraps_legacy_pak_into_skeleton() {
 
 #[test]
 fn move_crimeboss_mod_preserves_disabled_state() {
-    let cfg = engine_for_game("cb");
+    let cfg = engine_for_game("cb").unwrap();
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
     let sp = get_state_path(game, cfg);

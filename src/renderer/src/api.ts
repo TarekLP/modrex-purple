@@ -251,14 +251,14 @@ export const api = {
             modsHidden: boolean
         }>
     },
-    openModsFolder(gameId?: string): Promise<void> {
-        return commands.openModsFolder(gameId ?? null)
+    async openModsFolder(gameId?: string): Promise<void> {
+        await commands.openModsFolder(gameId ?? null)
     },
     listModFolders(gameId: string): Promise<{ tag: string; labelKey: string }[]> {
         return commands.listModFolders(gameId)
     },
-    openModFolder(gameId: string, tag: string): Promise<void> {
-        return commands.openModFolder(gameId, tag)
+    async openModFolder(gameId: string, tag: string): Promise<void> {
+        await commands.openModFolder(gameId, tag)
     },
     installMod(modId: number, gamePath: string, gameId?: string): Promise<InstallOutcome> {
         return trackInstallOutcome(commands.installMod(modId, gamePath, null, gameId ?? null))
@@ -396,14 +396,14 @@ export const api = {
             })
         )
     },
-    uninstallMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        return commands.uninstallMod(gamePath, uid, gameId ?? null)
+    async uninstallMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
+        await commands.uninstallMod(gamePath, uid, gameId ?? null)
     },
-    enableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        return commands.enableMod(gamePath, uid, gameId ?? null)
+    async enableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
+        await commands.enableMod(gamePath, uid, gameId ?? null)
     },
-    disableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        return commands.disableMod(gamePath, uid, gameId ?? null)
+    async disableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
+        await commands.disableMod(gamePath, uid, gameId ?? null)
     },
     async moveCrimeBossModTarget(uid: string, gamePath: string): Promise<void> {
         await commands.moveCrimebossModTarget(gamePath, uid)
@@ -505,11 +505,11 @@ export const api = {
     isGameRunning(gameId?: string): Promise<boolean> {
         return commands.isGameRunning(gameId ?? null)
     },
-    stopGame(gameId?: string): Promise<void> {
-        return commands.stopGame(gameId ?? null)
+    async stopGame(gameId?: string): Promise<void> {
+        await commands.stopGame(gameId ?? null)
     },
-    launchModded(gameId?: string): Promise<void> {
-        return commands.launchGame(gameId ?? null)
+    async launchModded(gameId?: string): Promise<void> {
+        await commands.launchGame(gameId ?? null)
     },
     async launchWithoutMods(gameId?: string): Promise<void> {
         await commands.launchWithoutMods(gameId ?? null)
