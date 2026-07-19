@@ -3,6 +3,7 @@ pub mod api;
 pub mod dahm;
 pub mod discord;
 pub mod download;
+pub mod games;
 pub mod launchers;
 pub mod mod_index;
 pub mod mods;

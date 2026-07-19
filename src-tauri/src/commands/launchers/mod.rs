@@ -5,9 +5,10 @@ mod types;
 mod xbox;
 
 use epic::Epic;
-use games::{CRIMEBOSS, PD2, PD3, PDTH, RAID};
+pub(crate) use games::{CRIMEBOSS, PD2, PD3, PDTH, RAID};
 use steam::Steam;
-use types::{GameDef, Launcher};
+pub(crate) use types::GameDef;
+use types::Launcher;
 use xbox::Xbox;
 
 use crate::commands::mods::{backup_dir, engine_for_game, mods_base};
@@ -29,13 +30,9 @@ fn all_launchers() -> [&'static dyn Launcher; 3] {
 }
 
 fn game_def_for_id(game_id: &str) -> &'static GameDef {
-    match game_id {
-        "pd2" => &PD2,
-        "pdth" => &PDTH,
-        "cb" => &CRIMEBOSS,
-        "raid" => &RAID,
-        _ => &PD3,
-    }
+    crate::commands::games::game_spec(game_id)
+        .map(|s| s.def)
+        .unwrap_or(&PD3)
 }
 
 // A stalled find_game leaves no trace in Modrex.log without the probe line before it.
