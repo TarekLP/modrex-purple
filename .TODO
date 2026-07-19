@@ -294,50 +294,27 @@ source abstraction gets extracted from two live implementations instead of one.
 
 ## TODO: source-identity-refactor
 
-Phase 2 of the multi-source expansion. Do AFTER nexus-prototype-merge. This is the
-change that gets harder the longer it waits, because it touches persisted user
-state (.modrex.json).
+Phase 2 of the multi-source expansion. DONE 2026-07-19. What landed:
 
-### Context
+- `InstalledMod` carries `remote_id`/`file_remote_id` (Option<String> - strings
+  because Steam Workshop ids overflow JS numbers) for non-modworkshop sources;
+  modworkshop identity stays in `id`/`file_id`. `reconcile_state` recovers them
+  from `{source}:{mod}:{file}` uids for pre-existing entries (pure parse, refuses
+  to guess on unparsable uids); `install_nexus_download` writes them directly.
+- The negative-id-means-nexus convention is retired for all READERS: identify.rs
+  and the renderer decide "unidentified" by `remote_id` absence (`m.remoteId`),
+  never by source literals; NexusBrowsePage/InstalledModItem read `remoteId`
+  instead of decoding `-id`. The remaining `source === 'nexus'` checks are pure
+  presentation (badges, source label).
+- `install_nexus_download` still WRITES `id = -(nexus_mod_id)` and
+  `file_id = nexus_file_id` as legacy grouping keys that nothing interprets as
+  identity anymore; stop writing them when mod-source-domain-model gives grouping
+  a real source-qualified key.
+- deps.ts loader tables and settings.rs `dismissed_deps_warnings` are documented
+  modworkshop-only (loaders ARE modworkshop-hosted; scoping over ambiguity).
 
-Mod identity today is a bare number in one global namespace: `InstalledMod.id` is
-"the modworkshop remote id", negative = unidentified (and, post-merge, negative =
-nexus by convention). Everything keys on it: modCache/filesCache/linksCache,
-dismissedDepsWarnings, loaderModIds, hardcoded loader ids (SuperBLT-family
-53474/14267, UE4SS 44048/47771/47749, Menu Backgrounds host 17160), useModData
-dedupe, installedByModId, host-pack `location: "host:<id>:<subpath>"`, uid schemes
-`{file_id}` / `{file_id}_{entry_stem}`. Two sources collide on ids immediately.
-Steam Workshop PublishedFileId is a 64-bit integer that OVERFLOWS JavaScript's
-safe-integer range - remote ids must become STRINGS in TS, not numbers.
-
-### What to do
-
-- Identity becomes the pair `(source: string, remoteId: string)` everywhere a mod
-  is referenced. `InstalledMod.source` already exists (serde default
-  "modworkshop") - start consuming it instead of special-casing.
-- State migration in reconcile_state (the established migration point - see the
-  .pd3mm.json and legacy-.disabled migrations there for the pattern): modworkshop
-  entries get source stamped by the serde default already; nexus entries recover
-  `(source="nexus", remoteId, fileRemoteId)` by parsing the
-  `nexus:{mod}:{file}` uid. After migration, delete the negative-id-means-nexus
-  convention and the `source == "nexus"` guards in identify.rs and
-  installedUtils.ts. Negative id goes back to meaning exactly one thing:
-  unidentified.
-- Cache keys in the renderer become source-qualified: modCache/filesCache/
-  linksCache/installedMetaCache (`modCache.ts`), browseCache (already keyed by
-  workshopId - generalize the key to `(source, gameRef, ...)`), thumbnail cache
-  keys (see thumbnails note in sources-module-restructure).
-- dismissedDepsWarnings, loaderModIds, and the hardcoded loader-id tables in
-  deps.ts get source-qualified or explicitly scoped modworkshop-only (loaders ARE
-  modworkshop-hosted today; scoping is fine, silent ambiguity is not).
-- uid scheme for new installs becomes source-prefixed for every source (the nexus
-  branch already does `nexus:{mod}:{file}`; modworkshop keeps `{file_id}` /
-  `{file_id}_{entry_stem}` for backward compat - do NOT rewrite existing uids,
-  they are stable identity).
-- Version/update semantics: replace the magic version strings "unknown"/"outdated"
-  with an explicit updateStatus enum on the domain side while in here, or schedule
-  it with mod-source-domain-model - per-source version semantics (Nexus semverish,
-  Steam timestamps, modworkshop two version fields) do not fit one string field.
+Deferred into mod-source-domain-model (see its entry): updateStatus enum,
+source-qualified renderer cache keys, string remote ids across the renderer.
 
 ---
 
@@ -375,6 +352,19 @@ version string, only an update timestamp; mod.io has its own dependency model).
   never "refresh all 300 installed mods on focus".
 - Migration path: do it source-by-source behind the same IPC commands rather than
   a big-bang rewrite; modworkshop first, then the nexus module.
+- Absorbed from source-identity-refactor (done 2026-07-19, see its entry):
+  - Replace the magic version strings "unknown"/"outdated" with an explicit
+    updateStatus enum - per-source version semantics (Nexus semverish, Steam
+    timestamps, modworkshop two version fields) do not fit one string field.
+  - Source-qualify the renderer cache keys (modCache/filesCache/linksCache/
+    installedMetaCache, browseCache, thumbnail cache) when a second source starts
+    sharing them - today they only ever hold modworkshop data, and NexusBrowsePage
+    folding into BrowsePage is the natural trigger.
+  - Remote ids become STRINGS across the renderer (Steam Workshop PublishedFileId
+    overflows JS safe integers); InstalledMod.remote_id is already a string, but
+    `id: number` still carries modworkshop identity everywhere.
+  - Stop writing the legacy `id = -(nexus_mod_id)` / `file_id = nexus_file_id`
+    values in install_nexus_download once grouping keys are source-qualified.
 
 ---
 

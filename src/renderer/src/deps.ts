@@ -1,5 +1,9 @@
 import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
 
+// Every numeric id in this file is a modworkshop mod id, and every check applies to
+// modworkshop dependency metadata only. Never feed ids from another source (Nexus,
+// mod.io) into these tables: two sources collide on numbers.
+
 /**
  * Combines a mod's direct and instructs-template dependencies, keeping
  * modworkshop-hosted deps (`mod` set) and offsite deps (`url` set, e.g.

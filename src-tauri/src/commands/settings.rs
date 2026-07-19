@@ -30,6 +30,7 @@ pub struct NexusOAuthTokens {
 pub struct Settings {
     pub games: Option<HashMap<String, GameSettings>>,
     pub skip_file_open_log_warning: Option<bool>,
+    // modworkshop mod ids only; ids from other sources must not land here.
     pub dismissed_deps_warnings: Option<Vec<i32>>,
     // Telemetry. `analytics_enabled` is tri-state: `None` = user hasn't been
     // asked yet (renderer shows the first-run consent dialog), `Some(true/false)`
