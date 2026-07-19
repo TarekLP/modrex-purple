@@ -182,7 +182,31 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         let _ = fs::rename(&legacy, state_path);
     }
 
-    let state = read_state(state_path);
+    let mut state = read_state(state_path);
+
+    // Recover source-native identity for entries written before remote_id existed:
+    // their uid already encodes it as {source}:{mod_id}:{file_id} (the nexus install
+    // convention), so migration is a pure parse.
+    let mut identity_migrated = false;
+    for m in state.mods.iter_mut() {
+        if m.source == "modworkshop" || m.remote_id.is_some() {
+            continue;
+        }
+        let mut parts = m.uid.splitn(3, ':');
+        if parts.next() != Some(m.source.as_str()) {
+            continue;
+        }
+        let (Some(mod_id), Some(file_id)) = (parts.next(), parts.next()) else {
+            continue;
+        };
+        if mod_id.is_empty() || file_id.is_empty() {
+            continue;
+        }
+        m.remote_id = Some(mod_id.to_string());
+        m.file_remote_id = Some(file_id.to_string());
+        identity_migrated = true;
+    }
+    let state = state;
 
     // One-time cleanup: remove auto-discovered, never-installed entries whose directory has no
     // scan_marker file on disk, or whose name is on the target's excluded_names list. The first
@@ -348,7 +372,12 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         cfg.primary().priority_prefix_enabled(),
     );
 
-    if state_changed || !phantom_ids.is_empty() || any_compacted || cleanup_changed {
+    if state_changed
+        || !phantom_ids.is_empty()
+        || any_compacted
+        || cleanup_changed
+        || identity_migrated
+    {
         save_state(
             state_path,
             &ModsState {

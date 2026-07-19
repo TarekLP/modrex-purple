@@ -36,6 +36,13 @@ pub struct InstalledMod {
     pub installed_at: String,
     #[serde(default = "default_source")]
     pub source: String,
+    // Source-native mod/file ids for non-modworkshop sources; modworkshop identity
+    // stays in id/file_id. Strings because future sources (Steam Workshop) use ids
+    // beyond the JS safe-integer range. A mod with neither is unidentified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_remote_id: Option<String>,
     // Only recorded for non-modworkshop sources; modworkshop authorship and
     // artwork come from the live API via the mod id.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -71,6 +78,8 @@ impl Default for InstalledMod {
             enabled: false,
             installed_at: String::new(),
             source: default_source(),
+            remote_id: None,
+            file_remote_id: None,
             author: None,
             thumbnail_url: None,
             file_id: None,

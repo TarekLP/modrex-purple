@@ -814,6 +814,8 @@ pub(crate) async fn install_nexus_download(
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
                 source: "nexus".to_string(),
+                remote_id: Some(nexus_mod_id.to_string()),
+                file_remote_id: Some(nexus_file_id.to_string()),
                 author: mod_author,
                 thumbnail_url,
                 file_id: Some(nexus_file_id as i64),

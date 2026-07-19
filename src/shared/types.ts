@@ -187,6 +187,8 @@ export interface InstalledMod {
     enabled: boolean
     installedAt: string
     source?: string // mod source slug; absent = "modworkshop"
+    remoteId?: string // source-native mod id; modworkshop identity stays in id/fileId
+    fileRemoteId?: string // source-native file id
     author?: string // only recorded for non-modworkshop sources
     thumbnailUrl?: string // absolute CDN URL; only recorded for non-modworkshop sources
     fileId?: number

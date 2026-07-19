@@ -985,6 +985,88 @@ fn reconcile_state_purges_already_tracked_bundled_ue4ss_submods() {
     assert_eq!(names, vec!["CoolMod"]);
 }
 
+#[test]
+fn reconcile_state_recovers_source_identity_from_uid() {
+    // Entries written before remote_id existed carry their identity only in the
+    // uid ({source}:{mod_id}:{file_id}); reconcile parses it back and persists.
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3");
+    let sp = get_state_path(game, cfg);
+
+    let nexus_entry = InstalledMod {
+        uid: "nexus:123:456".to_string(),
+        id: -123,
+        name: "Nexus Mod".to_string(),
+        filename: "nexus_mod.pak".to_string(),
+        enabled: true,
+        source: "nexus".to_string(),
+        file_id: Some(456),
+        ..InstalledMod::default()
+    };
+    let workshop_entry = InstalledMod {
+        uid: "789".to_string(),
+        id: 42,
+        name: "Workshop Mod".to_string(),
+        filename: "workshop_mod.pak".to_string(),
+        enabled: true,
+        file_id: Some(789),
+        ..InstalledMod::default()
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![nexus_entry, workshop_entry],
+        },
+    );
+
+    let state = reconcile_state(game, &sp, cfg);
+    let nexus = state.mods.iter().find(|m| m.source == "nexus").unwrap();
+    assert_eq!(nexus.remote_id.as_deref(), Some("123"));
+    assert_eq!(nexus.file_remote_id.as_deref(), Some("456"));
+    let workshop = state.mods.iter().find(|m| m.id == 42).unwrap();
+    assert_eq!(workshop.remote_id, None);
+    assert_eq!(workshop.file_remote_id, None);
+
+    // Persisted, so the parse never needs to run for these entries again.
+    let saved = read_state(&sp);
+    let nexus = saved.mods.iter().find(|m| m.source == "nexus").unwrap();
+    assert_eq!(nexus.remote_id.as_deref(), Some("123"));
+    assert_eq!(nexus.file_remote_id.as_deref(), Some("456"));
+}
+
+#[test]
+fn reconcile_state_leaves_unparsable_source_uid_alone() {
+    // A non-modworkshop entry whose uid does not carry the {source}:{mod}:{file}
+    // shape stays unmigrated rather than gaining a guessed identity.
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3");
+    let sp = get_state_path(game, cfg);
+
+    let entry = InstalledMod {
+        uid: "odd-uid".to_string(),
+        id: -7,
+        name: "Odd".to_string(),
+        filename: "odd.pak".to_string(),
+        enabled: true,
+        source: "nexus".to_string(),
+        ..InstalledMod::default()
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![entry],
+        },
+    );
+
+    let state = reconcile_state(game, &sp, cfg);
+    assert_eq!(state.mods[0].remote_id, None);
+    assert_eq!(state.mods[0].file_remote_id, None);
+}
+
 // ── host-mod pack detection ───────────────────────────────────────────────
 
 fn detect_host(names: &[&str]) -> Option<super::host_mods::HostPackMatch> {
