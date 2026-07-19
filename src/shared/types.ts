@@ -1,3 +1,5 @@
+import type { ModFolder } from './bindings'
+
 export interface ModImage {
     id: number
     file: string
@@ -172,15 +174,9 @@ export const GAMES: Record<
     },
 }
 
-export interface ModFolder {
-    id: string
-    diskName: string // priority-prefixed slug on disk, e.g. '002_weapons'
-    displayName: string // user-facing label
-    priority: number // shared space with siblings in same parent
-    parentId: string | null // null = root level
-}
-
-export type TopLevelItem = { type: 'folder'; id: string } | { type: 'mod'; id: string }
+// Wire types owned by the Rust side and generated into bindings.ts; re-exported
+// here so renderer code keeps one import path for shared shapes.
+export type { ModFolder, TopLevelItem, IndexModFile, NewsItem, NewsResult } from './bindings'
 
 export interface InstalledMod {
     uid: string // unique per installed file — stable identity across renames
@@ -203,30 +199,9 @@ export interface InstalledMod {
     location?: string // scan target tag; absent = primary target
 }
 
-// One row of the SHA256 index's files table — a pak shipped by a mod's archive
-export interface IndexModFile {
-    fileRemoteId: number
-    entryName: string // path inside the archive, forward slashes
-}
-
 export interface ModsState {
     folders: ModFolder[]
     mods: InstalledMod[]
-}
-
-// One article from paydaythegame.com's news category page for the active game
-export interface NewsItem {
-    title: string
-    url: string
-    date: string
-    excerpt: string
-    image: string | null
-    categories: string[]
-}
-
-export interface NewsResult {
-    items: NewsItem[]
-    totalPages: number
 }
 
 export type SortOption =

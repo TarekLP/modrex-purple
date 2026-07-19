@@ -1,7 +1,7 @@
-import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
+import { commands } from '../../shared/bindings'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -22,6 +22,9 @@ import type {
     NewsResult,
 } from '../../shared/types'
 
+export type { StartupPhase } from '../../shared/bindings'
+import type { StartupPhase } from '../../shared/bindings'
+
 type Settings = {
     gamePath?: string
     launcher?: string
@@ -39,8 +42,6 @@ export type GameSettings = {
     crimebossInstallMode?: string
 }
 
-export type StartupPhase = 'prepare' | 'interface' | 'game' | 'mods' | 'ready' | 'error'
-
 // Feeds the one-time "star us on GitHub" prompt (settings.rs::record_successful_install).
 // Picker sentinels (ZIP_MULTI_PAK etc.) are flow control, not failures, so they don't
 // poison the session; any real install error suppresses the prompt for this session.
@@ -53,7 +54,7 @@ const INSTALL_SENTINEL_PREFIXES = [
 
 let installErrorThisSession = false
 
-async function trackInstall(install: Promise<void>): Promise<void> {
+async function trackInstall(install: Promise<unknown>): Promise<void> {
     try {
         await install
     } catch (e) {
@@ -62,7 +63,7 @@ async function trackInstall(install: Promise<void>): Promise<void> {
         }
         throw e
     }
-    void invoke('record_successful_install', { cleanSession: !installErrorThisSession })
+    void commands.recordSuccessfulInstall(!installErrorThisSession)
 }
 
 function onEvent<T>(eventName: string, callback: (payload: T) => void): () => void {
@@ -80,14 +81,14 @@ function onEvent<T>(eventName: string, callback: (payload: T) => void): () => vo
 
 export const api = {
     // ── Startup ────────────────────────────────────────────────────────────────
-    reportStartupPhase(phase: StartupPhase): Promise<void> {
-        return invoke('report_startup_phase', { phase })
+    async reportStartupPhase(phase: StartupPhase): Promise<void> {
+        await commands.reportStartupPhase(phase)
     },
     getStartupPhase(): Promise<StartupPhase> {
-        return invoke('get_startup_phase')
+        return commands.getStartupPhase()
     },
-    finishStartup(): Promise<void> {
-        return invoke('finish_startup')
+    async finishStartup(): Promise<void> {
+        await commands.finishStartup()
     },
     onStartupProgress(callback: (phase: StartupPhase) => void): () => void {
         return onEvent<StartupPhase>('startup:progress', callback)
@@ -95,99 +96,109 @@ export const api = {
 
     // ── Browse / API ───────────────────────────────────────────────────────────
     listMods(gameId: number, params?: ListModsParams): Promise<Paginated<Mod>> {
-        return invoke('list_mods', { gameId, params: params ?? {} })
+        const p = params ?? {}
+        return commands.listMods(gameId, {
+            query: p.query ?? null,
+            limit: p.limit ?? null,
+            sort: p.sort ?? null,
+            category_id: p.category_id ?? null,
+            page: p.page ?? null,
+            ids: p.ids ?? null,
+            tags: p.tags ?? null,
+            block_tags: p.block_tags ?? null,
+        }) as Promise<Paginated<Mod>>
     },
     listCategories(gameId: number): Promise<Paginated<Category>> {
-        return invoke('list_categories', { gameId })
+        return commands.listCategories(gameId) as Promise<Paginated<Category>>
     },
     listTags(gameId: number): Promise<Paginated<ModTag>> {
-        return invoke('list_tags', { gameId })
+        return commands.listTags(gameId) as Promise<Paginated<ModTag>>
     },
     getMod(id: number): Promise<Mod> {
-        return invoke('get_mod', { id })
+        return commands.getMod(id) as Promise<Mod>
     },
     listModFiles(modId: number): Promise<Paginated<ModFile>> {
-        return invoke('list_mod_files', { modId })
+        return commands.listModFiles(modId) as Promise<Paginated<ModFile>>
     },
     listModLinks(modId: number): Promise<Paginated<ModLink>> {
-        return invoke('list_mod_links', { modId })
+        return commands.listModLinks(modId) as Promise<Paginated<ModLink>>
     },
 
     // ── Settings ───────────────────────────────────────────────────────────────
     getSettings(): Promise<Settings> {
-        return invoke('get_settings')
+        return commands.getSettings() as Promise<Settings>
     },
     getGameSettings(gameId: string): Promise<GameSettings> {
-        return invoke('get_game_settings', { gameId })
+        return commands.getGameSettings(gameId) as unknown as Promise<GameSettings>
     },
     async findGamePath(gameId = 'pd3'): Promise<string | null> {
-        await invoke('configure_game_path', { gamePath: null, gameId })
-        const gs = await invoke<GameSettings>('get_game_settings', { gameId })
+        await commands.configureGamePath(gameId, null)
+        const gs = await commands.getGameSettings(gameId)
         return gs.gamePath ?? null
     },
     setGamePath(gamePath: string | null, gameId?: string): Promise<void> {
-        return invoke('configure_game_path', { gamePath, ...(gameId ? { gameId } : {}) })
+        return commands.configureGamePath(gameId ?? null, gamePath)
     },
     setLauncher(launcher: string, gameId?: string): Promise<void> {
-        return invoke('set_launcher', { launcher, ...(gameId ? { gameId } : {}) })
+        return commands.setLauncher(gameId ?? null, launcher)
     },
     setLaunchOptions(launchOptions: string, gameId?: string): Promise<void> {
-        return invoke('set_launch_options', { launchOptions, ...(gameId ? { gameId } : {}) })
+        return commands.setLaunchOptions(gameId ?? null, launchOptions)
     },
     setCrimeBossInstallMode(mode: string): Promise<void> {
-        return invoke('set_crimeboss_install_mode', { mode })
+        return commands.setCrimebossInstallMode(mode)
     },
     setSuppressCrashReporter(suppress: boolean, gameId?: string): Promise<void> {
-        return invoke('set_suppress_crash_reporter', { suppress, ...(gameId ? { gameId } : {}) })
+        return commands.setSuppressCrashReporter(gameId ?? null, suppress)
     },
     setSkipFileOpenLogWarning(skip: boolean): Promise<void> {
-        return invoke('set_skip_fileopenlog_warning', { skip })
+        return commands.setSkipFileopenlogWarning(skip)
     },
     dismissDepsWarning(modId: number): Promise<void> {
-        return invoke('dismiss_deps_warning', { modId })
+        return commands.dismissDepsWarning(modId)
     },
     pickFolder(defaultPath?: string): Promise<string | null> {
-        return invoke('pick_folder', { defaultPath: defaultPath ?? null })
+        return commands.pickFolder(defaultPath ?? null)
     },
     openLog(): Promise<void> {
-        return invoke('open_log_file')
+        return commands.openLogFile()
     },
     openDataFolder(): Promise<void> {
-        return invoke('open_data_folder')
+        return commands.openDataFolder()
     },
     openAppFolder(): Promise<void> {
-        return invoke('open_app_folder')
+        return commands.openAppFolder()
     },
 
     // ── Storage / data management ─────────────────────────────────────────────
     // Cache sizes/clears are in bytes; clear commands return the bytes freed.
     getStorageUsage(): Promise<{ thumbnails: number; indexDb: number; news: number }> {
-        return invoke('get_storage_usage')
+        return commands.getStorageUsage()
     },
     clearThumbnailCache(): Promise<number> {
-        return invoke('clear_thumbnail_cache')
+        return commands.clearThumbnailCache()
     },
     clearIndexCache(): Promise<number> {
-        return invoke('clear_index_cache')
+        return commands.clearIndexCache()
     },
     clearNewsCache(): Promise<number> {
-        return invoke('clear_news_cache')
+        return commands.clearNewsCache()
     },
     resetAppSettings(): Promise<void> {
-        return invoke('reset_app_settings')
+        return commands.resetAppSettings()
     },
 
     // Nexus
     // OAuth2 PKCE sign-in: opens the browser to users.nexusmods.com; the result
     // comes back asynchronously via the nexus-oauth:signed-in / failed events.
     nexusOAuthStart(): Promise<void> {
-        return invoke('nexus_oauth_start')
+        return commands.nexusOauthStart()
     },
     isNexusSignedIn(): Promise<boolean> {
-        return invoke('nexus_oauth_signed_in')
+        return commands.nexusOauthSignedIn()
     },
     nexusSignOut(): Promise<void> {
-        return invoke('nexus_oauth_sign_out')
+        return commands.nexusOauthSignOut()
     },
     // GraphQL v2 search, verified live via schema introspection. Empty query omits
     // the name filter (browse-by-sort instead of search). sort is one of
@@ -198,46 +209,53 @@ export const api = {
         sort: string,
         offset?: number
     ): Promise<{ totalCount: number; nodes: unknown[] }> {
-        return invoke('nexus_search_mods', { gameId, query, sort, offset })
+        return commands.nexusSearchMods(gameId, query, sort, offset ?? null) as Promise<{
+            totalCount: number
+            nodes: unknown[]
+        }>
     },
 
     // ── Analytics ────────────────────────────────────────────────────────────────
     // Fire-and-forget: the Rust side gates on consent and swallows errors, so callers
     // never need to await or catch.
     trackEvent(name: string, params?: Record<string, string | number | boolean>): Promise<void> {
-        return invoke('track_event', { name, params: params ?? {} })
+        return commands.trackEvent(name, params ?? {})
     },
     // null = the user hasn't been asked yet (show the first-run consent dialog).
     getAnalyticsConsent(): Promise<boolean | null> {
-        return invoke('get_analytics_consent')
+        return commands.getAnalyticsConsent()
     },
     setAnalyticsConsent(enabled: boolean): Promise<void> {
-        return invoke('set_analytics_consent', { enabled })
+        return commands.setAnalyticsConsent(enabled)
     },
     setDiscordPresenceEnabled(enabled: boolean): Promise<void> {
-        return invoke('set_discord_presence_enabled', { enabled })
+        return commands.setDiscordPresenceEnabled(enabled)
     },
     updateDiscordPresence(game: string): Promise<void> {
-        return invoke('update_discord_presence', { game })
+        return commands.updateDiscordPresence(game)
     },
 
     // ── Installed mods ─────────────────────────────────────────────────────────
     getInstalled(
         gameId = 'pd3'
     ): Promise<{ mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }> {
-        return invoke('get_installed', { gameId })
+        return commands.getInstalled(gameId) as unknown as Promise<{
+            mods: InstalledMod[]
+            folders: ModFolder[]
+            modsHidden: boolean
+        }>
     },
     openModsFolder(gameId?: string): Promise<void> {
-        return gameId ? invoke('open_mods_folder', { gameId }) : invoke('open_mods_folder')
+        return commands.openModsFolder(gameId ?? null)
     },
     listModFolders(gameId: string): Promise<{ tag: string; labelKey: string }[]> {
-        return invoke('list_mod_folders', { gameId })
+        return commands.listModFolders(gameId)
     },
     openModFolder(gameId: string, tag: string): Promise<void> {
-        return invoke('open_mod_folder', { gameId, tag })
+        return commands.openModFolder(gameId, tag)
     },
     installMod(modId: number, gamePath: string, gameId?: string): Promise<void> {
-        return trackInstall(invoke('install_mod', { modId, gamePath, gameId }))
+        return trackInstall(commands.installMod(modId, gamePath, null, gameId ?? null))
     },
     installDroppedFile(
         path: string,
@@ -245,7 +263,9 @@ export const api = {
         folderId?: string,
         gameId?: string
     ): Promise<void> {
-        return trackInstall(invoke('install_dropped_file', { path, gamePath, folderId, gameId }))
+        return trackInstall(
+            commands.installDroppedFile(path, gamePath, folderId ?? null, gameId ?? null)
+        )
     },
     installModFile(
         modId: number,
@@ -258,7 +278,7 @@ export const api = {
         gameId?: string
     ): Promise<void> {
         return trackInstall(
-            invoke('install_file', {
+            commands.installFile(
                 modId,
                 modName,
                 fileId,
@@ -266,26 +286,26 @@ export const api = {
                 fileType,
                 modVersion,
                 gamePath,
-                gameId,
-            })
+                gameId ?? null
+            )
         )
     },
     deleteTempFile(path: string): Promise<void> {
-        return invoke('delete_temp_file', { path })
+        return commands.deleteTempFile(path)
     },
     getIndexModFiles(modId: number, gameId?: string): Promise<IndexModFile[]> {
-        return invoke('get_index_mod_files', { modId, gameId })
+        return commands.getIndexModFiles(modId, gameId ?? null)
     },
 
     // ── News ───────────────────────────────────────────────────────────────────
     fetchNews(gameId?: string): Promise<NewsResult> {
-        return invoke('fetch_news', { gameId })
+        return commands.fetchNews(gameId ?? null)
     },
     refreshNews(gameId?: string): Promise<NewsResult> {
-        return invoke('refresh_news', { gameId })
+        return commands.refreshNews(gameId ?? null)
     },
     fetchNewsPage(gameId: string | undefined, page: number): Promise<NewsResult> {
-        return invoke('fetch_news_page', { gameId, page })
+        return commands.fetchNewsPage(gameId ?? null, page)
     },
     installFromZipEntry(
         zipPath: string,
@@ -302,21 +322,19 @@ export const api = {
         entryKind?: string
     ): Promise<void> {
         return trackInstall(
-            invoke('install_from_zip_entry', {
-                args: {
-                    zipPath,
-                    entryName,
-                    modId,
-                    modName,
-                    fileId,
-                    fileType,
-                    modVersion,
-                    gamePath,
-                    folderId,
-                    gameId,
-                    locationTag,
-                    entryKind,
-                },
+            commands.installFromZipEntry({
+                zipPath,
+                entryName,
+                modId,
+                modName,
+                fileId,
+                fileType,
+                modVersion,
+                gamePath,
+                folderId: folderId ?? null,
+                gameId: gameId ?? null,
+                locationTag: locationTag ?? null,
+                entryKind: entryKind ?? null,
             })
         )
     },
@@ -331,7 +349,7 @@ export const api = {
         folderId?: string | null
     ): Promise<void> {
         return trackInstall(
-            invoke('install_cb_flat_archive', {
+            commands.installCbFlatArchive(
                 zipPath,
                 modId,
                 modName,
@@ -339,8 +357,8 @@ export const api = {
                 fileType,
                 modVersion,
                 gamePath,
-                folderId,
-            })
+                folderId ?? null
+            )
         )
     },
     installHostPack(
@@ -357,34 +375,32 @@ export const api = {
         gameId?: string
     ): Promise<void> {
         return trackInstall(
-            invoke('install_host_pack', {
-                args: {
-                    zipPath,
-                    entryName,
-                    modId,
-                    modName,
-                    fileId,
-                    fileType,
-                    modVersion,
-                    gamePath,
-                    hostModId,
-                    hostSubpath,
-                    gameId,
-                },
+            commands.installHostPack({
+                zipPath,
+                entryName,
+                modId,
+                modName,
+                fileId,
+                fileType,
+                modVersion,
+                gamePath,
+                hostModId,
+                hostSubpath,
+                gameId: gameId ?? null,
             })
         )
     },
     uninstallMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        return invoke('uninstall_mod', { uid, gamePath, gameId })
+        return commands.uninstallMod(gamePath, uid, gameId ?? null)
     },
     enableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        return invoke('enable_mod', { uid, gamePath, gameId })
+        return commands.enableMod(gamePath, uid, gameId ?? null)
     },
     disableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        return invoke('disable_mod', { uid, gamePath, gameId })
+        return commands.disableMod(gamePath, uid, gameId ?? null)
     },
-    moveCrimeBossModTarget(uid: string, gamePath: string): Promise<void> {
-        return invoke('move_crimeboss_mod_target', { uid, gamePath })
+    async moveCrimeBossModTarget(uid: string, gamePath: string): Promise<void> {
+        await commands.moveCrimebossModTarget(gamePath, uid)
     },
     reorderModsInFolder(
         folderId: string | null,
@@ -392,7 +408,7 @@ export const api = {
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return invoke('reorder_in_folder', { folderId, orderedUids, gamePath, gameId })
+        return commands.reorderInFolder(gamePath, folderId, orderedUids, gameId ?? null)
     },
     moveModToFolder(
         uid: string,
@@ -401,7 +417,7 @@ export const api = {
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return invoke('move_to_folder', { uid, targetFolderId, targetPosition, gamePath, gameId })
+        return commands.moveToFolder(gamePath, uid, targetFolderId, targetPosition, gameId ?? null)
     },
     reorderChildren(
         parentId: string | null,
@@ -409,7 +425,7 @@ export const api = {
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return invoke('reorder_children', { parentId, items, gamePath, gameId })
+        return commands.reorderChildren(gamePath, parentId, items, gameId ?? null)
     },
     moveFolder(
         folderId: string,
@@ -417,7 +433,7 @@ export const api = {
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return invoke('move_folder', { folderId, targetParentId, gamePath, gameId })
+        return commands.moveFolder(gamePath, folderId, targetParentId, gameId ?? null)
     },
     createFolder(
         displayName: string,
@@ -425,7 +441,7 @@ export const api = {
         gamePath: string,
         gameId?: string
     ): Promise<ModFolder> {
-        return invoke('create_folder', { displayName, parentId, gamePath, gameId })
+        return commands.createFolder(gamePath, displayName, parentId, gameId ?? null)
     },
     renameFolder(
         folderId: string,
@@ -433,76 +449,76 @@ export const api = {
         gamePath: string,
         gameId?: string
     ): Promise<void> {
-        return invoke('rename_folder', { folderId, displayName, gamePath, gameId })
+        return commands.renameFolder(gamePath, folderId, displayName, gameId ?? null)
     },
     deleteFolder(folderId: string, gamePath: string, gameId?: string): Promise<void> {
-        return invoke('delete_folder', { folderId, gamePath, gameId })
+        return commands.deleteFolder(gamePath, folderId, gameId ?? null)
     },
 
     // ── SuperBLT ───────────────────────────────────────────────────────────────
     checkSuperblt(gamePath: string): Promise<boolean> {
-        return invoke('check_superblt', { gamePath })
+        return commands.checkSuperblt(gamePath)
     },
-    installSuperblt(gamePath: string): Promise<void> {
-        return invoke('install_superblt', { gamePath })
+    async installSuperblt(gamePath: string): Promise<void> {
+        await commands.installSuperblt(gamePath)
     },
     isPd2Diesel3(gamePath: string): Promise<boolean> {
-        return invoke('is_pd2_diesel3', { gamePath })
+        return commands.isPd2Diesel3(gamePath)
     },
 
     // ── PDTHModOverrides ───────────────────────────────────────────────────────
     checkPdthOverrides(gamePath: string): Promise<boolean> {
-        return invoke('check_pdth_overrides', { gamePath })
+        return commands.checkPdthOverrides(gamePath)
     },
-    installPdthOverrides(gamePath: string): Promise<void> {
-        return invoke('install_pdth_overrides', { gamePath })
+    async installPdthOverrides(gamePath: string): Promise<void> {
+        await commands.installPdthOverrides(gamePath)
     },
 
     // ── DAHM ───────────────────────────────────────────────────────────────────
     checkDahm(gamePath: string): Promise<boolean> {
-        return invoke('check_dahm', { gamePath })
+        return commands.checkDahm(gamePath)
     },
-    installDahm(gamePath: string): Promise<void> {
-        return invoke('install_dahm', { gamePath })
+    async installDahm(gamePath: string): Promise<void> {
+        await commands.installDahm(gamePath)
     },
 
     // ── RAID-SuperBLT ──────────────────────────────────────────────────────────
     checkRaidSuperblt(gamePath: string): Promise<boolean> {
-        return invoke('check_raid_superblt', { gamePath })
+        return commands.checkRaidSuperblt(gamePath)
     },
-    installRaidSuperblt(gamePath: string): Promise<void> {
-        return invoke('install_raid_superblt', { gamePath })
+    async installRaidSuperblt(gamePath: string): Promise<void> {
+        await commands.installRaidSuperblt(gamePath)
     },
 
     // ── UE4SS ────────────────────────────────────────────────────────────────────
     checkUe4ss(gamePath: string, gameId?: string): Promise<boolean> {
-        return invoke('check_ue4ss', { gamePath, gameId })
+        return commands.checkUe4ss(gamePath, gameId ?? null)
     },
 
     // ── Launchers & system ─────────────────────────────────────────────────────
     isGameRunning(gameId?: string): Promise<boolean> {
-        return gameId ? invoke('is_game_running', { gameId }) : invoke('is_game_running')
+        return commands.isGameRunning(gameId ?? null)
     },
     stopGame(gameId?: string): Promise<void> {
-        return gameId ? invoke('stop_game', { gameId }) : invoke('stop_game')
+        return commands.stopGame(gameId ?? null)
     },
     launchModded(gameId?: string): Promise<void> {
-        return gameId ? invoke('launch_game', { gameId }) : invoke('launch_game')
+        return commands.launchGame(gameId ?? null)
     },
-    launchWithoutMods(gameId?: string): Promise<void> {
-        return gameId ? invoke('launch_without_mods', { gameId }) : invoke('launch_without_mods')
+    async launchWithoutMods(gameId?: string): Promise<void> {
+        await commands.launchWithoutMods(gameId ?? null)
     },
-    restoreMods(gameId?: string): Promise<void> {
-        return gameId ? invoke('restore_mods', { gameId }) : invoke('restore_mods')
+    async restoreMods(gameId?: string): Promise<void> {
+        await commands.restoreMods(gameId ?? null)
     },
     getInstalledLaunchers(gameId?: string): Promise<string[]> {
-        return gameId ? invoke('installed_launchers', { gameId }) : invoke('installed_launchers')
+        return commands.installedLaunchers(gameId ?? null)
     },
     openExternal(url: string): Promise<void> {
-        return invoke('shell_open_external', { url })
+        return commands.shellOpenExternal(url)
     },
     openPath(path: string): Promise<void> {
-        return invoke('shell_open_path', { path })
+        return commands.shellOpenPath(path)
     },
 
     // ── Events ─────────────────────────────────────────────────────────────────
@@ -587,18 +603,18 @@ export const api = {
 
     // ── Thumbnails ─────────────────────────────────────────────────────────────
     getThumbnail(filename: string, full?: boolean): Promise<string> {
-        return invoke('get_thumbnail', { filename, full })
+        return commands.getThumbnail(filename, full ?? null)
     },
 
     // ── Updater ────────────────────────────────────────────────────────────────
-    download(): Promise<void> {
-        return invoke('download_update')
+    async download(): Promise<void> {
+        await commands.downloadUpdate()
     },
-    installUpdate(): Promise<void> {
-        return invoke('install_update')
+    async installUpdate(): Promise<void> {
+        await commands.installUpdate()
     },
-    checkForUpdates(): Promise<void> {
-        return invoke('check_for_update')
+    async checkForUpdates(): Promise<void> {
+        await commands.checkForUpdate()
     },
 
     // ── Window controls (custom title bar) ─────────────────────────────────────

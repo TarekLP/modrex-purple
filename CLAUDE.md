@@ -12,7 +12,7 @@ pnpm dist:win     # Same as build but with explicit --target x86_64-pc-windows-m
 pnpm dist:linux   # Package Linux AppImage + .deb (unsigned, like build)
 pnpm typecheck    # Type-check renderer without emitting (same as: pnpm tsc --noEmit)
 pnpm check-version # Verify package, Tauri, Cargo, and lockfile versions agree
-pnpm check-commands # Verify api.ts invoke() names match generate_handler! in lib.rs, and that invoke stays api.ts-only (also runs in pre-commit and CI)
+pnpm check-commands # Verify api.ts uses every command registered in collect_commands! in lib.rs, that the generated bindings are not stale, and that the invoke API stays api.ts-only (also runs in pre-commit and CI)
 pnpm check-csp    # Verify csp and devCsp in tauri.conf.json agree on all external origins (also runs in pre-commit and CI)
 pnpm check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
 pnpm checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
@@ -59,11 +59,12 @@ src/shared/types.ts       ← TypeScript types shared by renderer and api.ts
 
 ### Adding a new command
 
-1. Implement `#[tauri::command] pub fn my_cmd(...)` in the appropriate `src-tauri/src/commands/*.rs` file
-2. Register it in `src-tauri/src/lib.rs` inside `tauri::generate_handler![...]`
-3. Add a wrapper in `src/renderer/src/api.ts` calling `invoke('my_cmd', { ... })`
+1. Implement `#[tauri::command] #[specta::specta] pub fn my_cmd(...)` in the appropriate `src-tauri/src/commands/*.rs` file (both attributes, in that order)
+2. Register it in `src-tauri/src/lib.rs` inside `ipc_builder()`'s `tauri_specta::collect_commands![...]`
+3. Regenerate `src/shared/bindings.ts`: `cd src-tauri && cargo test --test export_bindings` (any `cargo test` run does it too)
+4. Add a wrapper in `src/renderer/src/api.ts` calling the generated `commands.myCmd(...)` from the bindings
 
-Missing any of these three breaks the channel silently at the type level. `pnpm check-commands` (pre-commit + CI) mechanically enforces the lib.rs/api.ts halves in both directions: an invoked-but-unregistered name and a registered-but-never-invoked name both fail the check.
+The payload shapes are typed end to end by tauri-specta: renaming or retyping a field on the Rust side changes the generated bindings and becomes a renderer compile error instead of a silent runtime break. Optional Rust params export as `T | null` (pass `x ?? null` in wrappers). Types crossing IPC derive `specta::Type`; `serde_json::Value` passthroughs use `api::Json` (specta's own Value impl recurses infinitely at export). `pnpm check-commands` (pre-commit + CI) still enforces usage in both directions (a command called in api.ts but unregistered, or registered but never called, both fail) plus bindings freshness by name; CI's bindings-diff check catches shape-only drift.
 
 ### Startup: two hidden windows, phased splash
 

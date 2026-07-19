@@ -263,7 +263,7 @@ pub fn run() {
     app.run(|_, _| {});
 }
 
-/// Regenerates src/renderer/src/bindings.ts from the command registry; CI asserts the
+/// Regenerates src/shared/bindings.ts from the command registry; CI asserts the
 /// regenerated file matches the committed one. Driven by tests/export_bindings.rs,
 /// deliberately an integration test: referencing ipc_builder() links the whole command
 /// surface, including rfd's comctl32 v6 dialog imports, which need the common-controls
@@ -273,7 +273,7 @@ pub fn export_typescript_bindings() {
     ipc_builder()
         .export(
             specta_typescript::Typescript::default(),
-            "../src/renderer/src/bindings.ts",
+            "../src/shared/bindings.ts",
         )
         .expect("failed to export typescript bindings");
 }
