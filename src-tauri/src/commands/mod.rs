@@ -5,6 +5,7 @@ pub mod discord;
 pub mod download;
 pub mod games;
 pub mod launchers;
+pub mod loaders;
 pub mod mod_index;
 pub mod mods;
 pub mod news;

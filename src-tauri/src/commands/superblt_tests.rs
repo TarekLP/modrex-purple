@@ -1,4 +1,5 @@
 use super::*;
+use crate::commands::mods::extract_entry;
 use std::fs;
 use tempfile::TempDir;
 
@@ -55,13 +56,13 @@ fn extracting_loader_dll_overwrites_existing() {
     let tmp = TempDir::new().unwrap();
     let zip_path = tmp.path().join("sblt.zip");
     let mut zip = ::zip::ZipWriter::new(fs::File::create(&zip_path).unwrap());
-    zip.start_file(LOADER_FILES[0], ::zip::write::SimpleFileOptions::default())
+    zip.start_file("WSOCK32.dll", ::zip::write::SimpleFileOptions::default())
         .unwrap();
     zip.write_all(b"new loader").unwrap();
     zip.finish().unwrap();
 
-    let dest = tmp.path().join(LOADER_FILES[0]);
+    let dest = tmp.path().join("WSOCK32.dll");
     fs::write(&dest, b"old loader").unwrap();
-    extract_entry(&zip_path, LOADER_FILES[0], &dest).unwrap();
+    extract_entry(&zip_path, "WSOCK32.dll", &dest).unwrap();
     assert_eq!(fs::read(&dest).unwrap(), b"new loader");
 }

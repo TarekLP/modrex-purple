@@ -1,24 +1,17 @@
 use std::path::Path;
 
-use crate::commands::download::download_file;
-use crate::commands::mods::extract_entry;
+use crate::commands::loaders::{install_loader_package, is_loader_installed, loader_spec};
 
-/// SuperBLT hooks the game via a loader placed next to the game executable:
-/// WSOCK32.dll (current), IPHLPAPI.dll (legacy), libsuperblt_loader.so
-/// (Linux native). The loader never appears under mods/, so its presence in
-/// the game root is the only reliable install signal.
-const LOADER_FILES: &[&str] = &["WSOCK32.dll", "IPHLPAPI.dll", "libsuperblt_loader.so"];
-
-/// Latest-release endpoint from superblt.znix.xyz — 302s to a versioned zip
-/// containing exactly WSOCK32.dll.
-const LOADER_DOWNLOAD_URL: &str =
-    "https://sblt-update.znix.xyz/pd2update/download/get.php?src=modrex&id=payday2bltwsockdll";
+/// SuperBLT's detection markers and download endpoint live in the loader registry
+/// (`commands/loaders.rs`); this module is the PD2-facing command pair over them.
+fn spec() -> &'static crate::commands::loaders::LoaderSpec {
+    loader_spec("superblt").expect("superblt is registered in LOADER_REGISTRY")
+}
 
 #[tauri::command]
 #[specta::specta]
 pub fn check_superblt(game_path: String) -> bool {
-    let dir = Path::new(&game_path);
-    LOADER_FILES.iter().any(|f| dir.join(f).is_file())
+    is_loader_installed(spec(), "pd2", &game_path, None)
 }
 
 /// Installs the loader DLL into the game root. The basemod (mods/base) is
@@ -27,14 +20,7 @@ pub fn check_superblt(game_path: String) -> bool {
 #[tauri::command]
 #[specta::specta]
 pub async fn install_superblt(app: tauri::AppHandle, game_path: String) -> Result<(), String> {
-    let zip_path = download_file(&app, LOADER_DOWNLOAD_URL, "zip", "loader:superblt").await?;
-    let dest = Path::new(&game_path).join(LOADER_FILES[0]);
-    let zip = zip_path.clone();
-    let result = tokio::task::spawn_blocking(move || extract_entry(&zip, LOADER_FILES[0], &dest))
-        .await
-        .map_err(|e| e.to_string())?;
-    let _ = tokio::fs::remove_file(&zip_path).await;
-    result
+    install_loader_package(spec(), &app, &game_path).await
 }
 
 #[tauri::command]

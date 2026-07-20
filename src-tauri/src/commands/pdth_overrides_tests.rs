@@ -1,4 +1,5 @@
 use super::*;
+use crate::commands::mods::extract_entry;
 use std::fs;
 use tempfile::TempDir;
 
@@ -45,14 +46,14 @@ fn extracting_loader_dlls_overwrites_existing() {
     let tmp = TempDir::new().unwrap();
     let zip_path = tmp.path().join("pdth_overrides.zip");
     let mut zip = ::zip::ZipWriter::new(fs::File::create(&zip_path).unwrap());
-    for name in LOADER_FILES {
-        zip.start_file(*name, ::zip::write::SimpleFileOptions::default())
+    for name in ["DINPUT8.dll", "PDTHModOverrides.dll"] {
+        zip.start_file(name, ::zip::write::SimpleFileOptions::default())
             .unwrap();
         zip.write_all(b"new loader").unwrap();
     }
     zip.finish().unwrap();
 
-    for name in LOADER_FILES {
+    for name in ["DINPUT8.dll", "PDTHModOverrides.dll"] {
         let dest = tmp.path().join(name);
         fs::write(&dest, b"old loader").unwrap();
         extract_entry(&zip_path, name, &dest).unwrap();

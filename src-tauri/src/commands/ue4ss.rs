@@ -58,7 +58,7 @@ fn binaries_dir(game_path: &str, descriptor: &Ue4ssDescriptor) -> PathBuf {
 /// Pure presence check, kept free of `AppHandle` so it's directly unit-testable —
 /// the launcher must already be resolved by the caller (mirrors
 /// `crimeboss_settings::sync_enabled`'s `launcher: Option<&str>` shape).
-fn is_installed(game_id: &str, game_path: &str, launcher: Option<&str>) -> bool {
+pub(crate) fn is_installed(game_id: &str, game_path: &str, launcher: Option<&str>) -> bool {
     let Some(descriptor) = descriptor_for(game_id, launcher) else {
         return false;
     };

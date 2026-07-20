@@ -1,4 +1,5 @@
 use super::*;
+use crate::commands::mods::extract_archive_flat;
 use std::fs;
 use tempfile::TempDir;
 
@@ -50,18 +51,18 @@ fn full_zip_extraction_lands_dll_and_basemod() {
     let zip_path = tmp.path().join("raid-sblt.zip");
     let mut zip = ::zip::ZipWriter::new(fs::File::create(&zip_path).unwrap());
     let opts = ::zip::write::SimpleFileOptions::default();
-    zip.start_file(LOADER_FILES[0], opts).unwrap();
+    zip.start_file("WSOCK32.dll", opts).unwrap();
     zip.write_all(b"new loader").unwrap();
     zip.start_file("mods/base/supermod.xml", opts).unwrap();
     zip.write_all(b"<mod/>").unwrap();
     zip.finish().unwrap();
 
     let game = TempDir::new().unwrap();
-    fs::write(game.path().join(LOADER_FILES[0]), b"old loader").unwrap();
+    fs::write(game.path().join("WSOCK32.dll"), b"old loader").unwrap();
     extract_archive_flat(&zip_path, game.path()).unwrap();
 
     assert_eq!(
-        fs::read(game.path().join(LOADER_FILES[0])).unwrap(),
+        fs::read(game.path().join("WSOCK32.dll")).unwrap(),
         b"new loader"
     );
     assert_eq!(
