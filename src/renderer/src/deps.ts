@@ -106,9 +106,12 @@ export function buildLoaderModIds(
 }
 
 /**
- * BLT-family mod loaders (SuperBLT, PDTH BLT) are declared on modworkshop as
- * offsite dependencies. They live in the game root as a loader DLL, so their
- * install state comes from `api.checkSuperblt`, not the installed-mods list.
+ * SuperBLT is declared on modworkshop as an offsite dependency (it has no mod page).
+ * It lives in the game root as a loader DLL, so its install state comes from
+ * `api.checkSuperblt`, not the installed-mods list. PD2 only: that check looks for
+ * WSOCK32/IPHLPAPI/libsuperblt_loader.so, and PDTH's loaders are PDTHModOverrides
+ * (DINPUT8.dll) and DAHM (lightfx.dll) instead — every PDTH caller leaves the loader
+ * state null rather than running a check that can only ever answer false there.
  */
 export function isLoaderDep(d: ModDependency): boolean {
     return isOffsiteDep(d) && `${d.name ?? ''} ${d.url ?? ''}`.toLowerCase().includes('blt')

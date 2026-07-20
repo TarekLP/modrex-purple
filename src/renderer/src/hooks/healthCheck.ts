@@ -23,13 +23,18 @@ async function checkLoaders(
         return { bltOk: await api.checkSuperblt(gamePath), loaderModIds: {} }
     }
     if (gameId === 'pdth') {
-        const [bltOk, pdthOk, dahmOk] = await Promise.all([
-            api.checkSuperblt(gamePath),
+        // No SuperBLT check here: check_superblt only looks for WSOCK32/IPHLPAPI/
+        // libsuperblt_loader.so, which a PDTH install never has (its loaders are
+        // PDTHModOverrides' DINPUT8.dll and DAHM's lightfx.dll). Calling it returned a
+        // definitive false for every PDTH user and flagged every blt-named offsite dep
+        // as missing. bltOk stays null, so those deps are left unreported — the same
+        // thing resolveDepCheck and ModDetailPage already do for this game.
+        const [pdthOk, dahmOk] = await Promise.all([
             api.checkPdthOverrides(gamePath),
             api.checkDahm(gamePath),
         ])
         return {
-            bltOk,
+            bltOk: null,
             loaderModIds: buildLoaderModIds('pdth', {
                 pdthOverridesInstalled: pdthOk,
                 dahmInstalled: dahmOk,
