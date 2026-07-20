@@ -10,6 +10,7 @@ import type {
     ModDependency,
     SortOption,
     GameId,
+    ModSummary,
 } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { getCachedMod, getCachedModFiles, getCachedModLinks } from '../modCache'
@@ -56,7 +57,7 @@ interface Props {
     gamePathReady: boolean
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
-    onOpenDetail: (modId: number, initialMod?: Mod) => void
+    onOpenDetail: (modId: number, initialMod?: ModSummary) => void
     onGoToSettings?: () => void
 }
 
@@ -100,7 +101,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 // boundary is defeated. GridCard keeps the per-card closures inside its own memo
 // so a grid re-render (e.g. download progress) only re-renders the affected card.
 interface CardHandlers {
-    onOpen: (modId: number, initialMod?: Mod) => void
+    onOpen: (modId: number, initialMod?: ModSummary) => void
     onPrefetch: (modId: number) => void
     onInstall: (modId: number) => void
     onUninstall: (modId: number) => void
@@ -109,7 +110,7 @@ interface CardHandlers {
 }
 
 interface GridCardProps extends CardHandlers {
-    mod: Mod
+    mod: ModSummary
     installed: InstalledMod | undefined
     gamePath: string | null
     loading: boolean
@@ -139,7 +140,7 @@ const GridCard = memo(function GridCard(p: GridCardProps) {
 
 interface ModGridProps extends CardHandlers {
     gridLoading: boolean
-    result: Paginated<Mod> | null
+    result: Paginated<ModSummary> | null
     installedByModId: Map<number, InstalledMod[]>
     gamePath: string | null
     installingMods: ReadonlySet<number>
@@ -225,7 +226,7 @@ export function BrowsePage({
     const initialSort = getSavedSort(activeGame)
     const [sort, setSort] = useState<SortOption>(initialSort)
     const initialCache = getBrowseCache(workshopId, 1, '', initialSort, undefined)
-    const [result, setResult] = useState<Paginated<Mod> | null>(initialCache?.result ?? null)
+    const [result, setResult] = useState<Paginated<ModSummary> | null>(initialCache?.result ?? null)
     const [categories, setCategories] = useState<Category[]>(
         () => getCategoriesCache(workshopId) ?? []
     )
@@ -242,7 +243,9 @@ export function BrowsePage({
         bltLoaderInstalled: boolean | null
     } | null>(null)
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
-    const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: Mod } | null>(null)
+    const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: ModSummary } | null>(
+        null
+    )
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)

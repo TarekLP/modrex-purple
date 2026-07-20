@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Download, Heart, Eye, Clock, Trash2, RotateCcw } from 'lucide-react'
 import { Toggle } from './Toggle'
-import type { Mod, InstalledMod } from '../../../shared/types'
+import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
@@ -10,7 +10,7 @@ import { formatCount, formatRelativeTime } from './modDetail/format'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 
 interface Props {
-    mod: Mod
+    mod: ModSummary
     installed: InstalledMod | undefined
     installedCount?: number
     loaderInstalled?: boolean

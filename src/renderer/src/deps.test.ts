@@ -3,7 +3,16 @@ import { collectDeps, isOffsiteDep, isLoaderDep, missingRequiredDeps, offsiteDep
 import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
 
 function dep(overrides: Partial<ModDependency>): ModDependency {
-    return { id: 1, mod_id: null, optional: false, mod: null, ...overrides }
+    return {
+        id: 1,
+        mod_id: null,
+        name: null,
+        url: null,
+        order: null,
+        optional: false,
+        mod: null,
+        ...overrides,
+    }
 }
 
 function hostedMod(id: number): Mod {

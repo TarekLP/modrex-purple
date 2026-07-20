@@ -380,6 +380,273 @@ pub fn parse_mod_page(value: serde_json::Value) -> Result<ModPage, String> {
     Ok(wire.into())
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireImage {
+    id: i64,
+    file: String,
+    #[serde(rename = "type")]
+    kind: String,
+    size: i64,
+    display_order: i64,
+    visible: bool,
+    has_thumb: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireTag {
+    id: i64,
+    name: String,
+    color: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireMember {
+    id: i64,
+    name: String,
+    level: String,
+    accepted: bool,
+    donation_url: Option<String>,
+    avatar: Option<String>,
+    avatar_has_thumb: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireDependency {
+    id: i64,
+    mod_id: Option<i64>,
+    name: Option<String>,
+    url: Option<String>,
+    optional: bool,
+    order: Option<i64>,
+    #[serde(rename = "mod")]
+    target: Option<WireModSummary>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireInstructsTemplate {
+    id: i64,
+    name: String,
+    instructions: String,
+    dependencies: Vec<WireDependency>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireModDetail {
+    #[serde(flatten)]
+    summary: WireModSummary,
+    changelog: Option<String>,
+    instructions: Option<String>,
+    license: Option<String>,
+    repo_url: Option<String>,
+    donation: Option<String>,
+    banner: Option<WireImage>,
+    images: Vec<WireImage>,
+    dependencies: Vec<WireDependency>,
+    instructs_template: Option<WireInstructsTemplate>,
+    tags: Vec<WireTag>,
+    members: Vec<WireMember>,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct ModImage {
+    pub id: i64,
+    pub file: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub size: i64,
+    pub display_order: i64,
+    pub visible: bool,
+    pub has_thumb: bool,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct ModTag {
+    pub id: i64,
+    pub name: String,
+    pub color: String,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct ModMember {
+    pub id: i64,
+    pub name: String,
+    pub level: String,
+    pub accepted: bool,
+    pub donation_url: Option<String>,
+    pub avatar: Option<String>,
+    pub avatar_has_thumb: Option<bool>,
+}
+
+/// A declared dependency. The nested mod is a SUMMARY, not a detail: modworkshop returns
+/// the listing shape here, and the renderer only ever reads summary fields off it. Typing
+/// it as a detail would also make this type recursive for no gain.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct ModDependency {
+    pub id: i64,
+    /// None for offsite dependencies, which are hosted outside modworkshop.
+    pub mod_id: Option<i64>,
+    pub name: Option<String>,
+    pub url: Option<String>,
+    pub optional: bool,
+    /// Author-defined install order. The renderer sorts by it, matching the mod page.
+    pub order: Option<i64>,
+    #[serde(rename = "mod")]
+    pub target: Option<ModSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct InstructsTemplate {
+    pub id: i64,
+    pub name: String,
+    pub instructions: String,
+    pub dependencies: Vec<ModDependency>,
+}
+
+/// A mod as /mods/{id} returns it: every summary field plus the ones only the detail call
+/// carries. The collections are required but may be empty, which is the normalization the
+/// renderer previously did itself with `?? []` at each use.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct ModDetail {
+    pub id: i64,
+    pub name: String,
+    pub desc: String,
+    pub short_desc: String,
+    pub version: String,
+    pub downloads: i64,
+    pub likes: i64,
+    pub views: i64,
+    pub published_at: String,
+    pub bumped_at: String,
+    pub category_id: i64,
+    pub has_download: bool,
+    pub disable_mod_managers: Option<bool>,
+    pub thumbnail: Option<ModThumbnail>,
+    pub download: Option<ModDownload>,
+    pub user: ModUser,
+    pub changelog: Option<String>,
+    pub instructions: Option<String>,
+    pub license: Option<String>,
+    pub repo_url: Option<String>,
+    pub donation: Option<String>,
+    pub banner: Option<ModImage>,
+    pub images: Vec<ModImage>,
+    pub dependencies: Vec<ModDependency>,
+    pub instructs_template: Option<InstructsTemplate>,
+    pub tags: Vec<ModTag>,
+    pub members: Vec<ModMember>,
+}
+
+impl From<WireImage> for ModImage {
+    fn from(w: WireImage) -> Self {
+        Self {
+            id: w.id,
+            file: w.file,
+            kind: w.kind,
+            size: w.size,
+            display_order: w.display_order,
+            visible: w.visible,
+            has_thumb: w.has_thumb,
+        }
+    }
+}
+
+impl From<WireTag> for ModTag {
+    fn from(w: WireTag) -> Self {
+        Self {
+            id: w.id,
+            name: w.name,
+            color: w.color,
+        }
+    }
+}
+
+impl From<WireMember> for ModMember {
+    fn from(w: WireMember) -> Self {
+        Self {
+            id: w.id,
+            name: w.name,
+            level: w.level,
+            accepted: w.accepted,
+            donation_url: w.donation_url,
+            avatar: w.avatar,
+            avatar_has_thumb: w.avatar_has_thumb,
+        }
+    }
+}
+
+impl From<WireDependency> for ModDependency {
+    fn from(w: WireDependency) -> Self {
+        Self {
+            id: w.id,
+            mod_id: w.mod_id,
+            name: w.name,
+            url: w.url,
+            optional: w.optional,
+            order: w.order,
+            target: w.target.map(Into::into),
+        }
+    }
+}
+
+impl From<WireInstructsTemplate> for InstructsTemplate {
+    fn from(w: WireInstructsTemplate) -> Self {
+        Self {
+            id: w.id,
+            name: w.name,
+            instructions: w.instructions,
+            dependencies: w.dependencies.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<WireModDetail> for ModDetail {
+    fn from(w: WireModDetail) -> Self {
+        let s = ModSummary::from(w.summary);
+        Self {
+            id: s.id,
+            name: s.name,
+            desc: s.desc,
+            short_desc: s.short_desc,
+            version: s.version,
+            downloads: s.downloads,
+            likes: s.likes,
+            views: s.views,
+            published_at: s.published_at,
+            bumped_at: s.bumped_at,
+            category_id: s.category_id,
+            has_download: s.has_download,
+            disable_mod_managers: s.disable_mod_managers,
+            thumbnail: s.thumbnail,
+            download: s.download,
+            user: s.user,
+            changelog: w.changelog,
+            instructions: w.instructions,
+            license: w.license,
+            repo_url: w.repo_url,
+            donation: w.donation,
+            banner: w.banner.map(Into::into),
+            images: w.images.into_iter().map(Into::into).collect(),
+            dependencies: w.dependencies.into_iter().map(Into::into).collect(),
+            instructs_template: w.instructs_template.map(Into::into),
+            tags: w.tags.into_iter().map(Into::into).collect(),
+            members: w.members.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+/// Parses a modworkshop mod detail response into the neutral detail shape.
+pub fn parse_mod_detail(value: serde_json::Value) -> Result<ModDetail, String> {
+    let wire: WireModDetail = serde_json::from_value(value)
+        .map_err(|e| format!("modworkshop mod detail did not parse: {e}"))?;
+    Ok(wire.into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -522,5 +789,90 @@ mod tests {
         assert_eq!(page.data[0].name, "Mirror");
         assert_eq!(page.data[0].url, "https://example.test");
         assert!(page.data[0].version.is_none());
+    }
+
+    // serde(flatten) is what lets the detail response reuse the summary wire struct. If it
+    // ever stops merging, the summary half silently comes back as defaults, so this asserts
+    // both halves land from one payload.
+    #[test]
+    fn detail_carries_both_summary_and_detail_fields() {
+        let detail = parse_mod_detail(
+            serde_json::from_str(
+                r##"{"id":42,"name":"Full Mod","version":"3.0","has_download":true,
+                "user":{"id":8,"name":"Author"},
+                "changelog":"notes","license":"MIT","repo_url":"https://example.test/r",
+                "images":[{"id":1,"file":"a.png","type":"image/png","visible":true}],
+                "tags":[{"id":5,"name":"Weapons","color":"#fff"}],
+                "members":[{"id":2,"name":"Helper","level":"contributor","accepted":true}]}"##,
+            )
+            .expect("json"),
+        )
+        .expect("detail");
+        assert_eq!(detail.id, 42, "summary half must survive the flatten");
+        assert_eq!(detail.version, "3.0");
+        assert_eq!(detail.user.name, "Author");
+        assert_eq!(detail.changelog.as_deref(), Some("notes"));
+        assert_eq!(detail.images.len(), 1);
+        assert_eq!(detail.images[0].kind, "image/png");
+        assert_eq!(detail.tags[0].name, "Weapons");
+        assert_eq!(detail.members[0].level, "contributor");
+    }
+
+    // A dependency nests the LISTING shape under "mod", and offsite dependencies have no
+    // mod at all. Both must survive, since the deps tab keys off exactly this.
+    #[test]
+    fn dependencies_keep_their_nested_summary_and_offsite_form() {
+        let detail = parse_mod_detail(
+            serde_json::from_str(
+                r#"{"id":1,"name":"M","dependencies":[
+                {"id":10,"mod_id":55,"optional":false,"order":1,
+                 "mod":{"id":55,"name":"Required Dep","version":"1.1"}},
+                {"id":11,"mod_id":null,"optional":true,"name":"SuperBLT",
+                 "url":"https://superblt.znix.xyz"}]}"#,
+            )
+            .expect("json"),
+        )
+        .expect("detail");
+        assert_eq!(detail.dependencies.len(), 2);
+        let hosted = &detail.dependencies[0];
+        assert_eq!(hosted.mod_id, Some(55));
+        assert_eq!(
+            hosted.target.as_ref().expect("nested mod").name,
+            "Required Dep"
+        );
+        let offsite = &detail.dependencies[1];
+        assert!(offsite.mod_id.is_none());
+        assert!(offsite.target.is_none());
+        assert_eq!(offsite.url.as_deref(), Some("https://superblt.znix.xyz"));
+    }
+
+    // Collections are required on the public type, so a response omitting them entirely
+    // must normalize to empty rather than failing or producing null.
+    #[test]
+    fn a_detail_without_collections_normalizes_to_empty() {
+        let detail =
+            parse_mod_detail(serde_json::from_str(r#"{"id":2,"name":"Bare"}"#).expect("json"))
+                .expect("detail");
+        assert!(detail.images.is_empty());
+        assert!(detail.dependencies.is_empty());
+        assert!(detail.tags.is_empty());
+        assert!(detail.members.is_empty());
+        assert!(detail.banner.is_none());
+        assert!(detail.instructs_template.is_none());
+    }
+
+    #[test]
+    fn instructs_template_dependencies_parse() {
+        let detail = parse_mod_detail(
+            serde_json::from_str(
+                r#"{"id":3,"name":"T","instructs_template":{"id":9,"name":"BLT",
+                "instructions":"do this","dependencies":[{"id":12,"mod_id":49744,"optional":false}]}}"#,
+            )
+            .expect("json"),
+        )
+        .expect("detail");
+        let tpl = detail.instructs_template.as_ref().expect("template");
+        assert_eq!(tpl.instructions, "do this");
+        assert_eq!(tpl.dependencies[0].mod_id, Some(49744));
     }
 }

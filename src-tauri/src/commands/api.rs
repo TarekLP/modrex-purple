@@ -250,10 +250,12 @@ pub async fn list_mods(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_mod(app: AppHandle, id: u32) -> Result<Json, String> {
-    api_get(&app, &format!("/mods/{}", id), vec![])
-        .await
-        .map(Json)
+pub async fn get_mod(
+    app: AppHandle,
+    id: u32,
+) -> Result<crate::commands::domain::ModDetail, String> {
+    let value = api_get(&app, &format!("/mods/{}", id), vec![]).await?;
+    crate::commands::domain::parse_mod_detail(value)
 }
 
 #[tauri::command]

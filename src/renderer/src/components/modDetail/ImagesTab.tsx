@@ -1,4 +1,4 @@
-import type { Mod } from '../../../../shared/types'
+import type { ModImage } from '../../../../shared/types'
 import { useThumbnail } from '../../hooks/useThumbnail'
 import { t } from '../../i18n'
 import { SkeletonBar } from '../Skeleton'
@@ -27,11 +27,11 @@ function GalleryImage({ file }: { file: string }) {
 }
 
 export function ImagesTab({
-    mod,
+    images,
     loading,
     onOpenImage,
 }: {
-    mod: Mod
+    images: ModImage[]
     loading: boolean
     onOpenImage: (index: number) => void
 }) {
@@ -47,7 +47,6 @@ export function ImagesTab({
         )
     }
 
-    const images = mod.images ?? []
     if (images.length === 0) {
         return <p className="text-sm text-text-subtle">{t('detail.images.none')}</p>
     }

@@ -2,7 +2,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type * as UpdatesModalMod from './UpdatesModal'
-import type { InstalledMod, Mod } from '../../../shared/types'
+import type { InstalledMod, ModSummary } from '../../../shared/types'
 
 function makeInstalled(id: number, overrides: Partial<InstalledMod> = {}): InstalledMod {
     return {
@@ -17,7 +17,7 @@ function makeInstalled(id: number, overrides: Partial<InstalledMod> = {}): Insta
     }
 }
 
-function makeMod(id: number): Mod {
+function makeMod(id: number): ModSummary {
     return {
         id,
         name: `Mod ${id}`,

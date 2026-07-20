@@ -14,12 +14,14 @@ export interface ModDependency {
     id: number
     // null for offsite dependencies (hosted outside modworkshop, e.g. SuperBLT)
     mod_id: number | null
-    name?: string
-    url?: string | null
+    name: string | null
+    url: string | null
     optional: boolean
     // author-defined install order; deps render sorted by it like on modworkshop
-    order?: number
-    mod: Mod | null
+    order: number | null
+    // the LISTING shape, not a full detail: modworkshop returns a summary here and the
+    // deps tab only reads summary fields off it
+    mod: ModSummary | null
 }
 
 export interface InstructsTemplate {
@@ -36,9 +38,9 @@ export interface ModMember {
     name: string
     level: string
     accepted: boolean
-    donation_url?: string | null
-    avatar?: string
-    avatar_has_thumb?: boolean
+    donation_url: string | null
+    avatar: string | null
+    avatar_has_thumb: boolean | null
 }
 
 export interface ModTag {
@@ -100,17 +102,19 @@ export interface ModSummary {
 
 /** A mod as /mods/{id} returns it: a summary plus the fields only the detail call carries. */
 export interface Mod extends ModSummary {
-    members?: ModMember[]
-    donation?: string | null
-    changelog?: string
-    instructions?: string
-    license?: string
-    repo_url?: string | null
-    banner?: ModImage | null
-    images?: ModImage[]
-    dependencies?: ModDependency[]
-    instructs_template?: InstructsTemplate | null
-    tags?: ModTag[]
+    changelog: string | null
+    instructions: string | null
+    license: string | null
+    repo_url: string | null
+    donation: string | null
+    banner: ModImage | null
+    // Collections are required but may be empty: Rust normalizes an absent array to an
+    // empty one, so consumers no longer need their own ?? [] at every use.
+    images: ModImage[]
+    dependencies: ModDependency[]
+    instructs_template: InstructsTemplate | null
+    tags: ModTag[]
+    members: ModMember[]
 }
 
 export interface ModLink {

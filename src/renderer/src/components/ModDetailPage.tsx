@@ -28,6 +28,7 @@ import type {
     ModLink,
     ModDependency,
     InstalledMod,
+    ModSummary,
 } from '../../../shared/types'
 import { AVATAR_BASE_URL } from '../../../shared/types'
 import {
@@ -199,7 +200,7 @@ function creditLevelLabel(level: string): string {
 
 interface Props {
     modId: number
-    initialMod?: Mod
+    initialMod?: ModSummary
     isActive?: boolean
     gamePath: string | null
     installed: InstalledMod[]
@@ -221,9 +222,11 @@ export function ModDetailPage({
     onOpenDetail,
 }: Props) {
     // Seed order: full cached entry > initialMod from browse list > null (shows spinner).
-    const [mod, setMod] = useState<Mod | null>(
-        () => getModCacheEntry(modId)?.mod ?? initialMod ?? null
-    )
+    // The browse list can only seed a SUMMARY, so the loaded detail is tracked separately
+    // and mod is whichever is available for the header. Detail-only fields must read from
+    // detail, which is what stops a half-loaded page claiming it has images or tags.
+    const [detail, setDetail] = useState<Mod | null>(() => getModCacheEntry(modId)?.mod ?? null)
+    const mod: ModSummary | null = detail ?? initialMod ?? null
     const [files, setFiles] = useState<ModFile[]>(() => getFilesCacheEntry(modId)?.files ?? [])
     const [links, setLinks] = useState<ModLink[]>(() => getLinksCacheEntry(modId)?.links ?? [])
     // Skip full-page spinner when any mod data is available; skip files spinner when files are cached.
@@ -267,7 +270,7 @@ export function ModDetailPage({
 
     // Full-size banner via the disk cache — the CDN sends no cache headers, so a
     // direct URL costs a download or revalidation round-trip on every page visit.
-    const bannerSrc = useThumbnail((mod?.banner ?? mod?.thumbnail)?.file, true)
+    const bannerSrc = useThumbnail((detail?.banner ?? mod?.thumbnail)?.file, true)
 
     const fetchData = useCallback(() => {
         setError(null)
@@ -277,7 +280,7 @@ export function ModDetailPage({
         // the header renders as soon as mod data is available.
         getCachedMod(modId)
             .then((modData) => {
-                setMod(modData)
+                setDetail(modData)
                 setDetailsLoading(false)
             })
             .catch((e) => setError(String(e)))
@@ -308,7 +311,7 @@ export function ModDetailPage({
         })
     }, [])
 
-    const images = mod?.images ?? []
+    const images = detail?.images ?? []
 
     useEffect(() => {
         if (!isActive) return
@@ -336,10 +339,10 @@ export function ModDetailPage({
         // Dep check runs here — before FileSelectModal — because multi-file mods
         // (download === null, files.length > 1) go through FileSelectModal which has
         // no dep check of its own, so doInstall is never reached for them.
-        let checkedMod = mod
-        if (mod.dependencies === undefined) {
+        let checkedMod = detail
+        if (!checkedMod) {
             checkedMod = await getCachedMod(modId)
-            setMod(checkedMod)
+            setDetail(checkedMod)
         }
         const depResult = await resolveDepCheck(
             modId,
@@ -452,7 +455,7 @@ export function ModDetailPage({
 
     const canAct = !!gamePath && !actionLoading && !loading
 
-    const allDeps: ModDependency[] = collectDeps(mod)
+    const allDeps: ModDependency[] = collectDeps(detail)
 
     // Hosted loader mods (PDTHModOverrides, DAHM, UE4SS) install as game-root/Binaries
     // files and are checked by presence, not the installed-mods list.
@@ -489,21 +492,21 @@ export function ModDetailPage({
         }
     }, [gamePath, loaderCheckKey, activeGame, setLoaderFlag])
 
-    const showChangelogTab = !!mod?.changelog
-    const showLicenseTab = !!mod?.license
+    const showChangelogTab = !!detail?.changelog
+    const showLicenseTab = !!detail?.license
 
     // Owner's own donation link wins over the mod-level one, like on modworkshop.
-    const ownerDonation = donationInfo(mod?.user.donation_url) ?? donationInfo(mod?.donation)
-    const credits = (mod?.members ?? []).filter((m) => m.accepted && CREDIT_LEVELS.has(m.level))
+    const ownerDonation = donationInfo(mod?.user.donation_url) ?? donationInfo(detail?.donation)
+    const credits = (detail?.members ?? []).filter((m) => m.accepted && CREDIT_LEVELS.has(m.level))
     const showDepsTab =
-        !!(mod?.instructs_template?.instructions || mod?.instructions) || allDeps.length > 0
+        !!(detail?.instructs_template?.instructions || detail?.instructions) || allDeps.length > 0
 
     const tabs: { id: Tab; label: string }[] = [
         { id: 'description', label: t('detail.tabs.description') },
         {
             id: 'images',
-            label: mod?.images?.length
-                ? t('detail.tabs.imagesCount', { count: mod.images.length })
+            label: images.length
+                ? t('detail.tabs.imagesCount', { count: images.length })
                 : t('detail.tabs.images'),
         },
         {
@@ -744,7 +747,7 @@ export function ModDetailPage({
 
             {!loading && !error && mod && (
                 <div className="flex-1 overflow-y-auto">
-                    {(mod.banner ?? mod.thumbnail) &&
+                    {(detail?.banner ?? mod.thumbnail) &&
                         (bannerSrc ? (
                             <img
                                 src={bannerSrc}
@@ -790,14 +793,14 @@ export function ModDetailPage({
                                     <DescriptionTab mod={mod} />
                                 </Tabs.Content>
                                 <Tabs.Content value="changelog" className="py-5 focus:outline-none">
-                                    <ChangelogTab mod={mod} />
+                                    {detail && <ChangelogTab mod={detail} />}
                                 </Tabs.Content>
                                 <Tabs.Content value="license" className="py-5 focus:outline-none">
-                                    <LicenseTab mod={mod} />
+                                    {detail && <LicenseTab mod={detail} />}
                                 </Tabs.Content>
                                 <Tabs.Content value="images" className="py-5 focus:outline-none">
                                     <ImagesTab
-                                        mod={mod}
+                                        images={images}
                                         loading={detailsLoading}
                                         onOpenImage={setLightboxIndex}
                                     />
@@ -808,6 +811,7 @@ export function ModDetailPage({
                                         links={links}
                                         loading={filesLoading}
                                         mod={mod}
+                                        images={images}
                                         gamePath={gamePath}
                                         installed={installed}
                                         installedFiles={installedFiles}
@@ -818,7 +822,8 @@ export function ModDetailPage({
                                 </Tabs.Content>
                                 <Tabs.Content value="deps" className="py-5 focus:outline-none">
                                     <DepsTab
-                                        mod={mod}
+                                        instructions={detail?.instructions ?? null}
+                                        instructsTemplate={detail?.instructs_template ?? null}
                                         deps={allDeps}
                                         installed={installed}
                                         gamePath={gamePath}
@@ -864,17 +869,17 @@ export function ModDetailPage({
                                 label={t('detail.info.updated')}
                                 value={formatDate(mod.bumped_at)}
                             />
-                            {mod.repo_url && (
+                            {detail?.repo_url && (
                                 <InfoRow
                                     icon={<BrandIcon icon={siGit} />}
                                     label={t('detail.info.repository')}
                                     value={
                                         <button
-                                            onClick={() => api.openExternal(mod.repo_url!)}
+                                            onClick={() => api.openExternal(detail.repo_url!)}
                                             className="inline-flex items-center gap-1 font-medium text-text hover:text-accent-bright transition-colors"
                                         >
                                             {(() => {
-                                                const icon = repoHostIcon(mod.repo_url!)
+                                                const icon = repoHostIcon(detail.repo_url!)
                                                 return icon ? (
                                                     <BrandIcon icon={icon} />
                                                 ) : (
@@ -904,14 +909,14 @@ export function ModDetailPage({
                                         <SkeletonBar className="h-5 w-12 rounded-full" />
                                     </div>
                                 </>
-                            ) : mod.tags && mod.tags.length > 0 ? (
+                            ) : detail?.tags && detail.tags.length > 0 ? (
                                 <>
                                     <div className="flex items-center gap-1.5 text-xs text-text-subtle">
                                         <TagIcon className="w-3.5 h-3.5" />
                                         {t('detail.info.tags')}
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {mod.tags.map((tag) => (
+                                        {detail.tags.map((tag) => (
                                             <span
                                                 key={tag.id}
                                                 className="text-xs px-2 py-0.5 rounded-full border"
@@ -946,8 +951,8 @@ export function ModDetailPage({
                                     name={m.name}
                                     role={creditLevelLabel(m.level)}
                                     userId={m.id}
-                                    avatar={m.avatar}
-                                    avatarHasThumb={m.avatar_has_thumb}
+                                    avatar={m.avatar ?? undefined}
+                                    avatarHasThumb={m.avatar_has_thumb ?? undefined}
                                     donation={donationInfo(m.donation_url)}
                                 />
                             ))}

@@ -10,7 +10,7 @@ import {
 import { error as logError } from '@tauri-apps/plugin-log'
 import { Button } from './components/ui/Button'
 import { X, ExternalLink, Download } from 'lucide-react'
-import type { InstalledMod, ModFolder, GameId, Mod } from '../../shared/types'
+import type { InstalledMod, ModFolder, GameId, ModSummary } from '../../shared/types'
 import { GAMES, isGameId } from '../../shared/types'
 import { loadLoaderRegistry } from './loaders'
 import { t } from './i18n'
@@ -83,7 +83,7 @@ export default function App() {
         const saved = localStorage.getItem('modrex:active-game')
         return isGameId(saved) ? saved : 'pd3'
     })
-    const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: Mod }[]>([])
+    const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: ModSummary }[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
     // false while the active game's path is still being resolved this session —
     // consumers must not render "not found" states until this is true.
@@ -376,7 +376,7 @@ export default function App() {
     }
 
     const openDetail = useCallback(
-        (modId: number, from: 'browse' | 'installed', initialMod?: Mod) => {
+        (modId: number, from: 'browse' | 'installed', initialMod?: ModSummary) => {
             setPrevView(from)
             setDetailStack([{ modId, initialMod }])
             setView('detail')
@@ -435,7 +435,7 @@ export default function App() {
     )
 
     const openDetailFromBrowse = useCallback(
-        (modId: number, initialMod?: Mod) => openDetail(modId, 'browse', initialMod),
+        (modId: number, initialMod?: ModSummary) => openDetail(modId, 'browse', initialMod),
         [openDetail]
     )
 

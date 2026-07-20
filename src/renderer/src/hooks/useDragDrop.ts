@@ -1,6 +1,12 @@
 import { useRef, useState, useEffect } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { GameId, Mod, InstalledMod, ModFolder, TopLevelItem } from '../../../shared/types'
+import type {
+    GameId,
+    InstalledMod,
+    ModFolder,
+    TopLevelItem,
+    ModSummary,
+} from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { computeChildren, syntheticMod } from './installedUtils'
 import { api } from '../api'
@@ -19,7 +25,7 @@ interface Options {
     installed: InstalledMod[]
     folders: ModFolder[]
     gamePath: string | null
-    modData: Map<number, Mod>
+    modData: Map<number, ModSummary>
     onRefreshInstalled: () => Promise<void>
     activeGame: GameId
 }
@@ -82,7 +88,7 @@ export function useDragDrop({
     }
 
     // ── Drag image (follows the pointer; replaces dataTransfer.setDragImage) ─────
-    function buildModDragImage(mod: Mod): HTMLElement {
+    function buildModDragImage(mod: ModSummary): HTMLElement {
         const el = document.createElement('div')
         el.style.cssText =
             'position:fixed;z-index:9999;pointer-events:none;display:flex;flex-direction:column;' +

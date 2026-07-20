@@ -123,7 +123,7 @@ export const api = {
         return commands.listTags(gameId) as Promise<Paginated<ModTag>>
     },
     getMod(id: number): Promise<Mod> {
-        return commands.getMod(id) as Promise<Mod>
+        return commands.getMod(id)
     },
     listModFiles(modId: number): Promise<Paginated<ModFile>> {
         return commands.listModFiles(modId)

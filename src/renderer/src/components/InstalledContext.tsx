@@ -1,11 +1,11 @@
 import { createContext, useContext } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { GameId, InstalledMod, Mod, ModFolder } from '../../../shared/types'
+import type { GameId, InstalledMod, ModFolder, ModSummary } from '../../../shared/types'
 import type { FolderActions } from '../hooks/useFolderActions'
 import type { DragItem, DropTarget } from '../hooks/useDragDrop'
 
 export interface InstalledContextValue {
-    modData: Map<number, Mod>
+    modData: Map<number, ModSummary>
     failedIds: Set<number>
     viewMode: 'grid' | 'list'
     activeGame: GameId

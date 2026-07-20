@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { AlertTriangle, Tag, Download, Clock, ExternalLink, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
-import type { Mod, ModFile, ModLink, InstalledMod, GameId } from '../../../../shared/types'
+import type {
+    ModFile,
+    ModLink,
+    InstalledMod,
+    GameId,
+    ModSummary,
+    ModImage,
+} from '../../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../../shared/types'
 import { api } from '../../api'
 import { t } from '../../i18n'
@@ -49,6 +56,7 @@ export function DownloadsTab({
     links,
     loading,
     mod,
+    images,
     gamePath,
     installed,
     installedFiles,
@@ -59,7 +67,8 @@ export function DownloadsTab({
     files: ModFile[]
     links: ModLink[]
     loading: boolean
-    mod: Mod
+    mod: ModSummary
+    images: ModImage[]
     gamePath: string | null
     installed: InstalledMod[]
     installedFiles: InstalledMod[]
@@ -144,7 +153,7 @@ export function DownloadsTab({
     }
 
     const modThumbUrl = mod.thumbnail ? `${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}` : null
-    const imageMap = new Map((mod.images ?? []).map((img) => [img.id, img]))
+    const imageMap = new Map((images ?? []).map((img) => [img.id, img]))
 
     return (
         <div className="flex flex-col gap-3">

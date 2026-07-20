@@ -17,7 +17,7 @@ export const commands = {
 	tags: number[] | null,
 	block_tags: number[] | null,
 } | null) => __TAURI_INVOKE<ModPage>("list_mods", { gameId, params }),
-	getMod: (id: number) => __TAURI_INVOKE<unknown>("get_mod", { id }),
+	getMod: (id: number) => __TAURI_INVOKE<ModDetail>("get_mod", { id }),
 	listModFiles: (modId: number) => __TAURI_INVOKE<FilePage>("list_mod_files", { modId }),
 	listModLinks: (modId: number) => __TAURI_INVOKE<LinkPage>("list_mod_links", { modId }),
 	listCategories: (gameId: number) => __TAURI_INVOKE<unknown>("list_categories", { gameId }),
@@ -338,6 +338,13 @@ export type InstalledResponse_Serialize = {
 	modsHidden: boolean,
 };
 
+export type InstructsTemplate = {
+	id: number,
+	name: string,
+	instructions: string,
+	dependencies: ModDependency[],
+};
+
 export type LinkPage = {
 	data: ModLink[],
 	meta: PageMeta,
@@ -367,6 +374,58 @@ export type LoaderInfo = {
 	 *  flow rather than calling install_loader.
 	 */
 	viaModFlow: boolean,
+};
+
+/**
+ *  A declared dependency. The nested mod is a SUMMARY, not a detail: modworkshop returns
+ *  the listing shape here, and the renderer only ever reads summary fields off it. Typing
+ *  it as a detail would also make this type recursive for no gain.
+ */
+export type ModDependency = {
+	id: number,
+	/**  None for offsite dependencies, which are hosted outside modworkshop. */
+	mod_id: number | null,
+	name: string | null,
+	url: string | null,
+	optional: boolean,
+	/**  Author-defined install order. The renderer sorts by it, matching the mod page. */
+	order: number | null,
+	mod: ModSummary | null,
+};
+
+/**
+ *  A mod as /mods/{id} returns it: every summary field plus the ones only the detail call
+ *  carries. The collections are required but may be empty, which is the normalization the
+ *  renderer previously did itself with `?? []` at each use.
+ */
+export type ModDetail = {
+	id: number,
+	name: string,
+	desc: string,
+	short_desc: string,
+	version: string,
+	downloads: number,
+	likes: number,
+	views: number,
+	published_at: string,
+	bumped_at: string,
+	category_id: number,
+	has_download: boolean,
+	disable_mod_managers: boolean | null,
+	thumbnail: ModThumbnail | null,
+	download: ModDownload | null,
+	user: ModUser,
+	changelog: string | null,
+	instructions: string | null,
+	license: string | null,
+	repo_url: string | null,
+	donation: string | null,
+	banner: ModImage | null,
+	images: ModImage[],
+	dependencies: ModDependency[],
+	instructs_template: InstructsTemplate | null,
+	tags: ModTag[],
+	members: ModMember[],
 };
 
 /**
@@ -414,6 +473,16 @@ export type ModFolderInfo = {
 	labelKey: string,
 };
 
+export type ModImage = {
+	id: number,
+	file: string,
+	type: string,
+	size: number,
+	display_order: number,
+	visible: boolean,
+	has_thumb: boolean,
+};
+
 /**
  *  An external link a mod lists. Carries url but never download_url/type/size, which is
  *  what separates it from a hosted file.
@@ -428,6 +497,16 @@ export type ModLink = {
 	image_id: number | null,
 	downloads: number | null,
 	created_at: string | null,
+};
+
+export type ModMember = {
+	id: number,
+	name: string,
+	level: string,
+	accepted: boolean,
+	donation_url: string | null,
+	avatar: string | null,
+	avatar_has_thumb: boolean | null,
 };
 
 export type ModPage = {
@@ -456,6 +535,12 @@ export type ModSummary = {
 	thumbnail: ModThumbnail | null,
 	download: ModDownload | null,
 	user: ModUser,
+};
+
+export type ModTag = {
+	id: number,
+	name: string,
+	color: string,
 };
 
 export type ModThumbnail = {

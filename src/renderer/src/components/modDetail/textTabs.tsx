@@ -1,8 +1,8 @@
-import type { Mod } from '../../../../shared/types'
+import type { Mod, ModSummary } from '../../../../shared/types'
 import { MarkdownContent } from '../MarkdownContent'
 import { t } from '../../i18n'
 
-export function DescriptionTab({ mod }: { mod: Mod }) {
+export function DescriptionTab({ mod }: { mod: ModSummary }) {
     return (
         <div>
             {mod.desc ? (

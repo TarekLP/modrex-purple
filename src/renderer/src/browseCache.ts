@@ -1,11 +1,11 @@
-import type { Mod, Category, ModTag, Paginated, SortOption } from '../../shared/types'
+import type { Category, ModTag, Paginated, SortOption, ModSummary } from '../../shared/types'
 
 const TTL_MS = 5 * 60 * 1000
 const CATEGORIES_TTL_MS = 60 * 60 * 1000
 const TAGS_TTL_MS = 60 * 60 * 1000
 
 interface BrowseCacheEntry {
-    result: Paginated<Mod>
+    result: Paginated<ModSummary>
     fetchedAt: number
 }
 
@@ -35,7 +35,7 @@ export function getBrowseCache(
     categoryId: number | undefined,
     includeTags: number[] = [],
     excludeTags: number[] = []
-): { result: Paginated<Mod>; stale: boolean } | null {
+): { result: Paginated<ModSummary>; stale: boolean } | null {
     const entry = cache.get(
         makeKey(workshopId, page, query, sort, categoryId, includeTags, excludeTags)
     )
@@ -49,7 +49,7 @@ export function setBrowseCache(
     query: string,
     sort: SortOption,
     categoryId: number | undefined,
-    result: Paginated<Mod>,
+    result: Paginated<ModSummary>,
     includeTags: number[] = [],
     excludeTags: number[] = []
 ): void {

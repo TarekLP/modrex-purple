@@ -7,7 +7,7 @@ import { t } from '../i18n'
 import { computeHealthSummary } from '../hooks/installedUtils'
 import type { InstalledGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
-import type { InstalledMod, Mod } from '../../../shared/types'
+import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
 import { uninstallablePromptMessage } from '../installSentinels'
@@ -22,7 +22,7 @@ interface LocalHealthItem {
 interface Props {
     installed: InstalledMod[]
     updatable: InstalledMod[]
-    modData: Map<number, Mod>
+    modData: Map<number, ModSummary>
     missingDeps: HealthItem[]
     showDepsTab: boolean
     gamePath: string | null
@@ -76,7 +76,7 @@ function UpdateRow({
     onOpenDetail,
 }: {
     ins: InstalledMod
-    apiMod: Mod
+    apiMod: ModSummary
     onOpenDetail: (id: number) => void
 }) {
     const thumbSrc = useThumbnail(apiMod.thumbnail?.file)

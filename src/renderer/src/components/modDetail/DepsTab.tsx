@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Download, ExternalLink } from 'lucide-react'
 import { Button } from '../ui/Button'
-import type { Mod, ModDependency, InstalledMod, GameId } from '../../../../shared/types'
+import type {
+    ModDependency,
+    InstalledMod,
+    GameId,
+    InstructsTemplate,
+} from '../../../../shared/types'
 import { MarkdownContent } from '../MarkdownContent'
 import { Tooltip } from '../Tooltip'
 import { t } from '../../i18n'
@@ -11,7 +16,8 @@ import { uninstallablePromptMessage } from '../../installSentinels'
 import { api } from '../../api'
 
 export function DepsTab({
-    mod,
+    instructions,
+    instructsTemplate,
     deps,
     installed,
     gamePath,
@@ -22,7 +28,8 @@ export function DepsTab({
     onRefreshInstalled,
     onOpenDetail,
 }: {
-    mod: Mod
+    instructions: string | null
+    instructsTemplate: InstructsTemplate | null
     deps: ModDependency[]
     installed: InstalledMod[]
     gamePath: string | null
@@ -35,7 +42,7 @@ export function DepsTab({
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
-    const hasInstructions = !!(mod.instructs_template?.instructions || mod.instructions)
+    const hasInstructions = !!(instructsTemplate?.instructions || instructions)
     // Checked once for the whole list rather than per row.
     const [bltDiesel3, setBltDiesel3] = useState(false)
     useEffect(() => {
@@ -76,12 +83,12 @@ export function DepsTab({
                     <h2 className="text-sm font-semibold mb-3 text-text">
                         {t('detail.deps.instructions')}
                     </h2>
-                    {mod.instructs_template?.instructions && (
-                        <MarkdownContent text={mod.instructs_template.instructions} />
+                    {instructsTemplate?.instructions && (
+                        <MarkdownContent text={instructsTemplate.instructions} />
                     )}
-                    {mod.instructions && (
+                    {instructions && (
                         <div className="mt-3">
-                            <MarkdownContent text={mod.instructions} />
+                            <MarkdownContent text={instructions} />
                         </div>
                     )}
                 </section>

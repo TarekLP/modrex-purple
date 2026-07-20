@@ -3,7 +3,7 @@ import { Button } from './ui/Button'
 import { X } from 'lucide-react'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
-import type { GameId, InstalledMod, Mod } from '../../../shared/types'
+import type { GameId, InstalledMod, ModSummary } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { api } from '../api'
 import type { InstallOutcome } from '../api'
@@ -21,7 +21,7 @@ import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
 
 interface Props {
     updatable: InstalledMod[]
-    modData: Map<number, Mod>
+    modData: Map<number, ModSummary>
     installed: InstalledMod[]
     gamePath: string | null
     gameId: string
