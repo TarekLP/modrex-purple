@@ -676,24 +676,6 @@ fn pd2_engine_has_two_targets() {
     assert_eq!(cfg.targets[1].tag, "mod_overrides");
 }
 
-#[test]
-fn target_for_none_returns_primary() {
-    let cfg = engine_for_game("pd2").unwrap();
-    assert_eq!(cfg.target_for(None).tag, "mods");
-}
-
-#[test]
-fn target_for_secondary_tag_routes_correctly() {
-    let cfg = engine_for_game("pd2").unwrap();
-    assert_eq!(cfg.target_for(Some("mod_overrides")).tag, "mod_overrides");
-}
-
-#[test]
-fn target_for_unknown_tag_falls_back_to_primary() {
-    let cfg = engine_for_game("pd2").unwrap();
-    assert_eq!(cfg.target_for(Some("nonexistent")).tag, "mods");
-}
-
 // ── RAID single blanket-accept engine ─────────────────────────────────────
 // RAID's loader reads both BLT script mods and asset packs from one mods/<name>/ folder
 // (assets/mod_overrides was removed), so the engine is a single blanket-accept target that

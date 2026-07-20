@@ -1,5 +1,7 @@
 pub mod analytics;
 pub mod api;
+#[cfg(test)]
+mod conformance_tests;
 pub mod discord;
 pub mod download;
 pub mod games;
