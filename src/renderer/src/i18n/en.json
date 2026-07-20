@@ -1,5 +1,6 @@
 {
     "common": {
+        "beta": "Beta",
         "install": "Install",
         "nonPakWarning": "Unsupported format",
         "openLink": "Open link",

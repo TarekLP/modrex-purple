@@ -4,6 +4,7 @@ import { sourcesForGame } from '../sources'
 import { waitForForegroundClear } from '../requestPriority'
 import { formatCount } from './modDetail/format'
 import { SkeletonBar } from './Skeleton'
+import { BetaBadge, isBetaSource } from './BetaBadge'
 import { TITLE_ROW_H } from './pageHeader'
 import { t } from '../i18n'
 import { GAMES, type GameId } from '../../../shared/types'
@@ -139,8 +140,9 @@ export function SourceSelect({
                                 : 'border-transparent text-text-subtle hover:text-text-muted hover:before:bg-surface-hover'
                         }`}
                     >
-                        <span className="relative block text-sm font-medium leading-tight">
+                        <span className="relative flex items-center gap-1.5 text-sm font-medium leading-tight">
                             {SOURCE_LABELS[s.id] ?? s.id}
+                            {isBetaSource(s.id) && <BetaBadge />}
                         </span>
                         {/* Three states that must not look alike: loading shows a
                             skeleton, no answer (signed out of Nexus) shows nothing, and a
