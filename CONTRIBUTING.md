@@ -61,7 +61,15 @@ Common types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`.
 
 Open a pull request against `main`. Run `pnpm checks` first, it runs the same gate CI does.
 
-Adding support for a new game or mod loader is mostly a matter of adding an entry to the
-relevant registry (`src-tauri/src/commands/games.rs`, `src-tauri/src/commands/loaders.rs`,
-and `GAME_SPECS` in `src/shared/types.ts`) rather than editing call sites. See `CLAUDE.md`
-for how those fit together before starting.
+Adding support for a new game, mod loader, or mod source is mostly a matter of adding an
+entry to the relevant registry rather than editing call sites:
+
+| What you're adding | Registry                                                                  |
+| ------------------ | ------------------------------------------------------------------------- |
+| Game               | `src-tauri/src/commands/games.rs` + `GAME_SPECS` in `src/shared/types.ts` |
+| Mod loader         | `src-tauri/src/commands/loaders.rs`                                       |
+| Mod source         | `src-tauri/src/commands/sources.rs`                                       |
+
+Neither side of a cross-language pair can see the other, so `pnpm check-games` and
+`pnpm check-sources` diff them in CI. See `CLAUDE.md` for how they fit together before
+starting.

@@ -6,7 +6,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
-- Added Nexus Mods browsing and installs through OAuth sign-in and website mod-manager downloads.
+- Added Nexus Mods as a second mod source. Browse and install through OAuth sign-in and website mod-manager downloads, choosing between ModWorkshop and Nexus Mods from the top of the Browse page, each showing how many mods it has for the current game.
 - New About tab in Settings with project info and quick links to the GitHub repository, GitHub Sponsors, Discord, and modrex.net.
 - A one-time banner asking for a GitHub star, shown once ever after the 10th successful mod install (and at least a week of use). Dismissing it is permanent.
 - Added support for RAID: World War II: browse, install, and manage its mods (SuperBLT and legacy RaidBLT script mods plus asset override packs, all installed into the game's `mods` folder as the current loader expects), with one-click install and dependency detection for the RAID-SuperBLT mod loader.
@@ -24,10 +24,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Mod licenses now show as their own tab on the mod page with full formatting.
 - Redesigned the mod page:
   - Mod details (downloads, likes, views, version, dates, and links) moved into an info panel that stays visible while you scroll.
-  - The panel now credits everyone who worked on the mod, with avatars and roles, not just the author. Clicking a person opens their modworkshop profile.
+  - The panel now credits everyone who worked on the mod, with avatars and roles, not just the author. Clicking a person opens their ModWorkshop profile.
   - Each contributor with a donation link gets their own donation button, labeled with where it leads (PayPal, Ko-fi, GitHub Sponsors, and more).
   - Mods with a public repository get a Repository row showing where the code is hosted (GitHub, GitLab, or Bitbucket), replacing the plain "Source" link.
-  - Banners keep the same proportions as on modworkshop instead of being cropped to a fixed height.
+  - Banners keep the same proportions as on ModWorkshop instead of being cropped to a fixed height.
   - Descriptions and dependency lists use the full page width.
 - The Dependencies & Instructions tab now lists dependencies in the author's intended install order, numbered, with instructions below.
 

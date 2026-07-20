@@ -15,6 +15,7 @@ pnpm check-version # Verify package, Tauri, Cargo, and lockfile versions agree
 pnpm check-commands # Verify api.ts uses every command registered in collect_commands! in lib.rs, that the generated bindings are not stale, and that the invoke API stays api.ts-only (also runs in pre-commit and CI)
 pnpm check-csp    # Verify csp and devCsp in tauri.conf.json agree on all external origins (also runs in pre-commit and CI)
 pnpm check-games  # Verify the Rust GAME_REGISTRY and the TypeScript GAMES record list the same game ids (CI)
+pnpm check-sources # Verify the Rust SOURCE_REGISTRY and GAME_SPECS agree on each game's modworkshop id (CI)
 pnpm check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
 pnpm checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
 pnpm format       # Format all files with prettier
@@ -64,6 +65,12 @@ src/shared/types.ts       ← TypeScript types shared by renderer and api.ts
 2. Register it in `src-tauri/src/lib.rs` inside `ipc_builder()`'s `tauri_specta::collect_commands![...]`
 3. Regenerate `src/shared/bindings.ts`: `cd src-tauri && cargo test --test export_bindings` (any `cargo test` run does it too)
 4. Add a wrapper in `src/renderer/src/api.ts` calling the generated `commands.myCmd(...)` from the bindings
+
+Mod data from an external site does NOT cross IPC as raw JSON any more. `commands/domain.rs`
+owns the neutral shapes (`ModSummary`, `ModDetail`, `ModFile`, `ModLink`, `ModPage`) and both
+ModWorkshop and Nexus translate into them there; see the backend rules for why it is two
+structs per shape. `api::Json` remains only for the handful of passthroughs that are still
+untyped.
 
 The payload shapes are typed end to end by tauri-specta: renaming or retyping a field on the Rust side changes the generated bindings and becomes a renderer compile error instead of a silent runtime break. Optional Rust params export as `T | null` (pass `x ?? null` in wrappers). Types crossing IPC derive `specta::Type`; `serde_json::Value` passthroughs use `api::Json` (specta's own Value impl recurses infinitely at export). `pnpm check-commands` (pre-commit + CI) still enforces usage in both directions (a command called in api.ts but unregistered, or registered but never called, both fail) plus bindings freshness by name; CI's bindings-diff check catches shape-only drift.
 
@@ -130,8 +137,9 @@ through `modrex.net`. Full design + local proxy-testing steps live in
 
 ## Testing
 
-Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`, or inline in the module file itself. 306 tests across 13 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests; `tokio = { version = "1", features = ["rt", "macros"] }` is in `[dev-dependencies]` (in addition to the production dep) to enable `#[tokio::test]` for async filesystem tests.
+Rust unit tests live in separate test files referenced from the module via `#[cfg(test)] mod tests;`, or inline in the module file itself. 332 tests across 14 modules — run with `cargo test` inside `src-tauri/`. `tempfile` and `filetime` crates are in `[dev-dependencies]` for filesystem tests; `tokio = { version = "1", features = ["rt", "macros"] }` is in `[dev-dependencies]` (in addition to the production dep) to enable `#[tokio::test]` for async filesystem tests.
 
+- `commands/domain.rs` (inline `#[cfg(test)] mod tests`) — the external-API parsers, which are the one place a bad response can empty a whole page. Covers a real ModWorkshop listing shape, a link-type download carrying no `download_url`/`type`/`size`, a mod missing nearly every field, an empty page, unknown fields being ignored, file and link listings, mod details (including that `serde(flatten)` still merges the summary half, and that a dependency keeps its nested summary and its offsite form), and the Nexus mapping plus its offset-to-page-count conversion. Four tests specifically assert that **explicit nulls** fall back to defaults: `serde(default)` covers an absent field but not a present `null`, and a live response with `"category_id": null` used to fail the entire request.
 - `commands/conformance_tests.rs` — the cross-game conformance suite: every check is written once and run for **every** entry in `GAME_REGISTRY`, so a family-conforming new game gets coverage by existing in the registry. Covers engine/def completeness (index game name, state filename, at least one executable/process/store), target-tag uniqueness, `target_for` routing (untagged → primary, every tag → its own target, unknown → primary), `disabled_suffix` consistency with the `ModUnit` kind, the disabled-dir-inside / backup-dir-outside path invariants, per-target mods/backup dir distinctness, and a state save/read round trip per game and target. Game-specific behaviour tests stay in their own files, and the loader registry's own invariants stay in `loaders.rs` — this suite covers the uniform contract, not the novel 20%.
 - `mods/tests.rs` — pure functions + state I/O (naming, paths, zip, state); multi-target engine routing; `InstalledMod.location` round-trip; four async `find_untracked_paks` filesystem tests (primary=None location, secondary location tag, known-set cross-target isolation, backup-skip per target)
 - `launchers/mod_tests.rs` — VDF parser + launcher identification

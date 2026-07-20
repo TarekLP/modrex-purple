@@ -211,98 +211,48 @@ both are UE 4.27.2, so one format generation.
 
 ---
 
-## TODO: mod-source-domain-model
+## TODO: source-remote-ids-as-strings
 
-Phase 3 of the multi-source expansion. Phases 1 (nexus-prototype-merge) and 2
-(source-identity-refactor) are done; this is the next one and the largest.
+What is left of the multi-source domain model. Phases 1 (nexus-prototype-merge) and 2
+(source-identity-refactor) are done; phase 3 landed over 2026-07-20 as nine commits and
+is described below only where it did NOT finish.
 
-### Context
+### Done, do not redo
 
-`Mod`, `ModFile`, `ModLink`, `ModDependency`, `Category`, `Paginated`, `SortOption`
-in `src/shared/types.ts` are literal modworkshop response shapes, and the Rust
-commands (`list_mods`, `get_mod`, ...) return `Result<Value, String>` - raw
-provider JSON passed through IPC untyped. Every component consumes modworkshop
-quirks directly (`download.url` vs `download_url`, `has_download` with
-`download: null`, mod-level vs file-level version, `instructs_template`,
-`disable_mod_managers`). Other sources have different shapes AND different
-concepts (Nexus file categories main/optional/old; Steam items often have no
-version string, only an update timestamp; mod.io has its own dependency model).
+The neutral domain types, the Rust-owned translation, and the single Browse page all
+shipped. Rust now parses ModWorkshop listings, files, links and mod details into typed
+structs (commands/domain.rs, wire structs deserialize leniently, public types are
+required-field), Nexus search maps onto the same ModSummary, ModSummary is no longer
+assignable to Mod so a list entry cannot be used as a full one, update status is an
+explicit enum rather than magic version strings, and one Browse page carries a source
+switcher (SourceSelect) with per-source mod counts.
 
-### What to do
+### Dropped: source-qualified cache keys
 
-- Define neutral internal types: ModSummary, ModDetail, DownloadableFile,
-  SourceRef, plus per-source extension fields where needed. Rust owns the
-  translation: each source module parses its provider JSON into the domain types;
-  IPC returns typed structs, never `serde_json::Value`.
-- Define a SourceCapabilities descriptor consumed by the renderer: has categories?
-  which sort options? batch metadata fetch? direct download vs handoff? auth
-  required? BrowsePage renders from capabilities instead of assuming the
-  modworkshop feature set. This is what lets NexusBrowsePage fold back into one
-  BrowsePage and is the phase where the separate page is deleted.
-- The bulk metadata refresh (useModData -> fetchInstalledModsMeta) becomes a
-  per-source strategy: modworkshop has the undocumented `ids[]` batch filter
-  (~50 ids per request); Nexus has NO batch endpoint and a daily quota on the
-  order of a couple thousand requests, so its strategy must be lazy/trickled,
-  never "refresh all 300 installed mods on focus".
-- Migration path: do it source-by-source behind the same IPC commands rather than
-  a big-bang rewrite; modworkshop first, then the nexus module.
+This was going to key the renderer caches by source once both shared them. It is
+OBSOLETE, not deferred: the owner chose a two-subwindow Browse page, so each source keeps
+its own content component and local state. Verified 2026-07-20 that NexusBrowsePage
+touches none of modCache, browseCache, thumbnailCache or installedMetaCache, so there is
+no collision to key against. The one cache that does hold both sources (SourceSelect's
+count cache) is already keyed by game AND source. Only revisit if the two pages are ever
+merged into a single data path.
 
-### Atomic parts (each is one commit, each leaves main shippable)
+### What actually remains
 
-Sequenced so the reversible, invisible work lands first and the one user-visible
-change lands last. Note CI runs -D warnings, so a part that only ADDS types with no
-consumer fails on dead_code - every part must include its first consumer.
+Remote ids become strings across the renderer, and install_nexus_download stops writing
+the legacy `id = -(nexus_mod_id)` / `file_id = nexus_file_id` values.
 
-- P1 SourceCapabilities descriptor. What each source supports (categories, sort
-  options, tags, batch metadata, direct download vs handoff, auth required),
-  exposed over IPC, consumed by BrowsePage to gate its filter row. Touches no wire
-  type, so it locks in no domain-model decisions, and it is the thing that later
-  lets one BrowsePage serve both sources.
-- P2 Domain types + modworkshop LIST path. ModSummary/SourceRef in Rust;
-  `list_mods` returns a typed Paginated<ModSummary> instead of Json. BrowsePage's
-  grid reads the neutral shape.
-- P3 modworkshop DETAIL path. ModDetail/DownloadableFile; `get_mod`,
-  `list_mod_files`, `list_mod_links` typed. ModDetailPage and its tabs adapt. The
-  largest renderer diff of the chain - do NOT combine with P2.
-- P4 nexus.rs parses into the same domain types. Nexus stops being a separate
-  shape; still its own page at this point.
-- P5 One BrowsePage with a SOURCE SELECTOR, driven by P1's capabilities. Deletes
-  NexusBrowsePage. USER-VISIBLE - do not land this half-done before a release.
-  Owner decision 2026-07-20: results are NOT merged across sources. One source is
-  active at a time and each keeps its own search engine, because the two cannot be
-  blended coherently - sort options differ per engine, relevance scores are not
-  comparable across engines, and two independent page cursors cannot produce one
-  stable page 2. The selector is a list of sources (modworkshop default, Nexus
-  opt-in) so a third source is one entry, not a third page.
-  Constraints:
-  - Sources are PER GAME. Only pd3 and cb have `nexusDomain` in GAME_SPECS; pd2,
-    pdth and raid are modworkshop-only, so on 3 of 5 games the list has exactly one
-    entry and must render as nothing rather than a one-choice control.
-  - Search state (query, sort, page, filters) is per source and must NOT carry
-    across a switch - the same reason results are not merged applies to state.
-  - Nexus requires OAuth. Selecting it while signed out shows a sign-in prompt in
-    place of the grid, not an empty result set.
-- P6 updateStatus enum replacing the magic "unknown"/"outdated" version strings.
-- P7 Source-qualify the renderer cache keys (mod/files/links/installedMeta,
-  browse, thumbnails). Trigger is P5: before it, only modworkshop data is cached.
-- P8 Remote ids become strings across the renderer, and install_nexus_download
-  stops writing the legacy id = -(nexus_mod_id) values.
+Blocked, and NOT merely by time:
+- The reason for strings is Steam Workshop's PublishedFileId overflowing the JS safe
+  integer range. Steam is not a source, so today this solves nothing.
+- The negative id is load-bearing right now: it is what makes useModData skip a Nexus mod
+  instead of looking it up on ModWorkshop, and what computeHealthSummary keys
+  "unidentified" off (4 call sites as of 2026-07-20). Removing it needs a replacement
+  signal first.
+- Those ids are already written into users' .modrex.json files, so changing the scheme
+  needs a state migration or real installs lose their identity.
 
-Scope warning: P1-P8 is multi-week. P1-P4 are invisible and individually
-shippable; P5 is the first part a user would notice.
-- Absorbed from source-identity-refactor (done 2026-07-19, see its entry):
-  - Replace the magic version strings "unknown"/"outdated" with an explicit
-    updateStatus enum - per-source version semantics (Nexus semverish, Steam
-    timestamps, modworkshop two version fields) do not fit one string field.
-  - Source-qualify the renderer cache keys (modCache/filesCache/linksCache/
-    installedMetaCache, browseCache, thumbnail cache) when a second source starts
-    sharing them - today they only ever hold modworkshop data, and NexusBrowsePage
-    folding into BrowsePage is the natural trigger.
-  - Remote ids become STRINGS across the renderer (Steam Workshop PublishedFileId
-    overflows JS safe integers); InstalledMod.remote_id is already a string, but
-    `id: number` still carries modworkshop identity everywhere.
-  - Stop writing the legacy `id = -(nexus_mod_id)` / `file_id = nexus_file_id`
-    values in install_nexus_download once grouping keys are source-qualified.
+Do this when a source with oversized ids actually lands, not before.
 
 ---
 
@@ -321,6 +271,11 @@ one file per implementation).
 
 ### What to do
 
+- NOTE (2026-07-20): `commands/sources.rs` ALREADY EXISTS as the source registry
+  (which sources exist, which games each serves, the id each knows a game by, plus
+  the list_sources command the renderer reads). Creating a `sources/` directory
+  collides with it, so absorb it: `sources/mod.rs` re-exports the registry, and the
+  per-source clients sit beside it. Do not start a second parallel concept.
 - Create `src-tauri/src/commands/sources/` mirroring `launchers/`: a ModSource
   trait (list/search, get detail, files, request-download, rate policy, auth
   needs), `modworkshop.rs` and `nexus.rs` as the two implementations. Per-source
@@ -791,8 +746,10 @@ core logic untestable without Tauri machinery.
   a thin adapter implementing the traits over `AppHandle`.
 - Payoff: core tests run without Tauri; a CLI or plugin host drives the same engine; the
   "its own API" idea (programmatic/headless modrex) falls out nearly for free.
-- Prerequisite ordering: typed-ipc-codegen and mod-source-domain-model land first so the
-  crate's public types are the neutral domain types, not modworkshop wire shapes.
+- Prerequisite ordering: SATISFIED as of 2026-07-20. typed-ipc-codegen and the domain
+  model both landed, so the crate's public types would be the neutral domain types in
+  commands/domain.rs rather than ModWorkshop wire shapes. The remaining blocker is the
+  one that always mattered: a concrete second consumer.
 
 ---
 
