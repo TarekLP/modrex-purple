@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Search, Download, ThumbsUp, Clock, Trash2 } from 'lucide-react'
-import type { GameId, InstalledMod } from '../../../shared/types'
+import type { GameId, InstalledMod, ModSummary, Paginated } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { SearchClearButton } from './ui/SearchClearButton'
 import { SkeletonCard } from './SkeletonCard'
@@ -12,22 +12,6 @@ import { formatCount, formatRelativeTime } from './modDetail/format'
 import { t } from '../i18n'
 import { api } from '../api'
 
-interface NexusModNode {
-    modId: number
-    name: string
-    summary?: string
-    pictureUrl?: string
-    author?: string
-    downloads?: number
-    endorsements?: number
-    updatedAt?: string
-}
-
-interface NexusResult {
-    totalCount: number
-    nodes: NexusModNode[]
-}
-
 interface Props {
     activeGame: GameId
     isActive: boolean
@@ -37,7 +21,8 @@ interface Props {
     onGoToSettings: () => void
 }
 
-// Must match PAGE_SIZE in nexus.rs; page numbers translate to offsets here.
+// Must match PAGE_SIZE in nexus.rs, which pages by offset rather than page number.
+// Only the offset calculation needs it now; last_page comes back in the response meta.
 const PAGE_SIZE = 24
 
 const SORT_OPTIONS = [
@@ -70,7 +55,7 @@ function buildPages(current: number, last: number): (number | '...')[] {
 }
 
 interface NexusModCardProps {
-    mod: NexusModNode
+    mod: ModSummary
     domain: string
     installed: InstalledMod | undefined
     busy: boolean
@@ -103,15 +88,15 @@ function NexusModCard({
     // The files tab hosts "Mod Manager Download", which hands the download back
     // to Modrex via the nxm:// deep link, the sanctioned free-tier flow.
     function openOnNexus() {
-        api.openExternal(`https://www.nexusmods.com/${domain}/mods/${mod.modId}?tab=files`)
+        api.openExternal(`https://www.nexusmods.com/${domain}/mods/${mod.id}?tab=files`)
     }
 
     return (
         <div className="h-full bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col transition-colors hover:border-accent/25">
             <div className="cursor-pointer group relative" onClick={openOnNexus}>
-                {mod.pictureUrl ? (
+                {mod.thumbnail?.file ? (
                     <img
-                        src={mod.pictureUrl}
+                        src={mod.thumbnail?.file}
                         alt={mod.name}
                         loading="lazy"
                         ref={(el) => {
@@ -129,8 +114,8 @@ function NexusModCard({
                     <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-accent-bright transition-colors">
                         {mod.name}
                     </h3>
-                    <p className="text-xs text-text-muted">{mod.author}</p>
-                    <p className="text-xs text-text-subtle line-clamp-2">{mod.summary}</p>
+                    <p className="text-xs text-text-muted">{mod.user.name}</p>
+                    <p className="text-xs text-text-subtle line-clamp-2">{mod.short_desc}</p>
                 </div>
             </div>
 
@@ -159,22 +144,22 @@ function NexusModCard({
                 ) : (
                     <>
                         <div className="flex items-center gap-3 text-xs text-text-subtle">
-                            {mod.downloads !== undefined && (
+                            {mod.downloads > 0 && (
                                 <span className="flex items-center gap-1">
                                     <Download className="w-3 h-3" />
                                     {formatCount(mod.downloads)}
                                 </span>
                             )}
-                            {mod.endorsements !== undefined && (
+                            {mod.likes > 0 && (
                                 <span className="flex items-center gap-1">
                                     <ThumbsUp className="w-3 h-3" />
-                                    {formatCount(mod.endorsements)}
+                                    {formatCount(mod.likes)}
                                 </span>
                             )}
-                            {mod.updatedAt && (
+                            {mod.bumped_at && (
                                 <span className="flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
-                                    {formatRelativeTime(mod.updatedAt)}
+                                    {formatRelativeTime(mod.bumped_at)}
                                 </span>
                             )}
                         </div>
@@ -224,7 +209,7 @@ export function NexusBrowsePage({
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [sort, setSort] = useState(() => getSavedSort(activeGame))
-    const [result, setResult] = useState<NexusResult | null>(null)
+    const [result, setResult] = useState<Paginated<ModSummary> | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [signedIn, setSignedIn] = useState<boolean | null>(null)
@@ -352,7 +337,7 @@ export function NexusBrowsePage({
                         (page - 1) * PAGE_SIZE
                     )
                     if (fetchIdRef.current !== id) return
-                    setResult(data as NexusResult)
+                    setResult(data)
                     setLoading(false)
                 } catch (e) {
                     if (fetchIdRef.current !== id) return
@@ -381,7 +366,7 @@ export function NexusBrowsePage({
 
     if (!domain) return null
 
-    const lastPage = result ? Math.ceil(result.totalCount / PAGE_SIZE) : 0
+    const lastPage = result?.meta.last_page ?? 0
 
     return (
         <div className="h-full flex flex-col">
@@ -431,22 +416,22 @@ export function NexusBrowsePage({
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
                             {t('nexus.loadFailed')}
                         </div>
-                    ) : result.nodes.length === 0 ? (
+                    ) : result.data.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-text-subtle text-sm">
                             {t('nexus.noMods')}
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-                            {result.nodes.map((mod) => {
-                                const ins = installedByNexusId.get(mod.modId)
+                            {result.data.map((mod) => {
+                                const ins = installedByNexusId.get(mod.id)
                                 return (
                                     <NexusModCard
-                                        key={mod.modId}
+                                        key={mod.id}
                                         mod={mod}
                                         domain={domain}
                                         installed={ins}
                                         busy={ins !== undefined && ins.uid === busyUid}
-                                        progress={downloadMap.get(mod.modId) ?? null}
+                                        progress={downloadMap.get(mod.id) ?? null}
                                         gamePath={gamePath}
                                         onUninstall={handleUninstall}
                                         onEnable={handleEnable}
@@ -462,7 +447,7 @@ export function NexusBrowsePage({
             {result !== null && lastPage > 1 && (
                 <div className="px-6 py-3 border-t border-border flex items-center justify-between shrink-0">
                     <span className="text-xs text-text-subtle">
-                        {t('nexus.modCount', { total: result.totalCount })}
+                        {t('nexus.modCount', { total: result.meta.total })}
                     </span>
                     <div className="flex gap-1">
                         {buildPages(page, lastPage).map((p, i) =>

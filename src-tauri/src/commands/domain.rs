@@ -647,6 +647,100 @@ pub fn parse_mod_detail(value: serde_json::Value) -> Result<ModDetail, String> {
     Ok(wire.into())
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireNexusNode {
+    #[serde(rename = "modId")]
+    mod_id: i64,
+    name: String,
+    summary: Option<String>,
+    #[serde(rename = "pictureUrl")]
+    picture_url: Option<String>,
+    author: Option<String>,
+    downloads: i64,
+    endorsements: i64,
+    #[serde(rename = "updatedAt")]
+    updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireNexusPage {
+    #[serde(rename = "totalCount")]
+    total_count: i64,
+    nodes: Vec<WireNexusNode>,
+}
+
+/// Nexus search results, mapped onto the same summary shape modworkshop produces.
+///
+/// Three mappings are judgement calls rather than renames, and each loses something:
+///
+/// - endorsements becomes likes. Both count approval, but they are not the same metric.
+/// - pictureUrl becomes thumbnail.file. modworkshop stores a CDN filename there, Nexus
+///   gives a full URL; the renderer's useThumbnail passes absolute URLs through untouched,
+///   which is the same route locally recorded thumbnails already take.
+/// - version is EMPTY. The GraphQL search selection carries no version at all, and an
+///   empty version is what suppresses false update prompts in useModData, so a Nexus mod
+///   still cannot report updates. Fixing that needs a per-mod detail call, not this one.
+///
+/// has_download is true because every Nexus search result is downloadable; the download
+/// itself is null since acquisition goes through the nxm handoff, not a direct URL.
+fn nexus_node_to_summary(w: WireNexusNode) -> ModSummary {
+    let summary = w.summary.unwrap_or_default();
+    ModSummary {
+        id: w.mod_id,
+        name: w.name,
+        desc: summary.clone(),
+        short_desc: summary,
+        version: String::new(),
+        downloads: w.downloads,
+        likes: w.endorsements,
+        views: 0,
+        published_at: String::new(),
+        bumped_at: w.updated_at.unwrap_or_default(),
+        category_id: 0,
+        has_download: true,
+        disable_mod_managers: None,
+        thumbnail: w.picture_url.map(|file| ModThumbnail {
+            file,
+            has_thumb: None,
+        }),
+        download: None,
+        user: ModUser {
+            id: None,
+            name: w.author.unwrap_or_default(),
+            donation_url: None,
+            avatar: None,
+            avatar_has_thumb: None,
+        },
+    }
+}
+
+/// Parses a Nexus GraphQL mods payload into the neutral page shape. Nexus pages by offset
+/// rather than page number, so the caller supplies the page it asked for.
+pub fn parse_nexus_page(
+    value: serde_json::Value,
+    page: i64,
+    per_page: i64,
+) -> Result<ModPage, String> {
+    let wire: WireNexusPage =
+        serde_json::from_value(value).map_err(|e| format!("nexus search did not parse: {e}"))?;
+    let last_page = if per_page > 0 {
+        (wire.total_count + per_page - 1) / per_page
+    } else {
+        0
+    };
+    Ok(ModPage {
+        data: wire.nodes.into_iter().map(nexus_node_to_summary).collect(),
+        meta: PageMeta {
+            current_page: page,
+            last_page,
+            per_page,
+            total: wire.total_count,
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -874,5 +968,64 @@ mod tests {
         let tpl = detail.instructs_template.as_ref().expect("template");
         assert_eq!(tpl.instructions, "do this");
         assert_eq!(tpl.dependencies[0].mod_id, Some(49744));
+    }
+
+    #[test]
+    fn nexus_nodes_map_onto_the_shared_summary_shape() {
+        let page = parse_nexus_page(
+            serde_json::from_str(
+                r#"{"totalCount":50,"nodes":[{"modId":900,"name":"Nexus Mod",
+                "summary":"does things","pictureUrl":"https://cdn.nexus.test/a.png",
+                "author":"Someone","downloads":12,"endorsements":3,
+                "updatedAt":"2026-01-01"}]}"#,
+            )
+            .expect("json"),
+            2,
+            24,
+        )
+        .expect("page");
+        let m = &page.data[0];
+        assert_eq!(m.id, 900);
+        assert_eq!(m.user.name, "Someone");
+        assert_eq!(m.likes, 3, "endorsements stand in for likes");
+        assert_eq!(m.bumped_at, "2026-01-01");
+        assert_eq!(
+            m.thumbnail.as_ref().expect("thumbnail").file,
+            "https://cdn.nexus.test/a.png",
+            "an absolute URL rides the thumbnail field, as locally recorded ones already do"
+        );
+        // No version in the search selection. Empty is what stops useModData reporting a
+        // false update, so this is load-bearing rather than incidental.
+        assert_eq!(m.version, "");
+        assert!(m.has_download);
+        assert!(m.download.is_none());
+    }
+
+    #[test]
+    fn nexus_paging_converts_offset_totals_into_page_counts() {
+        let page = parse_nexus_page(
+            serde_json::from_str(r#"{"totalCount":50,"nodes":[]}"#).expect("json"),
+            2,
+            24,
+        )
+        .expect("page");
+        assert_eq!(page.meta.current_page, 2);
+        assert_eq!(page.meta.total, 50);
+        assert_eq!(page.meta.last_page, 3, "50 over 24 rounds up to 3 pages");
+    }
+
+    #[test]
+    fn a_nexus_node_missing_optional_fields_still_parses() {
+        let page = parse_nexus_page(
+            serde_json::from_str(r#"{"totalCount":1,"nodes":[{"modId":5,"name":"Bare"}]}"#)
+                .expect("json"),
+            1,
+            24,
+        )
+        .expect("page");
+        let m = &page.data[0];
+        assert_eq!(m.name, "Bare");
+        assert_eq!(m.user.name, "");
+        assert!(m.thumbnail.is_none());
     }
 }

@@ -230,7 +230,7 @@ pub async fn nexus_search_mods(
     query: String,
     sort: String,
     offset: Option<u32>,
-) -> Result<crate::commands::api::Json, String> {
+) -> Result<crate::commands::domain::ModPage, String> {
     let domain = nexus_domain(&game_id)?;
     let headers = nexus_headers(&app).await?;
     let sort_field = validate_sort_field(&sort)?;
@@ -273,12 +273,13 @@ pub async fn nexus_search_mods(
     if let Some(errors) = value.get("errors") {
         return Err(format!("nexus graphql error: {errors}"));
     }
-    value
+    let mods = value
         .get("data")
         .and_then(|d| d.get("mods"))
         .cloned()
-        .map(crate::commands::api::Json)
-        .ok_or_else(|| "nexus: malformed graphql response".to_string())
+        .ok_or_else(|| "nexus: malformed graphql response".to_string())?;
+    let page = offset.unwrap_or(0) / PAGE_SIZE + 1;
+    crate::commands::domain::parse_nexus_page(mods, page as i64, PAGE_SIZE as i64)
 }
 
 #[cfg(test)]

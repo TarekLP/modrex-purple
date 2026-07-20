@@ -216,11 +216,8 @@ export const api = {
         query: string,
         sort: string,
         offset?: number
-    ): Promise<{ totalCount: number; nodes: unknown[] }> {
-        return commands.nexusSearchMods(gameId, query, sort, offset ?? null) as Promise<{
-            totalCount: number
-            nodes: unknown[]
-        }>
+    ): Promise<Paginated<ModSummary>> {
+        return commands.nexusSearchMods(gameId, query, sort, offset ?? null)
     },
 
     // ── Analytics ────────────────────────────────────────────────────────────────
