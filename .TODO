@@ -246,6 +246,50 @@ version string, only an update timestamp; mod.io has its own dependency model).
   never "refresh all 300 installed mods on focus".
 - Migration path: do it source-by-source behind the same IPC commands rather than
   a big-bang rewrite; modworkshop first, then the nexus module.
+
+### Atomic parts (each is one commit, each leaves main shippable)
+
+Sequenced so the reversible, invisible work lands first and the one user-visible
+change lands last. Note CI runs -D warnings, so a part that only ADDS types with no
+consumer fails on dead_code - every part must include its first consumer.
+
+- P1 SourceCapabilities descriptor. What each source supports (categories, sort
+  options, tags, batch metadata, direct download vs handoff, auth required),
+  exposed over IPC, consumed by BrowsePage to gate its filter row. Touches no wire
+  type, so it locks in no domain-model decisions, and it is the thing that later
+  lets one BrowsePage serve both sources.
+- P2 Domain types + modworkshop LIST path. ModSummary/SourceRef in Rust;
+  `list_mods` returns a typed Paginated<ModSummary> instead of Json. BrowsePage's
+  grid reads the neutral shape.
+- P3 modworkshop DETAIL path. ModDetail/DownloadableFile; `get_mod`,
+  `list_mod_files`, `list_mod_links` typed. ModDetailPage and its tabs adapt. The
+  largest renderer diff of the chain - do NOT combine with P2.
+- P4 nexus.rs parses into the same domain types. Nexus stops being a separate
+  shape; still its own page at this point.
+- P5 One BrowsePage with a SOURCE SELECTOR, driven by P1's capabilities. Deletes
+  NexusBrowsePage. USER-VISIBLE - do not land this half-done before a release.
+  Owner decision 2026-07-20: results are NOT merged across sources. One source is
+  active at a time and each keeps its own search engine, because the two cannot be
+  blended coherently - sort options differ per engine, relevance scores are not
+  comparable across engines, and two independent page cursors cannot produce one
+  stable page 2. The selector is a list of sources (modworkshop default, Nexus
+  opt-in) so a third source is one entry, not a third page.
+  Constraints:
+  - Sources are PER GAME. Only pd3 and cb have `nexusDomain` in GAME_SPECS; pd2,
+    pdth and raid are modworkshop-only, so on 3 of 5 games the list has exactly one
+    entry and must render as nothing rather than a one-choice control.
+  - Search state (query, sort, page, filters) is per source and must NOT carry
+    across a switch - the same reason results are not merged applies to state.
+  - Nexus requires OAuth. Selecting it while signed out shows a sign-in prompt in
+    place of the grid, not an empty result set.
+- P6 updateStatus enum replacing the magic "unknown"/"outdated" version strings.
+- P7 Source-qualify the renderer cache keys (mod/files/links/installedMeta,
+  browse, thumbnails). Trigger is P5: before it, only modworkshop data is cached.
+- P8 Remote ids become strings across the renderer, and install_nexus_download
+  stops writing the legacy id = -(nexus_mod_id) values.
+
+Scope warning: P1-P8 is multi-week. P1-P4 are invisible and individually
+shippable; P5 is the first part a user would notice.
 - Absorbed from source-identity-refactor (done 2026-07-19, see its entry):
   - Replace the magic version strings "unknown"/"outdated" with an explicit
     updateStatus enum - per-source version semantics (Nexus semverish, Steam

@@ -11,6 +11,7 @@ use tauri::AppHandle;
 
 use crate::commands::api::{http_client, parse_remaining_header, user_agent, TokenBucket};
 use crate::commands::nexus_oauth;
+use crate::commands::sources;
 
 const BASE: &str = "https://api.nexusmods.com/v1";
 const GRAPHQL_BASE: &str = "https://api.nexusmods.com/v2/graphql";
@@ -36,24 +37,18 @@ fn rate_limiter() -> &'static Mutex<TokenBucket> {
     RATE_LIMITER.get_or_init(|| Mutex::new(TokenBucket::new(RATE_BURST, RATE_PER_SEC)))
 }
 
-// Only the two games Modrex actually installs to today are wired up — an
-// unsupported id is a real error, not a silent fallback to a default game.
+// Which games Nexus serves, and the domain slug it knows each by, live in the source
+// registry. An unsupported id is a real error, not a silent fallback to a default game.
 pub(crate) fn nexus_domain(game_id: &str) -> Result<&'static str, String> {
-    match game_id {
-        "pd3" => Ok("payday3"),
-        "cb" => Ok("crimebossrockaycity"),
-        other => Err(format!("nexus: no game domain mapping for '{other}'")),
-    }
+    sources::native_id("nexus", game_id)
+        .ok_or_else(|| format!("nexus: no game domain mapping for '{game_id}'"))
 }
 
 // Reverse of nexus_domain, for nxm:// links where Nexus hands us its own
 // domain and we need the internal game_id to route the download.
 pub(crate) fn game_id_for_domain(domain: &str) -> Result<&'static str, String> {
-    match domain {
-        "payday3" => Ok("pd3"),
-        "crimebossrockaycity" => Ok("cb"),
-        other => Err(format!("nexus: no game id mapping for domain '{other}'")),
-    }
+    sources::game_id_for_native("nexus", domain)
+        .ok_or_else(|| format!("nexus: no game id mapping for domain '{domain}'"))
 }
 
 async fn nexus_headers(app: &AppHandle) -> Result<Vec<(&'static str, String)>, String> {

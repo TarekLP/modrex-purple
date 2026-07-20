@@ -39,6 +39,7 @@ jobs:
             - run: pnpm check-commands
             - run: pnpm check-csp
             - run: pnpm check-games
+            - run: pnpm check-sources
             - run: pnpm check-updater
             - run: pnpm typecheck
             - run: cargo clippy --all-targets -- -D warnings

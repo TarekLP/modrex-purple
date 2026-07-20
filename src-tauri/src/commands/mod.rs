@@ -14,6 +14,7 @@ pub mod nexus;
 pub mod nexus_oauth;
 pub mod nxm;
 pub mod settings;
+pub mod sources;
 pub mod startup;
 pub mod storage;
 pub mod superblt;
