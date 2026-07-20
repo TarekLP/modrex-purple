@@ -12,6 +12,7 @@ import { Button } from './components/ui/Button'
 import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId, Mod } from '../../shared/types'
 import { GAMES, isGameId } from '../../shared/types'
+import { loadLoaderRegistry } from './loaders'
 import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
@@ -288,6 +289,12 @@ export default function App() {
 
     useEffect(() => {
         reportStartupPhase('interface')
+    }, [])
+
+    // The loader registry backs synchronous lookups in render paths (dep warnings,
+    // loader badges), so it is loaded once here before those pages can be reached.
+    useEffect(() => {
+        void loadLoaderRegistry()
     }, [])
 
     useEffect(() => {

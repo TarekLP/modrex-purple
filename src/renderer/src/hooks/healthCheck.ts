@@ -1,6 +1,7 @@
 import { api } from '../api'
 import { getCachedMod } from '../modCache'
-import { collectDeps, missingRequiredDeps, offsiteDepHost, buildLoaderModIds } from '../deps'
+import { collectDeps, missingRequiredDeps, offsiteDepHost } from '../deps'
+import { buildLoaderModIds, loadersForGame, type LoaderState } from '../loaders'
 import type { GameId, InstalledMod } from '../../../shared/types'
 
 export interface MissingDepRef {
@@ -15,55 +16,29 @@ export interface HealthItem {
     missingDeps?: MissingDepRef[]
 }
 
+/**
+ * Presence-checks every loader the game has, up front: unlike the per-install path this
+ * has no single mod's dep list to narrow by, since it reports across the whole pack.
+ *
+ * bltOk is separate because SuperBLT has no modworkshop page and is matched by the
+ * offsite name heuristic instead of a dependency id. It applies to PD2 only: the check
+ * looks for WSOCK32/IPHLPAPI/libsuperblt_loader.so, which a PDTH install never has (its
+ * loaders are PDTHModOverrides' DINPUT8.dll and DAHM's lightfx.dll), so running it there
+ * returned a definitive false for every user and flagged every blt-named offsite dep as
+ * missing. Left null for other games, which leaves those deps unreported.
+ */
 async function checkLoaders(
     gamePath: string,
     gameId: GameId
 ): Promise<{ bltOk: boolean | null; loaderModIds: Record<number, boolean | null> }> {
-    if (gameId === 'pd2') {
-        return { bltOk: await api.checkSuperblt(gamePath), loaderModIds: {} }
-    }
-    if (gameId === 'pdth') {
-        // No SuperBLT check here: check_superblt only looks for WSOCK32/IPHLPAPI/
-        // libsuperblt_loader.so, which a PDTH install never has (its loaders are
-        // PDTHModOverrides' DINPUT8.dll and DAHM's lightfx.dll). Calling it returned a
-        // definitive false for every PDTH user and flagged every blt-named offsite dep
-        // as missing. bltOk stays null, so those deps are left unreported — the same
-        // thing resolveDepCheck and ModDetailPage already do for this game.
-        const [pdthOk, dahmOk] = await Promise.all([
-            api.checkPdthOverrides(gamePath),
-            api.checkDahm(gamePath),
-        ])
-        return {
-            bltOk: null,
-            loaderModIds: buildLoaderModIds('pdth', {
-                pdthOverridesInstalled: pdthOk,
-                dahmInstalled: dahmOk,
-                ue4ssInstalled: null,
-                raidSuperbltInstalled: null,
-            }),
-        }
-    }
-    if (gameId === 'raid') {
-        const sbltOk = await api.checkRaidSuperblt(gamePath)
-        return {
-            bltOk: sbltOk,
-            loaderModIds: buildLoaderModIds('raid', {
-                pdthOverridesInstalled: null,
-                dahmInstalled: null,
-                ue4ssInstalled: null,
-                raidSuperbltInstalled: sbltOk,
-            }),
-        }
-    }
-    const ue4ssOk = await api.checkUe4ss(gamePath, gameId)
+    const loaders = loadersForGame(gameId)
+    const states = await Promise.all(
+        loaders.map(async (l) => [l.id, await api.checkLoader(l.id, gameId, gamePath)] as const)
+    )
+    const state: LoaderState = Object.fromEntries(states)
     return {
-        bltOk: null,
-        loaderModIds: buildLoaderModIds(gameId, {
-            pdthOverridesInstalled: null,
-            dahmInstalled: null,
-            ue4ssInstalled: ue4ssOk,
-            raidSuperbltInstalled: null,
-        }),
+        bltOk: gameId === 'pd2' ? (state.superblt ?? null) : null,
+        loaderModIds: buildLoaderModIds(gameId, state),
     }
 }
 

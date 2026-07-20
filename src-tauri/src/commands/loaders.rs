@@ -1,22 +1,22 @@
 //! The one table a mod loader registers in. A loader is a hook installed next to the
 //! game (never tracked in state.json, never uninstallable through Modrex), so all five
 //! differ only in how presence is detected and how the package lands on disk - this
-//! captures both as data, so the per-loader modules are thin command pairs over it.
-//! The renderer still carries its own loader-id tables in deps.ts; folding those in
-//! (and replacing the five command pairs with generic ones) is the next step.
+//! captures both as data. The generic check_loader/install_loader commands dispatch over
+//! it and list_loaders hands it to the renderer, so a new game's loader is one entry here
+//! with no new command pair and no renderer edit.
 
 use tauri::AppHandle;
 
 use crate::commands::download::download_file;
 use crate::commands::mods::{extract_archive_flat, extract_entry};
 
-/// How a loader's presence is detected. Both variants read the disk only — a loader is
+/// How a loader's presence is detected. Both variants read the disk only: a loader is
 /// never recorded in state.json, so the files themselves are the sole install signal.
 pub enum DetectStrategy {
     /// Any one of these files sitting in the game root means the loader is installed.
     RootFiles(&'static [&'static str]),
     /// UE4SS resolves its proxy DLL and destination per (game, launcher) and lives in a
-    /// nested Binaries dir, so detection delegates to `ue4ss`'s verified descriptor table
+    /// nested Binaries dir, so detection delegates to ue4ss's verified descriptor table
     /// rather than flattening into a root-file list.
     Ue4ssProxy,
 }
@@ -170,12 +170,17 @@ pub fn check_loader(
     let settings = crate::commands::settings::read_settings(&app);
     let launcher = crate::commands::settings::game_settings(&settings, &game_id)
         .and_then(|gs| gs.launcher.clone());
-    Ok(is_loader_installed(
-        spec,
-        &game_id,
-        &game_path,
-        launcher.as_deref(),
-    ))
+    let installed = is_loader_installed(spec, &game_id, &game_path, launcher.as_deref());
+
+    // PD2's Diesel 3.0 branch has no SuperBLT build, so the DLL being present does not
+    // mean the loader works. Answering that here rather than at one call site keeps every
+    // consumer consistent - when only the dep warning knew, a mod page showed "SuperBLT
+    // installed" while installing the same mod reported it missing.
+    // Temporary; remove with the Diesel 3.0 notice (.TODO: remove-diesel3-notice).
+    if installed && spec.id == "superblt" && crate::commands::superblt::is_diesel3(&game_path) {
+        return Ok(false);
+    }
+    Ok(installed)
 }
 
 #[tauri::command]
@@ -188,7 +193,7 @@ pub async fn install_loader(
     install_loader_package(spec_or_err(&loader_id)?, &app, &game_path).await
 }
 
-/// Whether the loader's files are on disk. `launcher` is only consulted by the UE4SS
+/// Whether the loader's files are on disk. The launcher is only consulted by the UE4SS
 /// descriptor table; root-file loaders ignore it.
 pub fn is_loader_installed(
     spec: &LoaderSpec,
@@ -207,7 +212,7 @@ pub fn is_loader_installed(
     }
 }
 
-/// Downloads a loader package and lays it out per its install strategy. `ViaModFlow`
+/// Downloads a loader package and lays it out per its install strategy. ViaModFlow
 /// loaders have no canonical URL and never reach this path.
 pub async fn install_loader_package(
     spec: &'static LoaderSpec,
@@ -260,6 +265,8 @@ pub async fn install_loader_package(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn loader_ids_are_unique() {
@@ -269,10 +276,10 @@ mod tests {
         assert_eq!(ids.len(), LOADER_REGISTRY.len());
     }
 
-    /// Every module that fronts a loader resolves its spec by id at call time, so a
-    /// renamed or dropped entry must fail here rather than at the user's first click.
+    /// The renderer resolves loaders by these ids, so a renamed or dropped entry must
+    /// fail here rather than at the user's first click.
     #[test]
-    fn every_fronted_loader_id_resolves() {
+    fn every_known_loader_id_resolves() {
         for id in [
             "superblt",
             "pdth_overrides",
@@ -282,5 +289,117 @@ mod tests {
         ] {
             assert!(loader_spec(id).is_some(), "{id} is not in LOADER_REGISTRY");
         }
+    }
+
+    /// A modworkshop id must map to exactly one loader - the renderer turns a dependency
+    /// id straight into a loader without disambiguating.
+    #[test]
+    fn modworkshop_ids_do_not_collide_across_loaders() {
+        let mut seen: Vec<i64> = LOADER_REGISTRY
+            .iter()
+            .flat_map(|s| s.modworkshop_ids.iter().copied())
+            .collect();
+        let total = seen.len();
+        seen.sort_unstable();
+        seen.dedup();
+        assert_eq!(seen.len(), total);
+    }
+
+    #[test]
+    fn every_loader_targets_registered_games() {
+        for spec in LOADER_REGISTRY {
+            assert!(!spec.games.is_empty(), "{} lists no games", spec.id);
+            for game in spec.games {
+                assert!(
+                    crate::commands::games::game_spec(game).is_some(),
+                    "{} targets unknown game '{game}'",
+                    spec.id
+                );
+            }
+        }
+    }
+
+    // Detection coverage ported from the per-loader modules this registry replaced.
+    fn detects(loader_id: &str, files: &[&str]) -> bool {
+        let tmp = TempDir::new().unwrap();
+        for f in files {
+            fs::write(tmp.path().join(f), b"").unwrap();
+        }
+        is_loader_installed(
+            loader_spec(loader_id).unwrap(),
+            "pd2",
+            tmp.path().to_str().unwrap(),
+            None,
+        )
+    }
+
+    #[test]
+    fn superblt_detects_current_legacy_and_linux_loaders() {
+        assert!(detects("superblt", &["WSOCK32.dll"]));
+        assert!(detects("superblt", &["IPHLPAPI.dll"]));
+        assert!(detects("superblt", &["libsuperblt_loader.so"]));
+        assert!(!detects("superblt", &[]));
+    }
+
+    #[test]
+    fn raid_superblt_detects_either_hook_but_has_no_linux_variant() {
+        assert!(detects("raid_superblt", &["WSOCK32.dll"]));
+        assert!(detects("raid_superblt", &["IPHLPAPI.dll"]));
+        assert!(!detects("raid_superblt", &["libsuperblt_loader.so"]));
+    }
+
+    /// DINPUT8.dll is the proxy and the only install signal - the payload DLL alone
+    /// means the loader is not hooked in.
+    #[test]
+    fn pdth_overrides_requires_the_proxy_dll() {
+        assert!(detects("pdth_overrides", &["DINPUT8.dll"]));
+        assert!(!detects("pdth_overrides", &["PDTHModOverrides.dll"]));
+    }
+
+    #[test]
+    fn dahm_detects_its_hook() {
+        assert!(detects("dahm", &["lightfx.dll"]));
+        assert!(!detects("dahm", &["WSOCK32.dll"]));
+    }
+
+    #[test]
+    fn a_directory_named_like_the_loader_does_not_count() {
+        let tmp = TempDir::new().unwrap();
+        fs::create_dir(tmp.path().join("WSOCK32.dll")).unwrap();
+        assert!(!is_loader_installed(
+            loader_spec("superblt").unwrap(),
+            "pd2",
+            tmp.path().to_str().unwrap(),
+            None
+        ));
+    }
+
+    /// The Diesel 3.0 carve-out lives in check_loader, which needs an AppHandle; assert
+    /// the raw detection stays pure so the override has exactly one home. When only the
+    /// dep warning applied it, a mod page reported SuperBLT installed while installing
+    /// the same mod reported it missing.
+    #[test]
+    fn raw_superblt_detection_ignores_the_diesel3_marker() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(tmp.path().join("WSOCK32.dll"), b"").unwrap();
+        fs::write(tmp.path().join("PAYDAY2.exe"), b"").unwrap();
+        let path = tmp.path().to_str().unwrap();
+        assert!(is_loader_installed(
+            loader_spec("superblt").unwrap(),
+            "pd2",
+            path,
+            None
+        ));
+        assert!(crate::commands::superblt::is_diesel3(path));
+    }
+
+    #[test]
+    fn nonexistent_game_path_is_not_installed() {
+        assert!(!is_loader_installed(
+            loader_spec("superblt").unwrap(),
+            "pd2",
+            "Z:/does/not/exist",
+            None
+        ));
     }
 }

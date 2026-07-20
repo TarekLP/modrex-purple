@@ -10,6 +10,7 @@
         "fileMissing": "File missing",
         "zipArchiveBroken": "Broken archive",
         "modManagerDisabled": "The author has disabled mod manager downloads.",
+        "depNeedsManualInstall": "This dependency's download needs a choice. Open its mod page to install it.",
         "fix": "Fix",
         "reinstall": "Reinstall",
         "loading": "Loading…",

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, ExternalLink } from 'lucide-react'
 import { Button } from '../ui/Button'
 import type { Mod, ModDependency, InstalledMod, GameId } from '../../../../shared/types'
@@ -7,6 +7,7 @@ import { Tooltip } from '../Tooltip'
 import { t } from '../../i18n'
 import { useThumbnail } from '../../hooks/useThumbnail'
 import { isLoaderDep, offsiteDepHost } from '../../deps'
+import { uninstallablePromptMessage } from '../../installSentinels'
 import { api } from '../../api'
 
 export function DepsTab({
@@ -35,6 +36,12 @@ export function DepsTab({
     onOpenDetail?: (modId: number) => void
 }) {
     const hasInstructions = !!(mod.instructs_template?.instructions || mod.instructions)
+    // Checked once for the whole list rather than per row.
+    const [bltDiesel3, setBltDiesel3] = useState(false)
+    useEffect(() => {
+        if (activeGame !== 'pd2' || !gamePath) return
+        api.isPd2Diesel3(gamePath).then(setBltDiesel3)
+    }, [activeGame, gamePath])
 
     return (
         <div className="flex flex-col gap-8">
@@ -53,6 +60,7 @@ export function DepsTab({
                                 gamePath={gamePath}
                                 activeGame={activeGame}
                                 loaderInstalled={loaderInstalled}
+                                bltDiesel3={bltDiesel3}
                                 loaderModIds={loaderModIds}
                                 onInstallLoader={onInstallLoader}
                                 onRefreshInstalled={onRefreshInstalled}
@@ -89,6 +97,7 @@ function DepRow({
     gamePath,
     activeGame,
     loaderInstalled,
+    bltDiesel3,
     loaderModIds,
     onInstallLoader,
     onRefreshInstalled,
@@ -100,18 +109,27 @@ function DepRow({
     gamePath: string | null
     activeGame: GameId
     loaderInstalled: boolean | null
+    bltDiesel3: boolean
     loaderModIds: Record<number, boolean | null>
     onInstallLoader?: (modId: number | null) => Promise<void>
     onRefreshInstalled: () => Promise<void>
     onOpenDetail?: (modId: number) => void
 }) {
     const [installing, setInstalling] = useState(false)
+    // A dependency row has no picker UI, so an outcome needing a choice is surfaced here
+    // rather than silently doing nothing.
+    const [installNote, setInstallNote] = useState<string | null>(null)
     const thumbSrc = useThumbnail(dep.mod?.thumbnail?.file)
     const { mod } = dep
     if (!mod) {
         if (!dep.url) return null
         const status = isLoaderDep(dep) ? loaderInstalled : null
-        const canInstallLoader = status === false && !!gamePath && !!onInstallLoader
+        // On PD2's Diesel 3.0 branch official SuperBLT does not work, so check_loader can
+        // only ever answer false - offering Install would install a DLL that stays
+        // unusable. Point at the community build instead, mirroring DepsWarningModal.
+        const bltUnsupported = isLoaderDep(dep) && bltDiesel3
+        const canInstallLoader =
+            status === false && !bltUnsupported && !!gamePath && !!onInstallLoader
 
         async function handleInstallLoader(e: React.MouseEvent) {
             e.stopPropagation()
@@ -136,8 +154,8 @@ function DepRow({
                         {dep.name ?? offsiteDepHost(dep.url)}
                     </div>
                     <div className="text-xs text-text-subtle mt-0.5">
-                        {offsiteDepHost(dep.url)}
-                        {status !== null && (
+                        {bltUnsupported ? t('depsWarning.bltDiesel3Note') : offsiteDepHost(dep.url)}
+                        {status !== null && !bltUnsupported && (
                             <>
                                 {' · '}
                                 <span className={status ? 'text-success-text' : 'text-danger-text'}>
@@ -160,7 +178,19 @@ function DepRow({
                 >
                     {dep.optional ? t('detail.deps.badgeOptional') : t('detail.deps.badgeRequired')}
                 </span>
-                {canInstallLoader ? (
+                {bltUnsupported ? (
+                    <Button
+                        variant="accent"
+                        size="md"
+                        onClick={() =>
+                            api.openExternal('https://github.com/diesel-modding/PAYDAY2-SuperBLT')
+                        }
+                        className="shrink-0"
+                    >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        {t('depsWarning.bltDiesel3GitHub')}
+                    </Button>
+                ) : canInstallLoader ? (
                     <>
                         <Button
                             variant="accent"
@@ -208,13 +238,19 @@ function DepRow({
         e.stopPropagation()
         if (!gamePath) return
         setInstalling(true)
+        setInstallNote(null)
         try {
             if (isHostedLoader && onInstallLoader) {
                 // Loaders install via a dedicated command (extraction to game root/Binaries),
                 // never the normal mod-install flow.
                 await onInstallLoader(mod!.id)
             } else {
-                await api.installMod(mod!.id, gamePath, activeGame)
+                const outcome = await api.installMod(mod!.id, gamePath, activeGame)
+                const blocked = uninstallablePromptMessage(outcome)
+                if (blocked) {
+                    setInstallNote(blocked)
+                    return
+                }
                 await onRefreshInstalled()
             }
         } finally {
@@ -257,6 +293,7 @@ function DepRow({
                               : t('detail.deps.statusMissing')}
                     </span>
                 </div>
+                {installNote && <div className="text-xs text-warning mt-0.5">{installNote}</div>}
             </div>
             <span
                 className={`text-xs px-2 py-0.5 rounded-full border shrink-0 ${

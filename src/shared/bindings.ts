@@ -95,28 +95,7 @@ export const commands = {
 	openModsFolder: (gameId: string) => __TAURI_INVOKE<null>("open_mods_folder", { gameId }),
 	listModFolders: (gameId: string) => __TAURI_INVOKE<ModFolderInfo[]>("list_mod_folders", { gameId }),
 	openModFolder: (gameId: string, tag: string) => __TAURI_INVOKE<null>("open_mod_folder", { gameId, tag }),
-	checkSuperblt: (gamePath: string) => __TAURI_INVOKE<boolean>("check_superblt", { gamePath }),
-	/**
-	 *  Installs the loader DLL into the game root. The basemod (mods/base) is
-	 *  fetched by the loader itself: on next launch it prompts the user to
-	 *  download it if missing.
-	 */
-	installSuperblt: (gamePath: string) => __TAURI_INVOKE<null>("install_superblt", { gamePath }),
 	isPd2Diesel3: (gamePath: string) => __TAURI_INVOKE<boolean>("is_pd2_diesel3", { gamePath }),
-	checkPdthOverrides: (gamePath: string) => __TAURI_INVOKE<boolean>("check_pdth_overrides", { gamePath }),
-	installPdthOverrides: (gamePath: string) => __TAURI_INVOKE<null>("install_pdth_overrides", { gamePath }),
-	checkDahm: (gamePath: string) => __TAURI_INVOKE<boolean>("check_dahm", { gamePath }),
-	/**  Downloads the DAHM ZIP and extracts all entries flat into the game root. */
-	installDahm: (gamePath: string) => __TAURI_INVOKE<null>("install_dahm", { gamePath }),
-	checkRaidSuperblt: (gamePath: string) => __TAURI_INVOKE<boolean>("check_raid_superblt", { gamePath }),
-	/**
-	 *  Downloads the RAID-SuperBLT zip and extracts it whole into the game root.
-	 *  Unlike PD2's SuperBLT (DLL-only zip, basemod fetched by the loader on next
-	 *  launch), the RAID zip ships the basemod inside, so a full extraction is
-	 *  the complete install.
-	 */
-	installRaidSuperblt: (gamePath: string) => __TAURI_INVOKE<null>("install_raid_superblt", { gamePath }),
-	checkUe4ss: (gamePath: string, gameId: string) => __TAURI_INVOKE<boolean>("check_ue4ss", { gamePath, gameId }),
 	/**
 	 *  The whole registry, for the renderer to map dependency ids to loaders without
 	 *  restating the tables.

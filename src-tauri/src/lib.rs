@@ -77,17 +77,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::open_mods_folder,
             commands::mods::list_mod_folders,
             commands::mods::open_mod_folder,
-            // superblt / pdth_overrides / dahm
-            commands::superblt::check_superblt,
-            commands::superblt::install_superblt,
+            // loaders (registry-driven) plus the PD2 Diesel 3.0 compatibility probe
             commands::superblt::is_pd2_diesel3,
-            commands::pdth_overrides::check_pdth_overrides,
-            commands::pdth_overrides::install_pdth_overrides,
-            commands::dahm::check_dahm,
-            commands::dahm::install_dahm,
-            commands::raid_superblt::check_raid_superblt,
-            commands::raid_superblt::install_raid_superblt,
-            commands::ue4ss::check_ue4ss,
             commands::loaders::list_loaders,
             commands::loaders::check_loader,
             commands::loaders::install_loader,

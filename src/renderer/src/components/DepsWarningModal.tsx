@@ -6,6 +6,7 @@ import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { Dialog } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
+import { uninstallablePromptMessage } from '../installSentinels'
 import { getCachedMod } from '../modCache'
 import { isLoaderDep, offsiteDepHost } from '../deps'
 
@@ -82,7 +83,12 @@ export function DepsWarningModal({
                 api.openExternal(fullMod.download.url)
                 return
             }
-            await api.installMod(dep.mod.id, gamePath, gameId)
+            const outcome = await api.installMod(dep.mod.id, gamePath, gameId)
+            const blocked = uninstallablePromptMessage(outcome)
+            if (blocked) {
+                setInstallError(blocked)
+                return
+            }
             await onRefreshInstalled()
         } finally {
             setInstallingDeps((prev) => ({ ...prev, [dep.mod!.id]: false }))

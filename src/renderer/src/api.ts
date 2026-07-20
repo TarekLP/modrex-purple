@@ -462,39 +462,8 @@ export const api = {
         await commands.deleteFolder(gamePath, folderId, gameId)
     },
 
-    // ── SuperBLT ───────────────────────────────────────────────────────────────
-    checkSuperblt(gamePath: string): Promise<boolean> {
-        return commands.checkSuperblt(gamePath)
-    },
-    async installSuperblt(gamePath: string): Promise<void> {
-        await commands.installSuperblt(gamePath)
-    },
     isPd2Diesel3(gamePath: string): Promise<boolean> {
         return commands.isPd2Diesel3(gamePath)
-    },
-
-    // ── PDTHModOverrides ───────────────────────────────────────────────────────
-    checkPdthOverrides(gamePath: string): Promise<boolean> {
-        return commands.checkPdthOverrides(gamePath)
-    },
-    async installPdthOverrides(gamePath: string): Promise<void> {
-        await commands.installPdthOverrides(gamePath)
-    },
-
-    // ── DAHM ───────────────────────────────────────────────────────────────────
-    checkDahm(gamePath: string): Promise<boolean> {
-        return commands.checkDahm(gamePath)
-    },
-    async installDahm(gamePath: string): Promise<void> {
-        await commands.installDahm(gamePath)
-    },
-
-    // ── RAID-SuperBLT ──────────────────────────────────────────────────────────
-    checkRaidSuperblt(gamePath: string): Promise<boolean> {
-        return commands.checkRaidSuperblt(gamePath)
-    },
-    async installRaidSuperblt(gamePath: string): Promise<void> {
-        await commands.installRaidSuperblt(gamePath)
     },
 
     // ── Mod loaders (registry-driven) ──────────────────────────────────────────
@@ -509,11 +478,6 @@ export const api = {
     },
     async installLoader(loaderId: string, gamePath: string): Promise<void> {
         await commands.installLoader(loaderId, gamePath)
-    },
-
-    // ── UE4SS ────────────────────────────────────────────────────────────────────
-    checkUe4ss(gamePath: string, gameId: string): Promise<boolean> {
-        return commands.checkUe4ss(gamePath, gameId)
     },
 
     // ── Launchers & system ─────────────────────────────────────────────────────

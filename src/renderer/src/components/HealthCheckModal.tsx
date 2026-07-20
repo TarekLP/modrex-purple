@@ -10,6 +10,7 @@ import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
 import type { InstalledMod, Mod } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
+import { uninstallablePromptMessage } from '../installSentinels'
 
 interface LocalHealthItem {
     id: number
@@ -129,7 +130,12 @@ export function HealthCheckModal({
         setInstallingDepId(depId)
         setDepInstallError(null)
         try {
-            await api.installMod(depId, gamePath, gameId)
+            const outcome = await api.installMod(depId, gamePath, gameId)
+            const blocked = uninstallablePromptMessage(outcome)
+            if (blocked) {
+                setDepInstallError(blocked)
+                return
+            }
             await onDepInstalled()
         } catch {
             setDepInstallError(t('installed.health.installDepFailed'))
@@ -153,17 +159,19 @@ export function HealthCheckModal({
         setInstallingAll(true)
         setDepInstallError(null)
         let hadError = false
+        let blockedMessage: string | null = null
         for (const depId of uniqueDepIds) {
             try {
-                await api.installMod(depId, gamePath, gameId)
+                const outcome = await api.installMod(depId, gamePath, gameId)
+                blockedMessage = blockedMessage ?? uninstallablePromptMessage(outcome)
             } catch {
                 hadError = true
             }
         }
         await onDepInstalled().catch(() => {})
         setInstallingAll(false)
-        if (hadError) {
-            setDepInstallError(t('installed.health.installDepFailed'))
+        if (hadError || blockedMessage) {
+            setDepInstallError(hadError ? t('installed.health.installDepFailed') : blockedMessage)
             return
         }
         onClose()

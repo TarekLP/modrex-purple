@@ -1,9 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use tauri::AppHandle;
-
 use crate::commands::mods::extract_archive_flat;
-use crate::commands::settings::{game_settings, read_settings};
 
 /// UE4SS is a community-forked Lua/native modding framework, unlike SuperBLT/DAHM
 /// (one maintainer, one stable build) — each game's UE4SS build is a separately
@@ -86,14 +83,6 @@ pub(crate) fn install_loader(
     };
     let dest = binaries_dir(game_path, &descriptor);
     extract_archive_flat(zip_path, &dest)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn check_ue4ss(app: AppHandle, game_path: String, game_id: String) -> bool {
-    let settings = read_settings(&app);
-    let launcher = game_settings(&settings, &game_id).and_then(|gs| gs.launcher.clone());
-    is_installed(&game_id, &game_path, launcher.as_deref())
 }
 
 #[cfg(test)]

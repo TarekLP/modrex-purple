@@ -40,16 +40,8 @@ import { handleInstallOutcome } from '../installSentinels'
 import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
 import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
-import {
-    isUe4ssLoaderId,
-    missingRequiredDeps,
-    ue4ssLoaderIdsFor,
-    buildLoaderModIds,
-    loaderIdsForGame,
-    PDTH_OVERRIDES_ID,
-    DAHM_ID,
-    RAID_SUPERBLT_ID,
-} from '../deps'
+import { missingRequiredDeps } from '../deps'
+import { buildLoaderModIds, loaderForModId, loadersForGame, type LoaderState } from '../loaders'
 import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
 import { api } from '../api'
@@ -265,10 +257,8 @@ export function BrowsePage({
     const scrollRef = useRef<HTMLDivElement>(null)
     const fetchIdRef = useRef(0)
     const [lastMeta, setLastMeta] = useState<{ last_page: number; total: number } | null>(null)
-    const [pdthOverridesInstalled, setPdthOverridesInstalled] = useState<boolean | null>(null)
-    const [dahmInstalled, setDahmInstalled] = useState<boolean | null>(null)
-    const [ue4ssInstalled, setUe4ssInstalled] = useState<boolean | null>(null)
-    const [raidSuperbltInstalled, setRaidSuperbltInstalled] = useState<boolean | null>(null)
+    // Presence state per loader id, from the registry (loaders.ts).
+    const [loaderState, setLoaderState] = useState<LoaderState>({})
 
     useEffect(() => {
         return api.onDownloadProgress(({ download_id, downloaded, total }) => {
@@ -297,22 +287,11 @@ export function BrowsePage({
     useEffect(() => {
         if (!gamePath || !isActive) return
         let cancelled = false
-        if (activeGame === 'pdth') {
-            api.checkPdthOverrides(gamePath).then((v) => {
-                if (!cancelled) setPdthOverridesInstalled(v)
-            })
-            api.checkDahm(gamePath).then((v) => {
-                if (!cancelled) setDahmInstalled(v)
-            })
-        }
-        if (activeGame === 'cb' || activeGame === 'pd3') {
-            api.checkUe4ss(gamePath, activeGame).then((v) => {
-                if (!cancelled) setUe4ssInstalled(v)
-            })
-        }
-        if (activeGame === 'raid') {
-            api.checkRaidSuperblt(gamePath).then((v) => {
-                if (!cancelled) setRaidSuperbltInstalled(v)
+        // SuperBLT is excluded: it has no mod page, so no browse card can show its state.
+        for (const loader of loadersForGame(activeGame)) {
+            if (loader.modworkshopIds.length === 0) continue
+            api.checkLoader(loader.id, activeGame, gamePath).then((v) => {
+                if (!cancelled) setLoaderState((prev) => ({ ...prev, [loader.id]: v }))
             })
         }
         return () => {
@@ -481,19 +460,26 @@ export function BrowsePage({
         })
     }, [])
 
+    // Re-check after installing rather than assuming success: a loader can be present on
+    // disk and still unusable (SuperBLT on PD2's Diesel 3.0 branch), and an optimistic
+    // true made the card claim Installed while the install flow still reported the
+    // dependency missing.
+    const refreshLoaderFlag = useCallback(
+        async (id: string) => {
+            if (!gamePath) return
+            const ok = await api.checkLoader(id, activeGame, gamePath)
+            setLoaderState((prev) => ({ ...prev, [id]: ok }))
+        },
+        [gamePath, activeGame]
+    )
+
     const doInstall = useCallback(
         async (modId: number) => {
             if (!gamePath) return
-            const isUe4ssLoader = isUe4ssLoaderId(activeGame, modId)
-            if (activeGame === 'pdth' && modId === PDTH_OVERRIDES_ID) {
-                await api.installPdthOverrides(gamePath)
-                setPdthOverridesInstalled(true)
-            } else if (activeGame === 'pdth' && modId === DAHM_ID) {
-                await api.installDahm(gamePath)
-                setDahmInstalled(true)
-            } else if (activeGame === 'raid' && modId === RAID_SUPERBLT_ID) {
-                await api.installRaidSuperblt(gamePath)
-                setRaidSuperbltInstalled(true)
+            const loader = loaderForModId(activeGame, modId)
+            if (loader && !loader.viaModFlow) {
+                await api.installLoader(loader.id, gamePath)
+                await refreshLoaderFlag(loader.id)
             } else {
                 const outcome = await api.installMod(modId, gamePath, activeGame)
                 if (
@@ -506,15 +492,14 @@ export function BrowsePage({
                 ) {
                     return
                 }
-                // The loader package isn't tracked in the installed list — its own install
-                // (routed server-side via the UE4SS_LOADER sentinel) succeeds without an error,
-                // so a successful call here is the confirmation; mirrors the optimistic
-                // pdthOverrides/dahm updates above instead of waiting on a fresh presence check.
-                if (isUe4ssLoader) setUe4ssInstalled(true)
+                // A viaModFlow loader is not tracked in the installed list; its install is
+                // routed server-side via the UE4SS_LOADER sentinel, so re-read presence to
+                // learn whether it actually landed.
+                if (loader) await refreshLoaderFlag(loader.id)
             }
             await onRefreshInstalled()
         },
-        [gamePath, activeGame, onRefreshInstalled]
+        [gamePath, activeGame, onRefreshInstalled, refreshLoaderFlag]
     )
 
     const handleInstall = useCallback(
@@ -540,13 +525,7 @@ export function BrowsePage({
                     gamePath,
                     activeGame,
                     installed,
-                    {
-                        loaderInstalled: null,
-                        ue4ssInstalled,
-                        pdthOverridesInstalled,
-                        dahmInstalled,
-                        raidSuperbltInstalled,
-                    }
+                    loaderState
                 )
                 if (depResult) {
                     removeInstalling(modId)
@@ -588,10 +567,7 @@ export function BrowsePage({
             gamePath,
             activeGame,
             installed,
-            pdthOverridesInstalled,
-            dahmInstalled,
-            ue4ssInstalled,
-            raidSuperbltInstalled,
+            loaderState,
             doInstall,
             runCrimeBossInstall,
             addInstalling,
@@ -657,12 +633,7 @@ export function BrowsePage({
         return map
     }, [installed])
 
-    const loaderModIds = buildLoaderModIds(activeGame, {
-        pdthOverridesInstalled,
-        dahmInstalled,
-        ue4ssInstalled,
-        raidSuperbltInstalled,
-    })
+    const loaderModIds = buildLoaderModIds(activeGame, loaderState)
     const missingDepsList = depsWarning
         ? missingRequiredDeps(
               depsWarning.allDeps,
@@ -751,28 +722,26 @@ export function BrowsePage({
                     missingRequired={missingDepsList}
                     gamePath={gamePath}
                     gameId={activeGame}
-                    loaderModIds={loaderIdsForGame(activeGame)}
+                    loaderModIds={loadersForGame(activeGame).flatMap((l) => l.modworkshopIds)}
                     onInstallLoader={async (loaderModId) => {
                         if (!gamePath) return
+                        const loader =
+                            loaderModId === null
+                                ? undefined
+                                : loaderForModId(activeGame, loaderModId)
                         try {
-                            if (loaderModId === PDTH_OVERRIDES_ID) {
-                                await api.installPdthOverrides(gamePath)
-                                setPdthOverridesInstalled(true)
-                            } else if (loaderModId === DAHM_ID) {
-                                await api.installDahm(gamePath)
-                                setDahmInstalled(true)
-                            } else if (loaderModId === RAID_SUPERBLT_ID) {
-                                await api.installRaidSuperblt(gamePath)
-                                setRaidSuperbltInstalled(true)
-                            } else if (
-                                loaderModId !== null &&
-                                isUe4ssLoaderId(activeGame, loaderModId)
-                            ) {
-                                await api.installMod(loaderModId, gamePath, activeGame)
-                                setUe4ssInstalled(true)
+                            if (loader?.viaModFlow) {
+                                await api.installMod(loaderModId!, gamePath, activeGame)
+                                await refreshLoaderFlag(loader.id)
+                            } else if (loader) {
+                                await api.installLoader(loader.id, gamePath)
+                                await refreshLoaderFlag(loader.id)
                             } else {
-                                await api.installSuperblt(gamePath)
-                                setDepsWarning((w) => (w ? { ...w, bltLoaderInstalled: true } : w))
+                                // No mod page behind this dep: the offsite BLT loader.
+                                await api.installLoader('superblt', gamePath)
+                                const ok = await api.checkLoader('superblt', activeGame, gamePath)
+                                setLoaderState((prev) => ({ ...prev, superblt: ok }))
+                                setDepsWarning((w) => (w ? { ...w, bltLoaderInstalled: ok } : w))
                             }
                         } catch (e) {
                             setError(String(e))
@@ -869,12 +838,11 @@ export function BrowsePage({
                     installingMods={installingMods}
                     downloadMap={downloadMap}
                     loaderInstalledIds={
-                        new Set([
-                            ...(pdthOverridesInstalled ? [PDTH_OVERRIDES_ID] : []),
-                            ...(dahmInstalled ? [DAHM_ID] : []),
-                            ...(ue4ssInstalled ? ue4ssLoaderIdsFor(activeGame) : []),
-                            ...(raidSuperbltInstalled ? [RAID_SUPERBLT_ID] : []),
-                        ])
+                        new Set(
+                            loadersForGame(activeGame)
+                                .filter((l) => loaderState[l.id])
+                                .flatMap((l) => l.modworkshopIds)
+                        )
                     }
                     onOpen={onOpenDetail}
                     onPrefetch={handlePrefetch}

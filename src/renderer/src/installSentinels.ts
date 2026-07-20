@@ -1,4 +1,5 @@
 import type { InstallOutcome } from './api'
+import { t } from './i18n'
 import type { ZipMultiPakPayload } from './components/ZipPickerModal'
 import type { HostPackPayload } from './components/HostPackModal'
 import type { CbFlatArchivePayload } from './components/CrimeBossFlatArchiveModal'
@@ -27,6 +28,17 @@ export interface InstallSentinelHandlers {
  * mod context (modId, modName, ...) before it reaches the renderer, so the cast to
  * the modal-facing payload types is sound.
  */
+/**
+ * For install entry points that have no picker UI of their own: dependency rows in
+ * DepsTab, DepsWarningModal and HealthCheckModal. A prompt outcome there means the
+ * archive needs a manual choice they cannot offer, so they must say so rather than
+ * discard the outcome and appear to do nothing. Returns null when the install
+ * completed. The dependency's own mod page has the full flow.
+ */
+export function uninstallablePromptMessage(outcome: InstallOutcome): string | null {
+    return outcome === 'installed' ? null : t('common.depNeedsManualInstall')
+}
+
 export function handleInstallOutcome(
     outcome: InstallOutcome,
     handlers: InstallSentinelHandlers

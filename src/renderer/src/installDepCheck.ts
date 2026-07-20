@@ -1,23 +1,9 @@
 import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
-import {
-    collectDeps,
-    buildLoaderModIds,
-    missingRequiredDeps,
-    isLoaderDep,
-    isUe4ssLoaderId,
-    PDTH_OVERRIDES_ID,
-    DAHM_ID,
-    RAID_SUPERBLT_ID,
-} from './deps'
+import { collectDeps, missingRequiredDeps, isLoaderDep } from './deps'
+import { buildLoaderModIds, resolveLoaderState, type LoaderState } from './loaders'
 import { api } from './api'
 
-export type LoaderState = {
-    loaderInstalled: boolean | null
-    ue4ssInstalled: boolean | null
-    pdthOverridesInstalled: boolean | null
-    dahmInstalled: boolean | null
-    raidSuperbltInstalled: boolean | null
-}
+export type { LoaderState } from './loaders'
 
 export type DepCheckResult = {
     allDeps: ModDependency[]
@@ -32,7 +18,7 @@ export type DepCheckResult = {
  * not yet dismissed). Returns null when the install can proceed (no missing
  * deps, or already session/permanently dismissed). Also performs inline
  * presence checks for any loader whose state is still unknown (null), so
- * `missingRequiredDeps` always gets a definitive value.
+ * missingRequiredDeps always gets a definitive value.
  */
 export async function resolveDepCheck(
     modId: number,
@@ -46,65 +32,26 @@ export async function resolveDepCheck(
 
     const allDeps = collectDeps(fullMod)
 
-    let bltOk = loaderState.loaderInstalled
-    if (activeGame !== 'pdth' && allDeps.some(isLoaderDep)) {
-        bltOk = await api.checkSuperblt(gamePath)
-        if (bltOk && activeGame === 'pd2' && (await api.isPd2Diesel3(gamePath))) bltOk = false
+    // SuperBLT has no modworkshop page, so it is matched by the offsite name heuristic
+    // rather than a dependency id, and only for the game that actually uses it (PD2;
+    // see isLoaderDep). check_loader already reports it unusable on Diesel 3.0.
+    let bltOk = loaderState.superblt ?? null
+    if (activeGame === 'pd2' && allDeps.some(isLoaderDep)) {
+        bltOk = await api.checkLoader('superblt', activeGame, gamePath)
     }
 
-    let pdthOverridesOk = loaderState.pdthOverridesInstalled
-    if (
-        activeGame === 'pdth' &&
-        pdthOverridesOk === null &&
-        allDeps.some((d) => d.mod?.id === PDTH_OVERRIDES_ID)
-    ) {
-        pdthOverridesOk = await api.checkPdthOverrides(gamePath)
-    }
-
-    let dahmOk = loaderState.dahmInstalled
-    if (activeGame === 'pdth' && dahmOk === null && allDeps.some((d) => d.mod?.id === DAHM_ID)) {
-        dahmOk = await api.checkDahm(gamePath)
-    }
-
-    let ue4ssOk = loaderState.ue4ssInstalled
-    if (
-        ue4ssOk === null &&
-        allDeps.some((d) => d.mod !== null && isUe4ssLoaderId(activeGame, d.mod.id))
-    ) {
-        ue4ssOk = await api.checkUe4ss(gamePath, activeGame)
-    }
-
-    let raidSbltOk = loaderState.raidSuperbltInstalled
-    if (
-        activeGame === 'raid' &&
-        raidSbltOk === null &&
-        allDeps.some((d) => d.mod?.id === RAID_SUPERBLT_ID)
-    ) {
-        raidSbltOk = await api.checkRaidSuperblt(gamePath)
-    }
-
-    const loaderModIds = buildLoaderModIds(activeGame, {
-        pdthOverridesInstalled: pdthOverridesOk,
-        dahmInstalled: dahmOk,
-        ue4ssInstalled: ue4ssOk,
-        raidSuperbltInstalled: raidSbltOk,
+    const depIds = allDeps.flatMap((d) => (d.mod ? [d.mod.id] : []))
+    const resolved = await resolveLoaderState(activeGame, gamePath, depIds, {
+        ...loaderState,
+        superblt: bltOk,
     })
 
+    const loaderModIds = buildLoaderModIds(activeGame, resolved)
     const missingRequired = missingRequiredDeps(allDeps, installed, bltOk, loaderModIds)
     if (missingRequired.length === 0) return null
 
     const s = await api.getSettings()
     if (s.dismissedDepsWarnings?.includes(modId)) return null
 
-    return {
-        allDeps,
-        bltLoaderInstalled: bltOk,
-        loaderState: {
-            loaderInstalled: bltOk,
-            ue4ssInstalled: ue4ssOk,
-            pdthOverridesInstalled: pdthOverridesOk,
-            dahmInstalled: dahmOk,
-            raidSuperbltInstalled: raidSbltOk,
-        },
-    }
+    return { allDeps, bltLoaderInstalled: bltOk, loaderState: resolved }
 }

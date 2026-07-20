@@ -1,6 +1,5 @@
 pub mod analytics;
 pub mod api;
-pub mod dahm;
 pub mod discord;
 pub mod download;
 pub mod games;
@@ -12,8 +11,6 @@ pub mod news;
 pub mod nexus;
 pub mod nexus_oauth;
 pub mod nxm;
-pub mod pdth_overrides;
-pub mod raid_superblt;
 pub mod settings;
 pub mod startup;
 pub mod storage;
