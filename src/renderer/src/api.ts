@@ -126,10 +126,10 @@ export const api = {
         return commands.getMod(id) as Promise<Mod>
     },
     listModFiles(modId: number): Promise<Paginated<ModFile>> {
-        return commands.listModFiles(modId) as Promise<Paginated<ModFile>>
+        return commands.listModFiles(modId)
     },
     listModLinks(modId: number): Promise<Paginated<ModLink>> {
-        return commands.listModLinks(modId) as Promise<Paginated<ModLink>>
+        return commands.listModLinks(modId)
     },
 
     // ── Settings ───────────────────────────────────────────────────────────────

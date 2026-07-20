@@ -1,6 +1,9 @@
 export const SUPPORTED_FORMATS = new Set(['pak', 'zip', '7z', 'rar', 'pdmod'])
 
-export function isUnsupportedFormat(type: string | undefined, downloadUrl?: string): boolean {
+export function isUnsupportedFormat(
+    type: string | null | undefined,
+    downloadUrl?: string | null
+): boolean {
     if (type) return !SUPPORTED_FORMATS.has(type.toLowerCase())
     if (!downloadUrl) return false
     try {

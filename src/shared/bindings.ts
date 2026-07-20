@@ -18,8 +18,8 @@ export const commands = {
 	block_tags: number[] | null,
 } | null) => __TAURI_INVOKE<ModPage>("list_mods", { gameId, params }),
 	getMod: (id: number) => __TAURI_INVOKE<unknown>("get_mod", { id }),
-	listModFiles: (modId: number) => __TAURI_INVOKE<unknown>("list_mod_files", { modId }),
-	listModLinks: (modId: number) => __TAURI_INVOKE<unknown>("list_mod_links", { modId }),
+	listModFiles: (modId: number) => __TAURI_INVOKE<FilePage>("list_mod_files", { modId }),
+	listModLinks: (modId: number) => __TAURI_INVOKE<LinkPage>("list_mod_links", { modId }),
 	listCategories: (gameId: number) => __TAURI_INVOKE<unknown>("list_categories", { gameId }),
 	nexusSearchMods: (gameId: string, query: string, sort: string, offset: number | null) => __TAURI_INVOKE<unknown>("nexus_search_mods", { gameId, query, sort, offset }),
 	nexusOauthStart: () => __TAURI_INVOKE<void>("nexus_oauth_start"),
@@ -173,6 +173,11 @@ export type CbFlatPayload_Serialize = {
 	fileId?: number | null,
 	fileType?: string | null,
 	modVersion?: string | null,
+};
+
+export type FilePage = {
+	data: ModFile[],
+	meta: PageMeta,
 };
 
 export type GameSettings = {
@@ -333,6 +338,11 @@ export type InstalledResponse_Serialize = {
 	modsHidden: boolean,
 };
 
+export type LinkPage = {
+	data: ModLink[],
+	meta: PageMeta,
+};
+
 export type ListModsParams = {
 	query: string | null,
 	limit: number | null,
@@ -372,6 +382,25 @@ export type ModDownload = {
 	url: string | null,
 };
 
+/**
+ *  One downloadable file on a mod. Distinct from ModDownload above, which is the single
+ *  default download a listing carries; a mod can publish many files.
+ */
+export type ModFile = {
+	id: number,
+	name: string,
+	version: string,
+	size: number,
+	type: string | null,
+	download_url: string,
+	url: string | null,
+	image_id: number | null,
+	desc: string | null,
+	label: string | null,
+	downloads: number | null,
+	created_at: string | null,
+};
+
 export type ModFolder = {
 	id: string,
 	diskName: string,
@@ -383,6 +412,22 @@ export type ModFolder = {
 export type ModFolderInfo = {
 	tag: string,
 	labelKey: string,
+};
+
+/**
+ *  An external link a mod lists. Carries url but never download_url/type/size, which is
+ *  what separates it from a hosted file.
+ */
+export type ModLink = {
+	id: number,
+	name: string,
+	url: string,
+	desc: string | null,
+	label: string | null,
+	version: string | null,
+	image_id: number | null,
+	downloads: number | null,
+	created_at: string | null,
 };
 
 export type ModPage = {

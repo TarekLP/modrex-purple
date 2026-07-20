@@ -524,8 +524,8 @@ export function BrowsePage({
                     })
                     return
                 }
-                let checkType: string | undefined
-                let checkUrl: string | undefined
+                let checkType: string | null | undefined
+                let checkUrl: string | null | undefined
                 if (fullMod.download === null) {
                     const files = await getCachedModFiles(modId)
                     if (files.length > 1) {
@@ -536,8 +536,8 @@ export function BrowsePage({
                     checkType = files[0]?.type
                     checkUrl = files[0]?.download_url
                 } else {
-                    checkType = fullMod.download.type ?? undefined
-                    checkUrl = fullMod.download.download_url ?? undefined
+                    checkType = fullMod.download.type
+                    checkUrl = fullMod.download.download_url
                 }
                 if (isUnsupportedFormat(checkType, checkUrl)) {
                     removeInstalling(modId)

@@ -48,11 +48,27 @@ function makeFile(id: number): ModFile {
         size: 100,
         type: 'pak',
         download_url: `https://cdn.example.com/${id}.pak`,
+        url: null,
+        image_id: null,
+        desc: null,
+        label: null,
+        downloads: null,
+        created_at: null,
     }
 }
 
 function makeLink(id: number): ModLink {
-    return { id, name: `link-${id}`, url: `https://example.com/${id}` }
+    return {
+        id,
+        name: `link-${id}`,
+        url: `https://example.com/${id}`,
+        desc: null,
+        label: null,
+        version: null,
+        image_id: null,
+        downloads: null,
+        created_at: null,
+    }
 }
 
 let mockGetMod: ReturnType<typeof vi.fn>

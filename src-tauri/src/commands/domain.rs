@@ -226,6 +226,153 @@ impl From<WireModPage> for ModPage {
     }
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireModFile {
+    id: i64,
+    name: String,
+    version: String,
+    size: i64,
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    download_url: String,
+    url: Option<String>,
+    image_id: Option<i64>,
+    desc: Option<String>,
+    label: Option<String>,
+    downloads: Option<i64>,
+    created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireModLink {
+    id: i64,
+    name: String,
+    url: String,
+    desc: Option<String>,
+    label: Option<String>,
+    version: Option<String>,
+    image_id: Option<i64>,
+    downloads: Option<i64>,
+    created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireFilePage {
+    data: Vec<WireModFile>,
+    meta: WirePageMeta,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireLinkPage {
+    data: Vec<WireModLink>,
+    meta: WirePageMeta,
+}
+
+/// One downloadable file on a mod. Distinct from ModDownload above, which is the single
+/// default download a listing carries; a mod can publish many files.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct ModFile {
+    pub id: i64,
+    pub name: String,
+    pub version: String,
+    pub size: i64,
+    #[serde(rename = "type")]
+    pub kind: Option<String>,
+    pub download_url: String,
+    pub url: Option<String>,
+    pub image_id: Option<i64>,
+    pub desc: Option<String>,
+    pub label: Option<String>,
+    pub downloads: Option<i64>,
+    pub created_at: Option<String>,
+}
+
+/// An external link a mod lists. Carries url but never download_url/type/size, which is
+/// what separates it from a hosted file.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct ModLink {
+    pub id: i64,
+    pub name: String,
+    pub url: String,
+    pub desc: Option<String>,
+    pub label: Option<String>,
+    pub version: Option<String>,
+    pub image_id: Option<i64>,
+    pub downloads: Option<i64>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct FilePage {
+    pub data: Vec<ModFile>,
+    pub meta: PageMeta,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct LinkPage {
+    pub data: Vec<ModLink>,
+    pub meta: PageMeta,
+}
+
+impl From<WireModFile> for ModFile {
+    fn from(w: WireModFile) -> Self {
+        Self {
+            id: w.id,
+            name: w.name,
+            version: w.version,
+            size: w.size,
+            kind: w.kind,
+            download_url: w.download_url,
+            url: w.url,
+            image_id: w.image_id,
+            desc: w.desc,
+            label: w.label,
+            downloads: w.downloads,
+            created_at: w.created_at,
+        }
+    }
+}
+
+impl From<WireModLink> for ModLink {
+    fn from(w: WireModLink) -> Self {
+        Self {
+            id: w.id,
+            name: w.name,
+            url: w.url,
+            desc: w.desc,
+            label: w.label,
+            version: w.version,
+            image_id: w.image_id,
+            downloads: w.downloads,
+            created_at: w.created_at,
+        }
+    }
+}
+
+/// Parses a modworkshop file listing into the neutral page shape.
+pub fn parse_file_page(value: serde_json::Value) -> Result<FilePage, String> {
+    let wire: WireFilePage = serde_json::from_value(value)
+        .map_err(|e| format!("modworkshop file listing did not parse: {e}"))?;
+    Ok(FilePage {
+        data: wire.data.into_iter().map(Into::into).collect(),
+        meta: wire.meta.into(),
+    })
+}
+
+/// Parses a modworkshop link listing into the neutral page shape.
+pub fn parse_link_page(value: serde_json::Value) -> Result<LinkPage, String> {
+    let wire: WireLinkPage = serde_json::from_value(value)
+        .map_err(|e| format!("modworkshop link listing did not parse: {e}"))?;
+    Ok(LinkPage {
+        data: wire.data.into_iter().map(Into::into).collect(),
+        meta: wire.meta.into(),
+    })
+}
+
 /// Parses a modworkshop listing response into the neutral page shape.
 pub fn parse_mod_page(value: serde_json::Value) -> Result<ModPage, String> {
     let wire: WireModPage = serde_json::from_value(value)
@@ -329,5 +476,51 @@ mod tests {
     fn unknown_fields_are_ignored() {
         let page = parse(r#"{"data":[{"id":3,"name":"X","brand_new_field":{"a":1}}],"meta":{}}"#);
         assert_eq!(page.data[0].id, 3);
+    }
+
+    // A hosted file carries download_url/type/size; the renderer picks install behaviour
+    // from type, so it must survive as null rather than becoming an empty string.
+    #[test]
+    fn parses_a_file_listing() {
+        let page = parse_file_page(
+            serde_json::from_str(
+                r#"{"data":[{"id":7,"name":"main.zip","version":"1.2","size":99,
+                "type":"zip","download_url":"https://example.test/f.zip"}],"meta":{"total":1}}"#,
+            )
+            .expect("json"),
+        )
+        .expect("page");
+        let f = &page.data[0];
+        assert_eq!(f.id, 7);
+        assert_eq!(f.kind.as_deref(), Some("zip"));
+        assert_eq!(f.download_url, "https://example.test/f.zip");
+        assert!(f.desc.is_none());
+        assert_eq!(page.meta.total, 1);
+    }
+
+    // Files with no type are real: the renderer falls back to the URL extension.
+    #[test]
+    fn a_file_without_a_type_still_parses() {
+        let page = parse_file_page(
+            serde_json::from_str(r#"{"data":[{"id":8,"download_url":"u"}],"meta":{}}"#)
+                .expect("json"),
+        )
+        .expect("page");
+        assert!(page.data[0].kind.is_none());
+        assert_eq!(page.data[0].version, "");
+    }
+
+    #[test]
+    fn parses_a_link_listing() {
+        let page = parse_link_page(
+            serde_json::from_str(
+                r#"{"data":[{"id":3,"name":"Mirror","url":"https://example.test"}],"meta":{}}"#,
+            )
+            .expect("json"),
+        )
+        .expect("page");
+        assert_eq!(page.data[0].name, "Mirror");
+        assert_eq!(page.data[0].url, "https://example.test");
+        assert!(page.data[0].version.is_none());
     }
 }

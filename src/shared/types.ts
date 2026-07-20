@@ -117,12 +117,12 @@ export interface ModLink {
     id: number
     name: string
     url: string
-    desc?: string
-    label?: string
-    version?: string
-    image_id?: number | null
-    downloads?: number
-    created_at?: string
+    desc: string | null
+    label: string | null
+    version: string | null
+    image_id: number | null
+    downloads: number | null
+    created_at: string | null
 }
 
 export interface ModFile {
@@ -130,14 +130,14 @@ export interface ModFile {
     name: string
     version: string
     size: number
-    type: string | undefined
+    type: string | null
     download_url: string
-    url?: string
-    image_id?: number | null
-    desc?: string
-    label?: string
-    downloads?: number
-    created_at?: string
+    url: string | null
+    image_id: number | null
+    desc: string | null
+    label: string | null
+    downloads: number | null
+    created_at: string | null
 }
 
 export interface Category {

@@ -258,18 +258,22 @@ pub async fn get_mod(app: AppHandle, id: u32) -> Result<Json, String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn list_mod_files(app: AppHandle, mod_id: u32) -> Result<Json, String> {
-    api_get(&app, &format!("/mods/{}/files", mod_id), vec![])
-        .await
-        .map(Json)
+pub async fn list_mod_files(
+    app: AppHandle,
+    mod_id: u32,
+) -> Result<crate::commands::domain::FilePage, String> {
+    let value = api_get(&app, &format!("/mods/{}/files", mod_id), vec![]).await?;
+    crate::commands::domain::parse_file_page(value)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn list_mod_links(app: AppHandle, mod_id: u32) -> Result<Json, String> {
-    api_get(&app, &format!("/mods/{}/links", mod_id), vec![])
-        .await
-        .map(Json)
+pub async fn list_mod_links(
+    app: AppHandle,
+    mod_id: u32,
+) -> Result<crate::commands::domain::LinkPage, String> {
+    let value = api_get(&app, &format!("/mods/{}/links", mod_id), vec![]).await?;
+    crate::commands::domain::parse_link_page(value)
 }
 
 #[tauri::command]
