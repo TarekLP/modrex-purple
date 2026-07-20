@@ -2,8 +2,8 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commands, type InstallOutcome } from '../../shared/bindings'
-import type { LoaderInfo } from '../../shared/bindings'
-export type { InstallOutcome, LoaderInfo } from '../../shared/bindings'
+import type { LoaderInfo, SourceInfo } from '../../shared/bindings'
+export type { InstallOutcome, LoaderInfo, SourceInfo } from '../../shared/bindings'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -470,6 +470,11 @@ export const api = {
     // renderer reads it instead of restating those tables.
     listLoaders(): Promise<LoaderInfo[]> {
         return commands.listLoaders()
+    },
+    // The source registry: which sources exist, the games each serves, and the id each
+    // knows a game by. Replaces per-source fields on the game spec.
+    listSources(): Promise<SourceInfo[]> {
+        return commands.listSources()
     },
     checkLoader(loaderId: string, gameId: string, gamePath: string): Promise<boolean> {
         return commands.checkLoader(loaderId, gameId, gamePath)

@@ -80,6 +80,45 @@ pub fn game_id_for_native(source_id: &str, native_id: &str) -> Option<&'static s
         .map(|g| g.game_id)
 }
 
+/// The registry as the renderer sees it, so the source list a game offers lives in one
+/// place instead of being derived from a per-source field on the game spec.
+#[derive(serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceInfo {
+    pub id: String,
+    /// Games this source serves, paired with the id it knows each by. The renderer needs
+    /// the native id to build links (a Nexus mod page URL is keyed by domain slug).
+    pub games: Vec<SourceGameInfo>,
+}
+
+#[derive(serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceGameInfo {
+    pub game_id: String,
+    pub native_id: String,
+}
+
+/// The whole registry, so the renderer can ask which sources a game offers rather than
+/// restating the mapping.
+#[tauri::command]
+#[specta::specta]
+pub fn list_sources() -> Vec<SourceInfo> {
+    SOURCE_REGISTRY
+        .iter()
+        .map(|s| SourceInfo {
+            id: s.id.to_string(),
+            games: s
+                .games
+                .iter()
+                .map(|g| SourceGameInfo {
+                    game_id: g.game_id.to_string(),
+                    native_id: g.native_id.to_string(),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

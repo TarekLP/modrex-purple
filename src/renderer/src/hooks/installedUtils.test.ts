@@ -109,7 +109,7 @@ describe('syntheticMod', () => {
         const ins = makeMod('uid1', 1, 'Mod')
         const result = syntheticMod(ins)
         expect(result.desc).toBe('')
-        expect(result.short_desc).toBe('Manually installed — not on modworkshop')
+        expect(result.short_desc).toBe('Manually installed — not on ModWorkshop')
         expect(result.downloads).toBe(0)
         expect(result.likes).toBe(0)
         expect(result.views).toBe(0)

@@ -34,7 +34,7 @@ export function syntheticMod(ins: InstalledMod): ModSummary {
         desc: '',
         short_desc: external
             ? `Installed from ${SOURCE_LABELS[source] ?? source}`
-            : 'Manually installed — not on modworkshop',
+            : 'Manually installed — not on ModWorkshop',
         version: ins.version,
         downloads: 0,
         likes: 0,

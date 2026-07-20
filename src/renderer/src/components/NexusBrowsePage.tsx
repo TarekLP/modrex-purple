@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Search, Download, ThumbsUp, Clock, Trash2 } from 'lucide-react'
+import { nativeIdFor } from '../sources'
+import { Search, Download, ThumbsUp, Clock, Trash2, ArrowDownUp } from 'lucide-react'
 import type { GameId, InstalledMod, ModSummary, Paginated } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { SearchClearButton } from './ui/SearchClearButton'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
+import { SourceSelect } from './SourceSelect'
 import { Button } from './ui/Button'
 import { Toggle } from './Toggle'
 import { Tooltip } from './Tooltip'
@@ -15,6 +17,8 @@ import { api } from '../api'
 interface Props {
     activeGame: GameId
     isActive: boolean
+    source: string
+    onSourceChange: (next: string) => void
     gamePath: string | null
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
@@ -200,12 +204,14 @@ function NexusModCard({
 export function NexusBrowsePage({
     activeGame,
     isActive,
+    source,
+    onSourceChange,
     gamePath,
     installed,
     onRefreshInstalled,
     onGoToSettings,
 }: Props) {
-    const domain = GAMES[activeGame].nexusDomain
+    const domain = nativeIdFor(activeGame, 'nexus')
     const [page, setPage] = useState(1)
     const [query, setQuery] = useState('')
     const [sort, setSort] = useState(() => getSavedSort(activeGame))
@@ -371,7 +377,16 @@ export function NexusBrowsePage({
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                <h1 className="text-lg font-semibold">{t('nexus.title')}</h1>
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <h1 className="text-lg font-semibold shrink-0">{t('browse.title')}</h1>
+                        <SourceSelect
+                            activeGame={activeGame}
+                            value={source}
+                            onChange={onSourceChange}
+                        />
+                    </div>
+                </div>
                 <div className="flex gap-2">
                     <div className="relative flex-1">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-subtle pointer-events-none" />
@@ -384,7 +399,12 @@ export function NexusBrowsePage({
                         />
                         {query && <SearchClearButton onClick={() => handleQueryChange('')} />}
                     </div>
-                    <Select value={sort} onChange={handleSortChange} options={SORT_OPTIONS} />
+                    <Select
+                        value={sort}
+                        onChange={handleSortChange}
+                        options={SORT_OPTIONS}
+                        icon={<ArrowDownUp className="w-3.5 h-3.5 text-text-subtle" />}
+                    />
                 </div>
             </div>
 

@@ -80,6 +80,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             // loaders (registry-driven) plus the PD2 Diesel 3.0 compatibility probe
             commands::superblt::is_pd2_diesel3,
             commands::loaders::list_loaders,
+            commands::sources::list_sources,
             commands::loaders::check_loader,
             commands::loaders::install_loader,
             // launchers & system

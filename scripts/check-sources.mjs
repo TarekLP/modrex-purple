@@ -1,11 +1,13 @@
 import { readFileSync } from 'fs'
 
-// A source's per-game id is registered twice by necessity: SOURCE_REGISTRY in Rust (which
-// nexus.rs resolves domains through) and GAME_SPECS in TypeScript (where the renderer reads
-// workshopId and nexusDomain). Neither side can see the other, so adding a game to one and
-// forgetting the other compiles fine and fails at runtime: the renderer offers a source the
-// backend rejects as unmapped, or a supported source is silently missing from the UI. This
-// check diffs the two mappings.
+// modworkshop's per-game id is registered twice by necessity: SOURCE_REGISTRY in Rust and
+// workshopId in GAME_SPECS, which the renderer uses directly to build API calls. Neither
+// side can see the other, so adding a game to one and forgetting the other compiles fine
+// and fails at runtime. This check diffs the two.
+//
+// Nexus is deliberately NOT checked here: the renderer reads its per-game domain from the
+// registry over IPC (sources.ts), so there is no second list to drift. Any source added
+// that way needs no entry here.
 
 const rust = readFileSync('src-tauri/src/commands/sources.rs', 'utf8')
 const registryBlock = rust.match(/SOURCE_REGISTRY: &\[SourceSpec\] = &\[([\s\S]*?)\n\];/)?.[1]
@@ -32,16 +34,13 @@ if (!specsBlock) {
     process.exit(1)
 }
 
-// One entry per game, carrying workshopId and an optional nexusDomain.
+// One entry per game, carrying workshopId.
 const tsWorkshop = new Map()
-const tsNexus = new Map()
 for (const chunk of specsBlock.split(/^ {4}(?=\w+:\s*\{)/m)) {
     const gameId = chunk.match(/^(\w+):\s*\{/)?.[1]
     if (!gameId) continue
     const workshopId = chunk.match(/workshopId:\s*(\d+)/)?.[1]
     if (workshopId) tsWorkshop.set(gameId, workshopId)
-    const nexusDomain = chunk.match(/nexusDomain:\s*'([^']+)'/)?.[1]
-    if (nexusDomain) tsNexus.set(gameId, nexusDomain)
 }
 
 const errors = []
@@ -71,7 +70,6 @@ function diff(sourceId, tsMap) {
 }
 
 diff('modworkshop', tsWorkshop)
-diff('nexus', tsNexus)
 
 if (errors.length > 0) {
     console.error('Source registry disagrees between Rust and TypeScript:')
@@ -79,7 +77,6 @@ if (errors.length > 0) {
     process.exit(1)
 }
 
-const pairs = [...rustSources.values()].reduce((n, m) => n + m.size, 0)
 console.log(
-    `check-sources: ${rustSources.size} sources, ${pairs} game mappings, Rust and TypeScript agree`
+    `check-sources: ${tsWorkshop.size} modworkshop game mappings agree between Rust and TypeScript`
 )

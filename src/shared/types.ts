@@ -159,7 +159,6 @@ export interface GameSpec {
     workshopId: number
     storageKey: string
     hasNews: boolean
-    nexusDomain?: string
     // Launch argument this game needs for mods to load; absent = none required.
     // Drives the launch warning in TopBar and the Settings launch-options hint.
     requiredLaunchFlag?: string
@@ -172,7 +171,6 @@ const GAME_SPECS = {
         workshopId: 853,
         storageKey: 'pd3',
         hasNews: true,
-        nexusDomain: 'payday3',
         requiredLaunchFlag: '-fileopenlog',
     },
     pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2', hasNews: true },
@@ -189,7 +187,6 @@ const GAME_SPECS = {
         workshopId: 857,
         storageKey: 'cb',
         hasNews: false,
-        nexusDomain: 'crimebossrockaycity',
     },
     raid: {
         name: 'RAID: World War II',

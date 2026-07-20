@@ -13,6 +13,7 @@ import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId, ModSummary } from '../../shared/types'
 import { GAMES, isGameId } from '../../shared/types'
 import { loadLoaderRegistry } from './loaders'
+import { loadSourceRegistry, hasSource } from './sources'
 import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
@@ -52,7 +53,7 @@ function warmSettingsCache(game: GameId) {
         .catch(() => {})
 }
 
-export type View = 'browse' | 'nexus' | 'installed' | 'news' | 'detail' | 'settings' | 'welcome'
+export type View = 'browse' | 'installed' | 'news' | 'detail' | 'settings' | 'welcome'
 
 const DETECT_RETRY_MS = 5 * 60 * 1000
 
@@ -62,16 +63,22 @@ function reportStartupPhase(phase: StartupPhase) {
         .catch((error) => logError('Failed to report startup phase: ' + String(error)))
 }
 
+// Falls back to modworkshop whenever the saved source is not one this game offers, which
+// also covers a game that has no Nexus presence at all.
+function readBrowseSource(gameId: string): string {
+    const saved = localStorage.getItem(`modrex:${gameId}:browse-source`)
+    return saved && hasSource(gameId, saved) ? saved : 'modworkshop'
+}
+
 function getInitialView(): View {
     const game = localStorage.getItem('modrex:active-game')
     if (!game) return 'welcome'
     if (localStorage.getItem('modrex:on-welcome') === '1') return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
     if (v === 'news' && !GAMES[game as GameId]?.hasNews) return 'browse'
-    if (v === 'nexus' && !GAMES[game as GameId]?.nexusDomain) return 'browse'
-    return v === 'browse' || v === 'nexus' || v === 'installed' || v === 'news' || v === 'settings'
-        ? v
-        : 'browse'
+    // 'nexus' was its own view before Browse gained a source selector; anyone whose
+    // saved view is that lands on Browse, where Nexus now lives.
+    return v === 'browse' || v === 'installed' || v === 'news' || v === 'settings' ? v : 'browse'
 }
 
 export default function App() {
@@ -83,6 +90,12 @@ export default function App() {
         const saved = localStorage.getItem('modrex:active-game')
         return isGameId(saved) ? saved : 'pd3'
     })
+    // Which source Browse is showing. Per game because availability is per game (only
+    // PD3 and Crime Boss have Nexus) and because a search in one source means nothing
+    // in the other, so the pages keep their own state either way.
+    const [browseSource, setBrowseSource] = useState<string>(() =>
+        readBrowseSource(localStorage.getItem('modrex:active-game') ?? '')
+    )
     const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: ModSummary }[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
     // false while the active game's path is still being resolved this session —
@@ -192,15 +205,14 @@ export default function App() {
         const saved = localStorage.getItem('modrex:active-view')
         const dest: View =
             (saved === 'browse' ||
-                saved === 'nexus' ||
                 saved === 'installed' ||
                 saved === 'news' ||
                 saved === 'settings') &&
-            (saved !== 'news' || GAMES[g].hasNews) &&
-            (saved !== 'nexus' || GAMES[g].nexusDomain !== undefined)
+            (saved !== 'news' || GAMES[g].hasNews)
                 ? saved
                 : 'browse'
         localStorage.setItem('modrex:active-view', dest)
+        setBrowseSource(readBrowseSource(g))
         // The switch commit renders three pages' worth of tree at once — as a
         // transition it stays interruptible, so rapid switching can't pile up
         // janky frames (a newer switch cancels the in-progress render).
@@ -295,6 +307,7 @@ export default function App() {
     // loader badges), so it is loaded once here before those pages can be reached.
     useEffect(() => {
         void loadLoaderRegistry()
+        void loadSourceRegistry()
     }, [])
 
     useEffect(() => {
@@ -419,7 +432,7 @@ export default function App() {
     }, [activeGame, gamePath, inPicker])
 
     const handleSidebarChange = useCallback(
-        (v: 'browse' | 'nexus' | 'installed' | 'news' | 'settings') => {
+        (v: 'browse' | 'installed' | 'news' | 'settings') => {
             const isGlobalOnly = v === 'settings' && viewRef.current === 'welcome'
             if (v === 'settings') setSettingsGlobalOnly(isGlobalOnly)
             // Don't persist global-only settings to localStorage — it's a transient
@@ -441,6 +454,14 @@ export default function App() {
 
     const goToSettings = useCallback(() => handleSidebarChange('settings'), [handleSidebarChange])
 
+    const handleSourceChange = useCallback(
+        (next: string) => {
+            setBrowseSource(next)
+            localStorage.setItem(`modrex:${activeGame}:browse-source`, next)
+        },
+        [activeGame]
+    )
+
     const goToNexusSettings = useCallback(() => {
         saveSettingsTab('advanced')
         handleSidebarChange('settings')
@@ -449,7 +470,7 @@ export default function App() {
     const sidebarView =
         view === 'detail' || view === 'welcome'
             ? prevView
-            : (view as 'browse' | 'nexus' | 'installed' | 'news' | 'settings')
+            : (view as 'browse' | 'installed' | 'news' | 'settings')
 
     const {
         dragging: fileDragging,
@@ -561,12 +582,14 @@ export default function App() {
                                 )}
                             </div>
                             <div
-                                className={`absolute inset-0 ${view === 'browse' ? '' : 'invisible pointer-events-none'}`}
+                                className={`absolute inset-0 ${view === 'browse' && browseSource === 'modworkshop' ? '' : 'invisible pointer-events-none'}`}
                             >
                                 <BrowsePageMemo
                                     key={activeGame}
                                     activeGame={activeGame}
-                                    isActive={view === 'browse'}
+                                    isActive={view === 'browse' && browseSource === 'modworkshop'}
+                                    source={browseSource}
+                                    onSourceChange={handleSourceChange}
                                     gamePath={gamePath}
                                     gamePathReady={gamePathReady}
                                     installed={installed}
@@ -576,13 +599,15 @@ export default function App() {
                                 />
                             </div>
                             <div
-                                className={`absolute inset-0 ${view === 'nexus' ? '' : 'invisible pointer-events-none'}`}
+                                className={`absolute inset-0 ${view === 'browse' && browseSource === 'nexus' ? '' : 'invisible pointer-events-none'}`}
                             >
-                                {GAMES[activeGame].nexusDomain !== undefined && (
+                                {hasSource(activeGame, 'nexus') && (
                                     <NexusBrowsePage
                                         key={activeGame}
                                         activeGame={activeGame}
-                                        isActive={view === 'nexus'}
+                                        isActive={view === 'browse' && browseSource === 'nexus'}
+                                        source={browseSource}
+                                        onSourceChange={handleSourceChange}
                                         gamePath={gamePath}
                                         installed={installed}
                                         onRefreshInstalled={refreshInstalled}

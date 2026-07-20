@@ -27,6 +27,7 @@ import { ModCard } from './ModCard'
 import { SkeletonCard } from './SkeletonCard'
 import { Select } from './Select'
 import { TagFilter } from './TagFilter'
+import { SourceSelect } from './SourceSelect'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
@@ -57,6 +58,8 @@ interface Props {
     gamePathReady: boolean
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
+    source: string
+    onSourceChange: (next: string) => void
     onOpenDetail: (modId: number, initialMod?: ModSummary) => void
     onGoToSettings?: () => void
 }
@@ -210,6 +213,8 @@ function getSavedSort(game: GameId): SortOption {
 export function BrowsePage({
     activeGame,
     isActive,
+    source,
+    onSourceChange,
     gamePath,
     gamePathReady,
     installed,
@@ -739,8 +744,15 @@ export function BrowsePage({
                 />
             )}
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-lg font-semibold">{t('browse.title')}</h1>
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <h1 className="text-lg font-semibold shrink-0">{t('browse.title')}</h1>
+                        <SourceSelect
+                            activeGame={activeGame}
+                            value={source}
+                            onChange={onSourceChange}
+                        />
+                    </div>
                     {gamePathReady && !gamePath && (
                         <div className="flex items-center gap-2">
                             <span className="text-xs text-warning bg-warning/10 px-3 py-1 rounded">

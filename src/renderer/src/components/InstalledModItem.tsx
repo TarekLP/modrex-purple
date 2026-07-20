@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
+import { nativeIdFor } from '../sources'
 import { MoreVertical } from 'lucide-react'
 import { t } from '../i18n'
 import { api } from '../api'
 import type { InstalledMod } from '../../../shared/types'
-import { GAMES } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
@@ -65,7 +65,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     }
     // Nexus-sourced mods have no in-app detail page; their mod page on
     // nexusmods.com is the equivalent destination.
-    const nexusDomain = GAMES[activeGame].nexusDomain
+    const nexusDomain = nativeIdFor(activeGame, 'nexus')
     const nexusRemoteId = ins.source === 'nexus' ? ins.remoteId : undefined
     const handleOpen =
         apiMod !== undefined

@@ -101,6 +101,11 @@ export const commands = {
 	 *  restating the tables.
 	 */
 	listLoaders: () => __TAURI_INVOKE<LoaderInfo[]>("list_loaders"),
+	/**
+	 *  The whole registry, so the renderer can ask which sources a game offers rather than
+	 *  restating the mapping.
+	 */
+	listSources: () => __TAURI_INVOKE<SourceInfo[]>("list_sources"),
 	checkLoader: (loaderId: string, gameId: string, gamePath: string) => __TAURI_INVOKE<boolean>("check_loader", { loaderId, gameId, gamePath }),
 	installLoader: (loaderId: string, gamePath: string) => __TAURI_INVOKE<null>("install_loader", { loaderId, gamePath }),
 	installedLaunchers: (gameId: string) => __TAURI_INVOKE<string[]>("installed_launchers", { gameId }),
@@ -577,6 +582,24 @@ export type PageMeta = {
 	last_page: number,
 	per_page: number,
 	total: number,
+};
+
+export type SourceGameInfo = {
+	gameId: string,
+	nativeId: string,
+};
+
+/**
+ *  The registry as the renderer sees it, so the source list a game offers lives in one
+ *  place instead of being derived from a per-source field on the game spec.
+ */
+export type SourceInfo = {
+	id: string,
+	/**
+	 *  Games this source serves, paired with the id it knows each by. The renderer needs
+	 *  the native id to build links (a Nexus mod page URL is keyed by domain slug).
+	 */
+	games: SourceGameInfo[],
 };
 
 export type StartupPhase = "prepare" | "interface" | "game" | "mods" | "ready" | "error";
