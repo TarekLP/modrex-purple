@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react'
+import { TITLE_ROW_MIN_H } from './pageHeader'
 import { RefreshCw, ExternalLink } from 'lucide-react'
 import { api } from '../api'
 import { t } from '../i18n'
@@ -167,7 +168,7 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
                 <p className="text-xs text-text-subtle uppercase tracking-wide">
                     {GAMES[activeGame].name}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 ${TITLE_ROW_MIN_H}`}>
                     <h1 className="text-2xl font-semibold leading-none">{t('news.title')}</h1>
                     <Tooltip content={t('news.refresh')}>
                         <button

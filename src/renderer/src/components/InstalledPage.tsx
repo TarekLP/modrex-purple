@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Button } from './ui/Button'
 import { SearchClearButton } from './ui/SearchClearButton'
 import {
@@ -327,7 +328,7 @@ export function InstalledPage({
                     />
                 )}
                 <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
+                    <div className={`flex items-center justify-between ${TITLE_ROW_MIN_H}`}>
                         <div className="flex items-center gap-2">
                             <h1 className="text-lg font-semibold">{t('installed.title')}</h1>
                             {gamePath && (

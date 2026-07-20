@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Search } from 'lucide-react'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
@@ -80,7 +81,7 @@ export function WelcomeScreen({ onSelectGame }: Props) {
     return (
         <div className="h-full bg-surface text-text flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 ${TITLE_ROW_MIN_H}`}>
                     <h1 className="text-lg font-semibold">{t('gamePicker.title')}</h1>
                     <div className="flex items-center gap-2">
                         <Toggle checked={installedOnly} onChange={handleInstalledOnlyChange} />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Button } from './ui/Button'
 import {
     FolderOpen,
@@ -292,10 +293,12 @@ export function SettingsPage({
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0">
-                <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
-                {!globalOnly && (
-                    <p className="text-xs text-text-subtle mt-0.5">{GAMES[activeGame].name}</p>
-                )}
+                <div className={`flex flex-col justify-center ${TITLE_ROW_MIN_H}`}>
+                    <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
+                    {!globalOnly && (
+                        <p className="text-xs text-text-subtle mt-0.5">{GAMES[activeGame].name}</p>
+                    )}
+                </div>
             </div>
 
             <div className="flex-1 flex overflow-hidden">

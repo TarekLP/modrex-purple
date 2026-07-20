@@ -4,6 +4,7 @@ import { sourcesForGame } from '../sources'
 import { waitForForegroundClear } from '../requestPriority'
 import { formatCount } from './modDetail/format'
 import { SkeletonBar } from './Skeleton'
+import { TITLE_ROW_H } from './pageHeader'
 import { t } from '../i18n'
 import { GAMES, type GameId } from '../../../shared/types'
 
@@ -124,7 +125,7 @@ export function SourceSelect({
     if (sources.length < 2) return null
 
     return (
-        <div className="flex items-end gap-1 shrink-0">
+        <div className={`flex items-stretch gap-1 shrink-0 ${TITLE_ROW_H}`}>
             {sources.map((s) => {
                 const active = value === s.id
                 const total = counts[s.id]
@@ -132,7 +133,7 @@ export function SourceSelect({
                     <button
                         key={s.id}
                         onClick={() => onChange(s.id)}
-                        className={`relative px-4 py-1 border-b-2 transition-colors text-left before:content-[''] before:absolute before:inset-x-1 before:inset-y-0.5 before:rounded before:transition-colors focus:outline-none ${
+                        className={`relative flex flex-col justify-center px-4 border-b-2 transition-colors text-left before:content-[''] before:absolute before:inset-x-1 before:inset-y-0.5 before:rounded before:transition-colors focus:outline-none ${
                             active
                                 ? 'border-accent text-accent'
                                 : 'border-transparent text-text-subtle hover:text-text-muted hover:before:bg-surface-hover'
@@ -141,16 +142,14 @@ export function SourceSelect({
                         <span className="relative block text-sm font-medium leading-tight">
                             {SOURCE_LABELS[s.id] ?? s.id}
                         </span>
-                        {/* Three distinct states, and they must not look alike: still
-                            loading shows a skeleton, no answer (signed out of Nexus) keeps
-                            the line's height so the header cannot jump, and a real count
-                            renders. A blank in the loading case read as "no data". */}
-                        <span className="relative block text-[11px] leading-tight text-text-subtle">
+                        {/* Three states that must not look alike: loading shows a
+                            skeleton, no answer (signed out of Nexus) shows nothing, and a
+                            real count renders. The fixed height is what keeps all three
+                            the same size, so the header cannot jump as counts arrive. */}
+                        <span className="relative flex h-3.5 items-center text-[11px] leading-none text-text-subtle">
                             {total === undefined ? (
-                                <SkeletonBar className="h-2.5 w-14 my-[3px] animate-pulse" />
-                            ) : total === null ? (
-                                ' '
-                            ) : (
+                                <SkeletonBar className="h-2.5 w-14 animate-pulse" />
+                            ) : total === null ? null : (
                                 t('browse.modCount', { total: formatCount(total) })
                             )}
                         </span>
