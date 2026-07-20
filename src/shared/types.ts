@@ -52,12 +52,16 @@ export interface ModTag {
  * refresh produce this shape, which lacks the images, banner, dependencies,
  * instructs_template and tags that only /mods/{id} returns.
  *
- * Naming that difference is the point: listMods and syntheticMod now state what they
- * actually produce instead of claiming a full Mod. It does NOT yet prevent a summary
- * being used as a Mod, because every field Mod adds is optional and TypeScript is
- * structural, so ModSummary still satisfies Mod. Enforcement needs the detail fields
- * to be non-optional, which is only honest once Rust parses the API response and can
- * guarantee they are present. Until then the installedMetaCache invariant in
+ * This must stay structurally identical to the generated ModSummary in bindings.ts.
+ * api.ts assigns the command result to it WITHOUT a cast, so any drift is a compile
+ * error there. That is why the nullable fields are written as | null rather than
+ * optional: Rust Option exports that way, and loosening them back to ?: would break
+ * that check rather than fix anything.
+ *
+ * It does NOT yet prevent a summary being used where a Mod is expected. Every field
+ * Mod adds is optional and TypeScript is structural, so ModSummary still satisfies
+ * Mod. Closing that needs the DETAIL path typed in Rust too, which is what makes
+ * non-optional detail fields honest. Until then the installedMetaCache invariant in
  * modCache.ts (a thin entry reaching modCache renders a mod page with no gallery and
  * no dependency warnings) stays a prose rule.
  */
@@ -74,30 +78,30 @@ export interface ModSummary {
     bumped_at: string
     category_id: number
     has_download: boolean
-    disable_mod_managers?: boolean
-    thumbnail: { file: string; has_thumb?: boolean } | null
+    disable_mod_managers: boolean | null
+    thumbnail: { file: string; has_thumb: boolean | null } | null
     download: {
         id: number
         version: string
-        size: number | undefined
-        type: string | undefined
-        download_url: string | undefined
-        url?: string
+        size: number | null
+        type: string | null
+        download_url: string | null
+        url: string | null
     } | null
     user: {
         // absent on locally synthesized mods (installedUtils.syntheticMod)
-        id?: number
+        id: number | null
         name: string
-        donation_url?: string | null
-        avatar?: string
-        avatar_has_thumb?: boolean
+        donation_url: string | null
+        avatar: string | null
+        avatar_has_thumb: boolean | null
     }
-    members?: ModMember[]
-    donation?: string | null
 }
 
 /** A mod as /mods/{id} returns it: a summary plus the fields only the detail call carries. */
 export interface Mod extends ModSummary {
+    members?: ModMember[]
+    donation?: string | null
     changelog?: string
     instructions?: string
     license?: string

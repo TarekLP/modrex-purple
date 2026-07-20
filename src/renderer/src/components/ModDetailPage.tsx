@@ -690,8 +690,8 @@ export function ModDetailPage({
                                         </Button>
                                     )}
                                     {isUnsupportedFormat(
-                                        mod.download?.type,
-                                        mod.download?.download_url
+                                        mod.download?.type ?? undefined,
+                                        mod.download?.download_url ?? undefined
                                     ) && (
                                         <span className="flex items-center gap-1 text-xs text-warning">
                                             <AlertTriangle className="w-3 h-3 shrink-0" />
@@ -935,9 +935,9 @@ export function ModDetailPage({
                             <MemberRow
                                 name={mod.user.name}
                                 role={t('detail.info.owner')}
-                                userId={mod.user.id}
-                                avatar={mod.user.avatar}
-                                avatarHasThumb={mod.user.avatar_has_thumb}
+                                userId={mod.user.id ?? undefined}
+                                avatar={mod.user.avatar ?? undefined}
+                                avatarHasThumb={mod.user.avatar_has_thumb ?? undefined}
                                 donation={ownerDonation}
                             />
                             {credits.map((m) => (

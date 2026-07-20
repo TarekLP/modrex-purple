@@ -114,7 +114,7 @@ export const api = {
             ids: p.ids ?? null,
             tags: p.tags ?? null,
             block_tags: p.block_tags ?? null,
-        }) as Promise<Paginated<Mod>>
+        })
     },
     listCategories(gameId: number): Promise<Paginated<Category>> {
         return commands.listCategories(gameId) as Promise<Paginated<Category>>

@@ -43,11 +43,18 @@ export function syntheticMod(ins: InstalledMod): ModSummary {
         bumped_at: ins.installedAt,
         category_id: 0,
         has_download: false,
+        disable_mod_managers: null,
         // useThumbnail passes absolute URLs through untouched, so a recorded CDN
         // URL can ride the normal thumbnail field.
-        thumbnail: ins.thumbnailUrl ? { file: ins.thumbnailUrl } : null,
+        thumbnail: ins.thumbnailUrl ? { file: ins.thumbnailUrl, has_thumb: null } : null,
         download: null,
-        user: { name: external ? (ins.author ?? '') : 'Unknown' },
+        user: {
+            id: null,
+            name: external ? (ins.author ?? '') : 'Unknown',
+            donation_url: null,
+            avatar: null,
+            avatar_has_thumb: null,
+        },
     }
 }
 

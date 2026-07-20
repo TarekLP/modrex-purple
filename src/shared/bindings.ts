@@ -16,7 +16,7 @@ export const commands = {
 	ids: number[] | null,
 	tags: number[] | null,
 	block_tags: number[] | null,
-} | null) => __TAURI_INVOKE<unknown>("list_mods", { gameId, params }),
+} | null) => __TAURI_INVOKE<ModPage>("list_mods", { gameId, params }),
 	getMod: (id: number) => __TAURI_INVOKE<unknown>("get_mod", { id }),
 	listModFiles: (modId: number) => __TAURI_INVOKE<unknown>("list_mod_files", { modId }),
 	listModLinks: (modId: number) => __TAURI_INVOKE<unknown>("list_mod_links", { modId }),
@@ -359,6 +359,19 @@ export type LoaderInfo = {
 	viaModFlow: boolean,
 };
 
+/**
+ *  The default download attached to a listing. modworkshop has two shapes here:
+ *  file-hosted mods carry download_url/type/size, external-link mods carry only url.
+ */
+export type ModDownload = {
+	id: number,
+	version: string,
+	size: number | null,
+	type: string | null,
+	download_url: string | null,
+	url: string | null,
+};
+
 export type ModFolder = {
 	id: string,
 	diskName: string,
@@ -370,6 +383,47 @@ export type ModFolder = {
 export type ModFolderInfo = {
 	tag: string,
 	labelKey: string,
+};
+
+export type ModPage = {
+	data: ModSummary[],
+	meta: PageMeta,
+};
+
+/**
+ *  A mod as a listing returns it. The detail call adds images, banner, dependencies,
+ *  instructs_template and tags, which is why those are deliberately absent here.
+ */
+export type ModSummary = {
+	id: number,
+	name: string,
+	desc: string,
+	short_desc: string,
+	version: string,
+	downloads: number,
+	likes: number,
+	views: number,
+	published_at: string,
+	bumped_at: string,
+	category_id: number,
+	has_download: boolean,
+	disable_mod_managers: boolean | null,
+	thumbnail: ModThumbnail | null,
+	download: ModDownload | null,
+	user: ModUser,
+};
+
+export type ModThumbnail = {
+	file: string,
+	has_thumb: boolean | null,
+};
+
+export type ModUser = {
+	id: number | null,
+	name: string,
+	donation_url: string | null,
+	avatar: string | null,
+	avatar_has_thumb: boolean | null,
 };
 
 export type NewsItem = {
@@ -384,6 +438,13 @@ export type NewsItem = {
 export type NewsResult = {
 	items: NewsItem[],
 	totalPages: number,
+};
+
+export type PageMeta = {
+	current_page: number,
+	last_page: number,
+	per_page: number,
+	total: number,
 };
 
 export type StartupPhase = "prepare" | "interface" | "game" | "mods" | "ready" | "error";

@@ -210,7 +210,7 @@ pub async fn list_mods(
     app: AppHandle,
     game_id: u32,
     params: Option<ListModsParams>,
-) -> Result<Json, String> {
+) -> Result<crate::commands::domain::ModPage, String> {
     let mut query: Vec<(&str, String)> = vec![];
     if let Some(p) = &params {
         if let Some(v) = &p.query {
@@ -244,9 +244,8 @@ pub async fn list_mods(
             }
         }
     }
-    api_get(&app, &format!("/games/{}/mods", game_id), query)
-        .await
-        .map(Json)
+    let value = api_get(&app, &format!("/games/{}/mods", game_id), query).await?;
+    crate::commands::domain::parse_mod_page(value)
 }
 
 #[tauri::command]

@@ -116,7 +116,13 @@ describe('syntheticMod', () => {
         expect(result.has_download).toBe(false)
         expect(result.thumbnail).toBeNull()
         expect(result.download).toBeNull()
-        expect(result.user).toEqual({ name: 'Unknown' })
+        expect(result.user).toEqual({
+            id: null,
+            name: 'Unknown',
+            donation_url: null,
+            avatar: null,
+            avatar_has_thumb: null,
+        })
     })
 
     it('uses installedAt for both published_at and bumped_at', () => {

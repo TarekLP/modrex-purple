@@ -33,9 +33,10 @@ function makeMod(id: number): Mod {
         bumped_at: '',
         category_id: 0,
         has_download: false,
+        disable_mod_managers: null,
         thumbnail: null,
         download: null,
-        user: { name: 'Test' },
+        user: { id: null, name: 'Test', donation_url: null, avatar: null, avatar_has_thumb: null },
     }
 }
 

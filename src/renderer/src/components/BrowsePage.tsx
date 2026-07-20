@@ -536,7 +536,7 @@ export function BrowsePage({
                     checkType = files[0]?.type
                     checkUrl = files[0]?.download_url
                 } else {
-                    checkType = fullMod.download.type
+                    checkType = fullMod.download.type ?? undefined
                     checkUrl = fullMod.download.download_url ?? undefined
                 }
                 if (isUnsupportedFormat(checkType, checkUrl)) {
