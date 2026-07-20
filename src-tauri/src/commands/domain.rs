@@ -17,11 +17,27 @@
 //! weaker than the hand-written types this replaces. Option survives only where absence is
 //! real and the renderer already branches on it.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// Treats an explicit JSON null as the field's default.
+///
+/// serde(default) only covers an ABSENT field. modworkshop also sends explicit nulls for
+/// values it has no data for (a mod with no category sends "category_id": null), and
+/// without this those hit "invalid type: null, expected i64" and fail the whole response,
+/// which empties the browse page over one field on one mod. Every non-Option field below
+/// carries this for that reason.
+fn null_default<'de, D, T>(d: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(d)?.unwrap_or_default())
+}
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireThumbnail {
+    #[serde(deserialize_with = "null_default")]
     file: String,
     has_thumb: Option<bool>,
 }
@@ -29,7 +45,9 @@ struct WireThumbnail {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireDownload {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
+    #[serde(deserialize_with = "null_default")]
     version: String,
     size: Option<i64>,
     #[serde(rename = "type")]
@@ -42,6 +60,7 @@ struct WireDownload {
 #[serde(default)]
 struct WireUser {
     id: Option<i64>,
+    #[serde(deserialize_with = "null_default")]
     name: String,
     donation_url: Option<String>,
     avatar: Option<String>,
@@ -51,37 +70,56 @@ struct WireUser {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireModSummary {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
+    #[serde(deserialize_with = "null_default")]
     name: String,
+    #[serde(deserialize_with = "null_default")]
     desc: String,
+    #[serde(deserialize_with = "null_default")]
     short_desc: String,
+    #[serde(deserialize_with = "null_default")]
     version: String,
+    #[serde(deserialize_with = "null_default")]
     downloads: i64,
+    #[serde(deserialize_with = "null_default")]
     likes: i64,
+    #[serde(deserialize_with = "null_default")]
     views: i64,
+    #[serde(deserialize_with = "null_default")]
     published_at: String,
+    #[serde(deserialize_with = "null_default")]
     bumped_at: String,
+    #[serde(deserialize_with = "null_default")]
     category_id: i64,
+    #[serde(deserialize_with = "null_default")]
     has_download: bool,
     disable_mod_managers: Option<bool>,
     thumbnail: Option<WireThumbnail>,
     download: Option<WireDownload>,
+    #[serde(deserialize_with = "null_default")]
     user: WireUser,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WirePageMeta {
+    #[serde(deserialize_with = "null_default")]
     current_page: i64,
+    #[serde(deserialize_with = "null_default")]
     last_page: i64,
+    #[serde(deserialize_with = "null_default")]
     per_page: i64,
+    #[serde(deserialize_with = "null_default")]
     total: i64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireModPage {
+    #[serde(deserialize_with = "null_default")]
     data: Vec<WireModSummary>,
+    #[serde(deserialize_with = "null_default")]
     meta: WirePageMeta,
 }
 
@@ -229,12 +267,17 @@ impl From<WireModPage> for ModPage {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireModFile {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
+    #[serde(deserialize_with = "null_default")]
     name: String,
+    #[serde(deserialize_with = "null_default")]
     version: String,
+    #[serde(deserialize_with = "null_default")]
     size: i64,
     #[serde(rename = "type")]
     kind: Option<String>,
+    #[serde(deserialize_with = "null_default")]
     download_url: String,
     url: Option<String>,
     image_id: Option<i64>,
@@ -247,8 +290,11 @@ struct WireModFile {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireModLink {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
+    #[serde(deserialize_with = "null_default")]
     name: String,
+    #[serde(deserialize_with = "null_default")]
     url: String,
     desc: Option<String>,
     label: Option<String>,
@@ -261,14 +307,18 @@ struct WireModLink {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireFilePage {
+    #[serde(deserialize_with = "null_default")]
     data: Vec<WireModFile>,
+    #[serde(deserialize_with = "null_default")]
     meta: WirePageMeta,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireLinkPage {
+    #[serde(deserialize_with = "null_default")]
     data: Vec<WireModLink>,
+    #[serde(deserialize_with = "null_default")]
     meta: WirePageMeta,
 }
 
@@ -383,30 +433,44 @@ pub fn parse_mod_page(value: serde_json::Value) -> Result<ModPage, String> {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireImage {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
+    #[serde(deserialize_with = "null_default")]
     file: String,
     #[serde(rename = "type")]
+    #[serde(deserialize_with = "null_default")]
     kind: String,
+    #[serde(deserialize_with = "null_default")]
     size: i64,
+    #[serde(deserialize_with = "null_default")]
     display_order: i64,
+    #[serde(deserialize_with = "null_default")]
     visible: bool,
+    #[serde(deserialize_with = "null_default")]
     has_thumb: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireTag {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
+    #[serde(deserialize_with = "null_default")]
     name: String,
+    #[serde(deserialize_with = "null_default")]
     color: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireMember {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
+    #[serde(deserialize_with = "null_default")]
     name: String,
+    #[serde(deserialize_with = "null_default")]
     level: String,
+    #[serde(deserialize_with = "null_default")]
     accepted: bool,
     donation_url: Option<String>,
     avatar: Option<String>,
@@ -416,10 +480,12 @@ struct WireMember {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireDependency {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
     mod_id: Option<i64>,
     name: Option<String>,
     url: Option<String>,
+    #[serde(deserialize_with = "null_default")]
     optional: bool,
     order: Option<i64>,
     #[serde(rename = "mod")]
@@ -429,9 +495,13 @@ struct WireDependency {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct WireInstructsTemplate {
+    #[serde(deserialize_with = "null_default")]
     id: i64,
+    #[serde(deserialize_with = "null_default")]
     name: String,
+    #[serde(deserialize_with = "null_default")]
     instructions: String,
+    #[serde(deserialize_with = "null_default")]
     dependencies: Vec<WireDependency>,
 }
 
@@ -446,10 +516,14 @@ struct WireModDetail {
     repo_url: Option<String>,
     donation: Option<String>,
     banner: Option<WireImage>,
+    #[serde(deserialize_with = "null_default")]
     images: Vec<WireImage>,
+    #[serde(deserialize_with = "null_default")]
     dependencies: Vec<WireDependency>,
     instructs_template: Option<WireInstructsTemplate>,
+    #[serde(deserialize_with = "null_default")]
     tags: Vec<WireTag>,
+    #[serde(deserialize_with = "null_default")]
     members: Vec<WireMember>,
 }
 
@@ -651,13 +725,17 @@ pub fn parse_mod_detail(value: serde_json::Value) -> Result<ModDetail, String> {
 #[serde(default)]
 struct WireNexusNode {
     #[serde(rename = "modId")]
+    #[serde(deserialize_with = "null_default")]
     mod_id: i64,
+    #[serde(deserialize_with = "null_default")]
     name: String,
     summary: Option<String>,
     #[serde(rename = "pictureUrl")]
     picture_url: Option<String>,
     author: Option<String>,
+    #[serde(deserialize_with = "null_default")]
     downloads: i64,
+    #[serde(deserialize_with = "null_default")]
     endorsements: i64,
     #[serde(rename = "updatedAt")]
     updated_at: Option<String>,
@@ -667,7 +745,9 @@ struct WireNexusNode {
 #[serde(default)]
 struct WireNexusPage {
     #[serde(rename = "totalCount")]
+    #[serde(deserialize_with = "null_default")]
     total_count: i64,
+    #[serde(deserialize_with = "null_default")]
     nodes: Vec<WireNexusNode>,
 }
 
@@ -1027,5 +1107,87 @@ mod tests {
         assert_eq!(m.name, "Bare");
         assert_eq!(m.user.name, "");
         assert!(m.thumbnail.is_none());
+    }
+
+    // Reported live: a listing came back with an explicit null where a number was
+    // expected and the whole page failed with "invalid type: null, expected i64".
+    // serde(default) does not cover this: it fires for an ABSENT field, not a present
+    // null. Every non-Option wire field carries null_default for exactly this.
+    #[test]
+    fn explicit_nulls_fall_back_to_defaults_instead_of_failing() {
+        let page = parse(
+            r#"{"data":[{"id":1,"name":"Nulls","category_id":null,"downloads":null,
+            "likes":null,"views":null,"version":null,"desc":null,"short_desc":null,
+            "published_at":null,"bumped_at":null,"has_download":null,
+            "thumbnail":null,"download":null,"user":null}],
+            "meta":{"current_page":null,"last_page":null,"per_page":null,"total":null}}"#,
+        );
+        let m = &page.data[0];
+        assert_eq!(m.id, 1);
+        assert_eq!(m.category_id, 0);
+        assert_eq!(m.downloads, 0);
+        assert_eq!(m.version, "");
+        assert!(!m.has_download);
+        assert_eq!(
+            m.user.name, "",
+            "a null object must not fail the whole page either"
+        );
+        assert_eq!(page.meta.total, 0);
+    }
+
+    #[test]
+    fn explicit_nulls_in_file_and_link_listings_are_tolerated() {
+        let files = parse_file_page(
+            serde_json::from_str(
+                r#"{"data":[{"id":1,"name":null,"version":null,"size":null,
+                "download_url":null}],"meta":null}"#,
+            )
+            .expect("json"),
+        )
+        .expect("files");
+        assert_eq!(files.data[0].size, 0);
+        assert_eq!(files.data[0].download_url, "");
+
+        let links = parse_link_page(
+            serde_json::from_str(r#"{"data":[{"id":2,"name":null,"url":null}],"meta":null}"#)
+                .expect("json"),
+        )
+        .expect("links");
+        assert_eq!(links.data[0].url, "");
+    }
+
+    #[test]
+    fn explicit_nulls_in_a_mod_detail_are_tolerated() {
+        let detail = parse_mod_detail(
+            serde_json::from_str(
+                r#"{"id":3,"name":"D","category_id":null,"images":null,
+                "dependencies":null,"tags":null,"members":null,"banner":null}"#,
+            )
+            .expect("json"),
+        )
+        .expect("detail");
+        assert_eq!(detail.category_id, 0);
+        assert!(
+            detail.images.is_empty(),
+            "a null collection must read as empty"
+        );
+        assert!(detail.tags.is_empty());
+    }
+
+    #[test]
+    fn explicit_nulls_in_a_nexus_node_are_tolerated() {
+        let page = parse_nexus_page(
+            serde_json::from_str(
+                r#"{"totalCount":null,"nodes":[{"modId":9,"name":null,"downloads":null,
+                "endorsements":null,"summary":null,"author":null}]}"#,
+            )
+            .expect("json"),
+            1,
+            24,
+        )
+        .expect("page");
+        assert_eq!(page.data[0].id, 9);
+        assert_eq!(page.data[0].downloads, 0);
+        assert_eq!(page.meta.total, 0);
     }
 }
