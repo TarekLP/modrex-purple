@@ -190,8 +190,8 @@ pub struct DetectedGame {
 // so all detection work goes through spawn_blocking.
 #[tauri::command]
 #[specta::specta]
-pub async fn installed_launchers(game_id: Option<String>) -> Result<Vec<String>, String> {
-    let game = game_def_for_id(game_id.as_deref().unwrap_or("pd3"))?;
+pub async fn installed_launchers(game_id: String) -> Result<Vec<String>, String> {
+    let game = game_def_for_id(game_id.as_str())?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut found = Vec::new();
         for launcher in all_launchers() {
@@ -211,10 +211,9 @@ pub async fn installed_launchers(game_id: Option<String>) -> Result<Vec<String>,
 
 fn resolve_and_save_game_path(
     app: &AppHandle,
-    game_id: Option<String>,
+    game_id: String,
     game_path: Option<String>,
 ) -> Result<(), String> {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
     let game_def = game_def_for_id(&game_id)?;
     // Path validation and detection can stall for seconds (SMB timeouts, wedged
     // services), so resolve first and only take the settings lock to apply the
@@ -260,11 +259,7 @@ fn resolve_and_save_game_path(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn configure_game_path(
-    app: AppHandle,
-    game_id: Option<String>,
-    game_path: Option<String>,
-) {
+pub async fn configure_game_path(app: AppHandle, game_id: String, game_path: Option<String>) {
     let _ = tauri::async_runtime::spawn_blocking(move || {
         resolve_and_save_game_path(&app, game_id, game_path)
     })
@@ -324,8 +319,8 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
 
 #[tauri::command]
 #[specta::specta]
-pub fn launch_game(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
-    let game_id = game_id.as_deref().unwrap_or("pd3");
+pub fn launch_game(app: AppHandle, game_id: String) -> Result<(), String> {
+    let game_id = game_id.as_str();
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
         return Ok(());
@@ -352,8 +347,8 @@ pub fn launch_game(app: AppHandle, game_id: Option<String>) -> Result<(), String
 
 #[tauri::command]
 #[specta::specta]
-pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
-    let game_id = game_id.as_deref().unwrap_or("pd3");
+pub fn launch_without_mods(app: AppHandle, game_id: String) -> Result<(), String> {
+    let game_id = game_id.as_str();
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
         return Ok(());
@@ -421,8 +416,8 @@ pub fn launch_without_mods(app: AppHandle, game_id: Option<String>) -> Result<()
 
 #[tauri::command]
 #[specta::specta]
-pub fn restore_mods(app: AppHandle, game_id: Option<String>) -> Result<(), String> {
-    let game_id = game_id.as_deref().unwrap_or("pd3");
+pub fn restore_mods(app: AppHandle, game_id: String) -> Result<(), String> {
+    let game_id = game_id.as_str();
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
         return Ok(());
@@ -465,8 +460,8 @@ fn process_matches(p: &sysinfo::Process, process_name: &str) -> bool {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn is_game_running(game_id: Option<String>) -> Result<bool, String> {
-    let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3"))?.process_names;
+pub async fn is_game_running(game_id: String) -> Result<bool, String> {
+    let process_names = game_def_for_id(game_id.as_str())?.process_names;
     tauri::async_runtime::spawn_blocking(move || {
         let sys = refresh_process_list();
         sys.processes()
@@ -479,8 +474,8 @@ pub async fn is_game_running(game_id: Option<String>) -> Result<bool, String> {
 
 #[tauri::command]
 #[specta::specta]
-pub fn stop_game(game_id: Option<String>) -> Result<(), String> {
-    let process_names = game_def_for_id(game_id.as_deref().unwrap_or("pd3"))?.process_names;
+pub fn stop_game(game_id: String) -> Result<(), String> {
+    let process_names = game_def_for_id(game_id.as_str())?.process_names;
     let sys = refresh_process_list();
     for p in sys
         .processes()

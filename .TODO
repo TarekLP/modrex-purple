@@ -467,36 +467,14 @@ SHA256 will match multiple identities.
 
 ## TODO: kill-pd3-fallback
 
-Independent of the multi-source phases; do before scaling past a handful of games.
-
-### Context
-
-`engine_for_game` maps any unknown game id to `&PD3_ENGINE`; `game_def_for_id`
-does the same; nearly every Tauri command starts with
-`game_id.as_deref().unwrap_or("pd3")`. With 4 games and disciplined call sites it
-is survivable; with many games, a typo'd or missing gameId silently reads/writes
-PD3's directories - a data-corruption class of bug.
-
-### What to do
-
-- `engine_for_game` and `game_def_for_id` return Result/Option; unknown game id is
-  a hard command error, never a silent PD3.
-- Retire the `Option<String> game_id` backward-compat defaults on the IPC surface:
-  make gameId required in api.ts wrappers and in the Rust command signatures. The
-  renderer always has `activeGame`; the Option-ness only exists for pre-multi-game
-  compat.
-- Sweep: `unwrap_or("pd3")` across src-tauri/src/commands/ (mods/mod.rs,
-  launchers/mod.rs, settings.rs, news.rs).
-- Note for the far future, do not act now: games are compile-time Rust statics +
-  a TS union (`GameId`, `GAMES`, engine.rs statics, launchers/games/*.rs). Each
-  new game is code + a release, and history shows each game needed bespoke
-  subsystems anyway (crimeboss_settings.rs, pdmod.rs, host_mods.rs,
-  ue4ss_modstxt.rs) - roughly 60% config, 40% reverse-engineering. A data-driven
-  game registry only pays off if game count grows past what hand-written modules
-  sustain; revisit then, not preemptively. UPDATE 2026-07-17: the owner decided to
-  pursue exactly that scalability (toward 20-100+ games), so the registry is now
-  planned - see the game-registry TODO below. kill-pd3-fallback's Result-returning
-  change folds into that registry's Stage 1.
+DONE 2026-07-19 (folded into game-registry Stage 1). `engine_for_game` and
+`game_def_for_id` now return `Result` off `GAME_REGISTRY` (commands/games.rs); an
+unknown id is a hard command error, never a silent PD3. Every game-scoped command
+takes a required `game_id: String` (no `Option`/`unwrap_or("pd3")` left in
+src-tauri/src/commands/), and every api.ts wrapper requires `gameId: string`. Two
+silent `unwrap_or` swallows fixed as a side effect (installed_launchers and
+is_game_running no longer mask a crashed probe thread). See game-registry below for
+the remaining Stages 3/4.
 
 ---
 
@@ -911,16 +889,13 @@ App.tsx (hardcoded valid-GameId list in the activeGame initializer), WelcomeScre
 ### The fix (do NOT try to remove the irreducible ~10 files - novel per-game behavior and
 reverse-engineering always cost; the target is the ~15 wiring files)
 
-- Stage 1 (backend single source of truth): introduce a `GameSpec` bundling everything for
-  one game - identity (id, display names), storefront ids (the `GameDef` fields:
-  executables/process_names/steam/epic/xbox), the engine config (`ModEngineConfig`, or an
-  engine-family reference + params), the loader list (see loader-registry), and
-  `index_game_name`. One file per game exposes its `GameSpec`; a `GAME_REGISTRY` array (or
-  map) replaces the scattered statics. `engine_for_game`, `game_def_for_id`, and the
-  detection loops all DERIVE from the registry. A family-conforming new game becomes: one
-  new spec file + one registry line.
-- Stage 1 also folds in kill-pd3-fallback: `engine_for_game` / `game_def_for_id` return
-  Result/Option, and an unknown game id is a hard error, never a silent `&PD3_ENGINE`.
+- Stage 1 (backend single source of truth) DONE 2026-07-19: `GameSpec { id, engine, def }`
+  + `GAME_REGISTRY` in `commands/games.rs`; `engine_for_game` and `game_def_for_id` derive
+  from it. Scope note: this first cut bundles only the existing engine + GameDef statics
+  (it does NOT yet pull identity/loader-list/index_game_name into the spec, since those
+  already live on the engine config; expand GameSpec when loader-registry lands). Also
+  folded in kill-pd3-fallback: both dispatchers return `Result`, unknown id is a hard
+  error, and every command takes a required `game_id: String`.
 - Stage 3 (renderer derives from GAMES): App.tsx's valid-id list becomes
   `Object.keys(GAMES)`; WelcomeScreen iterates the `GAMES` record; per-game UI quirks
   become spec fields (e.g. `launchFlags: ['fileopenlog']` for pd3) instead of

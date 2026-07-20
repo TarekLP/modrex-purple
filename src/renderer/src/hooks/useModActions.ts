@@ -38,7 +38,7 @@ export interface ModActions {
 export function useModActions(
     gamePath: string | null,
     onRefreshInstalled: () => Promise<void>,
-    activeGame?: GameId
+    activeGame: GameId
 ): ModActions {
     const [loadingMod, setLoadingMod] = useState<string | null>(null)
     const [reinstallProgress, setReinstallProgress] = useState<{

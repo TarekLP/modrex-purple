@@ -23,7 +23,7 @@ interface Props {
     payload: HostPackPayload
     gamePath: string
     installed: InstalledMod[]
-    gameId?: GameId
+    gameId: GameId
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
 }

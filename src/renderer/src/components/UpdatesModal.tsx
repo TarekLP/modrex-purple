@@ -24,7 +24,7 @@ interface Props {
     modData: Map<number, Mod>
     installed: InstalledMod[]
     gamePath: string | null
-    gameId?: string
+    gameId: string
     visible: boolean
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
@@ -286,7 +286,7 @@ export function UpdatesModal({
                     payload={hostPackData}
                     gamePath={gamePath}
                     installed={installed}
-                    gameId={gameId as GameId | undefined}
+                    gameId={gameId as GameId}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => {
                         setHostPackData(null)

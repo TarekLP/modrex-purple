@@ -13,7 +13,7 @@ interface Props {
     modId: number
     missingRequired: ModDependency[]
     gamePath: string | null
-    gameId?: string
+    gameId: string
     loaderModIds?: number[]
     onInstallLoader?: (modId: number | null) => Promise<void>
     onRefreshInstalled: () => Promise<void>

@@ -90,8 +90,7 @@ pub(crate) fn install_loader(
 
 #[tauri::command]
 #[specta::specta]
-pub fn check_ue4ss(app: AppHandle, game_path: String, game_id: Option<String>) -> bool {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+pub fn check_ue4ss(app: AppHandle, game_path: String, game_id: String) -> bool {
     let settings = read_settings(&app);
     let launcher = game_settings(&settings, &game_id).and_then(|gs| gs.launcher.clone());
     is_installed(&game_id, &game_path, launcher.as_deref())

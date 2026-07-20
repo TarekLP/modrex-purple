@@ -269,9 +269,9 @@ pub fn lookup_mod_files(app: &AppHandle, mod_remote_id: i64, game_name: &str) ->
 pub fn get_index_mod_files(
     app: AppHandle,
     mod_id: i64,
-    game_id: Option<String>,
+    game_id: String,
 ) -> Result<Vec<IndexModFile>, String> {
-    let cfg = crate::commands::mods::engine_for_game(game_id.as_deref().unwrap_or("pd3"))?;
+    let cfg = crate::commands::mods::engine_for_game(game_id.as_str())?;
     Ok(lookup_mod_files(&app, mod_id, cfg.index_game_name))
 }
 

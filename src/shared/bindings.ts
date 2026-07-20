@@ -34,10 +34,10 @@ export const commands = {
 	 */
 	getSettings: () => __TAURI_INVOKE<unknown>("get_settings"),
 	getGameSettings: (gameId: string) => __TAURI_INVOKE<GameSettings>("get_game_settings", { gameId }),
-	setLauncher: (gameId: string | null, launcher: string) => __TAURI_INVOKE<void>("set_launcher", { gameId, launcher }),
-	setLaunchOptions: (gameId: string | null, launchOptions: string) => __TAURI_INVOKE<void>("set_launch_options", { gameId, launchOptions }),
+	setLauncher: (gameId: string, launcher: string) => __TAURI_INVOKE<void>("set_launcher", { gameId, launcher }),
+	setLaunchOptions: (gameId: string, launchOptions: string) => __TAURI_INVOKE<void>("set_launch_options", { gameId, launchOptions }),
 	setCrimebossInstallMode: (mode: string) => __TAURI_INVOKE<void>("set_crimeboss_install_mode", { mode }),
-	setSuppressCrashReporter: (gameId: string | null, suppress: boolean) => __TAURI_INVOKE<void>("set_suppress_crash_reporter", { gameId, suppress }),
+	setSuppressCrashReporter: (gameId: string, suppress: boolean) => __TAURI_INVOKE<void>("set_suppress_crash_reporter", { gameId, suppress }),
 	setSkipFileopenlogWarning: (skip: boolean) => __TAURI_INVOKE<void>("set_skip_fileopenlog_warning", { skip }),
 	dismissDepsWarning: (modId: number) => __TAURI_INVOKE<void>("dismiss_deps_warning", { modId }),
 	/**
@@ -59,9 +59,9 @@ export const commands = {
 	 *  directly. Both share the consent gate in send_event.
 	 */
 	trackEvent: (name: string, params: unknown | null) => __TAURI_INVOKE<void>("track_event", { name, params }),
-	getInstalled: (gameId: string | null) => __TAURI_INVOKE<InstalledResponse_Serialize>("get_installed", { gameId }),
-	installMod: (modId: number, gamePath: string, folderId: string | null, gameId: string | null) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, gamePath, folderId, gameId }),
-	installFile: (modId: number, modName: string, fileId: number, downloadUrl: string, fileType: string, modVersion: string, gamePath: string, gameId: string | null) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_file", { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath, gameId }),
+	getInstalled: (gameId: string) => __TAURI_INVOKE<InstalledResponse_Serialize>("get_installed", { gameId }),
+	installMod: (modId: number, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, gamePath, folderId, gameId }),
+	installFile: (modId: number, modName: string, fileId: number, downloadUrl: string, fileType: string, modVersion: string, gamePath: string, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_file", { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath, gameId }),
 	/**
 	 *  Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 	 *  The file carries no modworkshop identity, so it is installed as an unidentified entry
@@ -69,7 +69,7 @@ export const commands = {
 	 *  SHA256 upgrade resolves its real identity on the next refresh. The dropped file is copied into
 	 *  temp first so resolution/cleanup never touches the user's original.
 	 */
-	installDroppedFile: (path: string, gamePath: string, folderId: string | null, gameId: string | null) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_dropped_file", { path, gamePath, folderId, gameId }),
+	installDroppedFile: (path: string, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_dropped_file", { path, gamePath, folderId, gameId }),
 	installFromZipEntry: (args: InstallFromZipEntryArgs) => __TAURI_INVOKE<null>("install_from_zip_entry", { args }),
 	/**
 	 *  Installs a Crime Boss archive whose content has no enclosing folder (every entry sits at the
@@ -81,20 +81,20 @@ export const commands = {
 	installCbFlatArchive: (zipPath: string, modId: number, modName: string, fileId: number, fileType: string, modVersion: string, gamePath: string, folderId: string | null) => __TAURI_INVOKE<null>("install_cb_flat_archive", { zipPath, modId, modName, fileId, fileType, modVersion, gamePath, folderId }),
 	installHostPack: (args: InstallHostPackArgs) => __TAURI_INVOKE<null>("install_host_pack", { args }),
 	deleteTempFile: (path: string) => __TAURI_INVOKE<void>("delete_temp_file", { path }),
-	uninstallMod: (gamePath: string, uid: string, gameId: string | null) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
-	enableMod: (gamePath: string, uid: string, gameId: string | null) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
-	disableMod: (gamePath: string, uid: string, gameId: string | null) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
+	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
+	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
+	disableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
 	moveCrimebossModTarget: (gamePath: string, uid: string) => __TAURI_INVOKE<null>("move_crimeboss_mod_target", { gamePath, uid }),
-	reorderInFolder: (gamePath: string, folderId: string | null, orderedUids: string[], gameId: string | null) => __TAURI_INVOKE<null>("reorder_in_folder", { gamePath, folderId, orderedUids, gameId }),
-	moveToFolder: (gamePath: string, uid: string, targetFolderId: string | null, targetPosition: number, gameId: string | null) => __TAURI_INVOKE<null>("move_to_folder", { gamePath, uid, targetFolderId, targetPosition, gameId }),
-	reorderChildren: (gamePath: string, parentId: string | null, items: TopLevelItem[], gameId: string | null) => __TAURI_INVOKE<null>("reorder_children", { gamePath, parentId, items, gameId }),
-	moveFolder: (gamePath: string, folderId: string, targetParentId: string | null, gameId: string | null) => __TAURI_INVOKE<null>("move_folder", { gamePath, folderId, targetParentId, gameId }),
-	createFolder: (gamePath: string, displayName: string, parentId: string | null, gameId: string | null) => __TAURI_INVOKE<ModFolder>("create_folder", { gamePath, displayName, parentId, gameId }),
-	renameFolder: (gamePath: string, folderId: string, displayName: string, gameId: string | null) => __TAURI_INVOKE<null>("rename_folder", { gamePath, folderId, displayName, gameId }),
-	deleteFolder: (gamePath: string, folderId: string, gameId: string | null) => __TAURI_INVOKE<null>("delete_folder", { gamePath, folderId, gameId }),
-	openModsFolder: (gameId: string | null) => __TAURI_INVOKE<null>("open_mods_folder", { gameId }),
-	listModFolders: (gameId: string | null) => __TAURI_INVOKE<ModFolderInfo[]>("list_mod_folders", { gameId }),
-	openModFolder: (gameId: string | null, tag: string) => __TAURI_INVOKE<null>("open_mod_folder", { gameId, tag }),
+	reorderInFolder: (gamePath: string, folderId: string | null, orderedUids: string[], gameId: string) => __TAURI_INVOKE<null>("reorder_in_folder", { gamePath, folderId, orderedUids, gameId }),
+	moveToFolder: (gamePath: string, uid: string, targetFolderId: string | null, targetPosition: number, gameId: string) => __TAURI_INVOKE<null>("move_to_folder", { gamePath, uid, targetFolderId, targetPosition, gameId }),
+	reorderChildren: (gamePath: string, parentId: string | null, items: TopLevelItem[], gameId: string) => __TAURI_INVOKE<null>("reorder_children", { gamePath, parentId, items, gameId }),
+	moveFolder: (gamePath: string, folderId: string, targetParentId: string | null, gameId: string) => __TAURI_INVOKE<null>("move_folder", { gamePath, folderId, targetParentId, gameId }),
+	createFolder: (gamePath: string, displayName: string, parentId: string | null, gameId: string) => __TAURI_INVOKE<ModFolder>("create_folder", { gamePath, displayName, parentId, gameId }),
+	renameFolder: (gamePath: string, folderId: string, displayName: string, gameId: string) => __TAURI_INVOKE<null>("rename_folder", { gamePath, folderId, displayName, gameId }),
+	deleteFolder: (gamePath: string, folderId: string, gameId: string) => __TAURI_INVOKE<null>("delete_folder", { gamePath, folderId, gameId }),
+	openModsFolder: (gameId: string) => __TAURI_INVOKE<null>("open_mods_folder", { gameId }),
+	listModFolders: (gameId: string) => __TAURI_INVOKE<ModFolderInfo[]>("list_mod_folders", { gameId }),
+	openModFolder: (gameId: string, tag: string) => __TAURI_INVOKE<null>("open_mod_folder", { gameId, tag }),
 	checkSuperblt: (gamePath: string) => __TAURI_INVOKE<boolean>("check_superblt", { gamePath }),
 	/**
 	 *  Installs the loader DLL into the game root. The basemod (mods/base) is
@@ -116,15 +116,15 @@ export const commands = {
 	 *  the complete install.
 	 */
 	installRaidSuperblt: (gamePath: string) => __TAURI_INVOKE<null>("install_raid_superblt", { gamePath }),
-	checkUe4ss: (gamePath: string, gameId: string | null) => __TAURI_INVOKE<boolean>("check_ue4ss", { gamePath, gameId }),
-	installedLaunchers: (gameId: string | null) => __TAURI_INVOKE<string[]>("installed_launchers", { gameId }),
-	configureGamePath: (gameId: string | null, gamePath: string | null) => __TAURI_INVOKE<void>("configure_game_path", { gameId, gamePath }),
+	checkUe4ss: (gamePath: string, gameId: string) => __TAURI_INVOKE<boolean>("check_ue4ss", { gamePath, gameId }),
+	installedLaunchers: (gameId: string) => __TAURI_INVOKE<string[]>("installed_launchers", { gameId }),
+	configureGamePath: (gameId: string, gamePath: string | null) => __TAURI_INVOKE<void>("configure_game_path", { gameId, gamePath }),
 	pickFolder: (defaultPath: string | null) => __TAURI_INVOKE<string | null>("pick_folder", { defaultPath }),
-	launchGame: (gameId: string | null) => __TAURI_INVOKE<null>("launch_game", { gameId }),
-	launchWithoutMods: (gameId: string | null) => __TAURI_INVOKE<null>("launch_without_mods", { gameId }),
-	restoreMods: (gameId: string | null) => __TAURI_INVOKE<null>("restore_mods", { gameId }),
-	isGameRunning: (gameId: string | null) => __TAURI_INVOKE<boolean>("is_game_running", { gameId }),
-	stopGame: (gameId: string | null) => __TAURI_INVOKE<null>("stop_game", { gameId }),
+	launchGame: (gameId: string) => __TAURI_INVOKE<null>("launch_game", { gameId }),
+	launchWithoutMods: (gameId: string) => __TAURI_INVOKE<null>("launch_without_mods", { gameId }),
+	restoreMods: (gameId: string) => __TAURI_INVOKE<null>("restore_mods", { gameId }),
+	isGameRunning: (gameId: string) => __TAURI_INVOKE<boolean>("is_game_running", { gameId }),
+	stopGame: (gameId: string) => __TAURI_INVOKE<null>("stop_game", { gameId }),
 	shellOpenExternal: (url: string) => __TAURI_INVOKE<void>("shell_open_external", { url }),
 	shellOpenPath: (path: string) => __TAURI_INVOKE<void>("shell_open_path", { path }),
 	openLogFile: () => __TAURI_INVOKE<void>("open_log_file"),
@@ -143,19 +143,19 @@ export const commands = {
 	 *  missing cache headers would otherwise cost a revalidation round-trip per view.
 	 */
 	getThumbnail: (filename: string, full: boolean | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, full }),
-	getIndexModFiles: (modId: number, gameId: string | null) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),
+	getIndexModFiles: (modId: number, gameId: string) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),
 	/**
 	 *  Page 1 only: the cached, TTL-backed entry point used on first
 	 *  load and by the Refresh button.
 	 */
-	fetchNews: (gameId: string | null) => __TAURI_INVOKE<NewsResult>("fetch_news", { gameId }),
-	refreshNews: (gameId: string | null) => __TAURI_INVOKE<NewsResult>("refresh_news", { gameId }),
+	fetchNews: (gameId: string) => __TAURI_INVOKE<NewsResult>("fetch_news", { gameId }),
+	refreshNews: (gameId: string) => __TAURI_INVOKE<NewsResult>("refresh_news", { gameId }),
 	/**
 	 *  Pages other than 1, fetched on demand, never cached (the disk cache
 	 *  exists to make the default page-1 view instant, not to mirror the whole
 	 *  site).
 	 */
-	fetchNewsPage: (gameId: string | null, page: number) => __TAURI_INVOKE<NewsResult>("fetch_news_page", { gameId, page }),
+	fetchNewsPage: (gameId: string, page: number) => __TAURI_INVOKE<NewsResult>("fetch_news_page", { gameId, page }),
 	getStorageUsage: () => __TAURI_INVOKE<StorageUsage>("get_storage_usage"),
 	clearThumbnailCache: () => __TAURI_INVOKE<number>("clear_thumbnail_cache"),
 	clearIndexCache: () => __TAURI_INVOKE<number>("clear_index_cache"),
@@ -240,7 +240,7 @@ export type InstallFromZipEntryArgs = {
 	modVersion: string,
 	gamePath: string,
 	folderId: string | null,
-	gameId: string | null,
+	gameId: string,
 	locationTag: string | null,
 	entryKind: string | null,
 };
@@ -261,7 +261,7 @@ export type InstallHostPackArgs = {
 	gamePath: string,
 	hostModId: number,
 	hostSubpath: string,
-	gameId: string | null,
+	gameId: string,
 };
 
 /**

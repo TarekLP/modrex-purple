@@ -121,8 +121,8 @@ describe('installZipPickerEntries', () => {
             payload.fileType,
             payload.modVersion,
             '/game',
-            null,
             'pd3',
+            null,
             payload.targetTag,
             payload.entryKind
         )

@@ -71,12 +71,7 @@ export function useFileDropInstall({ gamePath, activeGame, enabled, onRefreshIns
             const path = paths[i]
             setProgress({ current: i + 1, total: paths.length, name: baseName(path) })
             try {
-                const outcome = await api.installDroppedFile(
-                    path,
-                    opts.gamePath,
-                    undefined,
-                    opts.activeGame
-                )
+                const outcome = await api.installDroppedFile(path, opts.gamePath, opts.activeGame)
                 const prompted = handleInstallOutcome(outcome, {
                     onZipMultiPak: (payload) => collected.push({ kind: 'zip', payload }),
                     onHostModPack: (payload) => collected.push({ kind: 'host', payload }),

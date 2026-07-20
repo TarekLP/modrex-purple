@@ -137,7 +137,7 @@ export async function installZipPickerEntries(
     payload: ZipMultiPakPayload,
     toInstall: string[],
     gamePath: string,
-    gameId: string | undefined,
+    gameId: string,
     folderId: string | null | undefined,
     onRefreshInstalled: () => Promise<void>,
     onProgress?: (entry: string | null) => void
@@ -160,8 +160,8 @@ export async function installZipPickerEntries(
                 payload.fileType,
                 payload.modVersion,
                 gamePath,
-                null,
                 gameId,
+                null,
                 tagByEntry.get(entry) ?? undefined,
                 payload.entryKind
             )
@@ -213,8 +213,8 @@ export async function installZipPickerEntries(
             payload.fileType,
             payload.modVersion,
             gamePath,
-            folderIdMap.get(dir) ?? null,
             gameId,
+            folderIdMap.get(dir) ?? null,
             payload.targetTag,
             payload.entryKind
         )
@@ -229,7 +229,7 @@ interface Props {
     gamePath: string
     installedFiles: InstalledMod[]
     folderId?: string | null
-    gameId?: string
+    gameId: string
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
 }

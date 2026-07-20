@@ -137,25 +137,25 @@ export const api = {
     getGameSettings(gameId: string): Promise<GameSettings> {
         return commands.getGameSettings(gameId) as unknown as Promise<GameSettings>
     },
-    async findGamePath(gameId = 'pd3'): Promise<string | null> {
+    async findGamePath(gameId: string): Promise<string | null> {
         await commands.configureGamePath(gameId, null)
         const gs = await commands.getGameSettings(gameId)
         return gs.gamePath ?? null
     },
-    setGamePath(gamePath: string | null, gameId?: string): Promise<void> {
-        return commands.configureGamePath(gameId ?? null, gamePath)
+    setGamePath(gamePath: string | null, gameId: string): Promise<void> {
+        return commands.configureGamePath(gameId, gamePath)
     },
-    setLauncher(launcher: string, gameId?: string): Promise<void> {
-        return commands.setLauncher(gameId ?? null, launcher)
+    setLauncher(launcher: string, gameId: string): Promise<void> {
+        return commands.setLauncher(gameId, launcher)
     },
-    setLaunchOptions(launchOptions: string, gameId?: string): Promise<void> {
-        return commands.setLaunchOptions(gameId ?? null, launchOptions)
+    setLaunchOptions(launchOptions: string, gameId: string): Promise<void> {
+        return commands.setLaunchOptions(gameId, launchOptions)
     },
     setCrimeBossInstallMode(mode: string): Promise<void> {
         return commands.setCrimebossInstallMode(mode)
     },
-    setSuppressCrashReporter(suppress: boolean, gameId?: string): Promise<void> {
-        return commands.setSuppressCrashReporter(gameId ?? null, suppress)
+    setSuppressCrashReporter(suppress: boolean, gameId: string): Promise<void> {
+        return commands.setSuppressCrashReporter(gameId, suppress)
     },
     setSkipFileOpenLogWarning(skip: boolean): Promise<void> {
         return commands.setSkipFileopenlogWarning(skip)
@@ -243,7 +243,7 @@ export const api = {
 
     // ── Installed mods ─────────────────────────────────────────────────────────
     getInstalled(
-        gameId = 'pd3'
+        gameId: string
     ): Promise<{ mods: InstalledMod[]; folders: ModFolder[]; modsHidden: boolean }> {
         return commands.getInstalled(gameId) as unknown as Promise<{
             mods: InstalledMod[]
@@ -251,8 +251,8 @@ export const api = {
             modsHidden: boolean
         }>
     },
-    async openModsFolder(gameId?: string): Promise<void> {
-        await commands.openModsFolder(gameId ?? null)
+    async openModsFolder(gameId: string): Promise<void> {
+        await commands.openModsFolder(gameId)
     },
     listModFolders(gameId: string): Promise<{ tag: string; labelKey: string }[]> {
         return commands.listModFolders(gameId)
@@ -260,17 +260,17 @@ export const api = {
     async openModFolder(gameId: string, tag: string): Promise<void> {
         await commands.openModFolder(gameId, tag)
     },
-    installMod(modId: number, gamePath: string, gameId?: string): Promise<InstallOutcome> {
-        return trackInstallOutcome(commands.installMod(modId, gamePath, null, gameId ?? null))
+    installMod(modId: number, gamePath: string, gameId: string): Promise<InstallOutcome> {
+        return trackInstallOutcome(commands.installMod(modId, gamePath, null, gameId))
     },
     installDroppedFile(
         path: string,
         gamePath: string,
-        folderId?: string,
-        gameId?: string
+        gameId: string,
+        folderId?: string
     ): Promise<InstallOutcome> {
         return trackInstallOutcome(
-            commands.installDroppedFile(path, gamePath, folderId ?? null, gameId ?? null)
+            commands.installDroppedFile(path, gamePath, folderId ?? null, gameId)
         )
     },
     installModFile(
@@ -281,7 +281,7 @@ export const api = {
         fileType: string,
         modVersion: string,
         gamePath: string,
-        gameId?: string
+        gameId: string
     ): Promise<InstallOutcome> {
         return trackInstallOutcome(
             commands.installFile(
@@ -292,26 +292,26 @@ export const api = {
                 fileType,
                 modVersion,
                 gamePath,
-                gameId ?? null
+                gameId
             )
         )
     },
     deleteTempFile(path: string): Promise<void> {
         return commands.deleteTempFile(path)
     },
-    getIndexModFiles(modId: number, gameId?: string): Promise<IndexModFile[]> {
-        return commands.getIndexModFiles(modId, gameId ?? null)
+    getIndexModFiles(modId: number, gameId: string): Promise<IndexModFile[]> {
+        return commands.getIndexModFiles(modId, gameId)
     },
 
     // ── News ───────────────────────────────────────────────────────────────────
-    fetchNews(gameId?: string): Promise<NewsResult> {
-        return commands.fetchNews(gameId ?? null)
+    fetchNews(gameId: string): Promise<NewsResult> {
+        return commands.fetchNews(gameId)
     },
-    refreshNews(gameId?: string): Promise<NewsResult> {
-        return commands.refreshNews(gameId ?? null)
+    refreshNews(gameId: string): Promise<NewsResult> {
+        return commands.refreshNews(gameId)
     },
-    fetchNewsPage(gameId: string | undefined, page: number): Promise<NewsResult> {
-        return commands.fetchNewsPage(gameId ?? null, page)
+    fetchNewsPage(gameId: string, page: number): Promise<NewsResult> {
+        return commands.fetchNewsPage(gameId, page)
     },
     installFromZipEntry(
         zipPath: string,
@@ -322,8 +322,8 @@ export const api = {
         fileType: string,
         modVersion: string,
         gamePath: string,
+        gameId: string,
         folderId?: string | null,
-        gameId?: string,
         locationTag?: string,
         entryKind?: string
     ): Promise<void> {
@@ -338,7 +338,7 @@ export const api = {
                 modVersion,
                 gamePath,
                 folderId: folderId ?? null,
-                gameId: gameId ?? null,
+                gameId,
                 locationTag: locationTag ?? null,
                 entryKind: entryKind ?? null,
             })
@@ -378,7 +378,7 @@ export const api = {
         gamePath: string,
         hostModId: number,
         hostSubpath: string,
-        gameId?: string
+        gameId: string
     ): Promise<void> {
         return trackInstall(
             commands.installHostPack({
@@ -392,18 +392,18 @@ export const api = {
                 gamePath,
                 hostModId,
                 hostSubpath,
-                gameId: gameId ?? null,
+                gameId,
             })
         )
     },
-    async uninstallMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        await commands.uninstallMod(gamePath, uid, gameId ?? null)
+    async uninstallMod(uid: string, gamePath: string, gameId: string): Promise<void> {
+        await commands.uninstallMod(gamePath, uid, gameId)
     },
-    async enableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        await commands.enableMod(gamePath, uid, gameId ?? null)
+    async enableMod(uid: string, gamePath: string, gameId: string): Promise<void> {
+        await commands.enableMod(gamePath, uid, gameId)
     },
-    async disableMod(uid: string, gamePath: string, gameId?: string): Promise<void> {
-        await commands.disableMod(gamePath, uid, gameId ?? null)
+    async disableMod(uid: string, gamePath: string, gameId: string): Promise<void> {
+        await commands.disableMod(gamePath, uid, gameId)
     },
     async moveCrimeBossModTarget(uid: string, gamePath: string): Promise<void> {
         await commands.moveCrimebossModTarget(gamePath, uid)
@@ -412,53 +412,53 @@ export const api = {
         folderId: string | null,
         orderedUids: string[],
         gamePath: string,
-        gameId?: string
+        gameId: string
     ): Promise<void> {
-        await commands.reorderInFolder(gamePath, folderId, orderedUids, gameId ?? null)
+        await commands.reorderInFolder(gamePath, folderId, orderedUids, gameId)
     },
     async moveModToFolder(
         uid: string,
         targetFolderId: string | null,
         targetPosition: number,
         gamePath: string,
-        gameId?: string
+        gameId: string
     ): Promise<void> {
-        await commands.moveToFolder(gamePath, uid, targetFolderId, targetPosition, gameId ?? null)
+        await commands.moveToFolder(gamePath, uid, targetFolderId, targetPosition, gameId)
     },
     async reorderChildren(
         parentId: string | null,
         items: TopLevelItem[],
         gamePath: string,
-        gameId?: string
+        gameId: string
     ): Promise<void> {
-        await commands.reorderChildren(gamePath, parentId, items, gameId ?? null)
+        await commands.reorderChildren(gamePath, parentId, items, gameId)
     },
     async moveFolder(
         folderId: string,
         targetParentId: string | null,
         gamePath: string,
-        gameId?: string
+        gameId: string
     ): Promise<void> {
-        await commands.moveFolder(gamePath, folderId, targetParentId, gameId ?? null)
+        await commands.moveFolder(gamePath, folderId, targetParentId, gameId)
     },
     createFolder(
         displayName: string,
         parentId: string | null,
         gamePath: string,
-        gameId?: string
+        gameId: string
     ): Promise<ModFolder> {
-        return commands.createFolder(gamePath, displayName, parentId, gameId ?? null)
+        return commands.createFolder(gamePath, displayName, parentId, gameId)
     },
     async renameFolder(
         folderId: string,
         displayName: string,
         gamePath: string,
-        gameId?: string
+        gameId: string
     ): Promise<void> {
-        await commands.renameFolder(gamePath, folderId, displayName, gameId ?? null)
+        await commands.renameFolder(gamePath, folderId, displayName, gameId)
     },
-    async deleteFolder(folderId: string, gamePath: string, gameId?: string): Promise<void> {
-        await commands.deleteFolder(gamePath, folderId, gameId ?? null)
+    async deleteFolder(folderId: string, gamePath: string, gameId: string): Promise<void> {
+        await commands.deleteFolder(gamePath, folderId, gameId)
     },
 
     // ── SuperBLT ───────────────────────────────────────────────────────────────
@@ -497,28 +497,28 @@ export const api = {
     },
 
     // ── UE4SS ────────────────────────────────────────────────────────────────────
-    checkUe4ss(gamePath: string, gameId?: string): Promise<boolean> {
-        return commands.checkUe4ss(gamePath, gameId ?? null)
+    checkUe4ss(gamePath: string, gameId: string): Promise<boolean> {
+        return commands.checkUe4ss(gamePath, gameId)
     },
 
     // ── Launchers & system ─────────────────────────────────────────────────────
-    isGameRunning(gameId?: string): Promise<boolean> {
-        return commands.isGameRunning(gameId ?? null)
+    isGameRunning(gameId: string): Promise<boolean> {
+        return commands.isGameRunning(gameId)
     },
-    async stopGame(gameId?: string): Promise<void> {
-        await commands.stopGame(gameId ?? null)
+    async stopGame(gameId: string): Promise<void> {
+        await commands.stopGame(gameId)
     },
-    async launchModded(gameId?: string): Promise<void> {
-        await commands.launchGame(gameId ?? null)
+    async launchModded(gameId: string): Promise<void> {
+        await commands.launchGame(gameId)
     },
-    async launchWithoutMods(gameId?: string): Promise<void> {
-        await commands.launchWithoutMods(gameId ?? null)
+    async launchWithoutMods(gameId: string): Promise<void> {
+        await commands.launchWithoutMods(gameId)
     },
-    async restoreMods(gameId?: string): Promise<void> {
-        await commands.restoreMods(gameId ?? null)
+    async restoreMods(gameId: string): Promise<void> {
+        await commands.restoreMods(gameId)
     },
-    getInstalledLaunchers(gameId?: string): Promise<string[]> {
-        return commands.installedLaunchers(gameId ?? null)
+    getInstalledLaunchers(gameId: string): Promise<string[]> {
+        return commands.installedLaunchers(gameId)
     },
     openExternal(url: string): Promise<void> {
         return commands.shellOpenExternal(url)

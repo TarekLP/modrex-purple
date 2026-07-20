@@ -25,7 +25,7 @@ export function DepsTab({
     deps: ModDependency[]
     installed: InstalledMod[]
     gamePath: string | null
-    activeGame?: GameId
+    activeGame: GameId
     loaderInstalled: boolean | null
     // Hosted loaders (PDTHModOverrides, DAHM, UE4SS, RAID-SuperBLT) are on-site deps but aren't
     // tracked in the installed list — their per-id presence state lives here instead.
@@ -98,7 +98,7 @@ function DepRow({
     position?: number
     installed: InstalledMod[]
     gamePath: string | null
-    activeGame?: GameId
+    activeGame: GameId
     loaderInstalled: boolean | null
     loaderModIds: Record<number, boolean | null>
     onInstallLoader?: (modId: number | null) => Promise<void>

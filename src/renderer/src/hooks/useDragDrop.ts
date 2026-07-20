@@ -21,7 +21,7 @@ interface Options {
     gamePath: string | null
     modData: Map<number, Mod>
     onRefreshInstalled: () => Promise<void>
-    activeGame?: GameId
+    activeGame: GameId
 }
 
 // Native OS file-drop (dragDropEnabled: true) disables HTML5 DnD in the webview, so

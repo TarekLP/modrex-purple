@@ -21,7 +21,7 @@ interface Props {
     files: ModFile[]
     gamePath: string | null
     installedFiles: InstalledMod[]
-    gameId?: string
+    gameId: string
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
 }

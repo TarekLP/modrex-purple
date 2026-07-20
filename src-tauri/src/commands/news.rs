@@ -226,8 +226,7 @@ async fn download_news(game_id: &str, page: u32) -> Result<NewsResult, String> {
 /// load and by the Refresh button.
 #[tauri::command]
 #[specta::specta]
-pub async fn fetch_news(app: AppHandle, game_id: Option<String>) -> Result<NewsResult, String> {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+pub async fn fetch_news(app: AppHandle, game_id: String) -> Result<NewsResult, String> {
     let path = cache_path(&app, &game_id);
     if cache_age_secs(&path).is_some_and(|age| age < MAX_AGE_SECS) {
         if let Some(result) = read_cache(&path) {
@@ -241,8 +240,7 @@ pub async fn fetch_news(app: AppHandle, game_id: Option<String>) -> Result<NewsR
 
 #[tauri::command]
 #[specta::specta]
-pub async fn refresh_news(app: AppHandle, game_id: Option<String>) -> Result<NewsResult, String> {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+pub async fn refresh_news(app: AppHandle, game_id: String) -> Result<NewsResult, String> {
     let result = download_news(&game_id, 1).await?;
     let _ = write_cache(&cache_path(&app, &game_id), &result);
     Ok(result)
@@ -253,8 +251,7 @@ pub async fn refresh_news(app: AppHandle, game_id: Option<String>) -> Result<New
 /// site).
 #[tauri::command]
 #[specta::specta]
-pub async fn fetch_news_page(game_id: Option<String>, page: u32) -> Result<NewsResult, String> {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+pub async fn fetch_news_page(game_id: String, page: u32) -> Result<NewsResult, String> {
     download_news(&game_id, page.max(1)).await
 }
 

@@ -228,8 +228,8 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                     zip.fileType,
                     zip.modVersion,
                     gamePath,
-                    ghost.folderId,
                     activeGame,
+                    ghost.folderId,
                     locationTag
                 )
                 await api.deleteTempFile(zip.zipPath)

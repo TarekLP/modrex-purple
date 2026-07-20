@@ -64,7 +64,7 @@ export function DownloadsTab({
     installed: InstalledMod[]
     installedFiles: InstalledMod[]
     downloadMap: ReadonlyMap<string, { downloaded: number; total: number }>
-    activeGame?: GameId
+    activeGame: GameId
     onRefreshInstalled: () => Promise<void>
 }) {
     const [installingId, setInstallingId] = useState<number | null>(null)

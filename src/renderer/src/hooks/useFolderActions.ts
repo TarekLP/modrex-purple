@@ -33,7 +33,7 @@ export interface FolderActions {
 export function useFolderActions(
     gamePath: string | null,
     onRefreshInstalled: () => Promise<void>,
-    activeGame?: GameId
+    activeGame: GameId
 ): FolderActions {
     const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => {
         const saved = localStorage.getItem(`modrex:${GAME_STORAGE_KEY}:collapsed-folders`)

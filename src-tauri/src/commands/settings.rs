@@ -266,8 +266,7 @@ pub fn get_game_settings(app: AppHandle, game_id: String) -> GameSettings {
 
 #[tauri::command]
 #[specta::specta]
-pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+pub fn set_launcher(app: AppHandle, game_id: String, launcher: String) {
     update_settings(&app, |s| {
         s.games
             .get_or_insert_with(HashMap::new)
@@ -279,8 +278,7 @@ pub fn set_launcher(app: AppHandle, game_id: Option<String>, launcher: String) {
 
 #[tauri::command]
 #[specta::specta]
-pub fn set_launch_options(app: AppHandle, game_id: Option<String>, launch_options: String) {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+pub fn set_launch_options(app: AppHandle, game_id: String, launch_options: String) {
     update_settings(&app, |s| {
         s.games
             .get_or_insert_with(HashMap::new)
@@ -304,8 +302,7 @@ pub fn set_crimeboss_install_mode(app: AppHandle, mode: String) {
 
 #[tauri::command]
 #[specta::specta]
-pub fn set_suppress_crash_reporter(app: AppHandle, game_id: Option<String>, suppress: bool) {
-    let game_id = game_id.unwrap_or_else(|| "pd3".to_string());
+pub fn set_suppress_crash_reporter(app: AppHandle, game_id: String, suppress: bool) {
     update_settings(&app, |s| {
         s.games
             .get_or_insert_with(HashMap::new)
