@@ -41,13 +41,34 @@ pub enum InstallStrategy {
 
 pub struct LoaderSpec {
     pub id: &'static str,
+    /// modworkshop mod ids this loader is published under. A dependency on one of these
+    /// means "install the loader", not "install a mod". Empty for loaders hosted offsite
+    /// (SuperBLT has no modworkshop page - the renderer matches it by a name heuristic).
+    pub modworkshop_ids: &'static [i64],
+    /// Games whose mods can depend on this loader.
+    pub games: &'static [&'static str],
     pub detect: DetectStrategy,
     pub install: InstallStrategy,
+}
+
+/// The registry as the renderer sees it, so loader ids and their games live in one
+/// place instead of being restated in deps.ts.
+#[derive(serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LoaderInfo {
+    pub id: String,
+    pub modworkshop_ids: Vec<i64>,
+    pub games: Vec<String>,
+    /// No direct download - the renderer must route installs through the normal mod
+    /// flow rather than calling install_loader.
+    pub via_mod_flow: bool,
 }
 
 pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     LoaderSpec {
         id: "superblt",
+        modworkshop_ids: &[],
+        games: &["pd2"],
         // WSOCK32.dll (current), IPHLPAPI.dll (legacy), libsuperblt_loader.so (Linux
         // native). The loader never appears under mods/, so game-root presence is the
         // only reliable signal.
@@ -66,6 +87,8 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "pdth_overrides",
+        modworkshop_ids: &[53474],
+        games: &["pdth"],
         // DINPUT8.dll is the proxy loader and PDTHModOverrides.dll the payload; only the
         // proxy's presence is the install signal, but both are extracted below.
         detect: DetectStrategy::RootFiles(&["DINPUT8.dll"]),
@@ -76,6 +99,8 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "dahm",
+        modworkshop_ids: &[14267],
+        games: &["pdth"],
         detect: DetectStrategy::RootFiles(&["lightfx.dll"]),
         // Stable redirect maintained by DAHM's author - 302s to a versioned ZIP that
         // extracts flat to the game root (it ships ~40 framework modules alongside).
@@ -85,6 +110,8 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "raid_superblt",
+        modworkshop_ids: &[49744],
+        games: &["raid"],
         // IPHLPAPI.dll is also what the discontinued RaidBLT shipped, so its presence
         // means a BLT hook is installed, not necessarily the SuperBLT one. No Linux
         // variant - RAID has no native Linux build.
@@ -98,6 +125,10 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     },
     LoaderSpec {
         id: "ue4ss",
+        // Crime Boss (47749) plus PD3's two independently-maintained mod pages
+        // (47771 newer, 44048 older) - both PD3 ids must be recognized.
+        modworkshop_ids: &[47749, 47771, 44048],
+        games: &["cb", "pd3"],
         detect: DetectStrategy::Ue4ssProxy,
         install: InstallStrategy::ViaModFlow,
     },
@@ -105,6 +136,56 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
 
 pub fn loader_spec(loader_id: &str) -> Option<&'static LoaderSpec> {
     LOADER_REGISTRY.iter().find(|s| s.id == loader_id)
+}
+
+fn spec_or_err(loader_id: &str) -> Result<&'static LoaderSpec, String> {
+    loader_spec(loader_id).ok_or_else(|| format!("unknown loader id '{loader_id}'"))
+}
+
+/// The whole registry, for the renderer to map dependency ids to loaders without
+/// restating the tables.
+#[tauri::command]
+#[specta::specta]
+pub fn list_loaders() -> Vec<LoaderInfo> {
+    LOADER_REGISTRY
+        .iter()
+        .map(|s| LoaderInfo {
+            id: s.id.to_string(),
+            modworkshop_ids: s.modworkshop_ids.to_vec(),
+            games: s.games.iter().map(|g| g.to_string()).collect(),
+            via_mod_flow: matches!(s.install, InstallStrategy::ViaModFlow),
+        })
+        .collect()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn check_loader(
+    app: AppHandle,
+    loader_id: String,
+    game_id: String,
+    game_path: String,
+) -> Result<bool, String> {
+    let spec = spec_or_err(&loader_id)?;
+    let settings = crate::commands::settings::read_settings(&app);
+    let launcher = crate::commands::settings::game_settings(&settings, &game_id)
+        .and_then(|gs| gs.launcher.clone());
+    Ok(is_loader_installed(
+        spec,
+        &game_id,
+        &game_path,
+        launcher.as_deref(),
+    ))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn install_loader(
+    app: AppHandle,
+    loader_id: String,
+    game_path: String,
+) -> Result<(), String> {
+    install_loader_package(spec_or_err(&loader_id)?, &app, &game_path).await
 }
 
 /// Whether the loader's files are on disk. `launcher` is only consulted by the UE4SS

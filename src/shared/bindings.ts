@@ -117,6 +117,13 @@ export const commands = {
 	 */
 	installRaidSuperblt: (gamePath: string) => __TAURI_INVOKE<null>("install_raid_superblt", { gamePath }),
 	checkUe4ss: (gamePath: string, gameId: string) => __TAURI_INVOKE<boolean>("check_ue4ss", { gamePath, gameId }),
+	/**
+	 *  The whole registry, for the renderer to map dependency ids to loaders without
+	 *  restating the tables.
+	 */
+	listLoaders: () => __TAURI_INVOKE<LoaderInfo[]>("list_loaders"),
+	checkLoader: (loaderId: string, gameId: string, gamePath: string) => __TAURI_INVOKE<boolean>("check_loader", { loaderId, gameId, gamePath }),
+	installLoader: (loaderId: string, gamePath: string) => __TAURI_INVOKE<null>("install_loader", { loaderId, gamePath }),
 	installedLaunchers: (gameId: string) => __TAURI_INVOKE<string[]>("installed_launchers", { gameId }),
 	configureGamePath: (gameId: string, gamePath: string | null) => __TAURI_INVOKE<void>("configure_game_path", { gameId, gamePath }),
 	pickFolder: (defaultPath: string | null) => __TAURI_INVOKE<string | null>("pick_folder", { defaultPath }),
@@ -356,6 +363,21 @@ export type ListModsParams = {
 	ids: number[] | null,
 	tags: number[] | null,
 	block_tags: number[] | null,
+};
+
+/**
+ *  The registry as the renderer sees it, so loader ids and their games live in one
+ *  place instead of being restated in deps.ts.
+ */
+export type LoaderInfo = {
+	id: string,
+	modworkshopIds: number[],
+	games: string[],
+	/**
+	 *  No direct download - the renderer must route installs through the normal mod
+	 *  flow rather than calling install_loader.
+	 */
+	viaModFlow: boolean,
 };
 
 export type ModFolder = {

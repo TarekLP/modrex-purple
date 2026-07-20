@@ -88,6 +88,9 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::raid_superblt::check_raid_superblt,
             commands::raid_superblt::install_raid_superblt,
             commands::ue4ss::check_ue4ss,
+            commands::loaders::list_loaders,
+            commands::loaders::check_loader,
+            commands::loaders::install_loader,
             // launchers & system
             commands::launchers::installed_launchers,
             commands::launchers::configure_game_path,

@@ -2,7 +2,8 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commands, type InstallOutcome } from '../../shared/bindings'
-export type { InstallOutcome } from '../../shared/bindings'
+import type { LoaderInfo } from '../../shared/bindings'
+export type { InstallOutcome, LoaderInfo } from '../../shared/bindings'
 
 // The library declares this union without exporting it.
 export type ResizeDirection = Parameters<
@@ -494,6 +495,20 @@ export const api = {
     },
     async installRaidSuperblt(gamePath: string): Promise<void> {
         await commands.installRaidSuperblt(gamePath)
+    },
+
+    // ── Mod loaders (registry-driven) ──────────────────────────────────────────
+    // The registry (src-tauri/src/commands/loaders.rs) owns which loaders exist, the
+    // modworkshop ids they are published under, and which games they serve — the
+    // renderer reads it instead of restating those tables.
+    listLoaders(): Promise<LoaderInfo[]> {
+        return commands.listLoaders()
+    },
+    checkLoader(loaderId: string, gameId: string, gamePath: string): Promise<boolean> {
+        return commands.checkLoader(loaderId, gameId, gamePath)
+    },
+    async installLoader(loaderId: string, gamePath: string): Promise<void> {
+        await commands.installLoader(loaderId, gamePath)
     },
 
     // ── UE4SS ────────────────────────────────────────────────────────────────────
