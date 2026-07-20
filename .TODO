@@ -211,116 +211,10 @@ both are UE 4.27.2, so one format generation.
 
 ---
 
-## TODO: nexus-prototype-merge
-
-Phase 1 of the multi-source expansion. The phases must land in this order:
-nexus-prototype-merge -> source-identity-refactor -> mod-source-domain-model ->
-sources-module-restructure -> acquire-install-split -> index-multi-source.
-kill-pd3-fallback is independent and can land any time.
-
-### Context and reasoning (read before implementing)
-
-Goal of the whole track: expand Modrex from one source (modworkshop) to many
-(Nexus Mods, mod.io, Steam Workshop, ModDB) across many games. A full architecture
-review (2026-07-03) found the app has no domain model of "a mod": the modworkshop
-wire format IS the data model, and the modworkshop numeric id IS mod identity, baked
-into the persisted state file, every cache, the IPC surface, the dependency system,
-and the SHA256 index. The install engine BELOW the "archive on disk" boundary
-(zip.rs, ScanTargets, sentinels, state management) is already source-agnostic and
-must not be restructured by this work.
-
-Sequencing decision, deliberate: the branch `feature/nexus-prototype` merges into
-main BEFORE the deep refactor, not after. Merging after is the worst ordering: the
-refactor rewrites exactly the files the branch touches (types.rs, identify.rs,
-api.ts, App.tsx, installedUtils.ts), so every refactor commit conflicts with the
-branch, and the final "merge" is a rewrite anyway. Merging first is cheap (the
-branch is mostly additive new files) and makes the later refactor better: the
-source abstraction gets extracted from two live implementations instead of one.
-
-### Facts about feature/nexus-prototype (verified against the branch)
-
-- Forked from 0.12.1 (commit 003a684). One commit, f61e99a (skip startup update
-  check in dev builds), was already cherry-picked to main - expect it to dedupe or
-  trivially conflict when merging.
-- New Rust modules: `commands/nexus.rs` (+tests) - API client with GraphQL mods
-  search; `commands/nxm.rs` (+tests) - nxm:// deep-link parsing and handoff
-  (case-insensitive domain match, secrets kept out of logs). New renderer page:
-  `NexusBrowsePage.tsx` (separate from BrowsePage, deliberately). Tauri deep-link
-  plugin config + ACL/schema changes in `tauri.conf.json`, `lib.rs`, `gen/schemas`.
-- Identity convention on the branch: a Nexus install gets
-  `uid = "nexus:{nexus_mod_id}:{nexus_file_id}"`, `id = -(nexus_mod_id)`,
-  `source = "nexus"`, plus new optional state fields `author` and `thumbnail_url`
-  (only recorded for non-modworkshop sources). THE UID ENCODES THE FULL REAL
-  IDENTITY - this is the invariant that makes the later identity refactor a
-  mechanical state migration. Never break it for anything new persisted.
-- Guarded special cases that exist on the branch and are DELETED later by the
-  refactor (do not multiply them): identify.rs skips nexus entries in the fuzzy
-  name fallback and name-suffix regroup (SHA256 cross-post upgrade still allowed);
-  computeHealthSummary excludes nexus entries from "unidentified"; syntheticMod
-  renders author/thumbnail from state.
-- `GAMES` gained optional `nexusDomain` (pd3 = "payday3",
-  cb = "crimebossrockaycity").
-- install_nexus_download reuses resolve_archive_download + install_mod_from_path;
-  the four picker sentinels (ZIP_MULTI_PAK / HOST_MOD_PACK / CB_FLAT_ARCHIVE /
-  UNRECOGNIZED_ARCHIVE) currently FAIL with an honest error ("needs a manual
-  install choice that Nexus downloads don't support yet") because the picker
-  modals are modworkshop-shaped.
-- Nexus platform constraints the branch encodes: free-tier users cannot get API
-  download links (premium only) - downloads arrive via the site's "Mod Manager
-  Download" button firing an nxm:// link with a signed key; hence the deep-link
-  subsystem. API key is entered by the user in Settings (prototype: stored in
-  settings.json plaintext).
-
-### What to do
-
-1. Merge main into the branch (or rebase) to clear drift; repeat periodically
-   while work continues. Keep new branch work additive (new files) wherever
-   possible.
-2. Pre-merge polish, in the branch:
-   - Decide the sentinel story: either keep the honest failure for v1 (acceptable,
-     it is explicit and rare) or wire ZipPickerModal for nexus installs. Do NOT
-     silently guess an install target.
-   - Decide on API key storage. Plaintext settings.json is a known tradeoff; if
-     kept, say so in the Settings UI copy. (A proper secrets story can ride the
-     sources-module-restructure phase.)
-   - Nexus feature stays naturally gated: no API key configured -> no Nexus UI.
-     Verify that holds everywhere (Sidebar, Settings, deep-link handler).
-3. Merge to main. Conventional commit; user runs all remote git commands.
-4. Verify end-to-end after merge: nxm:// handoff from the Nexus website installs a
-   real PD3 mod and a real Crime Boss mod; entries show in InstalledPage with
-   author + thumbnail; enable/disable/uninstall work; modworkshop flows unchanged.
-
----
-
-## TODO: source-identity-refactor
-
-Phase 2 of the multi-source expansion. DONE 2026-07-19. What landed:
-
-- `InstalledMod` carries `remote_id`/`file_remote_id` (Option<String> - strings
-  because Steam Workshop ids overflow JS numbers) for non-modworkshop sources;
-  modworkshop identity stays in `id`/`file_id`. `reconcile_state` recovers them
-  from `{source}:{mod}:{file}` uids for pre-existing entries (pure parse, refuses
-  to guess on unparsable uids); `install_nexus_download` writes them directly.
-- The negative-id-means-nexus convention is retired for all READERS: identify.rs
-  and the renderer decide "unidentified" by `remote_id` absence (`m.remoteId`),
-  never by source literals; NexusBrowsePage/InstalledModItem read `remoteId`
-  instead of decoding `-id`. The remaining `source === 'nexus'` checks are pure
-  presentation (badges, source label).
-- `install_nexus_download` still WRITES `id = -(nexus_mod_id)` and
-  `file_id = nexus_file_id` as legacy grouping keys that nothing interprets as
-  identity anymore; stop writing them when mod-source-domain-model gives grouping
-  a real source-qualified key.
-- deps.ts loader tables and settings.rs `dismissed_deps_warnings` are documented
-  modworkshop-only (loaders ARE modworkshop-hosted; scoping over ambiguity).
-
-Deferred into mod-source-domain-model (see its entry): updateStatus enum,
-source-qualified renderer cache keys, string remote ids across the renderer.
-
----
-
 ## TODO: mod-source-domain-model
 
-Phase 3 of the multi-source expansion.
+Phase 3 of the multi-source expansion. Phases 1 (nexus-prototype-merge) and 2
+(source-identity-refactor) are done; this is the next one and the largest.
 
 ### Context
 
@@ -462,19 +356,6 @@ SHA256 will match multiple identities.
   Steam Workshop hashing would require steamcmd-driven downloads.
 - Keep the hard rule from builder-state: zero-yield mods never become `mods` rows
   (query_by_name uniqueness depends on it), per source.
-
----
-
-## TODO: kill-pd3-fallback
-
-DONE 2026-07-19 (folded into game-registry Stage 1). `engine_for_game` and
-`game_def_for_id` now return `Result` off `GAME_REGISTRY` (commands/games.rs); an
-unknown id is a hard command error, never a silent PD3. Every game-scoped command
-takes a required `game_id: String` (no `Option`/`unwrap_or("pd3")` left in
-src-tauri/src/commands/), and every api.ts wrapper requires `gameId: string`. Two
-silent `unwrap_or` swallows fixed as a side effect (installed_launchers and
-is_game_running no longer mask a crashed probe thread). See game-registry below for
-the remaining Stages 3/4.
 
 ---
 
@@ -679,365 +560,64 @@ untested on any real Debian/Ubuntu/Fedora machine as of this writing.
 
 ---
 
-# Architecture review 2026-07-17 (all gated on nexus-prototype-merge)
+# Architecture review 2026-07-17 (gate lifted, mostly delivered)
 
 The entries below came out of a full architecture/security/performance review on
-2026-07-17. EVERY entry in this section is blocked on `nexus-prototype-merge` and must
-NOT be started until the `feature/nexus-prototype` branch is merged to main. The reason
-is concrete, not cautious: the Nexus branch touches ~39 files / +3133 lines, heavily in
-lib.rs, api.ts, types.ts, App.tsx, SettingsPage.tsx, Sidebar.tsx, mods/mod.rs,
-identify.rs, and types.rs - which are exactly the files most of this work rewrites. Doing
-any of it before the merge multiplies rebase conflicts on a branch that is itself gated
-on an external dependency (the Nexus support team, via email). Note also that the Nexus
-branch ALREADY fixed the `open_url` cmd-metacharacter finding (it switched to rundll32);
-do not re-address that.
+2026-07-17, originally all blocked on the Nexus prototype merge. That merge landed
+2026-07-19 and the blocked work was delivered in order over 2026-07-19/20:
+typed-ipc-codegen, typed-install-results, backend-state-lock, game-registry Stages 1+3
+(with kill-pd3-fallback folded in), loader-registry, conformance-test-suite,
+extract-deps-check-hook, index-lookup-connection-reuse, and three of the four
+ci-security-and-invariant-checks bullets. Those entries have been removed from this file;
+see git history for their reasoning.
 
-Recommended post-merge order (each makes the next cheaper):
-typed-ipc-codegen -> typed-install-results -> backend-state-lock ->
-game-registry (+ loader-registry) -> the rest. index-lookup-connection-reuse,
-extract-deps-check-hook, and ci-security-and-invariant-checks are independent and can
-slot in whenever. modrex-core-crate and plugin-system are far-future, each with its own
-additional trigger.
+What is left from the review is below: the behavior-hooks stage of game-registry, the
+shell_open_path bullet, and the two far-future items (modrex-core-crate, plugin-system),
+each of which still has its own additional trigger and is NOT merely waiting on time.
 
 ---
 
-## TODO: index-lookup-connection-reuse
+## TODO: game-registry-behavior-hooks
 
-Performance. Small (~1h). Post-nexus only because identify.rs is lightly touched by the
-branch - do it right after merge to avoid a trivial conflict.
+Scalability. Medium. Stages 1 and 3 of the original game-registry entry landed on
+2026-07-19 (GAME_REGISTRY in commands/games.rs, GAME_SPECS in src/shared/types.ts,
+pnpm check-games diffing the two, kill-pd3-fallback folded in). Stage 2 (loader list
+as a GameSpec field) was superseded by the loader registry, which owns loaders in its
+own table instead. This is the remaining stage.
 
 ### The problem
 
-`upgrade_negative_ids` (src-tauri/src/commands/mods/identify.rs, ~line 180) loops every
-unidentified installed mod and calls `mod_index::lookup_sha256`, then on a miss
-`mod_index::lookup_by_name`. Both PUBLIC wrappers (mod_index.rs ~line 277 and ~286)
-REOPEN index.db from disk on every call via `open_conn`. So N unidentified mods cause up
-to 2N SQLite file-opens. This runs inside `get_installed`, which fires at startup, on
-every window focus (500ms debounce), and after every path change - a hot path.
-
-The sibling pass already does it right: `identify_untracked` opens the connection ONCE
-via `mod_index::open_index` (mods/mod.rs ~line 224) and passes the shared
-`&rusqlite::Connection` to the private `query_sha256` / `query_by_name` helpers.
+The registries fixed game IDENTITY, so adding a family-conforming game no longer touches
+~15 wiring files. They did not fix the novel 20%: game-specific BEHAVIOR still lives as
+`game_id == "x"` branches inside big shared files, which grow with every game added.
+zip.rs is already ~1176 lines and every Crime Boss special case lands there.
 
 ### The fix
 
-- In `upgrade_negative_ids`, open the index once at the top (`mod_index::open_index(app)`),
-  return early if None (index absent - same as today's implicit per-call existence check),
-  then call the private `mod_index::query_sha256(&conn, sha, game_name)` /
-  `query_by_name(&conn, name, game_name)` inside the loop instead of the reopening public
-  wrappers. Those private helpers are already `pub(crate)` and take `&Connection`.
-- Check the other caller of `lookup_sha256` first: get_installed's host-pack recovery loop
-  (mods/mod.rs ~line 140) also calls it per discovered host pack. Either hoist the same
-  single connection there too, or leave it (host packs are rare). Do not remove the public
-  wrappers unless this was their last use.
-- Pure I/O reduction, no behavior change. Existing mod_index_tests already cover the query
-  functions; add nothing unless you change a signature.
+Add optional hook fields to `GameSpec` so game-specific logic lives in that game's own
+module instead of a branch in a shared file:
+- `archive_resolver` - Crime Boss skeleton synthesis in zip.rs (highest structural value)
+- `enabled_sync` - Crime Boss ModSettings (crimeboss_settings.rs), UE4SS mods.txt
+  (ue4ss_modstxt.rs)
+- `embedded_id_parser` - BeardLib main.xml, RAID supermod.xml + mod.xml (identify.rs)
+
+Migrate OPPORTUNISTICALLY, whenever a `game_id ==` branch is touched, not big-bang. The
+conformance suite (commands/conformance_tests.rs) covers the uniform contract, so a hook
+migration that changes routing shows up there.
 
 ---
 
-## TODO: typed-ipc-codegen
+## TODO: shell-open-path-validation
 
-Reliability foundation. Medium-Large. Blocked on: nexus-prototype-merge (touches every
-command signature plus lib.rs/api.ts/types.ts - the branch's hottest files - and must
-cover the new nexus/nxm/oauth commands). DO THIS FIRST of the post-merge architecture
-work; typed-install-results and the source-* refactors build on a typed surface.
+CI hygiene leftover. Small. The other three bullets of the original
+ci-security-and-invariant-checks entry are DONE: the cargo/pnpm audit job, the CSP
+dual-list sync check (pnpm check-csp), and the updater-manifest shape assertion
+(pnpm check-updater) all run in CI. The Nexus branch separately fixed the open_url
+cmd-metacharacter finding by switching to rundll32 - do not re-address that.
 
-### The problem
-
-The Rust<->TS wire contract is maintained BY HAND in two places: the serde structs in
-src-tauri (rename_all camelCase) and the interfaces in src/shared/types.ts.
-`pnpm check-commands` (scripts/check-commands.mjs, pre-commit + CI) enforces that command
-NAMES and arity line up between `generate_handler!` (lib.rs) and the `invoke(...)` calls
-(api.ts) - but it does NOT verify payload SHAPES. Rename or retype a struct field on one
-side without mirroring it and both sides compile while the channel breaks at runtime.
-Confirmed there is no codegen today (no ts-rs/specta/typeshare in Cargo.toml).
-
-### The fix
-
-- Adopt `tauri-specta` + `specta`. Derive `specta::Type` on command param/return structs
-  and enums; collect commands via `tauri_specta::Builder`; emit a generated TS module
-  (e.g. src/renderer/src/bindings.ts) at build time.
-- api.ts stays the single IPC boundary (the renderer.md invariant) - it imports the
-  generated typed functions instead of hand-writing `invoke` string names.
-- src/shared/types.ts: replace hand-written WIRE types with re-exports of the generated
-  types. Keep renderer-only VIEW types (things never sent over IPC) separate and hand-written.
-- Replace or augment check-commands.mjs with a CI "generated bindings are up to date"
-  git-diff check (mirror the check-licenses job pattern in ci.yml: regenerate, `git diff
-  --exit-code`).
-- DOMAIN vs WIRE caveat: this codegen encodes the CURRENT modworkshop-shaped wire types.
-  The later mod-source-domain-model TODO replaces those with neutral domain types. Do
-  typed-ipc-codegen first (mechanical), then domain-model on top of an already-typed surface.
-
-### Verification
-
-Full `pnpm typecheck` + `pnpm test`, then smoke-run the app (get_installed, an install, a
-browse fetch) to confirm no serialization regressions - specta camelCase/rename settings
-must match the existing serde rename_all exactly or every field silently mismatches.
-
----
-
-## TODO: typed-install-results
-
-Reliability. Large. DONE 2026-07-19: install_mod/install_file/install_dropped_file return
-a typed InstallOutcome (installed / needsPicker / needsHostChoice / needsCbFlatConfirm /
-unrecognized) in the Ok channel; zip.rs models prompts as InstallPrompt/ResolveError
-internally; every renderer entry point consumes the outcome through handleInstallOutcome
-(required-in-full handlers, missed prompt = compile error); the sentinel strings and
-their parsers are deleted. Nexus nxm:// installs still return the honest "needs a manual
-choice" error - they run in a background task with no renderer caller to prompt, so
-wiring pickers for them needs an event-driven prompt flow (mod-source-domain-model or
-later). Original context below.
-
-### The problem
-
-Install commands signal "this archive needs a user decision" by returning `Err(String)`
-whose text is a sentinel-prefixed JSON blob: `ZIP_MULTI_PAK:{...}`, `HOST_MOD_PACK:{...}`,
-`CB_FLAT_ARCHIVE:{...}`, `UNRECOGNIZED_ARCHIVE:{...}` (produced by
-`resolve_archive_download` / `classify_archive_dirs` in mods/zip.rs; plus an internal
-`UE4SS_LOADER:` sentinel handled entirely in Rust). The renderer parses these out of the
-error string in every install entry point's catch block via `handleInstallSentinel`
-(src/renderer/src/installSentinels.ts) + `parseZipMultiPak` / `parseHostModPack` /
-`parseCbFlatArchive` / `isUnrecognizedArchive`. This is an untyped protocol on the ERROR
-channel. CLAUDE.md/renderer.md record two real regressions from an entry point forgetting
-a sentinel (the reinstall path, then the Updates modal), each surfacing a raw `**:{...}`
-string to the user.
-
-### The fix
-
-- Rust: model the result as a typed discriminated union in the Ok channel, e.g.
-  `enum InstallOutcome { Installed, NeedsPicker(ZipMultiPakPayload),
-  NeedsHostChoice(HostPackPayload), NeedsCbFlatConfirm(CbFlatPayload),
-  Unrecognized(UnrecognizedPayload) }` (specta::Type, typed end-to-end via
-  typed-ipc-codegen). Genuine failures stay `Err`.
-- Renderer: replace catch-block sentinel parsing with an exhaustive `switch` on the typed
-  outcome. TypeScript exhaustiveness then makes "handle all cases" a COMPILE error if an
-  entry point misses one - this eliminates the exact regression class the prose invariant
-  currently guards.
-- Migrate ALL entry points (that is the point): BrowsePage.handleInstall,
-  ModDetailPage.handleInstall + DownloadsTab, InstalledPage reinstall
-  (useModActions.handleReinstall), UpdatesModal, FileSelectModal.
-- Nexus tie-in: the branch's install_nexus_download currently returns an honest error for
-  these sentinels because the picker modals are modworkshop-shaped. This refactor is where
-  Nexus installs return the same typed outcomes so the pickers work for Nexus too
-  (coordinate with the nexus-prototype-merge sentinel-story decision).
-
----
-
-## TODO: backend-state-lock
-
-Reliability. Medium. DONE 2026-07-19: per-game StateLocks (managed Tauri state, tokio
-mutex per game id) serializes every .modrex.json read-modify-write. Acquired by
-get_installed's reconcile-and-save span and every state-mutating command (all install
-variants including install_nexus_download's nxm path, uninstall/enable/disable, the CB
-move op, folder and reorder ops); acquired only after downloads/extraction so network
-never holds the lock; games stay parallel. The formerly-sync mutators became async
-commands (the app-less ones take State<StateLocks> and now return Result, per tauri's
-async-with-references rule). The renderer's isRefreshingInstalled stays as a debounce
-with its comment updated. Original context below.
-
-### The problem
-
-Concurrent writes to a game's `.modrex.json` are prevented today by RENDERER discipline:
-the `isRefreshingInstalled` ref in App.tsx stops two `get_installed` calls racing, and
-callers are expected to serialize. `save_state` (mods/state.rs) is atomic PER WRITE (temp
-+ rename), but there is no backend mutual exclusion, so two commands that read-modify-write
-state (e.g. an install firing while a focus-triggered get_installed reconciles) can
-interleave and lose updates - the exact race the renderer guard papers over. With one UI
-caller it is survivable; with Nexus deep-link installs (nxm:// can fire while the UI is
-doing something else) and any future automation/CLI/plugin caller, renderer discipline is
-not enough.
-
-### The fix
-
-- Add a PER-GAME async lock in managed Tauri state (e.g. a
-  `Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>` keyed by game_id, or a
-  single-writer task per game). Every state-mutating command acquires the game's lock for
-  the read-modify-write span: install_mod, install_file, install_from_zip_entry,
-  install_cb_flat_archive, install_host_pack, uninstall_mod, enable_mod, disable_mod,
-  move_crimeboss_mod_target, the folder ops (create/rename/delete/move/reorder), and
-  get_installed's reconcile-and-save tail.
-- Per-game, so operations on different games stay parallel.
-- CRITICAL: do not hold the lock across the network download in install_mod/install_file.
-  Download to temp first, acquire the lock only for the disk-write + state-update phase, or
-  a slow download serializes unrelated installs.
-- Leave the renderer's `isRefreshingInstalled` guard in place as a cheap client-side
-  debounce; update its comment to say the backend is now authoritative. Do not remove it in
-  the same change.
-
----
-
-## TODO: game-registry
-
-Scalability. Medium (Stages 1+3 are behavior-preserving). Blocked on:
-nexus-prototype-merge (conflicts with the branch's App.tsx/SettingsPage/Sidebar/types.ts
-edits, and the registry should absorb the Nexus per-game `nexusDomain` axis in one pass
-rather than being reshaped twice). This SUPERSEDES the "do not act now" note at the bottom
-of kill-pd3-fallback: the owner decided on 2026-07-17 to pursue game-count scalability
-toward 20-100+ games.
-
-### The problem (measured)
-
-Adding one game touches ~15 wiring files. Measured against the RAID merge
-(feat/raid-ww2-support): 25 files / ~530 insertions, of which ~10 are irreducible (novel
-behavior + tests + docs) and ~15 are pure wiring. Game identity is restated in many
-places: launchers/games/<game>.rs (`GameDef`), launchers/games/mod.rs (registration),
-launchers/mod.rs (`game_def_for_id` dispatch arm), mods/engine.rs (the `*_ENGINE` static +
-`engine_for_game` dispatch arm), src/shared/types.ts (`GameId` union + `GAMES` record),
-App.tsx (hardcoded valid-GameId list in the activeGame initializer), WelcomeScreen.tsx
-(picker entry). At 20+ games this is unsustainable and typo-prone.
-
-### The fix (do NOT try to remove the irreducible ~10 files - novel per-game behavior and
-reverse-engineering always cost; the target is the ~15 wiring files)
-
-- Stage 1 (backend single source of truth) DONE 2026-07-19: `GameSpec { id, engine, def }`
-  + `GAME_REGISTRY` in `commands/games.rs`; `engine_for_game` and `game_def_for_id` derive
-  from it. Scope note: this first cut bundles only the existing engine + GameDef statics
-  (it does NOT yet pull identity/loader-list/index_game_name into the spec, since those
-  already live on the engine config; expand GameSpec when loader-registry lands). Also
-  folded in kill-pd3-fallback: both dispatchers return `Result`, unknown id is a hard
-  error, and every command takes a required `game_id: String`.
-- Stage 3 (renderer derives from GAMES) DONE 2026-07-19: `GAME_SPECS` in
-  src/shared/types.ts is the renderer registry; `GameId = keyof typeof GAME_SPECS` and
-  `GAMES: Record<GameId, GameSpec>` derive from it, plus an `isGameId` guard that
-  replaced App.tsx's hardcoded valid-id list (WelcomeScreen already iterated GAMES).
-  The PD3 `-fileopenlog` conditionals in TopBar/SettingsPage became the
-  `requiredLaunchFlag` spec field (its i18n placeholder key was dropped - the flag now
-  has one source). New `pnpm check-games` (CI + pnpm checks) diffs the Rust
-  GAME_REGISTRY ids against the TS GAME_SPECS ids, since neither side can see the other.
-  NOT converted, deliberately: the loader-shaped conditionals (BrowsePage's UE4SS
-  game check, healthCheck.ts's pd2 branch, installDepCheck's Diesel 3.0 guard) - those
-  are loader concerns and belong to loader-registry, not a UI spec field.
-- Stage 4 (behavior hooks - this is what stops the SHARED files growing per game): add
-  optional hook fields to `GameSpec` for the novel 20%, so game-specific logic lives in
-  that game's module instead of `game_id == "x"` branches in the big shared files -
-  `archive_resolver` (Crime Boss skeleton synthesis in zip.rs), `enabled_sync` (Crime Boss
-  ModSettings in crimeboss_settings.rs, UE4SS mods.txt in ue4ss_modstxt.rs),
-  `embedded_id_parser` (BeardLib main.xml / RAID supermod.xml + mod.xml in identify.rs).
-  Migrate opportunistically (whenever a `game_id ==` branch is touched), not big-bang.
-  zip.rs is already 1176 lines and every CB special case lands there today - highest
-  structural value.
-
-Ordering: Stage 1 -> Stage 3 -> Stage 4, each behavior-preserving on top of the existing
-461 tests. Coordinate with loader-registry (the loader list is a GameSpec field) and
-conformance-test-suite below.
-
----
-
-## TODO: loader-registry
-
-Scalability - highest payoff-to-churn of the add-a-game work. Medium-Large. Blocked on:
-nexus-prototype-merge (minor add-add conflicts in lib.rs/api.ts). Can land before or with
-game-registry Stage 1.
-
-### The problem
-
-Each mod loader is wired as a bespoke command pair plus scattered renderer awareness.
-Backend command pairs: check_superblt/install_superblt (superblt.rs),
-check_pdth_overrides/install_pdth_overrides (pdth_overrides.rs), check_dahm/install_dahm
-(dahm.rs), check_raid_superblt/install_raid_superblt (raid_superblt.rs), check_ue4ss
-(ue4ss.rs; install goes through the normal mod flow via the UE4SS_LOADER sentinel).
-Renderer: deps.ts carries hardcoded loader-id tables and per-loader logic (`loaderModIds`,
-`buildLoaderModIds`, `isUe4ssLoaderId`, `ue4ssLoaderIdsFor`, `RAID_SUPERBLT_ID`,
-`isRaidLoaderId`, `loaderIdsForGame`), consumed at ~4-5 UI call sites (BrowsePage,
-ModDetailPage, DepsTab, healthCheck.ts, installDepCheck.ts). Adding a game's loader means
-teaching all of those a new modworkshop id - the RAID merge touched 7 renderer files for
-what is conceptually one table row. This is the piece that genuinely does not survive 20
-games.
-
-### The fix
-
-- Define a `LoaderSpec { id, modworkshop_ids: &[i64], games: &[game_id], detect:
-  DetectStrategy, install: InstallStrategy }`. DetectStrategy is a list of root-level marker
-  files (WSOCK32.dll/IPHLPAPI.dll for SuperBLT and RAID-SuperBLT; DINPUT8.dll +
-  PDTHModOverrides.dll for PDTHModOverrides; lightfx.dll for DAHM; the per-game UE4SS proxy
-  DLLs). InstallStrategy is one of: `DirectUrl(url)` (DAHM's dahm.neonsynth.de, SuperBLT's
-  sblt-update.znix.xyz), `ModworkshopDownload(id)` (RAID-SuperBLT
-  api.modworkshop.net/mods/49744/download), or `ViaModFlow` (UE4SS - no canonical URL,
-  installs through resolve_archive_download).
-- Replace the five per-loader command pairs with generic `check_loader(game_id, loader_id)`
-  / `install_loader(game_id, loader_id)` that dispatch over the spec's strategy. Keep the
-  existing strategy IMPLEMENTATIONS (they are already correct) - just route them through the
-  spec instead of hardcoded commands.
-- Renderer: deps.ts's per-loader tables collapse to one lookup over the LoaderSpec list
-  (expose it to the renderer as data, ideally through the typed-ipc bindings so ids are not
-  restated in TS). The ~4-5 UI call sites stop being per-loader aware: "is this dependency a
-  loader for this game, and is it installed?" becomes a single spec query.
-- Result: a new game's loader is ONE spec entry with ZERO renderer edits. SuperBLT's
-  offsite-dependency heuristic (no modworkshop page, detected by a `blt` substring in deps)
-  and UE4SS's via-mod-flow oddity remain as strategy variants, not exceptions scattered
-  across components.
-- The loader list becomes a `GameSpec` field (game-registry) - these dovetail.
-- PRESERVE every verified detail from the loader modules and .claude/rules/backend.md (the
-  per-game UE4SS proxy DLL variants, the "IPHLPAPI may be the discontinued RaidBLT" note,
-  DAHM/RAID full-zip extraction vs SuperBLT DLL-only). Do not lose reverse-engineered
-  specifics in the generalization.
-
----
-
-## TODO: conformance-test-suite
-
-Scalability (test infrastructure). Small-Medium. Blocked on: game-registry (needs uniform
-GameSpecs to parameterize over). Follows game-registry Stage 1.
-
-Once every game is a uniform `GameSpec`, replace hand-written per-game tests with a suite
-that is PARAMETERIZED over `GAME_REGISTRY`: write each invariant check once and run it for
-every spec. Candidate universal checks: engine roundtrip (state save/read), target routing
-(`target_for` returns the right ScanTarget per location tag), `disabled_suffix` /
-`priority_prefix_enabled` consistency with the ModUnit, and a detection sanity check.
-Keep game-specific behavior tests (crimeboss_settings, pdmod, RAID marker parsing) as their
-own targeted tests - the parameterized suite covers the uniform contract, not the novel 20%.
-Net effect: adding a family-conforming game gets test coverage for free.
-
----
-
-## TODO: extract-deps-check-hook
-
-Renderer cleanup that lowers future per-game/per-source cost. Medium. Blocked on:
-nexus-prototype-merge (BrowsePage/ModDetailPage are lightly touched by the branch, and
-NexusBrowsePage would otherwise become a THIRD copy).
-
-### The problem
-
-The dependency-warning STATE and EFFECTS are duplicated by hand across BrowsePage.tsx and
-ModDetailPage.tsx - renderer.md itself records that each "has its own parallel copy of the
-surrounding state/effects, kept in sync by hand" around the shared deps.ts helpers
-(collectDeps / isOffsiteDep / isLoaderDep / missingRequiredDeps / offsiteDepHost). The
-Nexus branch adds NexusBrowsePage.tsx, a third place this logic would be copied.
-
-### The fix
-
-Extract the shared dependency-check state + effects into a `useDepsCheck` hook
-(src/renderer/src/hooks/) consumed by BrowsePage, ModDetailPage, and NexusBrowsePage. The
-pure functions in deps.ts stay; only the React state/effect wiring around them is
-deduplicated. Coordinate with loader-registry (the loader-id lookups inside this logic
-simplify once loaders are declarative).
-
----
-
-## TODO: ci-security-and-invariant-checks
-
-CI hygiene. Small-Medium. Independent of the architecture work; can land any time after
-nexus-prototype-merge. NOTE: the Nexus branch already fixed the open_url cmd-metacharacter
-finding (it switched to rundll32) - do not re-address that.
-
-Add mechanical enforcement for things currently guarded only by prose:
-- Security dependency audit job in .github/workflows/ci.yml: run `cargo audit` (in
-  src-tauri) and `pnpm audit`. As of 2026-07-17: pnpm audit is CLEAN; cargo audit flags
-  quick-xml 7.5 advisories, but its only path is a BUILD dependency
-  (plist -> tauri-utils -> tauri-build), not shipped runtime input - add an audit ignore
-  (audit.toml or `--ignore RUSTSEC-...`) with a comment that it clears when Tauri bumps
-  tauri-utils, so the job fails only on NEW or runtime advisories. Refract_MC's
-  .github/workflows/security-audit.yml is a working reference for the job shape.
-- CSP dual-list sync check: a small script asserting every origin in `csp` also appears in
-  `devCsp` in src-tauri/tauri.conf.json (the invariant CLAUDE.md states - a missed origin
-  fails silently as blank images / broken embeds). Wire into CI.
-- Updater-manifest shape assertion: a CI check that the generated latest.json matches the
-  shape tauri-plugin-updater expects and the endpoint in tauri.conf.json. The update
-  pipeline is the "never break" invariant (a bad latest.json silently strands all users on
-  the current release). Assert the release.yml "Generate latest.json" output structure.
-- Optional, low priority: add scheme/shape validation to `shell_open_path`
-  (launchers/mod.rs). Its only caller passes the settings-derived gamePath so it is safe
-  today, but it is an unguarded command handing its argument to explorer.exe.
+Remaining, low priority: add scheme/shape validation to `shell_open_path`
+(launchers/mod.rs). Its only caller passes the settings-derived gamePath so it is safe
+today, but it is an unguarded command handing its argument to explorer.exe.
 
 ---
 
