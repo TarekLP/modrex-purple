@@ -4,7 +4,7 @@ use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
     mods_base,
 };
-use super::types::{InstalledMod, ModFolder, ModsState};
+use super::types::{InstalledMod, ModFolder, ModsState, UpdateStatus};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
@@ -17,6 +17,19 @@ pub fn get_folder_path(folders: &[ModFolder], folder_id: Option<&str>) -> Option
         Some(p) => format!("{}/{}", p, folder.disk_name),
         None => folder.disk_name.clone(),
     })
+}
+
+// State files written before update_status existed encoded these two states in the version
+// string itself. Neither is a plausible real version, so a match is unambiguous. Clearing
+// the version afterwards is what stops the sentinel being displayed or compared as one.
+fn migrate_version_sentinels(m: &mut InstalledMod) {
+    let migrated = match m.version.as_str() {
+        "unknown" => UpdateStatus::Unknown,
+        "outdated" => UpdateStatus::Outdated,
+        _ => return,
+    };
+    m.update_status = migrated;
+    m.version = String::new();
 }
 
 pub fn read_state(state_path: &Path) -> ModsState {
@@ -47,6 +60,7 @@ pub fn read_state(state_path: &Path) -> ModsState {
                     if m.uid.is_empty() {
                         m.uid = make_uid(m.file_id, &m.filename);
                     }
+                    migrate_version_sentinels(&mut m);
                     Some(m)
                 })
                 .collect()

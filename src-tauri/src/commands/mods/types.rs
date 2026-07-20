@@ -23,6 +23,33 @@ fn default_source() -> String {
     "modworkshop".to_string()
 }
 
+/// Whether a mod's installed version can be compared against the remote one.
+///
+/// This used to live in the version STRING, with "unknown" and "outdated" standing in for
+/// a real value. That worked only because neither is a plausible modworkshop version, and
+/// it forced every reader to know both sentinels. Per-source version semantics do not fit
+/// one overloaded string either: Nexus search returns no version at all, and Steam
+/// Workshop has update timestamps rather than versions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum UpdateStatus {
+    /// version holds a real, comparable value.
+    #[default]
+    Known,
+    /// No comparable version: an unidentified mod, or an embedded-id mod that declares
+    /// none. Never surfaces an update, since it would nag forever with nothing to compare.
+    Unknown,
+    /// Confirmed stale: a name match succeeded AFTER a SHA256 check against the index's
+    /// current file had already failed, so the installed bytes are known to differ.
+    Outdated,
+}
+
+impl UpdateStatus {
+    pub fn is_known(&self) -> bool {
+        matches!(self, UpdateStatus::Known)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledMod {
@@ -65,6 +92,8 @@ pub struct InstalledMod {
     pub archive_broken: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
+    #[serde(default, skip_serializing_if = "UpdateStatus::is_known")]
+    pub update_status: UpdateStatus,
 }
 
 impl Default for InstalledMod {
@@ -90,6 +119,7 @@ impl Default for InstalledMod {
             folder_id: None,
             archive_broken: None,
             location: None,
+            update_status: UpdateStatus::Known,
         }
     }
 }

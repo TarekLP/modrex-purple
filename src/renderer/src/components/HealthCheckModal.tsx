@@ -80,7 +80,7 @@ function UpdateRow({
     onOpenDetail: (id: number) => void
 }) {
     const thumbSrc = useThumbnail(apiMod.thumbnail?.file)
-    const hasVersion = ins.version && ins.version !== 'unknown' && ins.version !== 'outdated'
+    const hasVersion = !!ins.version
     const versionLine = hasVersion
         ? `${ins.version} to ${apiMod.version}`
         : `${apiMod.version} available`

@@ -362,15 +362,15 @@ describe('computeHealthSummary', () => {
         expect(computeHealthSummary(mods).unidentified).toEqual([])
     })
 
-    it('flags positive-id groups as outdated when any file has version "outdated"', () => {
-        const mods = [makeMod('a', 1, 'A', { version: 'outdated' })]
+    it('flags positive-id groups as outdated when any file is marked outdated', () => {
+        const mods = [makeMod('a', 1, 'A', { updateStatus: 'outdated' })]
         const summary = computeHealthSummary(mods)
         expect(summary.outdated).toHaveLength(1)
         expect(summary.outdated[0].id).toBe(1)
     })
 
     it('does not flag negative-id mods as outdated', () => {
-        const mods = [makeMod('a', -1, 'A', { version: 'outdated' })]
+        const mods = [makeMod('a', -1, 'A', { updateStatus: 'outdated' })]
         expect(computeHealthSummary(mods).outdated).toEqual([])
     })
 

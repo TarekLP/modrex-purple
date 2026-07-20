@@ -21,7 +21,9 @@ pub use self::engine::{
 pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
 pub use self::state::{get_folder_path, read_state, reconcile_state};
-pub use self::types::{InstalledMod, InstalledResponse, ModFolder, ModsState, TopLevelItem};
+pub use self::types::{
+    InstalledMod, InstalledResponse, ModFolder, ModsState, TopLevelItem, UpdateStatus,
+};
 pub use self::zip::compute_sha256;
 
 // Mod-identification helpers (get_installed pipeline) — see identify.rs
@@ -952,7 +954,7 @@ pub async fn install_dropped_file(
                         .and_then(|s| s.to_str())
                         .unwrap_or("zip")
                         .to_string(),
-                    mod_version: "unknown".to_string(),
+                    mod_version: String::new(),
                 })
                 .into());
         }
@@ -1008,7 +1010,8 @@ pub async fn install_dropped_file(
                 uid,
                 id,
                 name: file_stem.clone(),
-                version: "unknown".to_string(),
+                version: String::new(),
+                update_status: UpdateStatus::Unknown,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),

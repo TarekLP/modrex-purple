@@ -299,6 +299,7 @@ export type InstalledMod_Deserialize = {
 	folderId?: string | null,
 	archiveBroken?: boolean | null,
 	location?: string | null,
+	updateStatus?: UpdateStatus,
 };
 
 export type InstalledMod_Serialize = {
@@ -322,6 +323,7 @@ export type InstalledMod_Serialize = {
 	folderId?: string | null,
 	archiveBroken?: boolean | null,
 	location?: string | null,
+	updateStatus?: UpdateStatus,
 };
 
 export type InstalledResponse = InstalledResponse_Serialize | InstalledResponse_Deserialize;
@@ -591,6 +593,29 @@ export type StorageUsage = {
 };
 
 export type TopLevelItem = { type: "folder"; id: string } | { type: "mod"; id: string };
+
+/**
+ *  Whether a mod's installed version can be compared against the remote one.
+ * 
+ *  This used to live in the version STRING, with "unknown" and "outdated" standing in for
+ *  a real value. That worked only because neither is a plausible modworkshop version, and
+ *  it forced every reader to know both sentinels. Per-source version semantics do not fit
+ *  one overloaded string either: Nexus search returns no version at all, and Steam
+ *  Workshop has update timestamps rather than versions.
+ */
+export type UpdateStatus = 
+/**  version holds a real, comparable value. */
+"known" | 
+/**
+ *  No comparable version: an unidentified mod, or an embedded-id mod that declares
+ *  none. Never surfaces an update, since it would nag forever with nothing to compare.
+ */
+"unknown" | 
+/**
+ *  Confirmed stale: a name match succeeded AFTER a SHA256 check against the index's
+ *  current file had already failed, so the installed bytes are known to differ.
+ */
+"outdated";
 
 /**
  *  Archive shapes that need a user decision before installing. Each variant carries the

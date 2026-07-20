@@ -1934,9 +1934,11 @@ fn identify_untracked_falls_back_to_name_without_embedded() {
     let m = &mods[0];
     assert_eq!(m.id, 555); // matched by name
     assert_eq!(m.file_id, None);
-    // SHA256 missed the index's current file, so the installed bytes are known-stale —
-    // "outdated" (not "unknown") surfaces an update instead of being suppressed.
-    assert_eq!(m.version, "outdated");
+    // SHA256 missed the index's current file, so the installed bytes are known-stale.
+    // Outdated (not Unknown) is what surfaces an update instead of suppressing it, and
+    // the version stays empty because no comparable value was ever recovered.
+    assert_eq!(m.update_status, UpdateStatus::Outdated);
+    assert_eq!(m.version, "");
 }
 
 // ── File-unit install/enable/disable/uninstall carry IoStore sidecars ────────
@@ -2973,4 +2975,37 @@ fn stale_entry_none_for_multi_entry_mods_and_negative_ids() {
 
     let mods = vec![zip_install_entry("Foo", -42, 0)];
     assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", -42, 98276).is_none());
+}
+
+// ── Legacy version-sentinel migration ────────────────────────────────────────
+
+#[test]
+fn read_state_migrates_legacy_version_sentinels() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(".modrex.json");
+    // Written by a build predating update_status: the two states were encoded in the
+    // version string itself, so an unmigrated read would compare them as real versions.
+    fs::write(
+        &path,
+        r#"{"folders":[],"mods":[
+            {"uid":"1","id":1,"name":"Stale","version":"outdated","filename":"a.pak",
+             "enabled":true,"installedAt":"2024-01-01"},
+            {"uid":"2","id":-2,"name":"Mystery","version":"unknown","filename":"b.pak",
+             "enabled":true,"installedAt":"2024-01-01"},
+            {"uid":"3","id":3,"name":"Real","version":"2.11","filename":"c.pak",
+             "enabled":true,"installedAt":"2024-01-01"}]}"#,
+    )
+    .unwrap();
+
+    let state = read_state(&path);
+    assert_eq!(state.mods[0].update_status, UpdateStatus::Outdated);
+    assert_eq!(
+        state.mods[0].version, "",
+        "sentinel must not survive as a version"
+    );
+    assert_eq!(state.mods[1].update_status, UpdateStatus::Unknown);
+    assert_eq!(state.mods[1].version, "");
+    // A real version is left completely alone.
+    assert_eq!(state.mods[2].update_status, UpdateStatus::Known);
+    assert_eq!(state.mods[2].version, "2.11");
 }

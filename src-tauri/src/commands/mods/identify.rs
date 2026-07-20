@@ -217,7 +217,8 @@ pub(crate) fn upgrade_negative_ids(
             // real modworkshop version string, so it reads as different from whatever the
             // current one turns out to be — surfacing the update instead of hiding it behind
             // the "unknown version" suppression in `useModData`.
-            m.version = "outdated".to_string();
+            m.version = String::new();
+            m.update_status = UpdateStatus::Outdated;
             any = true;
         }
     }
@@ -534,10 +535,11 @@ pub(crate) fn identify_untracked(
             // reads as outdated against the current version. When it declares none, fall back
             // to the index's current version so it reads up-to-date instead of nagging an
             // endless false update (rather than the never-matching "unknown").
-            let version = declared
-                .or_else(|| hit.map(|h| h.version))
-                .unwrap_or_else(|| "unknown".to_string());
-            (mod_id, name, None, version)
+            let (version, status) = match declared.or_else(|| hit.map(|h| h.version)) {
+                Some(v) => (v, UpdateStatus::Known),
+                None => (String::new(), UpdateStatus::Unknown),
+            };
+            (mod_id, name, None, version, status)
         };
 
         let by_name = || {
@@ -557,26 +559,33 @@ pub(crate) fn identify_untracked(
                         remote_id,
                         stripped_name.trim().to_string(),
                         None,
-                        "outdated".to_string(),
+                        String::new(),
+                        UpdateStatus::Outdated,
                     )
                 })
                 .or_else(|| {
-                    stripped
-                        .parse::<i64>()
-                        .ok()
-                        .map(|num_id| (num_id, stripped.to_string(), None, "unknown".to_string()))
+                    stripped.parse::<i64>().ok().map(|num_id| {
+                        (
+                            num_id,
+                            stripped.to_string(),
+                            None,
+                            String::new(),
+                            UpdateStatus::Unknown,
+                        )
+                    })
                 })
                 .unwrap_or_else(|| {
                     (
                         hash_filename(&filename),
                         stripped_name.trim().to_string(),
                         None,
-                        "unknown".to_string(),
+                        String::new(),
+                        UpdateStatus::Unknown,
                     )
                 })
         };
 
-        let (id, name, file_id, version) = match sha256
+        let (id, name, file_id, version, update_status) = match sha256
             .as_deref()
             .and_then(|sha| index.and_then(|c| mod_index::query_sha256(c, sha, gname)))
         {
@@ -585,6 +594,7 @@ pub(crate) fn identify_untracked(
                 hit.mod_name,
                 Some(hit.file_remote_id),
                 hit.version,
+                UpdateStatus::Known,
             ),
             None => match embedded {
                 Some(e) => resolve_embedded(e),
@@ -644,6 +654,7 @@ pub(crate) fn identify_untracked(
             sha256: sha256.clone(),
             folder_id,
             location: location_tag.clone(),
+            update_status,
             ..InstalledMod::default()
         });
     }

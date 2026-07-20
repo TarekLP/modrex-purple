@@ -163,7 +163,7 @@ export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
         outdated: groups.filter(
             (g) =>
                 g.id >= 0 &&
-                (g.mods.some((m) => m.version === 'outdated') ||
+                (g.mods.some((m) => m.updateStatus === 'outdated') ||
                     g.mods.some((m) => m.fileId != null && suspectFileIds.has(m.fileId)))
         ),
         // Installs from other sources carry a negative id by design; a recorded

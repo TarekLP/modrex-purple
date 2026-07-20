@@ -235,6 +235,9 @@ export interface InstalledMod {
     folderId?: string | null // null or absent = root level
     archiveBroken?: boolean
     location?: string // scan target tag; absent = primary target
+    // Whether version is comparable. Replaces the old habit of encoding this in the
+    // version string itself as "unknown" / "outdated".
+    updateStatus?: 'known' | 'unknown' | 'outdated'
 }
 
 export interface ModsState {
