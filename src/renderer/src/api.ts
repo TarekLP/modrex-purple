@@ -11,6 +11,7 @@ export type ResizeDirection = Parameters<
 >[0]
 import type {
     Mod,
+    ModSummary,
     ModFile,
     ModLink,
     Category,
@@ -102,7 +103,7 @@ export const api = {
     },
 
     // ── Browse / API ───────────────────────────────────────────────────────────
-    listMods(gameId: number, params?: ListModsParams): Promise<Paginated<Mod>> {
+    listMods(gameId: number, params?: ListModsParams): Promise<Paginated<ModSummary>> {
         const p = params ?? {}
         return commands.listMods(gameId, {
             query: p.query ?? null,

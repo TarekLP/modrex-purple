@@ -1,4 +1,4 @@
-import type { Mod, ModFile, ModLink } from '../../shared/types'
+import type { Mod, ModSummary, ModFile, ModLink } from '../../shared/types'
 import { api } from './api'
 import { waitForForegroundClear } from './requestPriority'
 
@@ -45,7 +45,7 @@ interface LinksCacheEntry {
 // banner. ModDetailPage seeds from getModCacheEntry and treats a hit as
 // complete, so a thin entry must never be visible through that lookup.
 interface InstalledMetaCacheEntry {
-    mod: Mod
+    mod: ModSummary
     fetchedAt: number
 }
 
@@ -228,8 +228,8 @@ export async function getCachedModLinks(id: number): Promise<ModLink[]> {
 export async function fetchInstalledModsMeta(
     workshopId: number,
     ids: number[]
-): Promise<{ mods: Map<number, Mod>; failedIds: number[] }> {
-    const mods = new Map<number, Mod>()
+): Promise<{ mods: Map<number, ModSummary>; failedIds: number[] }> {
+    const mods = new Map<number, ModSummary>()
     const failedIds: number[] = []
     for (let i = 0; i < ids.length; i += INSTALLED_META_CHUNK_SIZE) {
         const chunk = ids.slice(i, i + INSTALLED_META_CHUNK_SIZE)

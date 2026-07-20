@@ -1,4 +1,4 @@
-import type { Mod, InstalledMod, ModFolder, ModFile } from '../../../shared/types'
+import type { ModSummary, InstalledMod, ModFolder, ModFile } from '../../../shared/types'
 
 export type ChildEntry =
     { type: 'folder'; folder: ModFolder } | { type: 'mod'; mods: InstalledMod[] }
@@ -25,7 +25,7 @@ export function displayFilename(filename: string): string {
 
 const SOURCE_LABELS: Record<string, string> = { nexus: 'Nexus Mods' }
 
-export function syntheticMod(ins: InstalledMod): Mod {
+export function syntheticMod(ins: InstalledMod): ModSummary {
     const source = ins.source
     const external = source !== undefined && source !== 'modworkshop'
     return {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import type { Mod, InstalledMod } from '../../../shared/types'
+import type { ModSummary, InstalledMod } from '../../../shared/types'
 import { getInstalledMetaEntry, fetchInstalledModsMeta, INSTALLED_META_TTL_MS } from '../modCache'
 import { getLocalImage } from '../thumbnailCache'
 
@@ -7,11 +7,11 @@ export function useModData(
     installed: InstalledMod[],
     workshopId: number
 ): {
-    modData: Map<number, Mod>
+    modData: Map<number, ModSummary>
     failedIds: Set<number>
     updatable: InstalledMod[]
 } {
-    const [modData, setModData] = useState<Map<number, Mod>>(new Map())
+    const [modData, setModData] = useState<Map<number, ModSummary>>(new Map())
     const [failedIds, setFailedIds] = useState<Set<number>>(new Set())
     const fetchedAt = useRef<Map<number, number>>(new Map())
     const installedKey = useRef<string>('')
@@ -35,7 +35,7 @@ export function useModData(
         installedKey.current = nextKey
 
         const now = Date.now()
-        const fromCache: [number, Mod][] = []
+        const fromCache: [number, ModSummary][] = []
         for (const m of installed) {
             if (m.id < 0) continue
             const entry = getInstalledMetaEntry(m.id)

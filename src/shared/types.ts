@@ -47,7 +47,21 @@ export interface ModTag {
     color: string
 }
 
-export interface Mod {
+/**
+ * A mod as a LIST returns it. Both browse results and the bulk installed-metadata
+ * refresh produce this shape, which lacks the images, banner, dependencies,
+ * instructs_template and tags that only /mods/{id} returns.
+ *
+ * Naming that difference is the point: listMods and syntheticMod now state what they
+ * actually produce instead of claiming a full Mod. It does NOT yet prevent a summary
+ * being used as a Mod, because every field Mod adds is optional and TypeScript is
+ * structural, so ModSummary still satisfies Mod. Enforcement needs the detail fields
+ * to be non-optional, which is only honest once Rust parses the API response and can
+ * guarantee they are present. Until then the installedMetaCache invariant in
+ * modCache.ts (a thin entry reaching modCache renders a mod page with no gallery and
+ * no dependency warnings) stays a prose rule.
+ */
+export interface ModSummary {
     id: number
     name: string
     desc: string
@@ -78,7 +92,12 @@ export interface Mod {
         avatar?: string
         avatar_has_thumb?: boolean
     }
-    // Extended fields returned by getMod full response
+    members?: ModMember[]
+    donation?: string | null
+}
+
+/** A mod as /mods/{id} returns it: a summary plus the fields only the detail call carries. */
+export interface Mod extends ModSummary {
     changelog?: string
     instructions?: string
     license?: string
@@ -88,8 +107,6 @@ export interface Mod {
     dependencies?: ModDependency[]
     instructs_template?: InstructsTemplate | null
     tags?: ModTag[]
-    members?: ModMember[]
-    donation?: string | null
 }
 
 export interface ModLink {
