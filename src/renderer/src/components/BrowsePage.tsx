@@ -41,7 +41,8 @@ import { CrimeBossInstallTargetModal } from './CrimeBossInstallTargetModal'
 import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
 import { missingRequiredDeps } from '../deps'
-import { buildLoaderModIds, loaderForModId, loadersForGame, type LoaderState } from '../loaders'
+import { loaderForModId, loadersForGame } from '../loaders'
+import { useLoaderState } from '../hooks/useLoaderState'
 import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
 import { api } from '../api'
@@ -257,8 +258,8 @@ export function BrowsePage({
     const scrollRef = useRef<HTMLDivElement>(null)
     const fetchIdRef = useRef(0)
     const [lastMeta, setLastMeta] = useState<{ last_page: number; total: number } | null>(null)
-    // Presence state per loader id, from the registry (loaders.ts).
-    const [loaderState, setLoaderState] = useState<LoaderState>({})
+    const { loaderState, setLoaderFlag, refreshLoader, installLoader, loaderModIds } =
+        useLoaderState(activeGame, gamePath)
 
     useEffect(() => {
         return api.onDownloadProgress(({ download_id, downloaded, total }) => {
@@ -291,7 +292,7 @@ export function BrowsePage({
         for (const loader of loadersForGame(activeGame)) {
             if (loader.modworkshopIds.length === 0) continue
             api.checkLoader(loader.id, activeGame, gamePath).then((v) => {
-                if (!cancelled) setLoaderState((prev) => ({ ...prev, [loader.id]: v }))
+                if (!cancelled) setLoaderFlag(loader.id, v)
             })
         }
         return () => {
@@ -460,26 +461,13 @@ export function BrowsePage({
         })
     }, [])
 
-    // Re-check after installing rather than assuming success: a loader can be present on
-    // disk and still unusable (SuperBLT on PD2's Diesel 3.0 branch), and an optimistic
-    // true made the card claim Installed while the install flow still reported the
-    // dependency missing.
-    const refreshLoaderFlag = useCallback(
-        async (id: string) => {
-            if (!gamePath) return
-            const ok = await api.checkLoader(id, activeGame, gamePath)
-            setLoaderState((prev) => ({ ...prev, [id]: ok }))
-        },
-        [gamePath, activeGame]
-    )
-
     const doInstall = useCallback(
         async (modId: number) => {
             if (!gamePath) return
             const loader = loaderForModId(activeGame, modId)
             if (loader && !loader.viaModFlow) {
                 await api.installLoader(loader.id, gamePath)
-                await refreshLoaderFlag(loader.id)
+                await refreshLoader(loader.id)
             } else {
                 const outcome = await api.installMod(modId, gamePath, activeGame)
                 if (
@@ -495,11 +483,11 @@ export function BrowsePage({
                 // A viaModFlow loader is not tracked in the installed list; its install is
                 // routed server-side via the UE4SS_LOADER sentinel, so re-read presence to
                 // learn whether it actually landed.
-                if (loader) await refreshLoaderFlag(loader.id)
+                if (loader) await refreshLoader(loader.id)
             }
             await onRefreshInstalled()
         },
-        [gamePath, activeGame, onRefreshInstalled, refreshLoaderFlag]
+        [gamePath, activeGame, onRefreshInstalled, refreshLoader]
     )
 
     const handleInstall = useCallback(
@@ -633,7 +621,6 @@ export function BrowsePage({
         return map
     }, [installed])
 
-    const loaderModIds = buildLoaderModIds(activeGame, loaderState)
     const missingDepsList = depsWarning
         ? missingRequiredDeps(
               depsWarning.allDeps,
@@ -724,23 +711,11 @@ export function BrowsePage({
                     gameId={activeGame}
                     loaderModIds={loadersForGame(activeGame).flatMap((l) => l.modworkshopIds)}
                     onInstallLoader={async (loaderModId) => {
-                        if (!gamePath) return
-                        const loader =
-                            loaderModId === null
-                                ? undefined
-                                : loaderForModId(activeGame, loaderModId)
                         try {
-                            if (loader?.viaModFlow) {
-                                await api.installMod(loaderModId!, gamePath, activeGame)
-                                await refreshLoaderFlag(loader.id)
-                            } else if (loader) {
-                                await api.installLoader(loader.id, gamePath)
-                                await refreshLoaderFlag(loader.id)
-                            } else {
-                                // No mod page behind this dep: the offsite BLT loader.
-                                await api.installLoader('superblt', gamePath)
-                                const ok = await api.checkLoader('superblt', activeGame, gamePath)
-                                setLoaderState((prev) => ({ ...prev, superblt: ok }))
+                            const ok = await installLoader(loaderModId)
+                            // The offsite BLT dep has no mod page, so the warning modal
+                            // reads its state from bltLoaderInstalled rather than by id.
+                            if (loaderModId === null) {
                                 setDepsWarning((w) => (w ? { ...w, bltLoaderInstalled: ok } : w))
                             }
                         } catch (e) {

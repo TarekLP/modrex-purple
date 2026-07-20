@@ -53,7 +53,8 @@ import { useCrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { isUnsupportedFormat } from '../formatCheck'
 import { handleInstallOutcome } from '../installSentinels'
 import { collectDeps, isLoaderDep, missingRequiredDeps } from '../deps'
-import { buildLoaderModIds, loaderForModId, loadersForGame, type LoaderState } from '../loaders'
+import { loaderForModId, loadersForGame } from '../loaders'
+import { useLoaderState } from '../hooks/useLoaderState'
 import { resolveDepCheck } from '../installDepCheck'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
@@ -236,19 +237,10 @@ export function ModDetailPage({
     const [installError, setInstallError] = useState<string | null>(null)
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
     const [showDepsWarning, setShowDepsWarning] = useState(false)
-    // Presence state per loader id, from the registry (loaders.ts). SuperBLT keys off
-    // 'superblt' like the rest even though it has no modworkshop page.
-    const [loaderState, setLoaderState] = useState<LoaderState>({})
-    const setLoaderInstalledFlag = (id: string, value: boolean | null) =>
-        setLoaderState((prev) => ({ ...prev, [id]: value }))
-    // Re-check after installing rather than assuming success: a loader can be present
-    // on disk and still unusable (SuperBLT on PD2's Diesel 3.0 branch), and an
-    // optimistic true made the row claim Installed while the install flow still
-    // reported the dependency missing.
-    const refreshLoaderFlag = async (id: string) => {
-        if (!gamePath) return
-        setLoaderInstalledFlag(id, await api.checkLoader(id, activeGame, gamePath))
-    }
+    // Presence state per loader id, from the registry. SuperBLT keys off 'superblt'
+    // like the rest even though it has no modworkshop page.
+    const { loaderState, setLoaderState, setLoaderFlag, installLoader, loaderModIds } =
+        useLoaderState(activeGame, gamePath)
     const [showFileSelect, setShowFileSelect] = useState(false)
     const [showHeaderFormatWarning, setShowHeaderFormatWarning] = useState(false)
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
@@ -389,8 +381,7 @@ export function ModDetailPage({
             // A loader with a direct download installs through its own command; UE4SS
             // (viaModFlow) has no canonical host and rides the normal mod install.
             if (thisLoader && !thisLoader.viaModFlow) {
-                await api.installLoader(thisLoader.id, gamePath)
-                await refreshLoaderFlag(thisLoader.id)
+                await installLoader(mod.id)
             } else {
                 const outcome = await api.installMod(mod.id, gamePath, activeGame)
                 if (
@@ -418,20 +409,9 @@ export function ModDetailPage({
     // loaderModId is the dependency's modworkshop id, or null for an offsite BLT dep
     // (SuperBLT has no mod page).
     async function handleInstallLoader(loaderModId: number | null) {
-        if (!gamePath) return
         setInstallError(null)
-        const loader = loaderModId === null ? undefined : loaderForModId(activeGame, loaderModId)
         try {
-            if (loader?.viaModFlow) {
-                // No canonical download host: routed server-side via the UE4SS_LOADER
-                // sentinel the same way any other mod install resolves.
-                await api.installMod(loaderModId!, gamePath, activeGame)
-                await refreshLoaderFlag(loader.id)
-                return
-            }
-            const id = loader?.id ?? 'superblt'
-            await api.installLoader(id, gamePath)
-            await refreshLoaderFlag(id)
+            await installLoader(loaderModId)
         } catch (e) {
             setInstallError(String(e))
         }
@@ -488,7 +468,6 @@ export function ModDetailPage({
     if (thisLoader) neededLoaderIds.push(thisLoader.id)
     if (needsBltCheck) neededLoaderIds.push('superblt')
     const loaderCheckKey = [...new Set(neededLoaderIds)].sort().join(',')
-    const loaderModIds = buildLoaderModIds(activeGame, loaderState)
 
     const missingRequired = missingRequiredDeps(
         allDeps,
@@ -502,13 +481,13 @@ export function ModDetailPage({
         let cancelled = false
         for (const id of loaderCheckKey.split(',')) {
             api.checkLoader(id, activeGame, gamePath).then((v) => {
-                if (!cancelled) setLoaderInstalledFlag(id, v)
+                if (!cancelled) setLoaderFlag(id, v)
             })
         }
         return () => {
             cancelled = true
         }
-    }, [gamePath, loaderCheckKey, activeGame])
+    }, [gamePath, loaderCheckKey, activeGame, setLoaderFlag])
 
     const showChangelogTab = !!mod?.changelog
     const showLicenseTab = !!mod?.license
