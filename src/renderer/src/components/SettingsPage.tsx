@@ -145,6 +145,7 @@ export function SettingsPage({
     const [launchOptions, setLaunchOptions] = useState(
         () => getSettingsCache(activeGame)?.settings.launchOptions ?? ''
     )
+    const requiredLaunchFlag = GAMES[activeGame].requiredLaunchFlag
     const launchOptionsLoaded = useRef(false)
     const [crimeBossInstallMode, setCrimeBossInstallMode] = useState(
         () => getSettingsCache(activeGame)?.settings.crimebossInstallMode ?? 'auto'
@@ -425,12 +426,12 @@ export function SettingsPage({
                                 )}
 
                                 <Section title={t('settings.launchOptions.title')}>
-                                    {activeGame === 'pd3' &&
+                                    {requiredLaunchFlag &&
                                         (launcher === 'xbox' ? (
                                             <p className="text-xs text-text-subtle">
                                                 {t('settings.launchOptions.xboxNotePre')}{' '}
                                                 <span className="font-mono text-text">
-                                                    -fileopenlog
+                                                    {requiredLaunchFlag}
                                                 </span>{' '}
                                                 {t('settings.launchOptions.xboxNotePost')}
                                             </p>
@@ -438,7 +439,7 @@ export function SettingsPage({
                                             <p className="text-xs text-text-subtle">
                                                 {t('settings.launchOptions.descriptionPre')}{' '}
                                                 <span className="font-mono text-text">
-                                                    -fileopenlog
+                                                    {requiredLaunchFlag}
                                                 </span>{' '}
                                                 {t('settings.launchOptions.descriptionPost')}
                                             </p>
@@ -447,11 +448,7 @@ export function SettingsPage({
                                         type="text"
                                         value={launchOptions}
                                         onChange={(e) => setLaunchOptions(e.target.value)}
-                                        placeholder={
-                                            activeGame === 'pd3'
-                                                ? t('settings.launchOptions.placeholder')
-                                                : ''
-                                        }
+                                        placeholder={requiredLaunchFlag ?? ''}
                                         disabled={launcher === 'xbox'}
                                         className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
                                     />

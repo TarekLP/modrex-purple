@@ -128,19 +128,19 @@ export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
 export const AVATAR_BASE_URL = 'https://storage.modworkshop.net/users/images'
 export const GAME_STORAGE_KEY = 'pd3'
 
-export type GameId = 'pd3' | 'pd2' | 'pdth' | 'cb' | 'raid'
+export interface GameSpec {
+    name: string
+    shortName: string
+    workshopId: number
+    storageKey: string
+    hasNews: boolean
+    nexusDomain?: string
+    // Launch argument this game needs for mods to load; absent = none required.
+    // Drives the launch warning in TopBar and the Settings launch-options hint.
+    requiredLaunchFlag?: string
+}
 
-export const GAMES: Record<
-    GameId,
-    {
-        name: string
-        shortName: string
-        workshopId: number
-        storageKey: string
-        hasNews: boolean
-        nexusDomain?: string
-    }
-> = {
+const GAME_SPECS = {
     pd3: {
         name: 'PAYDAY 3',
         shortName: 'PD3',
@@ -148,6 +148,7 @@ export const GAMES: Record<
         storageKey: 'pd3',
         hasNews: true,
         nexusDomain: 'payday3',
+        requiredLaunchFlag: '-fileopenlog',
     },
     pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2', hasNews: true },
     pdth: {
@@ -172,6 +173,16 @@ export const GAMES: Record<
         storageKey: 'raid',
         hasNews: false,
     },
+} satisfies Record<string, GameSpec>
+
+// Adding a game is one GAME_SPECS entry: GameId and every Object.keys(GAMES) consumer
+// (App's valid-id check, WelcomeScreen's picker) pick it up automatically.
+export type GameId = keyof typeof GAME_SPECS
+
+export const GAMES: Record<GameId, GameSpec> = GAME_SPECS
+
+export function isGameId(value: string | null): value is GameId {
+    return value !== null && Object.hasOwn(GAMES, value)
 }
 
 // Wire types owned by the Rust side and generated into bindings.ts; re-exported

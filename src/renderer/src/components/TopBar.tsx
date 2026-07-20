@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
 import type { GameId } from '../../../shared/types'
+import { GAMES } from '../../../shared/types'
 
 interface UpdateState {
     phase: 'downloading' | 'ready'
@@ -105,11 +106,12 @@ export function TopBar({
     }, [onRefreshInstalled, activeGame, hideGameActions])
 
     async function handleLaunchModded() {
-        if (activeGame === 'pd3') {
+        const requiredFlag = GAMES[activeGame].requiredLaunchFlag
+        if (requiredFlag) {
             const settings = await api.getSettings()
             if (
                 !settings.skipFileOpenLogWarning &&
-                !settings.launchOptions?.includes('-fileopenlog')
+                !settings.launchOptions?.includes(requiredFlag)
             ) {
                 setDontShowAgain(false)
                 setShowWarning(true)
@@ -270,7 +272,9 @@ export function TopBar({
                             {t('topBar.missingLaunchOption.title')}
                         </h2>
                         <p className="text-xs text-text-muted">
-                            <span className="font-mono text-text">-fileopenlog</span>{' '}
+                            <span className="font-mono text-text">
+                                {GAMES[activeGame].requiredLaunchFlag}
+                            </span>{' '}
                             {t('topBar.missingLaunchOption.bodyPre')}{' '}
                             <span className="text-text">
                                 {t('topBar.missingLaunchOption.location')}

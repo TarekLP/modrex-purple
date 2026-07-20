@@ -896,11 +896,17 @@ reverse-engineering always cost; the target is the ~15 wiring files)
   already live on the engine config; expand GameSpec when loader-registry lands). Also
   folded in kill-pd3-fallback: both dispatchers return `Result`, unknown id is a hard
   error, and every command takes a required `game_id: String`.
-- Stage 3 (renderer derives from GAMES): App.tsx's valid-id list becomes
-  `Object.keys(GAMES)`; WelcomeScreen iterates the `GAMES` record; per-game UI quirks
-  become spec fields (e.g. `launchFlags: ['fileopenlog']` for pd3) instead of
-  `activeGame === 'pd3'` conditionals in TopBar/SettingsPage. `GameId` stays
-  `keyof typeof GAMES`.
+- Stage 3 (renderer derives from GAMES) DONE 2026-07-19: `GAME_SPECS` in
+  src/shared/types.ts is the renderer registry; `GameId = keyof typeof GAME_SPECS` and
+  `GAMES: Record<GameId, GameSpec>` derive from it, plus an `isGameId` guard that
+  replaced App.tsx's hardcoded valid-id list (WelcomeScreen already iterated GAMES).
+  The PD3 `-fileopenlog` conditionals in TopBar/SettingsPage became the
+  `requiredLaunchFlag` spec field (its i18n placeholder key was dropped - the flag now
+  has one source). New `pnpm check-games` (CI + pnpm checks) diffs the Rust
+  GAME_REGISTRY ids against the TS GAME_SPECS ids, since neither side can see the other.
+  NOT converted, deliberately: the loader-shaped conditionals (BrowsePage's UE4SS
+  game check, healthCheck.ts's pd2 branch, installDepCheck's Diesel 3.0 guard) - those
+  are loader concerns and belong to loader-registry, not a UI spec field.
 - Stage 4 (behavior hooks - this is what stops the SHARED files growing per game): add
   optional hook fields to `GameSpec` for the novel 20%, so game-specific logic lives in
   that game's module instead of `game_id == "x"` branches in the big shared files -

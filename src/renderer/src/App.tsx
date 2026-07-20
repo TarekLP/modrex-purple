@@ -11,7 +11,7 @@ import { error as logError } from '@tauri-apps/plugin-log'
 import { Button } from './components/ui/Button'
 import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId, Mod } from '../../shared/types'
-import { GAMES } from '../../shared/types'
+import { GAMES, isGameId } from '../../shared/types'
 import { t } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
@@ -80,8 +80,7 @@ export default function App() {
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [activeGame, setActiveGame] = useState<GameId>(() => {
         const saved = localStorage.getItem('modrex:active-game')
-        if (saved === 'pd2' || saved === 'pdth' || saved === 'cb' || saved === 'raid') return saved
-        return 'pd3'
+        return isGameId(saved) ? saved : 'pd3'
     })
     const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: Mod }[]>([])
     const [gamePath, setGamePath] = useState<string | null>(null)
