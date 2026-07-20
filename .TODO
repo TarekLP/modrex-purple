@@ -560,6 +560,106 @@ untested on any real Debian/Ubuntu/Fedora machine as of this writing.
 
 ---
 
+## TODO: ecosystem-monorepo
+
+Structure. Large, mostly mechanical. Blocked on: the August release shipping. Do NOT
+start before it - the migration rewrites release.yml paths and the updater pipeline is
+the never-break invariant (a bad latest.json permanently strands every user on their
+current version). Running this and the largest release in months in the same window
+means a failure has two candidate causes.
+
+### Why
+
+Adding a game today means editing THREE repos with no atomic commit and no cross-repo
+check: modrex-main's registries, modrex-index's `upsertGame` calls in build-index.ts,
+and modrex-site's src/data/docsGames.ts. This has already drifted - as of 2026-07-20
+modrex-index indexes RAID and docsGames.ts has no RAID entry at all. `pnpm check-games`
+catches Rust-vs-TS drift inside modrex-main only; nothing sees across repo boundaries.
+Secondary benefit: one structure for contributors instead of four.
+
+### Target tree
+
+Follow deadlock-mod-manager's workspace shape (apps/*, packages/*, tools/*), which is
+the healthier of the two references. The monorepo IS the existing modrexio/modrex repo
+(modrex-main renamed in place) - do not create a new repo, that would move the release
+channel the updater points at.
+
+    modrexio/modrex
+      apps/desktop/        <- modrex-main, src/ and src-tauri/ UNCHANGED (see below)
+      apps/site/           <- modrex-site
+      apps/index/          <- modrex-index
+      tools/mget/          <- mget
+      packages/games/      <- the shared game manifest all three consume
+      install.config.json  <- STAYS AT ROOT, see constraint 2
+      pnpm-workspace.yaml
+
+### Do NOT restructure apps/desktop internals
+
+Verified against both reference repos on 2026-07-20: deadlock-mod-manager's
+apps/desktop/ contains `src/` + `src-tauri/`, i.e. exactly modrex-main's current layout.
+It did not replace them. Refract_MC does split apps/renderer from apps/tauri, but only
+because it also has apps/electron-bridge - the renderer is shared between an Electron
+host and a Tauri host. modrex has one host, so that split copies a two-host workaround
+with no second host.
+
+Concrete cost if done anyway: `cargo test` GENERATES src/shared/bindings.ts, so the Rust
+build writes into the renderer source tree. That coupling is what lets check-commands
+verify both sides at once; splitting them into separate workspace packages turns it into
+a cross-package write and breaks check-commands, the husky hooks, tauri.conf.json's
+frontendDist/beforeBuildCommand, and every path filter in .claude/rules/.
+
+### Hard constraints (each breaks silently, not loudly)
+
+1. index.db's URL is baked into every shipped binary:
+   https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db
+   (mod_index.rs). Every copy of v0.12.2 and earlier fetches that forever. modrex-site
+   reads index-stats.json from the same tag (src/lib/mod-index-shared.ts). So the
+   modrexio/modrex-index repo must survive as a publish target even after its source
+   moves to apps/index/. update-index.yml currently publishes to `${{ github.repository }}`
+   via .github/scripts/publish-release-asset.sh - that must become an explicit repo, or
+   the assets land in the monorepo's releases and every installed app loses mod
+   identification with no update able to fix it.
+
+2. modrex.net/install.sh fetches
+   https://raw.githubusercontent.com/modrexio/modrex/main/install.config.json
+   live on EVERY request (modrex-site/functions/install.sh.ts, CONFIG_URL). Moving that
+   file breaks the Linux installer the instant the commit is pushed - no deploy or
+   release involved. Resolution: keep install.config.json at the monorepo ROOT. It is
+   ecosystem infrastructure, not a desktop-app file, so the URL never changes and this
+   constraint costs nothing.
+
+3. The same Function resolves the mget engine by TAG:
+   raw.githubusercontent.com/modrexio/mget/${engineTag}/install.sh with ENGINE_PIN='v1'.
+   mget's tags must stay reachable. Either keep modrexio/mget as a tag host, or move the
+   pin to monorepo tags - but monorepo vX.Y.Z tags are the desktop app's, so mget tags
+   would need namespacing (mget-v1) and the resolver updated to match.
+
+4. Tag namespace: once four projects share a repo, a bare vX.Y.Z is ambiguous. The
+   desktop app's existing vX.Y.Z tags and the updater endpoint
+   (github.com/modrexio/modrex/releases/latest/download/latest.json) must keep working,
+   so vX.Y.Z stays the desktop app's and everything else gets a prefix. Decide this
+   BEFORE the first post-migration release.
+
+5. Cloudflare Pages: modrex-site auto-deploys on push to main. Its build root and build
+   command must be repointed at apps/site in the Cloudflare dashboard, and the
+   functions/ directory is resolved relative to that root.
+
+### Order
+
+1. Decide the tag namespace (constraint 4) and confirm the index publish target fix
+   (constraint 1) works, before moving any files.
+2. Move modrex-site and mget in (lowest risk - no shipped binary depends on their paths).
+   Repoint Cloudflare. Verify modrex.net/install.sh still serves a working script.
+3. Move modrex-index in, with update-index.yml publishing to the OLD repo. Verify a
+   shipped app still downloads index.db.
+4. Rewrite release.yml paths (src-tauri/target -> apps/desktop/src-tauri/target),
+   scripts/version.mjs, and the CI working-directories. Do a full dry-run release to a
+   draft before tagging anything real.
+5. packages/games last - it is the payoff, but it is a behavior change on top of a
+   structural one and should not ride along with the move.
+
+---
+
 # Architecture review 2026-07-17 (gate lifted, mostly delivered)
 
 The entries below came out of a full architecture/security/performance review on
