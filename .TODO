@@ -256,6 +256,73 @@ Do this when a source with oversized ids actually lands, not before.
 
 ---
 
+## TODO: nexus-feature-parity
+
+Nexus works but is narrower than ModWorkshop. This is the FUNCTIONAL gap list, separate
+from the architecture work (which is done): the domain model, typed IPC and the shared
+Browse page all landed 2026-07-20. Nothing here is blocked on plumbing.
+
+Current Nexus surface exposed to the renderer is FOUR commands: `nexus_search_mods` plus
+the three OAuth ones. `nexus_get_mod` and `nexus_get_file` already exist in nexus.rs as
+`pub(crate)` helpers for the nxm install flow, so some of this is exposure, not new work.
+
+Ordered by how much it hurts a user.
+
+### 1. Installed Nexus mods never report updates (silent)
+
+The worst of these because nothing in the UI admits it: a user installs a Nexus mod and
+Modrex will never say a newer version exists.
+
+Two separate causes, both need addressing:
+- The GraphQL search selection carries no version at all, so `parse_nexus_page` writes an
+  empty version deliberately (an empty version is what suppresses a permanent false
+  update prompt; see the comment on `nexus_node_to_summary`). Getting a real version needs
+  a per-mod detail call, not the search endpoint.
+- `useModData` skips `id < 0` entirely, and Nexus installs carry the legacy negative id,
+  so those mods are never even considered for an update check.
+
+The design constraint, and the reason this is not just "call get_mod in a loop": Nexus has
+NO batch metadata endpoint (ModWorkshop's `ids[]` filter has no equivalent) and enforces a
+daily quota. Refreshing 300 installed mods on window focus, which is what the ModWorkshop
+path does, would burn the budget immediately. The strategy has to be lazy or trickled, and
+`waitForForegroundClear()` already exists for exactly this kind of background work.
+
+Worth asking the Nexus contact about batch metadata and quota headroom for a mod manager
+BEFORE designing this. It is the one question that changes the answer.
+
+### 2. No mod detail page
+
+Clicking a Nexus mod cannot open a detail view: `nexus_get_mod` is not a registered
+command, and there is no UI. ModDetailPage is currently ModWorkshop-shaped (it renders
+`Mod`, the typed detail). Either Nexus maps onto `ModDetail` the way search maps onto
+`ModSummary`, or the page learns to render a partial detail.
+
+### 3. No file list
+
+`nexus_get_file` exists internally but is not exposed, so there is no equivalent of
+DownloadsTab: a user cannot see or choose between a mod's files. Today the nxm handoff
+picks for them via the website.
+
+### 4. No dependency handling
+
+`ModDependency` is ModWorkshop-shaped (`mod_id` plus a nested summary, or an offsite url).
+Nexus has its own dependency model. DepsTab, the deps warning modal and the health check
+all assume the ModWorkshop shape, so this is not a small addition.
+
+### Explicitly NOT doing: category and tag filtering
+
+Owner decision 2026-07-20, after checking the API docs. Do not reopen this.
+
+For the record, since the docs suggest it might be technically possible: the v2 `mods`
+query takes `facets` (type ModsFacet) alongside `filter`, and the schema carries a
+`modCategory` field and a full `categories` query, so some form of category narrowing
+likely exists server-side. It is still not worth building. Nexus categories are a
+different taxonomy from ModWorkshop's (different ids, names, hierarchy, per-game
+associations), so the two could never share one dropdown, and each source would need its
+own filter UI for little gain.
+
+---
+
 ## TODO: sources-module-restructure
 
 Phase 4 of the multi-source expansion. Largely mechanical after phase 3.
