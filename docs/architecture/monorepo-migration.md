@@ -125,3 +125,38 @@ The following actions require the owner because they affect external systems or 
   legacy `modrex-index` release.
 - Repoint the external scheduler after the new workflow has been verified.
 - Push reviewed commits and tags. Agents do not push remote changes.
+
+## Temporary Pages verification
+
+Before changing `modrex.net`, create a temporary Cloudflare Pages project from the
+`modrexio/modrex` repository. This project verifies the monorepo deployment without
+touching the live Pages project or any custom domain.
+
+Use these settings:
+
+| Setting                | Value                          |
+| ---------------------- | ------------------------------ |
+| Project name           | `modrex-site-monorepo-preview` |
+| Production branch      | `main`                         |
+| Root directory         | `apps/site`                    |
+| Build command          | `pnpm build`                   |
+| Build output directory | `dist`                         |
+| Node version           | `22`                           |
+
+The root directory is required: Cloudflare Pages Functions must be in the Pages project
+root, and `apps/site/functions/` contains the existing `/install.sh` and `/api/collect`
+routes. `pnpm install` from that directory resolves the root workspace lockfile; this was
+verified locally before the project is created.
+
+Copy the existing site's build environment values into both Production and Preview as
+appropriate, including `GITHUB_TOKEN` and `MODREX_GA_MEASUREMENT_ID`. Do not attach
+`modrex.net`, alter the current Pages project, or change DNS during this verification.
+
+Acceptance checks after the first deployment:
+
+1. The generated `*.pages.dev` URL renders the site and its docs.
+2. The Pages deployment recognizes the Functions directory.
+3. `curl -fsSL https://<preview-host>/install.sh | sh -n` succeeds.
+4. A `POST` to `https://<preview-host>/api/collect` without credentials returns the
+   function's expected client error, confirming that the route is deployed without
+   sending analytics.
