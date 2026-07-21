@@ -1,0 +1,19 @@
+{
+    "name": "modrex-index",
+    "version": "1.0.0",
+    "type": "module",
+    "license": "MIT",
+    "scripts": {
+        "build-index": "tsx build-index.ts",
+        "test:staged-rebuild": "node test-staged-rebuild.mjs"
+    },
+    "devDependencies": {
+        "@types/adm-zip": "^0.5.8",
+        "@types/better-sqlite3": "^7.6.13",
+        "@types/node": "^25.9.0",
+        "adm-zip": "^0.5.16",
+        "better-sqlite3": "^11.9.1",
+        "tsx": "^4.22.1",
+        "typescript": "^6.0.3"
+    }
+}

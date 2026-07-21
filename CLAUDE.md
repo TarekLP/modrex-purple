@@ -8,7 +8,7 @@ This file is the canonical guide for the Modrex product monorepo.
 | --- | --- |
 | apps/desktop/ | Tauri v2 desktop application (Rust + React) |
 | apps/site/ | Astro marketing and documentation site |
-| apps/index/ | Mod-identification index builder (added during migration) |
+| apps/index/ | Mod-identification index builder |
 | packages/games/ | Shared declarative game data (added after structural migration) |
 | install.config.json | Root-level public contract consumed by modrex.net/install.sh |
 

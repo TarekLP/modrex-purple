@@ -151,6 +151,7 @@ out/
 !.claude/hooks/
 !.claude/settings.json
 
-# Mod index build artifacts (belong in modrex-index repo)
-scripts/index.json
-scripts/index.db*
+# Mod index build artifacts
+apps/index/index.db*
+apps/index/builder-state.db*
+apps/index/index-stats.json

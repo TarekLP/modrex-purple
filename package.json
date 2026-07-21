@@ -36,6 +36,8 @@
         "site:test": "pnpm --dir apps/site test:run",
         "site:format:check": "pnpm --dir apps/site format:check",
         "site:checks": "pnpm site:typecheck && pnpm site:typecheck:functions && pnpm site:lint && pnpm site:format:check && pnpm site:test && pnpm site:build",
+        "index:build": "pnpm --dir apps/index build-index",
+        "index:test": "pnpm --dir apps/index test:staged-rebuild",
         "prepare": "husky"
     },
     "devDependencies": {
