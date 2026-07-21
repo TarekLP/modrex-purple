@@ -18,8 +18,8 @@ continue operating independently.
 
 ## Root commands
 
-The root commands currently delegate to the desktop application so the established
-developer workflow remains valid while the workspace is assembled:
+The root commands run the quality gates for every workspace application; desktop build
+and release commands remain desktop-specific:
 
 ```sh
 pnpm install

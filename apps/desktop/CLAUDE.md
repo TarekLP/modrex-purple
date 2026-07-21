@@ -46,7 +46,7 @@ Optional dev tooling (machine setup, not required by any script or CI): `cargo n
 
 In `pnpm dev`, renderer changes (`src/renderer/`) apply instantly via Vite HMR — no restart needed. Rust changes (`src-tauri/`) trigger an automatic `cargo` recompile via Tauri's file watcher; the window reloads when done.
 
-**Pre-commit hooks** (`.husky/pre-commit`): runs `prettier --check`, `eslint`, then `pnpm check-commands` — all three must pass before a commit is accepted. Run `pnpm format` and `pnpm lint:fix` to fix the first two. When dep files (`Cargo.toml`/`Cargo.lock`/`package.json`/`pnpm-lock.yaml`) are staged it also regenerates `THIRD_PARTY_LICENSES.md` (~15 s) and stages it. `commit-msg` runs `commitlint` to enforce the conventional commit format.
+**Pre-commit hooks** (`.husky/pre-commit`): runs the root format and lint gates (desktop plus site), then desktop command and CSP checks. Run `pnpm format` and `pnpm lint:fix` from the repository root to fix the first two. When dep files (`Cargo.toml`/`Cargo.lock`/`package.json`/`pnpm-lock.yaml`) are staged it also regenerates `THIRD_PARTY_LICENSES.md` (~15 s) and stages it. `commit-msg` runs `commitlint` to enforce the conventional commit format.
 
 ## Architecture
 
