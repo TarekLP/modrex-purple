@@ -1,0 +1,246 @@
+@import './tokens/fonts.css';
+@import 'tailwindcss';
+
+@import './tokens/colors.css';
+@import './tokens/typography.css';
+@import './tokens/spacing.css';
+@import './tokens/base.css';
+@import './tokens/components.css';
+
+/* ---- Shared layout utilities ---- */
+
+.wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 32px;
+}
+
+section {
+    padding: 96px 0;
+}
+
+.sec-head {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 56px;
+}
+
+.sec-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent-bright);
+}
+
+h2.sec-title {
+    font-family: var(--font-display);
+    font-size: 56px;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    margin: 12px 0 0;
+}
+
+.sec-sub {
+    margin: 16px 0 0;
+    font-size: 16px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ---- Marketing CTA buttons ---- */
+
+.btn-lg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 12px 22px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    transition: var(--transition-colors);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn-lg.primary {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.btn-lg.primary:hover {
+    background: var(--color-accent-fill-hover);
+    color: #fff;
+}
+
+.btn-lg.secondary {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+    border-color: var(--color-border);
+}
+
+.btn-lg.secondary:hover {
+    background: var(--color-surface-active);
+}
+
+/* ---- Docs prose ---- */
+
+.doc-prose .crumb {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+}
+
+.doc-prose h1 {
+    font-family: var(--font-display);
+    font-size: 56px;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    margin: 0 0 12px;
+}
+
+.doc-prose .lead {
+    font-size: 17px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 24px;
+}
+
+.doc-prose h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 48px 0 14px;
+    padding-top: 12px;
+    color: var(--color-text);
+}
+
+.doc-prose h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 28px 0 10px;
+    color: var(--color-text);
+}
+
+.doc-prose p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    margin: 0 0 14px;
+}
+
+.doc-prose a {
+    color: var(--color-accent-bright);
+}
+
+.doc-prose a:hover {
+    color: var(--color-accent);
+}
+
+.doc-prose ol,
+.doc-prose ul {
+    margin: 0 0 16px;
+    padding-left: 22px;
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.8;
+}
+
+.doc-prose li + li {
+    margin-top: 4px;
+}
+
+.doc-prose code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--color-surface-hover);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--color-text);
+}
+
+.doc-prose pre {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 0 0 18px;
+}
+
+.doc-prose pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+.doc-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 18px;
+    font-size: 14px;
+}
+
+.doc-prose th,
+.doc-prose td {
+    text-align: left;
+    padding: 10px 14px;
+    border: 1px solid var(--color-border);
+}
+
+.doc-prose th {
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.doc-prose td {
+    color: var(--text-secondary);
+}
+
+.doc-prose strong,
+.doc-prose b {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+/* ---- Mobile responsive ---- */
+
+@media (max-width: 768px) {
+    .wrap {
+        padding: 0 16px;
+    }
+
+    section {
+        padding: 56px 0;
+    }
+
+    h2.sec-title {
+        font-size: 40px;
+    }
+
+    .sec-head {
+        margin-bottom: 32px;
+        text-align: left;
+    }
+
+    .doc-prose h1 {
+        font-size: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    h2.sec-title {
+        font-size: 32px;
+    }
+
+    .doc-prose h1 {
+        font-size: 32px;
+    }
+}

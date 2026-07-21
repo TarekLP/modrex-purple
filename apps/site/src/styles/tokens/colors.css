@@ -1,0 +1,66 @@
+/* ============================================================
+   Modrex — Color tokens
+   Source of truth: src/renderer/src/index.css  @theme block
+   Dark-only UI. Confident orange accent on near-black surfaces.
+   ============================================================ */
+
+:root {
+    /* --- Surfaces: a near-black ramp, lighter as it raises --- */
+    --color-surface: #131313; /* app background, top bar */
+    --color-surface-raised: #1c1c1c; /* cards, sidebar, modals, panels */
+    --color-surface-hover: #262626; /* inputs, secondary buttons, hover wells */
+    --color-surface-active: #333333; /* pressed / active segment, toggle-off track */
+    --color-surface-light: #464646; /* scrollbar thumb, faint dividers on dark */
+
+    /* --- Border: a single hairline, same value as surface-hover --- */
+    --color-border: #262626;
+
+    /* --- Text: high-contrast off-white down to muted greys --- */
+    --color-text: #f4f4f3; /* primary text, headings */
+    --color-text-muted: #8e8e96; /* secondary text, author names */
+    --color-text-subtle: #71717a; /* tertiary, meta, placeholders, icons */
+
+    /* --- Accent: the Modrex orange. The one loud color. --- */
+    --color-accent: #c45500; /* primary buttons, active nav, links */
+    --color-accent-fill-hover: #b84d00; /* hover fill that keeps white text AA */
+    --color-accent-bright: #f87d36; /* accent hover, wordmark "REX", emphasis */
+
+    /* --- Danger: deep burnt-red fills with a light readable text --- */
+    --color-danger: #5a2204; /* destructive button fill, stop-game */
+    --color-danger-hover: #7a3508; /* destructive hover */
+    --color-danger-text: #fda578; /* danger text on dark, error messages */
+
+    /* --- Success: deep green fill + bright readable text --- */
+    --color-success: #053d1c; /* success fill */
+    --color-success-text: #00df72; /* success text, "up to date" */
+
+    /* --- Warning: a single amber, used at low alpha for banners --- */
+    --color-warning: #facc15; /* missing-file / launch-option warnings */
+
+    /* ---------- Semantic aliases (use these in components) ---------- */
+    --bg-app: var(--color-surface);
+    --bg-card: var(--color-surface-raised);
+    --bg-input: var(--color-surface-hover);
+    --bg-hover: var(--color-surface-hover);
+    --bg-active: var(--color-surface-active);
+
+    --text-primary: var(--color-text);
+    --text-secondary: var(--color-text-muted);
+    --text-tertiary: var(--color-text-subtle);
+
+    --border-default: var(--color-border);
+    --border-focus: var(--color-accent);
+
+    --accent: var(--color-accent);
+    --accent-hover: var(--color-accent-bright);
+    --on-accent: #ffffff;
+
+    /* Tinted backgrounds: accent / state colors at low alpha over dark.
+       The app uses /10, /20, /30 tailwind alpha steps constantly. */
+    --accent-tint-10: rgba(196, 85, 0, 0.1);
+    --accent-tint-20: rgba(196, 85, 0, 0.2);
+    --accent-tint-30: rgba(196, 85, 0, 0.3);
+    --warning-tint-10: rgba(250, 204, 21, 0.1);
+    --warning-tint-30: rgba(250, 204, 21, 0.3);
+    --scrim: rgba(0, 0, 0, 0.6); /* modal backdrop */
+}

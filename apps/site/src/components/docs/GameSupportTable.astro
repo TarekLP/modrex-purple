@@ -1,0 +1,63 @@
+---
+import { docsGames } from '../../data/docsGames'
+---
+
+<div class="game-support-table">
+    <table>
+        <thead>
+            <tr>
+                <th>Game</th>
+                <th>Launchers</th>
+                <th>Primary mod targets</th>
+            </tr>
+        </thead>
+        <tbody>
+            {
+                docsGames.map((game) => (
+                    <tr>
+                        <td>
+                            <a href={`/docs/games/${game.slug}`}>{game.name}</a>
+                        </td>
+                        <td>{game.launchers.join(', ')}</td>
+                        <td>
+                            <ul>
+                                {game.overviewTargets.map((target) => (
+                                    <li>
+                                        {target.code && <code>{target.code}</code>}
+                                        {target.code ? ` ${target.label}` : target.label}
+                                        {target.path && (
+                                            <>
+                                                {' '}
+                                                in <code>{target.path}</code>
+                                            </>
+                                        )}
+                                        {target.note && ` ${target.note}`}
+                                    </li>
+                                ))}
+                            </ul>
+                        </td>
+                    </tr>
+                ))
+            }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .game-support-table {
+        overflow-x: auto;
+    }
+
+    .game-support-table ul {
+        margin: 0;
+        padding-left: 1.1rem;
+    }
+
+    .game-support-table li + li {
+        margin-top: 0.25rem;
+    }
+
+    .game-support-table td:first-child {
+        min-width: 12rem;
+    }
+</style>

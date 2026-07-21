@@ -1,0 +1,15 @@
+---
+import Search from './Search.astro'
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro'
+import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro'
+
+const { sidebar } = Astro.locals.starlightRoute
+---
+
+<div class="docs-sidebar-search">
+    <Search />
+</div>
+
+<SidebarPersister>
+    <SidebarSublist sublist={sidebar} />
+</SidebarPersister>

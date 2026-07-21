@@ -1,0 +1,73 @@
+---
+title: Settings
+description: Reference for all configurable options in Modrex.
+---
+
+Settings is organized into three tabs: **Game**, **Application**, and **Advanced**. The Game tab
+holds per-game configuration; Application and Advanced hold global options that apply across all
+games.
+
+## Game
+
+### Game Path
+
+The absolute path to the active game's installation root. Modrex auto-detects this by scanning known
+launcher locations for the selected game.
+
+Click **Browse** to set it manually. Modrex validates the path and identifies your launcher when
+you save.
+
+### Launcher
+
+Override the auto-detected launcher. Launcher support is game-specific; see
+[Supported games](/docs/games/) for the current matrix. Modrex uses this setting to determine how to
+start the active game when you click Launch.
+
+### New Mod Installs (Crime Boss)
+
+Controls where new Crime Boss mods install by default: **Automatic** (the official ModKit location,
+`CrimeBoss/Mods`) or **Always ask**, which prompts you to choose ModKit or the legacy `~mods` location
+before each install. See [Crime Boss](/docs/games/crime-boss#choosing-an-install-target) for the
+difference between the two targets and how to move an already-installed mod later.
+
+### Launch Options
+
+Command-line arguments appended to every launch for the active game. Add `-fileopenlog` here for
+PAYDAY 3 if `.pak` mods aren't loading - most PAYDAY 3 mods require it for Unreal Engine to scan the
+mods directory.
+
+## Application
+
+### Check for updates
+
+Manually check whether a new version of Modrex is available. Modrex also checks automatically on
+every launch.
+
+### Usage analytics
+
+Modrex may ask whether you want to share anonymous usage analytics. This is optional and can be
+changed here at any time. Analytics are off unless you opt in.
+
+### Discord Rich Presence
+
+When enabled, Modrex shows the active game in your Discord profile while the app is open, along
+with a **Get Modrex** button. Enabled by default.
+
+## Advanced
+
+### Logs
+
+Opens the Modrex log file. Attach it to bug reports to help diagnose issues.
+
+## App data locations
+
+Modrex stores its state and settings in the following locations:
+
+| Platform | Path                     |
+| -------- | ------------------------ |
+| Windows  | `%APPDATA%\Modrex\`      |
+| Linux    | `~/.local/share/modrex/` |
+
+The mod state file (`.modrex.json`) lives inside the active game's managed mods folder so it travels
+with the game directory on dual-boot setups. Older `.pd3mm.json` state files are migrated
+automatically. See [Priority and state](/docs/concepts/priority-and-state#state-file) for details.

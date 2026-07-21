@@ -1,0 +1,469 @@
+---
+import type { Release } from '../lib/github'
+
+interface Props {
+    activePage?: string
+    release?: Release | null
+}
+const { activePage = '', release = null } = Astro.props
+
+const fallback = 'https://github.com/modrexio/modrex/releases/latest'
+const winUrl =
+    release?.assets.find((a) => a.name.endsWith('.exe'))?.browser_download_url ?? fallback
+const linUrl =
+    release?.assets.find((a) => a.name.endsWith('.AppImage'))?.browser_download_url ?? fallback
+---
+
+<nav>
+    <div class="wrap nav-inner">
+        <a href="/" class="modrex-wordmark" style="font-size: 28px">MOD<span>REX</span></a>
+        <div class="nav-links">
+            <a href="/#screenshots">Screenshots</a>
+            <a href="/#features">Features</a>
+            <a href="/#download">Download</a>
+            <a href="/#changelog">Changelog</a>
+            <a href="/docs/" class:list={[{ active: activePage === 'docs' }]}>Docs</a>
+        </div>
+        <div class="nav-right">
+            <a
+                href="https://github.com/modrexio/modrex"
+                class="social-link"
+                target="_blank"
+                rel="noopener"
+                aria-label="GitHub"
+                title="GitHub"
+            >
+                <span class="social-icon github" aria-hidden="true"></span>
+            </a>
+            <a
+                href="https://discord.gg/tenzpx8JRM"
+                class="social-link"
+                target="_blank"
+                rel="noopener"
+                aria-label="Discord"
+                title="Discord"
+            >
+                <span class="social-icon discord" aria-hidden="true"></span>
+            </a>
+            <a
+                id="nav-dl-btn"
+                href={winUrl}
+                data-win={winUrl}
+                data-lin={linUrl}
+                class="btn-lg primary nav-dl-btn"
+                style="padding: 8px 16px; font-size: 13px"
+            >
+                Download
+            </a>
+        </div>
+        <button
+            class="hamburger"
+            id="nav-hamburger"
+            aria-label="Toggle navigation"
+            aria-expanded="false"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
+        <div class="wrap mobile-links">
+            <a href="/#screenshots">Screenshots</a>
+            <a href="/#features">Features</a>
+            <a href="/#download">Download</a>
+            <a href="/#changelog">Changelog</a>
+            <a href="/docs/" class:list={[{ active: activePage === 'docs' }]}>Docs</a>
+            <div class="mobile-actions">
+                <a
+                    href="https://github.com/modrexio/modrex"
+                    class="social-link"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="GitHub"
+                    title="GitHub"
+                >
+                    <span class="social-icon github" aria-hidden="true"></span>
+                </a>
+                <a
+                    href="https://discord.gg/tenzpx8JRM"
+                    class="social-link"
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="Discord"
+                    title="Discord"
+                >
+                    <span class="social-icon discord" aria-hidden="true"></span>
+                </a>
+                <a
+                    id="mobile-dl-btn"
+                    href={winUrl}
+                    data-win={winUrl}
+                    data-lin={linUrl}
+                    class="btn-lg primary mobile-dl-btn"
+                >
+                    Download
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<script>
+    import { detectOs } from '../lib/os-detect'
+
+    const navDlBtn = document.getElementById('nav-dl-btn') as HTMLAnchorElement | null
+    const mobileDlBtn = document.getElementById('mobile-dl-btn') as HTMLAnchorElement | null
+    const { isMobile, isLinux } = detectOs()
+    if (!isMobile && isLinux) {
+        if (navDlBtn) navDlBtn.href = navDlBtn.dataset.lin ?? navDlBtn.href
+        if (mobileDlBtn) mobileDlBtn.href = mobileDlBtn.dataset.lin ?? mobileDlBtn.href
+    }
+
+    const hamburger = document.getElementById('nav-hamburger')
+    const mobileMenu = document.getElementById('mobile-menu')
+    hamburger?.addEventListener('click', () => {
+        const open = mobileMenu?.classList.toggle('open')
+        hamburger.setAttribute('aria-expanded', String(!!open))
+        mobileMenu?.setAttribute('aria-hidden', String(!open))
+    })
+    mobileMenu?.querySelectorAll('a').forEach((a) =>
+        a.addEventListener('click', () => {
+            mobileMenu.classList.remove('open')
+            hamburger?.setAttribute('aria-expanded', 'false')
+            mobileMenu.setAttribute('aria-hidden', 'true')
+        })
+    )
+
+    // Scrollspy: highlight the nav tab of the section currently in view. Only
+    // does anything on the homepage, where the section anchors exist.
+    const spyLinks = [
+        ...document.querySelectorAll<HTMLAnchorElement>(
+            '.nav-links a[href^="/#"], .mobile-links a[href^="/#"]'
+        ),
+    ]
+    const sections = [...new Set(spyLinks.map((link) => link.hash.slice(1)))]
+        .map((id) => document.getElementById(id))
+        .filter((section): section is HTMLElement => section !== null)
+
+    if (sections.length > 0) {
+        let ticking = false
+
+        const updateActive = () => {
+            ticking = false
+            // Active = the last section whose top has passed under the sticky nav.
+            let currentId = ''
+            for (const section of sections) {
+                if (section.getBoundingClientRect().top <= 80) currentId = section.id
+            }
+            spyLinks.forEach((link) =>
+                link.classList.toggle('active', link.hash === `#${currentId}`)
+            )
+        }
+
+        const onScroll = () => {
+            if (ticking) return
+            ticking = true
+            requestAnimationFrame(updateActive)
+        }
+
+        window.addEventListener('scroll', onScroll, { passive: true })
+        window.addEventListener('resize', onScroll, { passive: true })
+        updateActive()
+    }
+</script>
+
+<style>
+    nav {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: color-mix(in srgb, var(--color-surface) 86%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .nav-inner {
+        --header-side-width: var(--sl-sidebar-width, 17rem);
+        --header-wordmark-width: 5.5rem;
+
+        display: grid;
+        grid-template-columns: var(--header-side-width) minmax(0, 1fr) var(--header-side-width);
+        align-items: center;
+        height: 60px;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .modrex-wordmark {
+        justify-self: center;
+    }
+
+    .nav-links {
+        justify-self: center;
+        display: flex;
+        align-items: center;
+        gap: clamp(12px, 2vw, 28px);
+    }
+
+    .nav-links a {
+        color: var(--text-secondary);
+        font-size: clamp(13px, 1.1vw, 14px);
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+        color: var(--color-text);
+    }
+
+    .nav-right {
+        justify-self: end;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-inline-end: calc((var(--header-side-width) - var(--header-wordmark-width)) / 2);
+    }
+
+    .social-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        border-radius: var(--radius-sm);
+        color: var(--color-text-muted);
+        text-decoration: none;
+        transition: var(--transition-colors);
+    }
+
+    .social-link:hover {
+        color: var(--color-text);
+        background: var(--color-surface-hover);
+    }
+
+    .social-link:focus-visible {
+        outline: 2px solid var(--color-accent-bright);
+        outline-offset: 2px;
+    }
+
+    .social-icon {
+        display: block;
+        width: 18px;
+        height: 18px;
+        background: currentColor;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+    }
+
+    .social-icon.github {
+        mask-image: url('/icons/github.svg');
+        -webkit-mask-image: url('/icons/github.svg');
+    }
+
+    .social-icon.discord {
+        mask-image: url('/icons/discord.svg');
+        -webkit-mask-image: url('/icons/discord.svg');
+    }
+
+    .hamburger {
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        width: 36px;
+        height: 36px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 10px;
+    }
+
+    .hamburger span {
+        display: block;
+        width: 100%;
+        height: 2px;
+        background: var(--color-text);
+        border-radius: 2px;
+    }
+
+    .mobile-menu {
+        display: none;
+    }
+
+    .mobile-links {
+        display: flex;
+        flex-direction: column;
+        padding-top: 8px;
+        padding-bottom: 16px;
+    }
+
+    .mobile-links > a:not(.btn-lg) {
+        color: var(--text-secondary);
+        font-size: 15px;
+        text-decoration: none;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .mobile-links > a:not(.btn-lg):last-of-type {
+        border-bottom: none;
+    }
+
+    .mobile-links > a:not(.btn-lg):hover,
+    .mobile-links > a:not(.btn-lg).active {
+        color: var(--color-text);
+    }
+
+    .mobile-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-top: 14px;
+    }
+
+    .mobile-actions .social-link {
+        width: 40px;
+        height: 40px;
+        flex-basis: 40px;
+        background: var(--color-surface-hover);
+        border: 1px solid var(--color-border);
+    }
+
+    .mobile-actions .social-link:hover {
+        background: var(--color-surface-active);
+    }
+
+    .mobile-dl-btn {
+        display: none;
+    }
+
+    @media (max-width: 50rem) {
+        .nav-inner {
+            display: flex;
+            justify-content: space-between;
+            padding-inline: 16px;
+        }
+
+        .nav-links,
+        .nav-right {
+            display: none;
+        }
+
+        .hamburger {
+            display: flex;
+        }
+
+        .mobile-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            z-index: 1;
+            display: block;
+            max-height: 0;
+            overflow: hidden;
+            visibility: hidden;
+            opacity: 0;
+            border-top: 1px solid transparent;
+            background: var(--color-surface);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+            transform: translateY(-6px);
+            transition:
+                max-height 260ms var(--ease) 110ms,
+                opacity 180ms var(--ease) 90ms,
+                transform 220ms var(--ease) 90ms,
+                visibility 0s linear 370ms,
+                border-color 180ms var(--ease) 90ms;
+        }
+
+        .mobile-menu.open {
+            max-height: calc(100dvh - 60px);
+            visibility: visible;
+            opacity: 1;
+            border-top-color: var(--color-border);
+            transform: translateY(0);
+            transition-delay: 0s;
+        }
+
+        .mobile-links > a,
+        .mobile-actions {
+            opacity: 0;
+            transform: translateY(-6px);
+            transition:
+                opacity 160ms var(--ease),
+                transform 200ms var(--ease);
+        }
+
+        .mobile-menu.open .mobile-links > a,
+        .mobile-menu.open .mobile-actions {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .mobile-menu.open .mobile-links > a:nth-child(1) {
+            transition-delay: 40ms;
+        }
+
+        .mobile-menu.open .mobile-links > a:nth-child(2) {
+            transition-delay: 65ms;
+        }
+
+        .mobile-menu.open .mobile-links > a:nth-child(3) {
+            transition-delay: 90ms;
+        }
+
+        .mobile-menu.open .mobile-links > a:nth-child(4) {
+            transition-delay: 115ms;
+        }
+
+        .mobile-menu.open .mobile-links > a:nth-child(5) {
+            transition-delay: 140ms;
+        }
+
+        .mobile-menu.open .mobile-actions {
+            transition-delay: 165ms;
+        }
+
+        .mobile-menu:not(.open) .mobile-actions {
+            transition-delay: 0ms;
+        }
+
+        .mobile-menu:not(.open) .mobile-links > a:nth-child(5) {
+            transition-delay: 20ms;
+        }
+
+        .mobile-menu:not(.open) .mobile-links > a:nth-child(4) {
+            transition-delay: 40ms;
+        }
+
+        .mobile-menu:not(.open) .mobile-links > a:nth-child(3) {
+            transition-delay: 60ms;
+        }
+
+        .mobile-menu:not(.open) .mobile-links > a:nth-child(2) {
+            transition-delay: 80ms;
+        }
+
+        .mobile-menu:not(.open) .mobile-links > a:nth-child(1) {
+            transition-delay: 100ms;
+        }
+    }
+
+    @media (max-width: 50rem) and (prefers-reduced-motion: reduce) {
+        .mobile-menu,
+        .mobile-links > a,
+        .mobile-actions {
+            transition: none;
+            transform: none;
+        }
+    }
+</style>

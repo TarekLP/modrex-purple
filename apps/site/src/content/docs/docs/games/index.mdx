@@ -1,0 +1,24 @@
+---
+title: Supported games
+description: Game-specific setup notes for launcher support, mod targets, loaders, and priority behavior.
+sidebar:
+    label: Overview
+    order: 1
+---
+
+import GameSupportTable from '../../../../components/docs/GameSupportTable.astro'
+
+Modrex keeps app settings, launcher choice, launch options, installed mods, folders, and paths separate for each game. Use the page for your selected game when a workflow depends on install folders, loader requirements, or priority behavior.
+
+<GameSupportTable />
+
+## What changes per game
+
+- **Game detection** scans only launchers supported by that game.
+- **Install targets** decide where archives, loose files, and folders are placed.
+- **Loader checks** are game-specific, so dependency warnings and loader install actions differ.
+- **Priority behavior** depends on whether the game uses loose `.pak` files or directory-based mod loaders.
+
+## When switching games
+
+Use the game switcher in the app sidebar. Modrex keeps each game's configuration isolated, so changing games does not overwrite another game's path, launcher, launch options, folders, or installed list.

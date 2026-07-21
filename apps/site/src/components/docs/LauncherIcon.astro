@@ -1,0 +1,27 @@
+---
+import type { LauncherName } from '../../data/docsGames'
+
+interface Props {
+    launcher: LauncherName
+}
+
+const { launcher } = Astro.props
+
+const icons: Record<LauncherName, string> = {
+    Steam: 'steam-white',
+    'Epic Games': 'epicgames-white',
+    'Xbox App': 'xbox-white',
+}
+---
+
+<img class="docs-launcher-icon" src={`/icons/${icons[launcher]}.svg`} alt="" />
+
+<style>
+    .docs-launcher-icon {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        vertical-align: -0.15em;
+        margin-inline-end: 0.3em;
+    }
+</style>

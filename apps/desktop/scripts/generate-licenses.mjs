@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs'
+import { readFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from 'fs'
 import { execSync } from 'child_process'
 import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
@@ -14,10 +14,15 @@ function findLicenseText(pkgPath) {
         return null
     }
     const match = files.find((f) => /^licen[sc]e(\.txt|\.md)?$/i.test(f))
-    return match ? readFileSync(join(pkgPath, match), 'utf-8').trim() : null
+    if (!match) return null
+
+    const licensePath = join(pkgPath, match)
+    return statSync(licensePath).isFile() ? readFileSync(licensePath, 'utf-8').trim() : null
 }
 
-const raw = execSync('pnpm licenses list --prod --json', { cwd: rootDir }).toString()
+const raw = execSync('pnpm --filter modrex licenses list --prod --json', {
+    cwd: rootDir,
+}).toString()
 const npmData = JSON.parse(raw)
 
 let npmLines = []

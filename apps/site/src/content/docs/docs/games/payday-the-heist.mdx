@@ -1,0 +1,24 @@
+---
+title: 'PAYDAY: The Heist'
+description: 'Setup notes for PAYDAY: The Heist launcher support, BLT mods, DAHM mods, and mod_overrides.'
+sidebar:
+    order: 30
+---
+
+import GameFacts from '../../../../components/docs/GameFacts.astro'
+
+PAYDAY: The Heist support covers BLT mods, DAHM sub-mods, and asset replacement packs.
+
+<GameFacts game="pdth" />
+
+## Loaders
+
+Modrex has dedicated handling for the PDTHModOverrides and DAHM loader mods. Loader dependency warnings use those game-specific checks instead of treating every dependency as a normal folder install.
+
+## .pdmod files
+
+PAYDAY: The Heist has a native mod format with the `.pdmod` extension. Modrex installs `.pdmod` files directly — download one from modworkshop or install it from a local file the same way as any other mod. Modrex extracts its assets into `assets/mod_overrides/` automatically.
+
+## Priority
+
+PAYDAY: The Heist directory mods are not renamed for priority. Organize them in Modrex, but follow loader and mod author instructions for conflict rules.

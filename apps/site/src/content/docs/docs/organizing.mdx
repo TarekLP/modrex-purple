@@ -1,0 +1,82 @@
+---
+title: Organizing mods
+description: Use folders, priority ordering, and file management tools to control which mods load and in what order.
+---
+
+import Callout from '../../../components/docs/Callout.astro'
+
+## Folders
+
+Create folders on the **Installed** tab to group related mods. Folders can be nested to any depth.
+
+- **Create a folder** - click the folder icon in the toolbar, or right-click an existing folder and
+  select **New subfolder**.
+- **Move a mod into a folder** - drag it from the list and drop it onto the folder name.
+- **Rename or delete** - right-click the folder.
+
+Deleting a folder moves its contents to the parent level; the mod files are not removed from disk.
+
+## Priority order
+
+Some game targets load loose `.pak` files alphabetically. For those targets, Modrex translates your
+visual order into numeric prefixes (`001_`, `002_`, ...) on the actual filenames on disk.
+
+Keep higher-priority `.pak` mods higher in the list. Modrex writes the filenames so the game loads
+them in the intended order.
+
+Drag mods up and down within the list to reorder them. Priority is scoped to siblings within the same
+folder - mods in different folders don't compete unless they reference the same game assets.
+
+See [Priority and state](/docs/concepts/priority-and-state) for how visual order, filename prefixes,
+enabled state, and missing files work across game targets.
+
+<Callout>
+    Directory-based targets are not renamed for load order. Modrex still lets you organize them into
+    folders and enable or disable them.
+</Callout>
+
+## Manage files
+
+Mods that install multiple files can be opened in **Manage files**. Use it to search the files in a
+mod, enable or disable individual entries, remove selected entries, or reinstall a missing entry
+from the original archive when Modrex can identify it.
+
+Missing files appear as ghost rows so you can repair a partially deleted mod without reinstalling
+everything.
+
+Open **Manage files** from the `⋮` options menu on any mod card or list row. The same menu also
+lets Crime Boss users move a mod between the ModKit and legacy install targets — see
+[Crime Boss](/docs/games/crime-boss#choosing-an-install-target).
+
+## Bulk enable / disable
+
+Click the toggle on a folder's header row to enable or disable every mod inside it at once,
+including nested subfolders. Individual mod toggles still work inside a collapsed folder.
+
+## Collapse and expand
+
+Click a folder name to collapse or expand it. Collapsed state is saved between sessions.
+
+## Grid and list view
+
+Switch the Installed tab between grid and list layout using the view toggle in the toolbar. The
+choice is remembered per game.
+
+## Health Check
+
+The Health Check scans your entire installed library and groups any issues it finds by category.
+Open it from the toolbar on the Installed tab.
+
+Each category has its own tab and a bulk action in the footer:
+
+| Category             | What it flags                                                 | Bulk action                              |
+| -------------------- | ------------------------------------------------------------- | ---------------------------------------- |
+| Missing files        | Mods whose files are no longer on disk                        | Reinstall all                            |
+| Broken archives      | Mods whose installed file is a corrupt or unextracted archive | Reinstall all                            |
+| Outdated installs    | Mods with a version mismatch or a stale duplicate file        | Reinstall all                            |
+| Unrecognized mods    | Mods Modrex can't match to a modworkshop entry                | —                                        |
+| Missing dependencies | Mods whose required loader or dependency isn't installed      | Install All Dependencies                 |
+| Available updates    | Mods with a newer version on modworkshop                      | Review updates (opens the Updates modal) |
+
+You can also act on individual rows inside each tab. Installing a missing dependency updates the
+tab immediately so you can see what's still outstanding without closing the modal.

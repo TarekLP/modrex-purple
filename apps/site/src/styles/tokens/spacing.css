@@ -1,0 +1,50 @@
+/* ============================================================
+   Modrex — Spacing, radius, shadow, motion tokens
+   The app is dense and tidy: 2–6px micro-gaps, small radii,
+   almost no shadow (it leans on borders, not elevation).
+   ============================================================ */
+
+:root {
+    /* --- Spacing scale (4px base, matches Tailwind steps used in-app) --- */
+    --space-0_5: 2px;
+    --space-1: 4px;
+    --space-1_5: 6px;
+    --space-2: 8px;
+    --space-2_5: 10px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* --- Radii: small and consistent. rounded = 4–6px is the norm. --- */
+    --radius-sm: 4px; /* buttons, inputs, pills, badges */
+    --radius-md: 6px; /* cards on hover wells */
+    --radius-lg: 8px; /* cards, wells, list rows */
+    --radius-xl: 12px; /* modals */
+    --radius-full: 9999px; /* toggles, avatars, spinner */
+
+    /* --- Borders: one hairline weight, everywhere --- */
+    --border-width: 1px;
+
+    /* --- Elevation: the app barely uses shadow. Modals get one soft drop;
+       everything else is defined by a 1px border on a raised surface. --- */
+    --shadow-none: none;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4); /* toggle knob, subtle lift */
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45); /* dropdowns, popovers */
+    --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.6); /* dialogs over scrim */
+
+    /* --- Motion: short, color-first transitions. No bounce, no spring. --- */
+    --duration-fast: 100ms; /* @kind other */ /* progress fills */
+    --duration: 200ms; /* @kind other */ /* default — colors, opacity, transform */
+    --duration-slow: 300ms; /* @kind other */ /* update progress bar */
+    --ease: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */ /* standard ease-in-out */
+
+    /* The single most common transition in the codebase: */
+    --transition-colors:
+        color var(--duration) var(--ease), background-color var(--duration) var(--ease),
+        border-color var(--duration) var(--ease);
+}

@@ -1,0 +1,39 @@
+---
+title: Launch modes
+description: How normal launch, launch without mods, backups, restore behavior, and launch options work.
+sidebar:
+    order: 40
+---
+
+Modrex can start the active game with managed mods enabled or temporarily move managed mods aside for a clean session.
+
+## Launch modded
+
+Click **Launch** to start the active game with enabled mods in place. Modrex uses the active game's saved launcher and passes through launch options when that launcher supports them.
+
+Disabled mods stay disabled. Missing files are not restored during launch; reinstall or repair them from the Installed tab first.
+
+## Launch without mods
+
+Use **Launch without mods** when you want to start the active game as vanilla without uninstalling your mod setup.
+
+Modrex temporarily backs up the active game's managed targets, launches the game, then restores the targets when it detects that the game has closed.
+
+## Target-scoped backups
+
+Backups are target-specific. A game with multiple targets can have multiple temporary backup folders, such as one for a loose `.pak` target and another for a directory-based loader target.
+
+This keeps secondary targets from being left behind during a clean launch.
+
+## Restore behavior
+
+After the game closes, Modrex restores the backed-up targets automatically. While a vanilla session
+may still be running, a banner reminds you mods are hidden and offers a manual **Restore mods**
+button. If the app was closed before restore completed, reopen Modrex and use that button (or the
+normal installed-mod view) to confirm your files are back in place.
+
+## Launch options
+
+Launch options are saved per game. PAYDAY 3 `.pak` mods commonly require `-fileopenlog`; other games rely on their own loader or target behavior.
+
+See [Settings](/docs/settings#launch-options) for where launch options are configured and [Supported games](/docs/games/) for game-specific notes.

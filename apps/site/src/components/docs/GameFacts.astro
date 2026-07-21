@@ -1,0 +1,19 @@
+---
+import LauncherSupportTable from './LauncherSupportTable.astro'
+import ModTargetsTable from './ModTargetsTable.astro'
+import { type DocsGameId } from '../../data/docsGames'
+
+interface Props {
+    game: DocsGameId
+}
+
+const { game } = Astro.props
+---
+
+<h2 id="launchers">Launchers</h2>
+
+<LauncherSupportTable game={game} />
+
+<h2 id="mod-targets">Mod targets</h2>
+
+<ModTargetsTable game={game} />

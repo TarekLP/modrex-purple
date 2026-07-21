@@ -28,12 +28,21 @@
         "lint:fix": "pnpm --dir apps/desktop lint:fix",
         "generate-licenses": "pnpm --dir apps/desktop generate-licenses",
         "release:desktop": "pnpm --dir apps/desktop version",
+        "site:dev": "pnpm --dir apps/site dev",
+        "site:build": "pnpm --dir apps/site build",
+        "site:typecheck": "pnpm --dir apps/site typecheck",
+        "site:typecheck:functions": "pnpm --dir apps/site typecheck:functions",
+        "site:lint": "pnpm --dir apps/site lint",
+        "site:test": "pnpm --dir apps/site test:run",
+        "site:format:check": "pnpm --dir apps/site format:check",
+        "site:checks": "pnpm site:typecheck && pnpm site:typecheck:functions && pnpm site:lint && pnpm site:format:check && pnpm site:test && pnpm site:build",
         "prepare": "husky"
     },
     "devDependencies": {
-        "@commitlint/cli": "^21.2.1",
-        "@commitlint/config-conventional": "^21.2.0",
+        "@commitlint/cli": "21.0.2",
+        "@commitlint/config-conventional": "21.0.2",
         "husky": "^9.1.7",
-        "prettier": "^3.9.5"
+        "prettier": "^3.9.5",
+        "typescript": "6.0.3"
     }
 }

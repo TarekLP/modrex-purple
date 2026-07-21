@@ -1,0 +1,165 @@
+---
+const label = 'Search docs'
+---
+
+<site-search class={Astro.props.class}>
+    <label class="docs-filter-field" data-docs-filter-field>
+        <svg
+            aria-hidden="true"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+        >
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input
+            data-docs-filter-input
+            type="search"
+            placeholder={label}
+            aria-label={label}
+            autocomplete="off"
+        />
+        <kbd class="docs-filter-shortcut" aria-hidden="true">
+            <kbd>{Astro.locals.t('search.ctrlKey')}</kbd><kbd>K</kbd>
+        </kbd>
+    </label>
+    <p data-docs-filter-empty class="docs-filter-empty" hidden>No matching docs</p>
+</site-search>
+
+<script>
+    class SiteSearch extends HTMLElement {
+        connectedCallback() {
+            if (this.dataset.ready === 'true') return
+
+            const init = () => {
+                if (this.init()) {
+                    this.dataset.ready = 'true'
+                    return
+                }
+
+                requestAnimationFrame(init)
+            }
+
+            init()
+        }
+
+        private init() {
+            const input = this.querySelector<HTMLInputElement>('[data-docs-filter-input]')
+            const shortcut = this.querySelector<HTMLElement>('.docs-filter-shortcut')
+            const platformKey = shortcut?.querySelector('kbd')
+            const sidebar =
+                this.closest('#starlight__sidebar') ?? document.getElementById('starlight__sidebar')
+            const navigation = sidebar?.querySelector<HTMLElement>('ul.top-level')
+            const empty = this.querySelector<HTMLElement>('[data-docs-filter-empty]')
+
+            if (!input || !navigation) return false
+
+            const field = this.querySelector<HTMLElement>('[data-docs-filter-field]')
+            if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+                platformKey.textContent = '⌘'
+            }
+
+            const details = Array.from(navigation.querySelectorAll('details'))
+            const initialOpen = new WeakMap<HTMLDetailsElement, boolean>()
+            for (const detail of details) initialOpen.set(detail, detail.open)
+
+            const normalize = (value: string) => value.trim().toLowerCase()
+            const matches = (text: string, terms: string[]) => {
+                const value = normalize(text)
+                return terms.every((term) => value.includes(term))
+            }
+
+            const setDescendantsHidden = (item: HTMLLIElement, hidden: boolean) => {
+                for (const child of item.querySelectorAll<HTMLLIElement>('li')) {
+                    child.hidden = hidden
+                }
+            }
+
+            const restoreNavigation = () => {
+                navigation.removeAttribute('data-docs-filtering')
+                for (const item of navigation.querySelectorAll<HTMLLIElement>('li'))
+                    item.hidden = false
+                for (const detail of details) detail.open = initialOpen.get(detail) ?? detail.open
+                if (empty) empty.hidden = true
+            }
+
+            const filterNavigation = () => {
+                const terms = normalize(input.value).split(/\s+/).filter(Boolean)
+                if (terms.length === 0) {
+                    restoreNavigation()
+                    return
+                }
+
+                navigation.setAttribute('data-docs-filtering', '')
+
+                for (const item of navigation.querySelectorAll<HTMLLIElement>('li')) {
+                    const directLink = item.querySelector<HTMLAnchorElement>(':scope > a[href]')
+                    if (directLink) item.hidden = !matches(directLink.textContent ?? '', terms)
+                }
+
+                const groupedItems = Array.from(navigation.querySelectorAll('details'))
+                    .map((detail) => detail.closest<HTMLLIElement>('li'))
+                    .filter((item): item is HTMLLIElement => item !== null)
+                    .reverse()
+
+                for (const item of groupedItems) {
+                    const summary = item.querySelector<HTMLElement>(':scope > details > summary')
+                    const detail = item.querySelector<HTMLDetailsElement>(':scope > details')
+                    const groupMatches = matches(summary?.textContent ?? '', terms)
+
+                    if (groupMatches) {
+                        item.hidden = false
+                        setDescendantsHidden(item, false)
+                    } else {
+                        item.hidden = !Array.from(item.querySelectorAll<HTMLLIElement>('li')).some(
+                            (child) => child.hidden === false
+                        )
+                    }
+
+                    if (detail) detail.open = !item.hidden
+                }
+
+                const hasMatch = Array.from(navigation.children).some(
+                    (child) => child instanceof HTMLLIElement && child.hidden === false
+                )
+                if (empty) empty.hidden = hasMatch
+            }
+
+            input.addEventListener('input', filterNavigation)
+            field?.addEventListener('pointerdown', (event) => {
+                if (event.target !== input) {
+                    event.preventDefault()
+                    input.focus()
+                }
+            })
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && input.value) {
+                    input.value = ''
+                    restoreNavigation()
+                    event.preventDefault()
+                }
+            })
+
+            window.addEventListener('keydown', (event) => {
+                if (
+                    (event.metaKey === true || event.ctrlKey === true) &&
+                    event.key.toLowerCase() === 'k'
+                ) {
+                    input.focus()
+                    input.select()
+                    event.preventDefault()
+                }
+            })
+
+            return true
+        }
+    }
+
+    if (!customElements.get('site-search')) customElements.define('site-search', SiteSearch)
+</script>

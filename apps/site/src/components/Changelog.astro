@@ -1,0 +1,273 @@
+---
+import { marked } from 'marked'
+import type { Release } from '../lib/github'
+
+interface Props {
+    releases: Release[]
+}
+const { releases } = Astro.props
+
+// UTC so the rendered date doesn't depend on the build machine's timezone.
+const dateFormat = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+})
+
+// Release bodies are Modrex's own CHANGELOG.md sections (stamped into the release
+// by the CI workflow), so rendering them with set:html is trusted build-time content.
+const entries = releases.map((release) => ({
+    version: release.tag_name,
+    publishedAt: release.published_at,
+    date: dateFormat.format(new Date(release.published_at)),
+    url: release.html_url,
+    html: marked.parse(release.body, { async: false }),
+}))
+---
+
+{
+    entries.length > 0 && (
+        <section id="changelog">
+            <div class="wrap">
+                <div class="sec-head">
+                    <span class="sec-eyebrow">Changelog</span>
+                    <h2 class="sec-title">What's new</h2>
+                    <p class="sec-sub">
+                        Every update ships with plain-language release notes. Here are the most
+                        recent.
+                    </p>
+                </div>
+                <div class="releases">
+                    {entries.map((entry, index) => (
+                        <article class="release">
+                            <header class="rel-head">
+                                <a
+                                    class="rel-version"
+                                    href={entry.url}
+                                    target="_blank"
+                                    rel="noopener"
+                                >
+                                    {entry.version}
+                                </a>
+                                {index === 0 && (
+                                    <span class="mdx-badge mdx-badge--accent">Latest</span>
+                                )}
+                                <time class="rel-date" datetime={entry.publishedAt}>
+                                    {entry.date}
+                                </time>
+                            </header>
+                            <div class="rel-body" set:html={entry.html} />
+                            <button
+                                class="rel-more mdx-btn mdx-btn--ghost"
+                                aria-expanded="false"
+                                hidden
+                            >
+                                <span>Show more</span>
+                                <i data-lucide="chevron-down" />
+                            </button>
+                        </article>
+                    ))}
+                </div>
+                <p class="cl-note">
+                    <a
+                        class="mdx-btn mdx-btn--md mdx-btn--ghost"
+                        href="https://github.com/modrexio/modrex/releases"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        Full release history on GitHub
+                        <i data-lucide="arrow-up-right" />
+                    </a>
+                </p>
+            </div>
+        </section>
+    )
+}
+
+<script>
+    import { createIcons, ChevronDown, ArrowUpRight } from 'lucide'
+
+    createIcons({ icons: { ChevronDown, ArrowUpRight } })
+
+    const COLLAPSED_HEIGHT = 240
+
+    document.querySelectorAll<HTMLElement>('.release').forEach((card) => {
+        const body = card.querySelector<HTMLElement>('.rel-body')
+        const button = card.querySelector<HTMLButtonElement>('.rel-more')
+        if (!body || !button) return
+        // Only collapse when the hidden part is tall enough to be worth a button.
+        if (body.scrollHeight <= COLLAPSED_HEIGHT + 80) return
+
+        const label = button.querySelector('span')
+        body.classList.add('collapsed')
+        button.hidden = false
+        button.addEventListener('click', () => {
+            // Measure before canceling so a click mid-animation retargets from the
+            // current rendered height instead of snapping.
+            const start = body.offsetHeight
+            body.getAnimations().forEach((animation) => animation.cancel())
+            const collapsed = body.classList.toggle('collapsed')
+            const end = body.offsetHeight
+            button.setAttribute('aria-expanded', String(!collapsed))
+            if (label) label.textContent = collapsed ? 'Show more' : 'Show less'
+
+            if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+            // Animate max-height, not height: the collapsed class caps the box via
+            // max-height, and the animation must override that same property.
+            body.style.overflow = 'hidden'
+            const anim = body.animate([{ maxHeight: `${start}px` }, { maxHeight: `${end}px` }], {
+                duration: 300,
+                easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            })
+            anim.onfinish = () => {
+                body.style.overflow = ''
+            }
+        })
+    })
+</script>
+
+<style>
+    .releases {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 760px;
+        margin: 0 auto;
+    }
+
+    .release {
+        background: var(--color-surface-raised);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: 24px 28px;
+    }
+
+    .rel-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .rel-version {
+        font-family: var(--font-mono);
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--color-text);
+    }
+
+    .rel-date {
+        margin-left: auto;
+        font-size: 13px;
+        color: var(--text-tertiary);
+    }
+
+    .rel-body {
+        position: relative;
+        margin-top: 16px;
+    }
+
+    .rel-body.collapsed {
+        max-height: 240px;
+        overflow: hidden;
+    }
+
+    .rel-body::after {
+        content: '';
+        position: absolute;
+        inset: auto 0 0 0;
+        height: 72px;
+        background: linear-gradient(to bottom, transparent, var(--color-surface-raised));
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity var(--duration) var(--ease);
+    }
+
+    .rel-body.collapsed::after {
+        opacity: 1;
+    }
+
+    .rel-body :global(h3) {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--color-accent-bright);
+        margin: 20px 0 8px;
+    }
+
+    .rel-body :global(h3:first-child) {
+        margin-top: 0;
+    }
+
+    /* Tailwind preflight resets list-style to none, so restore the markers. */
+    .rel-body :global(ul) {
+        margin: 0;
+        padding-left: 20px;
+        list-style: disc;
+    }
+
+    .rel-body :global(ul ul) {
+        list-style: circle;
+    }
+
+    .rel-body :global(li) {
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--text-secondary);
+        margin: 6px 0;
+    }
+
+    .rel-body :global(li::marker) {
+        color: var(--color-text-subtle);
+    }
+
+    .rel-body :global(code) {
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        color: var(--color-text);
+        background: var(--color-surface-hover);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        padding: 1px 5px;
+    }
+
+    .release .rel-more {
+        display: flex;
+        margin: 12px auto 0;
+    }
+
+    .release .rel-more[hidden] {
+        display: none;
+    }
+
+    .rel-more i,
+    .rel-more svg {
+        display: block;
+        width: 14px;
+        height: 14px;
+        transition: transform var(--duration) var(--ease);
+    }
+
+    .rel-more[aria-expanded='true'] svg {
+        transform: rotate(180deg);
+    }
+
+    .cl-note {
+        text-align: center;
+        margin-top: 32px;
+    }
+
+    .cl-note i,
+    .cl-note svg {
+        display: block;
+        width: 15px;
+        height: 15px;
+    }
+
+    @media (max-width: 420px) {
+        .release {
+            padding: 20px;
+        }
+    }
+</style>

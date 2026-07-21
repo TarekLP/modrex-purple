@@ -1,0 +1,213 @@
+---
+import type { ModIndexStats } from '../lib/mod-index'
+
+interface Props {
+    indexStats: ModIndexStats | null
+}
+
+const { indexStats } = Astro.props
+const supportedMods = indexStats
+    ? new Intl.NumberFormat('en-US').format(indexStats.supportedMods)
+    : null
+
+const features: [string, string, string][] = [
+    [
+        'compass',
+        'Browse modworkshop',
+        'Search supported modworkshop catalogs with categories, sorting, rich mod pages, and dependencies.',
+    ],
+    [
+        'download',
+        'One-click install',
+        'Install, enable, disable, and remove in a click. Supports .pak, .zip, .7z, and .rar, with multi-file archives grouped as one.',
+    ],
+    [
+        'folder-tree',
+        'Organize in folders',
+        'Sort your library into nested folders of any depth, with drag-and-drop reordering that sticks.',
+    ],
+    [
+        'refresh-cw',
+        'Smart updates',
+        'Modrex detects out-of-date mods and lets you update them selectively - or all at once.',
+    ],
+    [
+        'play',
+        'Launch your way',
+        'Boot modded or vanilla straight from the app. Vanilla launches hide your mods and restore them on exit.',
+    ],
+    [
+        'crosshair',
+        'Auto-detects your install',
+        'Finds supported games across their launchers and picks up mods you added outside Modrex.',
+    ],
+]
+---
+
+<section id="features">
+    <div class="wrap">
+        <div class="sec-head">
+            <h2 class="sec-title">Built for mod management</h2>
+            <p class="sec-sub">
+                Browse, install, update, and launch mods without dragging files by hand.
+            </p>
+        </div>
+        <div class="features-grid">
+            <div class="index-count">
+                <p>Recognized mods</p>
+                <strong data-mod-index-count aria-live="polite">{supportedMods ?? '...'}</strong>
+                <span>known mods Modrex can match automatically</span>
+                <small>Helps Modrex detect mods already in your game folder.</small>
+            </div>
+            {
+                features.map(([icon, title, body], index) => (
+                    <div class:list={['feature', { 'feature-wide': !indexStats && index < 2 }]}>
+                        <div class="ic">
+                            <i data-lucide={icon} />
+                        </div>
+                        <h3>{title}</h3>
+                        <p>{body}</p>
+                    </div>
+                ))
+            }
+        </div>
+    </div>
+</section>
+
+<script>
+    import { createIcons, Compass, Download, FolderTree, RefreshCw, Play, Crosshair } from 'lucide'
+    import { INDEX_STATS_URL, type ModIndexStatsPayload } from '../lib/mod-index-shared'
+
+    createIcons({ icons: { Compass, Download, FolderTree, RefreshCw, Play, Crosshair } })
+
+    const countEl = document.querySelector<HTMLElement>('[data-mod-index-count]')
+
+    async function refreshModIndexCount() {
+        if (!countEl) return
+
+        const cacheKey = Math.floor(Date.now() / 60_000)
+        const res = await fetch(`${INDEX_STATS_URL}?t=${cacheKey}`, { cache: 'no-store' })
+
+        if (!res.ok) throw new Error(`Index stats download error: ${res.status}`)
+
+        const stats = (await res.json()) as ModIndexStatsPayload
+
+        if (Number.isFinite(stats.supportedMods) && stats.supportedMods > 0) {
+            countEl.textContent = new Intl.NumberFormat('en-US').format(stats.supportedMods)
+        }
+    }
+
+    refreshModIndexCount().catch((error: unknown) => {
+        console.error('Failed to refresh mod index count', error)
+    })
+</script>
+
+<style>
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+
+    .feature {
+        grid-column: span 1;
+        background: var(--color-surface-raised);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+    }
+
+    .feature-wide {
+        grid-column: span 2;
+    }
+
+    .ic {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent-tint-10);
+        color: var(--color-accent-bright);
+        border: 1px solid var(--accent-tint-30);
+    }
+
+    .feature h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 16px 0 6px;
+    }
+
+    .feature p {
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .index-count {
+        grid-column: span 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 100%;
+        padding: 24px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        background: var(--color-surface-raised);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .index-count p {
+        margin: 0 0 28px;
+        color: var(--color-accent-bright);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .index-count strong {
+        font-family: var(--font-display);
+        font-size: clamp(52px, 7vw, 76px);
+        line-height: 1;
+        letter-spacing: 0.01em;
+        color: var(--color-text);
+    }
+
+    .index-count span {
+        margin-top: 2px;
+        color: var(--color-text);
+        font-size: 16px;
+        font-weight: 700;
+    }
+
+    .index-count small {
+        display: block;
+        max-width: 36ch;
+        margin-top: 16px;
+        color: var(--text-secondary);
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.55;
+    }
+
+    @media (max-width: 860px) {
+        .features-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .index-count,
+        .feature,
+        .feature-wide {
+            grid-column: span 1;
+        }
+    }
+
+    @media (max-width: 500px) {
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

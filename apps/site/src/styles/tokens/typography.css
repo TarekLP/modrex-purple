@@ -1,0 +1,44 @@
+/* ============================================================
+   Modrex — Typography tokens
+   Display:  Bebas Neue (condensed, all-caps) — wordmark + big numerals only
+   UI / Body: native system sans — exactly what the Tauri app renders
+   Mono:     native system mono — file paths, versions, launch args
+   ============================================================ */
+
+:root {
+    /* --- Families --- */
+    --font-display: 'Bebas Neue', 'Oswald', 'Arial Narrow', sans-serif;
+    --font-sans:
+        ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    /* --- Type scale (the app lives at small, dense sizes) ---
+       The desktop UI uses Tailwind's text-xs / text-sm / text-lg almost
+       exclusively. These mirror those exact px values. */
+    --text-2xs: 10px; /* badges, file-count pills */
+    --text-xs: 12px; /* meta, buttons, secondary copy — the workhorse */
+    --text-sm: 14px; /* body, list titles, inputs */
+    --text-base: 16px; /* baseline */
+    --text-lg: 18px; /* page titles (h1 in-app) */
+    --text-xl: 24px; /* marketing sub-headings */
+    --text-2xl: 32px;
+    --text-3xl: 48px; /* marketing hero, display numerals */
+    --text-display: 88px; /* big Bebas hero wordmark */
+
+    /* --- Weights (system sans) --- */
+    --weight-normal: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+
+    /* --- Line heights --- */
+    --leading-none: 1;
+    --leading-snug: 1.35;
+    --leading-normal: 1.55;
+
+    /* --- Tracking --- */
+    --tracking-display: 0.05em; /* Bebas wordmark spacing, from the app */
+    --tracking-tight: -0.01em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.04em; /* small all-caps labels */
+}

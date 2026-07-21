@@ -1,0 +1,32 @@
+---
+import { getDocsGame, type DocsGameId } from '../../data/docsGames'
+
+interface Props {
+    game: DocsGameId
+}
+
+const game = getDocsGame(Astro.props.game)
+---
+
+<table class="docs-data-table">
+    <thead>
+        <tr>
+            <th>Target</th>
+            <th>Path under game folder</th>
+            <th>Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {
+            game.targets.map((target) => (
+                <tr>
+                    <td>{target.label}</td>
+                    <td>
+                        {target.pathIsCode === false ? target.path : <code>{target.path}</code>}
+                    </td>
+                    <td>{target.notes}</td>
+                </tr>
+            ))
+        }
+    </tbody>
+</table>

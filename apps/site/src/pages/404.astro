@@ -1,0 +1,59 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Nav from '../components/Nav.astro'
+import SiteFooter from '../components/SiteFooter.astro'
+---
+
+<BaseLayout title="Not found" description="The requested Modrex page could not be found.">
+    <Nav />
+    <main class="not-found">
+        <div class="wrap">
+            <p class="code">404</p>
+            <h1>Page not found</h1>
+            <p>The page may have moved, or the link may be outdated.</p>
+            <div class="actions">
+                <a href="/" class="btn-lg primary">Home</a>
+                <a href="/docs/" class="btn-lg secondary">Docs</a>
+            </div>
+        </div>
+    </main>
+    <SiteFooter />
+</BaseLayout>
+
+<style>
+    .not-found {
+        min-height: 60dvh;
+        display: flex;
+        align-items: center;
+        padding: 96px 0;
+    }
+
+    .code {
+        margin: 0 0 12px;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--color-accent-bright);
+    }
+
+    h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: clamp(56px, 8vw, 96px);
+        line-height: 0.95;
+        letter-spacing: var(--tracking-display);
+    }
+
+    p {
+        max-width: 42ch;
+        margin: 18px 0 0;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 32px;
+    }
+</style>

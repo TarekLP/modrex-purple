@@ -1,0 +1,69 @@
+---
+title: Troubleshooting
+description: Solutions to the most common problems with Modrex and PAYDAY mods.
+---
+
+import Callout from '../../../components/docs/Callout.astro'
+
+## Mods not loading in-game
+
+For PAYDAY 3, the most common cause is a missing `-fileopenlog` launch argument.
+
+Add `-fileopenlog` to **Settings - Launch Options**. Without it, Unreal Engine does not scan the
+`~mods/` directory and no PAYDAY 3 `.pak` mods will load regardless of what's installed.
+
+Other things to check:
+
+- The mod's toggle is on (not disabled).
+- A higher-priority mod isn't overriding it - try moving it lower in the list.
+- The mod targets the active game and your installed game version.
+- For PAYDAY 2 or PAYDAY: The Heist, the required loader is installed and working.
+
+## Game not detected on first launch
+
+If Modrex can't find the selected game automatically:
+
+1. Go to **Settings - Game Path** and click **Browse**.
+2. Navigate to the game's installation root folder.
+3. Click **Select Folder** - Modrex validates and saves the path.
+
+On Xbox Game Pass, Modrex scans every fixed drive letter on your system for the Xbox install path.
+This can take a few seconds on the first PAYDAY 3 detection pass.
+
+## "Missing file" badge on a mod
+
+This appears when Modrex's state file references a file or folder that no longer exists on disk.
+This happens after manually deleting files or moving your game folder.
+
+Either **Reinstall** the mod to re-download it, or right-click and select **Uninstall** to remove
+the stale entry. See [Priority and state](/docs/concepts/priority-and-state#missing-files) for how
+Modrex tracks this state.
+
+## Archive cannot be installed
+
+If Modrex says it cannot tell where an archive installs, the archive likely belongs inside another
+mod or has a layout that does not identify a supported target. Follow the author's instructions
+shown in the dialog, then install the files manually if needed.
+
+## Modrex won't launch after a Windows update
+
+Xbox Game Pass installs can lose their file permissions after major Windows updates. Run Modrex as
+administrator once to restore access, then relaunch normally.
+
+## Log file location
+
+When reporting a bug, always attach the Modrex log file:
+
+```
+Windows   %LOCALAPPDATA%\Modrex\logs\Modrex.log
+Linux     ~/.local/share/modrex/logs/Modrex.log
+```
+
+Open it directly from **Settings - Open log file**.
+
+<Callout>
+    Get help by filing a [GitHub issue](https://github.com/modrexio/modrex/issues) or posting in the
+    [🛠️support](https://discord.com/channels/1508553766025170986/1516892414059610223) forum on
+    Discord. Either way, include your OS, launcher, and the log file - issues without logs are much
+    harder to diagnose.
+</Callout>

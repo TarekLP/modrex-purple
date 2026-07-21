@@ -1,0 +1,160 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Nav from '../components/Nav.astro'
+import SiteFooter from '../components/SiteFooter.astro'
+---
+
+<BaseLayout
+    title="Privacy Policy"
+    description="Privacy Policy for Modrex, the free and open-source desktop mod manager."
+>
+    <Nav />
+    <main class="legal-page">
+        <div class="wrap">
+            <div class="prose">
+                <h1>Privacy Policy</h1>
+
+                <p>
+                    Modrex is built to respect your privacy. This policy covers both the Modrex
+                    desktop app and this website (modrex.net).
+                </p>
+
+                <h2>Desktop app</h2>
+                <p>
+                    Modrex does not collect any data by default. The app includes an optional,
+                    opt-in analytics feature:
+                </p>
+                <ul>
+                    <li>
+                        <strong>Opt-in only.</strong> You are asked once on first launch and can change
+                        your choice at any time in Settings.
+                    </li>
+                    <li>
+                        <strong>What is collected if you opt in:</strong> anonymous usage events (features
+                        used, mods installed, app version, operating system). A random per-install ID
+                        is generated locally — it is never linked to your name, email, or any account.
+                    </li>
+                    <li>
+                        <strong>What is never collected:</strong> file paths, mod search text, game save
+                        data, account credentials, or any personally identifying information.
+                    </li>
+                    <li>
+                        <strong>Processor:</strong> analytics data is sent to Google Analytics 4 via a
+                        proxy at modrex.net. See <a
+                            href="https://policies.google.com/privacy"
+                            target="_blank"
+                            rel="noopener">Google's Privacy Policy</a
+                        >.
+                    </li>
+                </ul>
+                <p>If you opt out (or never opt in), no data leaves your device from the app.</p>
+
+                <h2>Website (modrex.net)</h2>
+                <p>
+                    This website uses Google Analytics 4 with Consent Mode v2. Analytics are denied
+                    by default and only enabled if you accept via the cookie banner. We do not use
+                    any other tracking, advertising networks, or third-party data brokers.
+                </p>
+
+                <h2>Data sharing</h2>
+                <p>
+                    We do not sell, rent, or trade any data. We do not share data with third parties
+                    except as required by the analytics processor described above or by law.
+                </p>
+
+                <h2>Data retention</h2>
+                <p>
+                    Analytics data is retained for 14 months per Google Analytics' default retention
+                    settings. You can request deletion by contacting us.
+                </p>
+
+                <h2>Your rights</h2>
+                <p>
+                    You can opt out of analytics at any time in the app's Settings or by declining
+                    the cookie banner on this website. Since we collect no personal data, there is
+                    nothing to access, correct, or export beyond what you already control locally.
+                </p>
+
+                <h2>Changes</h2>
+                <p>
+                    We may update this policy at any time. The "Last updated" date above will
+                    reflect any changes.
+                </p>
+
+                <h2>Contact</h2>
+                <p>
+                    Questions? Open an issue on <a
+                        href="https://github.com/modrexio/modrex/issues"
+                        target="_blank"
+                        rel="noopener">GitHub</a
+                    > or join our <a
+                        href="https://discord.gg/tenzpx8JRM"
+                        target="_blank"
+                        rel="noopener">Discord</a
+                    >.
+                </p>
+            </div>
+        </div>
+    </main>
+    <SiteFooter />
+</BaseLayout>
+
+<style>
+    .legal-page {
+        padding: 80px 0 96px;
+    }
+
+    .prose {
+        max-width: 680px;
+    }
+
+    h1 {
+        margin: 0 0 24px;
+        font-family: var(--font-display);
+        font-size: clamp(36px, 5vw, 56px);
+        line-height: 1;
+        letter-spacing: var(--tracking-display);
+    }
+
+    h2 {
+        margin: 40px 0 10px;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-text);
+    }
+
+    p {
+        margin: 0 0 16px;
+        font-size: 15px;
+        color: var(--text-secondary);
+        line-height: 1.7;
+    }
+
+    ul {
+        margin: 0 0 16px;
+        padding-left: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    li {
+        font-size: 15px;
+        color: var(--text-secondary);
+        line-height: 1.7;
+    }
+
+    a {
+        color: var(--color-accent-bright);
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    strong {
+        color: var(--color-text);
+        font-weight: 500;
+    }
+</style>

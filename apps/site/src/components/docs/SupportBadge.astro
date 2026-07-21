@@ -1,0 +1,16 @@
+---
+interface Props {
+    supported: boolean
+}
+
+const { supported } = Astro.props
+const label = supported ? 'Yes' : 'No'
+const color = supported ? 'brightgreen' : 'red'
+---
+
+<img
+    class="docs-support-badge"
+    src={`https://img.shields.io/badge/${label}-${color}`}
+    alt={label}
+    loading="lazy"
+/>

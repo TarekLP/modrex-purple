@@ -1,0 +1,570 @@
+---
+import type { Release } from '../lib/github'
+
+interface Props {
+    release: Release | null
+}
+const { release } = Astro.props
+
+function formatSize(bytes: number): string {
+    const mb = bytes / (1024 * 1024)
+    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
+}
+
+type DlFile = { name: string; url: string; label: string; size?: string }
+
+const exeAsset = release?.assets.find((a) => a.name.endsWith('.exe'))
+const appImageAsset = release?.assets.find((a) => a.name === 'modrex_x86_64.AppImage')
+const debAsset = release?.assets.find((a) => a.name === 'modrex_x86_64.deb')
+const rpmAsset = release?.assets.find((a) => a.name === 'modrex_x86_64.rpm')
+
+const fallbackUrl = 'https://github.com/modrexio/modrex/releases/latest'
+const installCmd = 'curl -fsSL https://modrex.net/install.sh | sh'
+
+const windowsFiles: DlFile[] = exeAsset
+    ? [
+          {
+              name: exeAsset.name,
+              url: exeAsset.browser_download_url,
+              label: 'Installer',
+              size: formatSize(exeAsset.size),
+          },
+      ]
+    : [{ name: 'modrex_x86_64.exe', url: fallbackUrl, label: 'Installer' }]
+
+const linuxFiles: DlFile[] = [
+    appImageAsset
+        ? {
+              name: appImageAsset.name,
+              url: appImageAsset.browser_download_url,
+              label: 'Universal',
+              size: formatSize(appImageAsset.size),
+          }
+        : { name: 'modrex_x86_64.AppImage', url: fallbackUrl, label: 'Universal' },
+    debAsset
+        ? {
+              name: debAsset.name,
+              url: debAsset.browser_download_url,
+              label: 'Debian / Ubuntu',
+              size: formatSize(debAsset.size),
+          }
+        : { name: 'modrex_x86_64.deb', url: fallbackUrl, label: 'Debian / Ubuntu' },
+    rpmAsset
+        ? {
+              name: rpmAsset.name,
+              url: rpmAsset.browser_download_url,
+              label: 'Fedora / RHEL',
+              size: formatSize(rpmAsset.size),
+          }
+        : { name: 'modrex_x86_64.rpm', url: fallbackUrl, label: 'Fedora / RHEL' },
+]
+---
+
+<section id="download">
+    <div class="wrap">
+        <div class="sec-head">
+            <span class="sec-eyebrow">Get Modrex</span>
+            <h2 class="sec-title">Download &amp; install</h2>
+            <p class="sec-sub">
+                Grab the latest build for your platform. Auto-updates are built in - install once
+                and Modrex keeps itself current.
+            </p>
+        </div>
+        <div class="dl-grid">
+            <div class="dl-card" id="dl-card-win">
+                <div class="os-header">
+                    <img src="/icons/windows-white.svg" alt="" width="26" height="26" />
+                    <h3>Windows</h3>
+                    <span class="os-badge" id="badge-win">Your OS</span>
+                </div>
+                <div class="files">
+                    {
+                        windowsFiles.map((f) => (
+                            <div class="dl-file">
+                                <span class="fname">{f.name}</span>
+                                {f.size && <span class="fsize">{f.size}</span>}
+                                <a class="dl-btn" href={f.url}>
+                                    <i data-lucide="download" />
+                                    Install (.{f.name.split('.').pop()})
+                                </a>
+                            </div>
+                        ))
+                    }
+                </div>
+            </div>
+            <div class="dl-card" id="dl-card-lin">
+                <div class="os-header">
+                    <img src="/icons/linux-white.svg" alt="" width="26" height="26" />
+                    <h3>Linux</h3>
+                    <span class="os-badge" id="badge-lin">Your OS</span>
+                </div>
+                <div class="install-tabs" role="tablist">
+                    <button
+                        class="install-tab"
+                        role="tab"
+                        id="tab-script"
+                        aria-controls="panel-script"
+                        aria-selected="true"
+                        data-panel="panel-script"
+                    >
+                        Script
+                    </button>
+                    <button
+                        class="install-tab"
+                        role="tab"
+                        id="tab-package"
+                        aria-controls="panel-package"
+                        aria-selected="false"
+                        data-panel="panel-package"
+                    >
+                        Package
+                    </button>
+                </div>
+                <div class="install-tab-panels">
+                    <div
+                        class="install-panel"
+                        id="panel-script"
+                        role="tabpanel"
+                        aria-labelledby="tab-script"
+                    >
+                        <div class="quick-install">
+                            <code
+                                ><span class="tok-cmd">curl</span> -fsSL https://modrex.net/install.sh
+                                <span class="tok-pipe">|</span>
+                                <span class="tok-cmd">sh</span></code
+                            >
+                            <button
+                                class="copy-btn"
+                                id="copy-install"
+                                data-cmd={installCmd}
+                                aria-label="Copy install command"
+                            >
+                                <i data-lucide="copy"></i>
+                                <i data-lucide="check" style="display: none"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div
+                        class="install-panel"
+                        id="panel-package"
+                        role="tabpanel"
+                        aria-labelledby="tab-package"
+                        hidden
+                    >
+                        <div class="files">
+                            {
+                                linuxFiles.map((f) => (
+                                    <div class="dl-file">
+                                        <span class="fname">{f.name}</span>
+                                        {f.size && <span class="fsize">{f.size}</span>}
+                                        <a class="dl-btn" href={f.url}>
+                                            <i data-lucide="download" />
+                                            Install (.{f.name.split('.').pop()})
+                                        </a>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="dl-note">
+            Supports Steam, Epic Games &amp; Xbox launchers on Windows. Steam on Linux. See the
+            <a href="/docs/">installation guide</a>.
+        </p>
+    </div>
+</section>
+
+<script>
+    import { createIcons, Check, Copy, Download } from 'lucide'
+    import { detectOs } from '../lib/os-detect'
+    createIcons({ icons: { Check, Copy, Download } })
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    document.querySelectorAll<HTMLElement>('.install-tabs').forEach((tabList) => {
+        const tabs = tabList.querySelectorAll<HTMLButtonElement>('.install-tab')
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                if (tab.getAttribute('aria-selected') === 'true') return
+                tabs.forEach((t) => t.setAttribute('aria-selected', String(t === tab)))
+
+                const wrapper =
+                    tabList.parentElement?.querySelector<HTMLElement>('.install-tab-panels')
+                const panels = wrapper?.querySelectorAll<HTMLElement>('.install-panel')
+                const current = Array.from(panels ?? []).find((p) => !p.hidden)
+                const next = document.getElementById(tab.dataset.panel ?? '')
+                if (!wrapper || !current || !next || current === next) return
+
+                if (reduceMotion) {
+                    current.hidden = true
+                    next.hidden = false
+                    return
+                }
+
+                // Both panels crossfade together while the wrapper morphs from the
+                // old height to the new one — one simultaneous motion (matching the
+                // sidebar's width+opacity transition), not a fade-out-then-in chain.
+                const currentHeight = current.offsetHeight
+                wrapper.style.height = `${currentHeight}px`
+
+                next.hidden = false
+                next.style.position = 'absolute'
+                next.style.top = '0'
+                next.style.left = '0'
+                next.style.width = '100%'
+                next.style.opacity = '0'
+                // Natural content height, unconstrained by the wrapper's locked height
+                // above (inset:0 would stretch to fill it instead of sizing to content).
+                const nextHeight = next.offsetHeight
+
+                // Force a style flush so the opacity:0 start state is committed
+                // before the transition-triggering changes below.
+                void next.offsetHeight
+
+                wrapper.style.height = `${nextHeight}px`
+                current.classList.add('is-fading')
+                next.style.opacity = '1'
+
+                setTimeout(() => {
+                    current.hidden = true
+                    current.classList.remove('is-fading')
+                    next.style.position = ''
+                    next.style.top = ''
+                    next.style.left = ''
+                    next.style.width = ''
+                    next.style.opacity = ''
+                    wrapper.style.height = ''
+                }, 200)
+            })
+        })
+    })
+
+    const copyBtn = document.getElementById('copy-install')
+    copyBtn?.addEventListener('click', async () => {
+        const cmd = copyBtn.dataset.cmd
+        if (!cmd) return
+        await navigator.clipboard.writeText(cmd)
+        const [copyIcon, checkIcon] = copyBtn.querySelectorAll<SVGElement>('svg')
+        if (copyIcon && checkIcon) {
+            copyIcon.style.display = 'none'
+            checkIcon.style.display = ''
+            setTimeout(() => {
+                copyIcon.style.display = ''
+                checkIcon.style.display = 'none'
+            }, 1500)
+        }
+    })
+
+    const { isMobile, isLinux } = detectOs()
+    if (!isMobile) {
+        const cardId = isLinux ? 'dl-card-lin' : 'dl-card-win'
+        const badgeId = isLinux ? 'badge-lin' : 'badge-win'
+        document.getElementById(cardId)?.classList.add('os-match')
+        const badge = document.getElementById(badgeId)
+        if (badge) badge.style.display = 'inline-block'
+    }
+</script>
+
+<style>
+    #download {
+        background: var(--color-surface-raised);
+        border-top: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .dl-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+        /* The actual constraint is the .dl-file row (filename + size badge +
+           "Install (.AppImage)" button), not the quick-install command — that's
+           short enough to fit even at the narrowest width here. 880px let
+           "modrex_x86_64.AppImage" wrap to two lines; this keeps real margin
+           above the point where that starts happening again. */
+        max-width: 980px;
+        margin: 0 auto;
+    }
+
+    .dl-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: 28px;
+    }
+
+    .dl-card.os-match {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 1px var(--color-accent);
+    }
+
+    .os-badge {
+        display: none;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-accent);
+        background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+        border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+        border-radius: 4px;
+        padding: 2px 8px;
+    }
+
+    .os-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .os-header h3 {
+        font-size: 18px;
+        margin: 0;
+        font-weight: 600;
+    }
+
+    /* Mirrors the app's own tab pattern (Tabs.List/Tabs.Trigger in
+       ModDetailPage.tsx): flex row on a hairline, accent underline + accent
+       text on the active trigger, a soft hover fill on the rest. */
+    .install-tabs {
+        display: flex;
+        gap: 4px;
+        margin-top: 20px;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .install-tab {
+        position: relative;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 0 4px 10px;
+        margin-bottom: -1px;
+        font-size: 13px;
+        font-family: inherit;
+        color: var(--text-tertiary);
+        cursor: pointer;
+        transition: var(--transition-colors);
+    }
+
+    .install-tab::before {
+        content: '';
+        position: absolute;
+        inset: 2px 4px 12px;
+        border-radius: var(--radius-sm);
+        background: var(--color-surface-hover);
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        z-index: -1;
+    }
+
+    .install-tab:hover {
+        color: var(--text-secondary);
+    }
+
+    .install-tab:hover::before {
+        opacity: 1;
+    }
+
+    .install-tab[aria-selected='true'] {
+        color: var(--color-accent-bright);
+        border-bottom-color: var(--color-accent);
+    }
+
+    /* Mirrors the app sidebar's collapse/expand (Sidebar.tsx: transition-[width]
+       duration-200 on the container + transition-opacity duration-200 on the
+       content, running together, no translate). Here the axis is vertical:
+       the wrapper's height and the panel's opacity animate at once. */
+    .install-tab-panels {
+        position: relative;
+        margin-top: 16px;
+        overflow: hidden;
+        transition: height var(--duration) var(--ease);
+    }
+
+    .install-panel {
+        opacity: 1;
+        transition: opacity var(--duration) var(--ease);
+    }
+
+    .install-panel.is-fading {
+        opacity: 0;
+    }
+
+    .quick-install {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--color-surface-hover);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        padding: 10px 14px;
+    }
+
+    .quick-install code {
+        flex: 1;
+        min-width: 0;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        line-height: 1.7;
+        color: var(--color-text);
+        word-break: break-all;
+    }
+
+    /* Same scheme as the docs code blocks (modrexCodeTheme in astro.config.mjs):
+       commands accent-bright, operators muted, arguments primary text. */
+    .quick-install .tok-cmd {
+        color: var(--color-accent-bright);
+    }
+
+    .quick-install .tok-pipe {
+        color: var(--color-text-muted);
+    }
+
+    .copy-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-sm);
+        color: var(--text-tertiary);
+        cursor: pointer;
+        transition:
+            color 0.15s ease,
+            background 0.15s ease;
+    }
+
+    .copy-btn:hover {
+        color: var(--color-text);
+        background: var(--color-surface-active);
+    }
+
+    .copy-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .files {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .dl-card > .files {
+        margin-top: 20px;
+    }
+
+    .dl-file {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        background: var(--color-surface-hover);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        padding: 10px 14px;
+    }
+
+    .fname {
+        flex: 1;
+        min-width: 0;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--color-text);
+        word-break: break-all;
+    }
+
+    .fsize {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        background: var(--color-surface-active);
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+    }
+
+    .dl-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 6px 14px;
+        background: var(--color-accent);
+        color: #fff;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 500;
+        flex-shrink: 0;
+        transition: background 0.15s ease;
+    }
+
+    .dl-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* The global a:hover from tokens/base.css wins on hover otherwise,
+       turning the label orange on the orange fill. */
+    .dl-btn:hover {
+        background: var(--color-accent-fill-hover);
+        color: var(--on-accent);
+    }
+
+    .dl-note {
+        text-align: center;
+        margin-top: 32px;
+        font-size: 14px;
+        color: var(--text-tertiary);
+    }
+
+    .dl-note a {
+        color: var(--color-accent-bright);
+    }
+
+    @media (max-width: 640px) {
+        .dl-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .install-tab {
+            min-height: 44px;
+            padding: 8px 12px 10px;
+        }
+
+        .quick-install {
+            padding: 8px 8px 8px 12px;
+        }
+
+        .copy-btn {
+            width: 44px;
+            height: 44px;
+        }
+
+        .dl-btn {
+            min-height: 44px;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .dl-card {
+            padding: 20px;
+        }
+
+        .dl-file {
+            display: grid;
+            grid-template-columns: 1fr auto;
+        }
+
+        .fname {
+            grid-column: 1 / -1;
+        }
+
+        .dl-btn {
+            min-width: 104px;
+        }
+    }
+</style>

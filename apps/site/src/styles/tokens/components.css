@@ -1,0 +1,426 @@
+/* ============================================================
+   Modrex — Component classes
+   Stable class names consumed by the React primitives in
+   components/. Built from the real app's Tailwind patterns:
+   small radii, 1px borders, color-first 200ms transitions.
+   ============================================================ */
+
+/* -------------------------------- Button -------------------------------- */
+.mdx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+    padding: 5px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: transparent;
+    transition: var(--transition-colors);
+    white-space: nowrap;
+    user-select: none;
+}
+.mdx-btn--md {
+    font-size: var(--text-sm);
+    padding: 8px 16px;
+}
+.mdx-btn--primary {
+    background: var(--color-accent);
+    color: var(--on-accent);
+}
+.mdx-btn--primary:hover:not(:disabled) {
+    background: var(--color-accent-fill-hover);
+}
+.mdx-btn--secondary {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+.mdx-btn--secondary:hover:not(:disabled) {
+    background: var(--color-surface-active);
+}
+.mdx-btn--ghost {
+    background: transparent;
+    color: var(--color-text-subtle);
+}
+.mdx-btn--ghost:hover:not(:disabled) {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+.mdx-btn--danger {
+    background: var(--color-danger);
+    color: var(--color-danger-text);
+}
+.mdx-btn--danger:hover:not(:disabled) {
+    background: var(--color-danger-hover);
+}
+.mdx-btn--accent-soft {
+    background: var(--accent-tint-20);
+    color: var(--color-accent-bright);
+}
+.mdx-btn--accent-soft:hover:not(:disabled) {
+    background: var(--accent-tint-30);
+}
+.mdx-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ------------------------------ Icon button ----------------------------- */
+.mdx-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-subtle);
+    background: transparent;
+    transition: var(--transition-colors);
+}
+.mdx-icon-btn:hover:not(:disabled) {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+.mdx-icon-btn--solid {
+    background: var(--color-surface-hover);
+}
+.mdx-icon-btn--solid:hover:not(:disabled) {
+    background: var(--color-surface-active);
+}
+.mdx-icon-btn--danger {
+    background: var(--color-danger);
+    color: var(--color-danger-text);
+}
+.mdx-icon-btn--danger:hover:not(:disabled) {
+    background: var(--color-danger-hover);
+    color: var(--color-text);
+}
+.mdx-icon-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* -------------------------------- Toggle -------------------------------- */
+.mdx-toggle {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-active);
+    transition: background-color var(--duration) var(--ease);
+}
+.mdx-toggle[aria-checked='true'] {
+    background: var(--color-accent);
+}
+.mdx-toggle:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.mdx-toggle__knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-full);
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--duration) var(--ease);
+}
+.mdx-toggle[aria-checked='true'] .mdx-toggle__knob {
+    transform: translateX(16px);
+}
+
+/* --------------------------------- Badge -------------------------------- */
+.mdx-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+}
+.mdx-badge--neutral {
+    background: var(--color-surface-hover);
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
+}
+.mdx-badge--accent {
+    background: var(--accent-tint-10);
+    color: var(--color-accent-bright);
+    border-color: var(--accent-tint-30);
+}
+.mdx-badge--warning {
+    background: var(--warning-tint-10);
+    color: var(--color-warning);
+    border-color: var(--warning-tint-30);
+}
+.mdx-badge--danger {
+    background: rgba(90, 34, 4, 0.3);
+    color: var(--color-danger-text);
+    border-color: var(--color-danger-hover);
+}
+.mdx-badge--success {
+    background: rgba(5, 61, 28, 0.4);
+    color: var(--color-success-text);
+    border-color: #0a5e2e;
+}
+
+/* --------------------------------- Input -------------------------------- */
+.mdx-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.mdx-input {
+    width: 100%;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    background: var(--color-surface-hover);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    transition: border-color var(--duration) var(--ease);
+    outline: none;
+}
+.mdx-input::placeholder {
+    color: var(--color-text-subtle);
+}
+.mdx-input:focus {
+    border-color: var(--color-accent);
+}
+.mdx-input--mono {
+    font-family: var(--font-mono);
+}
+.mdx-input--has-icon {
+    padding-left: 32px;
+}
+.mdx-input--clearable {
+    padding-right: 28px;
+}
+.mdx-input__icon {
+    position: absolute;
+    left: 10px;
+    display: flex;
+    color: var(--color-text-subtle);
+    pointer-events: none;
+}
+.mdx-input__clear {
+    position: absolute;
+    right: 8px;
+    display: flex;
+    border: none;
+    background: transparent;
+    color: var(--color-text-subtle);
+    transition: var(--transition-colors);
+}
+.mdx-input__clear:hover {
+    color: var(--color-text);
+}
+
+/* -------------------------------- Select -------------------------------- */
+.mdx-select {
+    position: relative;
+    display: inline-block;
+}
+.mdx-select__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    background: var(--color-surface-hover);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    white-space: nowrap;
+    transition: var(--transition-colors);
+}
+.mdx-select__trigger:hover:not(:disabled) {
+    background: var(--color-surface-active);
+}
+.mdx-select__trigger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.mdx-select__placeholder {
+    color: var(--color-text-subtle);
+}
+.mdx-select__chevron {
+    color: var(--color-text-subtle);
+    flex-shrink: 0;
+    transition: transform var(--duration) var(--ease);
+}
+.mdx-select__chevron--open {
+    transform: rotate(180deg);
+}
+.mdx-select__menu {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 4px);
+    z-index: 50;
+    min-width: 100%;
+    width: max-content;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    overflow-y: auto;
+    max-height: 240px;
+    padding: 0;
+}
+.mdx-select__option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    background: transparent;
+    border: none;
+    padding: 8px 12px;
+    transition: var(--transition-colors);
+}
+.mdx-select__option:hover {
+    background: var(--color-surface-hover);
+}
+.mdx-select__option--selected {
+    background: var(--color-accent);
+    color: var(--on-accent);
+}
+.mdx-select__option--selected:hover {
+    background: var(--color-accent);
+}
+
+/* --------------------------------- Card --------------------------------- */
+.mdx-card {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+/* -------------------------------- Banner -------------------------------- */
+.mdx-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 16px;
+    font-size: var(--text-xs);
+    border-bottom: 1px solid transparent;
+}
+.mdx-banner--warning {
+    background: var(--warning-tint-10);
+    border-color: var(--warning-tint-30);
+    color: var(--color-warning);
+}
+.mdx-banner--danger {
+    background: var(--color-danger);
+    border-color: var(--color-danger-hover);
+    color: var(--color-danger-text);
+}
+.mdx-banner--info {
+    background: var(--accent-tint-10);
+    border-color: var(--accent-tint-30);
+    color: var(--color-accent-bright);
+}
+
+/* ------------------------------ Progress bar ---------------------------- */
+.mdx-progress {
+    width: 100%;
+    height: 2px;
+    background: var(--color-surface-hover);
+    overflow: hidden;
+}
+.mdx-progress__fill {
+    height: 100%;
+    background: var(--color-accent);
+    transition: width var(--duration-slow) var(--ease);
+}
+.mdx-progress__fill--indeterminate {
+    width: 100% !important;
+    animation: mdx-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mdx-pulse {
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+@keyframes mdx-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --------------------------------- Modal -------------------------------- */
+.mdx-modal__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--scrim);
+    padding: 24px;
+}
+.mdx-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 480px;
+    max-height: 80vh;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+}
+.mdx-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+.mdx-modal__title {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+    margin: 0;
+}
+.mdx-modal__body {
+    padding: 16px 20px;
+    overflow-y: auto;
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    flex: 1;
+}
+.mdx-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--color-border);
+    flex-shrink: 0;
+}

@@ -1,0 +1,85 @@
+---
+title: Installing mods
+description: Install mods from modworkshop with one click, or drop in local archives from your filesystem.
+---
+
+import Callout from '../../../components/docs/Callout.astro'
+
+## From Browse
+
+The **Browse** tab shows the modworkshop catalog for the active game. Click any mod to open its
+detail page, then click **Install**. Modrex downloads the file, extracts it if needed, and places
+it in the correct location automatically. The Install button shows a live download percentage and
+progress bar while the file is transferring.
+
+Use the search box to filter by name, the category dropdown to narrow the catalog, and the sort
+control to order results by last updated, most downloaded, most liked, newest, or name.
+
+Supported local file formats: `.pak`, `.zip`, `.7z`, `.rar`, `.tar.gz`, `.tar.xz`.
+
+Archives can contain loose `.pak` files, directory mods, `mod_overrides` content, UE4SS Lua mods, or
+game-specific folder layouts. Modrex routes entries based on the active game's install targets. See
+[Archives and loaders](/docs/concepts/archives-and-loaders) for the classification rules and
+[Supported games](/docs/games/) for the exact targets for each game.
+
+### Multi-file mods
+
+Some mods ship multiple files or folders inside a single archive. When Modrex detects this, it opens
+a picker so you can choose which entries to install. All entries are pre-selected by default -
+deselect any you don't want.
+
+### Loader and host-mod dependencies
+
+Some mods require a loader such as SuperBLT, PDTHModOverrides, DAHM, or UE4SS. When Modrex can
+install a required loader directly, the dependency warning includes an install action. If a
+dependency is hosted offsite, Modrex opens the external download page so you can install it manually.
+
+When multiple dependencies can be auto-installed, the dialog shows an **Install all** button to
+handle them in one click. Each install button shows a progress indicator while the download is
+running, and clicking a dependency's row opens its mod detail page.
+
+Some PAYDAY 2 content packs belong inside another host mod instead of directly inside the game.
+When Modrex recognizes that pattern, it prompts you to install the required host mod and then places
+the pack inside it. If an archive cannot be placed safely, Modrex shows the author's instructions
+instead of guessing. See [Archives and loaders](/docs/concepts/archives-and-loaders#host-mod-content-packs)
+for how host-mod content is handled.
+
+### External links
+
+If a mod's download is hosted outside modworkshop (external link), Modrex shows a warning and opens
+the link in your browser. Download the file manually, then install it from a local file.
+
+## From a local file
+
+Drag a supported file onto the **Installed** tab, or click **Install from file** in the top bar.
+Modrex handles extraction and placement the same way as a Browse install.
+
+## Enable and disable
+
+Toggle the switch next to any mod to enable or disable it without uninstalling. Disabled mods are
+moved to a `disabled/` subfolder with a `.disabled` extension - they're preserved on disk but the
+game ignores them.
+
+## Uninstalling
+
+Right-click a mod and select **Uninstall**, or use the context menu. The mod's file (`.pak`-based
+targets) or folder (directory-based targets, such as BLT, BeardLib, or ModKit mods) is deleted from
+disk and the mod is removed from Modrex's state.
+
+<Callout>
+    Uninstalling is permanent. If you want to keep the file but stop using the mod, disable it
+    instead.
+</Callout>
+
+## Reinstalling and updating
+
+Click **Reinstall** on a mod to re-download and replace its current file. If Modrex detects newer
+versions for installed mods, use the update prompt to review and install them in bulk. The
+**Update All** button shows a progress counter (`1 / N`, `2 / N`, …) while working through the
+queue.
+
+## News
+
+The **News** tab shows official headlines, summaries, and images for the active game, scraped from
+paydaythegame.com. It's only available for games with a supported news source. Click **Refresh** to
+check for new articles, or **Read article** to open one in your browser.

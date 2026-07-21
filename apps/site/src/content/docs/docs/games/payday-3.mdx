@@ -1,0 +1,20 @@
+---
+title: PAYDAY 3
+description: Setup notes for PAYDAY 3 launcher support, Unreal pak mods, UE4SS mods, and launch options.
+sidebar:
+    order: 10
+---
+
+import GameFacts from '../../../../components/docs/GameFacts.astro'
+
+PAYDAY 3 support is built around Unreal `.pak` mods, with optional UE4SS Lua mods when the UE4SS loader is installed.
+
+<GameFacts game="pd3" />
+
+## Launch options
+
+Most PAYDAY 3 `.pak` mods require `-fileopenlog`. Add it in **Settings - Launch Options** for Steam and Epic Games, or configure it in the launcher if the app cannot write launch options for that launcher.
+
+## Priority
+
+For `.pak` mods, Modrex writes numeric filename prefixes so your visual priority order is reflected on disk. Directory-based UE4SS mods are not renamed for priority.

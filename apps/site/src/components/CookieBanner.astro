@@ -1,0 +1,156 @@
+---
+
+---
+
+<div id="cookie-banner" class="cookie-banner" hidden>
+    <p>
+        We use cookies to understand how visitors use our site.
+        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Learn more</a>
+    </p>
+    <div class="cookie-actions">
+        <button id="cookie-decline" class="btn-decline">Decline</button>
+        <button id="cookie-accept" class="btn-accept">Accept</button>
+    </div>
+</div>
+
+<script is:inline>
+    ;(function () {
+        const consentKey = 'cookie_consent'
+        const getConsent = function () {
+            try {
+                return window.localStorage.getItem(consentKey)
+            } catch {
+                return null
+            }
+        }
+        const setConsent = function (value) {
+            try {
+                window.localStorage.setItem(consentKey, value)
+            } catch {
+                // localStorage can be unavailable in hardened browser modes.
+            }
+        }
+        const grantAnalytics = function () {
+            if (typeof window.gtag !== 'function') return
+            window.gtag('consent', 'update', {
+                analytics_storage: 'granted',
+                ad_storage: 'denied',
+                ad_user_data: 'denied',
+                ad_personalization: 'denied',
+            })
+            // Enhanced measurement's automatic page_view only waits 500ms for a
+            // consent signal (wait_for_update in BaseLayout.astro), and this banner
+            // can grant consent well after that on a slow-loading page, so fire the
+            // page_view manually instead of relying on the automatic one.
+            window.gtag('event', 'page_view', {
+                page_title: document.title,
+                page_location: window.location.href,
+                page_path: window.location.pathname + window.location.search,
+            })
+        }
+
+        const consent = getConsent()
+        if (consent === 'granted') {
+            grantAnalytics()
+            return
+        }
+        if (consent === 'denied') return
+
+        const banner = document.getElementById('cookie-banner')
+        const acceptButton = document.getElementById('cookie-accept')
+        const declineButton = document.getElementById('cookie-decline')
+        if (!banner || !acceptButton || !declineButton) return
+
+        banner.hidden = false
+
+        acceptButton.addEventListener('click', function () {
+            setConsent('granted')
+            grantAnalytics()
+            banner.hidden = true
+        })
+
+        declineButton.addEventListener('click', function () {
+            setConsent('denied')
+            banner.hidden = true
+        })
+    })()
+</script>
+
+<style>
+    .cookie-banner {
+        position: fixed;
+        bottom: 24px;
+        left: 24px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px 24px;
+        width: 320px;
+        background: var(--color-surface-raised);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .cookie-banner p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--color-text-muted);
+        line-height: 1.6;
+    }
+
+    .cookie-banner p a {
+        color: var(--color-accent-bright);
+        text-decoration: none;
+    }
+
+    .cookie-banner p a:hover {
+        text-decoration: underline;
+    }
+
+    .cookie-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-decline,
+    .btn-accept {
+        flex: 1;
+        padding: 9px 0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-decline {
+        background: var(--color-surface-hover);
+        color: var(--color-text-muted);
+    }
+
+    .btn-decline:hover {
+        background: var(--color-surface-active);
+        color: var(--color-text);
+    }
+
+    .btn-accept {
+        background: var(--color-accent);
+        color: #fff;
+    }
+
+    .btn-accept:hover {
+        background: var(--color-accent-fill-hover);
+    }
+
+    @media (max-width: 400px) {
+        .cookie-banner {
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            width: auto;
+        }
+    }
+</style>

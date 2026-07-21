@@ -1,0 +1,47 @@
+---
+title: Games and targets
+description: How Modrex separates games, stores per-game settings, and routes mods into game-specific install targets.
+sidebar:
+    order: 10
+---
+
+Modrex always works on one active game at a time. The active game controls the Browse catalog, game path, launcher, launch options, installed list, folders, and supported install targets.
+
+Switching games from the sidebar does not overwrite another game's setup. Each game keeps its own configuration and installed mod state.
+
+## Game configuration
+
+Per-game configuration includes:
+
+- the game installation path
+- the selected launcher
+- launch options
+- installed mods and folders
+- target-specific files tracked by Modrex
+
+Global app settings, such as analytics preference, still belong to the app rather than a single game.
+
+## Install targets
+
+An install target is a managed location inside a game folder. Targets let Modrex handle games that support more than one kind of mod.
+
+Common target tags:
+
+| Tag             | Meaning                                                            |
+| --------------- | ------------------------------------------------------------------ |
+| `mods`          | Directory-based loader mods, or a game's primary mod folder.       |
+| `paks`          | Loose Unreal `.pak` files in a `~mods` folder.                     |
+| `mod_overrides` | Asset replacement folders under `assets/mod_overrides`.            |
+| `ue4ss_mods`    | UE4SS Lua mod folders under the game's `Binaries/Win64/Mods` path. |
+
+The exact targets vary by game. See [Supported games](/docs/games/) for the current matrix.
+
+## Primary and secondary targets
+
+Each game has one primary target. New installs go there when the archive clearly matches that target or when the game has a preferred modern format.
+
+Secondary targets are still tracked when the game supports them. For example, a game can use a primary directory target for new installs while still recognizing older loose `.pak` installs or UE4SS Lua mods.
+
+## Why this matters
+
+Targets control where files are installed, how enable and disable works, whether priority can be written to disk, and which folders are temporarily backed up when launching without mods.

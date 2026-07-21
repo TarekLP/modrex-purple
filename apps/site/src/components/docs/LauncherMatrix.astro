@@ -1,0 +1,35 @@
+---
+import { allLaunchers, docsGames } from '../../data/docsGames'
+import SupportBadge from './SupportBadge.astro'
+import LauncherIcon from './LauncherIcon.astro'
+---
+
+<table class="docs-data-table">
+    <thead>
+        <tr>
+            <th>Game</th>
+            {
+                allLaunchers.map((launcher) => (
+                    <th>
+                        <LauncherIcon launcher={launcher} />
+                        {launcher}
+                    </th>
+                ))
+            }
+        </tr>
+    </thead>
+    <tbody>
+        {
+            docsGames.map((game) => (
+                <tr>
+                    <td>{game.name}</td>
+                    {allLaunchers.map((launcher) => (
+                        <td>
+                            <SupportBadge supported={game.launchers.includes(launcher)} />
+                        </td>
+                    ))}
+                </tr>
+            ))
+        }
+    </tbody>
+</table>

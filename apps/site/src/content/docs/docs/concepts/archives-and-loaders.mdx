@@ -1,0 +1,55 @@
+---
+title: Archives and loaders
+description: How Modrex handles local archives, modworkshop downloads, mixed-target packs, and loader dependencies.
+sidebar:
+    order: 20
+---
+
+Modrex installs mods from the active game's modworkshop catalog or from local files. It uses the active game's targets to decide where each file or folder belongs.
+
+## Supported local files
+
+Local installs support:
+
+- `.pak`
+- `.zip`
+- `.7z`
+- `.rar`
+- `.tar.gz`
+- `.tar.xz`
+- `.pdmod` (PAYDAY: The Heist only)
+
+Loose `.pak` files go directly to a compatible `.pak` target. Archives are inspected before installation so Modrex can identify folders, loose files, and known game-specific layouts.
+
+## Archive classification
+
+Archive classification checks the contents against the active game's targets. Depending on the game, Modrex can recognize:
+
+- loose Unreal `.pak` files
+- directory mods with loader markers such as `mod.txt`, `main.xml`, `base.lua`, or `Scripts/main.lua`
+- `assets/mod_overrides` content
+- UE4SS Lua mod folders
+- game-specific folder layouts
+- content packs that belong inside another host mod
+
+If an archive cannot be classified safely, Modrex shows the author's instructions instead of guessing.
+
+## Mixed-target archives
+
+Some archives contain more than one installable entry. A modpack might include both a loader mod and `mod_overrides` content, or several optional folders.
+
+When this happens, Modrex opens a picker. Entries are grouped by target, pre-selected when safe, and installed only if you leave them selected.
+
+## Loader dependencies
+
+Some mods need a loader or framework before they can work. Examples include SuperBLT, PDTHModOverrides, DAHM, and UE4SS.
+
+When Modrex can install the loader directly, the dependency warning includes an install action. If the dependency is hosted outside modworkshop, Modrex opens the external page so you can install it manually.
+
+Loader checks are game-specific. A loader that matters for one game can be irrelevant for another.
+
+## Host-mod content packs
+
+Some content packs are not standalone mods. They belong inside another installed host mod. When Modrex recognizes this pattern, it asks for or installs the host mod first, then places the content pack inside it.
+
+If Modrex cannot identify a safe host or target, follow the author's instructions.

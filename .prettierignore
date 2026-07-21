@@ -12,3 +12,4 @@ AGENTS.md
 .agents/
 src/shared/bindings.ts
 apps/desktop/src/shared/bindings.ts
+apps/site/

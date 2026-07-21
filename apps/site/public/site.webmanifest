@@ -1,0 +1,17 @@
+{
+    "name": "Modrex",
+    "short_name": "Modrex",
+    "description": "Free, open-source desktop mod manager for PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#131313",
+    "theme_color": "#131313",
+    "icons": [
+        {
+            "src": "/icon.png",
+            "sizes": "500x500",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}

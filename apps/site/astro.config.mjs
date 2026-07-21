@@ -1,0 +1,135 @@
+import { defineConfig } from 'astro/config'
+
+// Syntax theme built from the Modrex color tokens (tokens/colors.css): commands
+// and keywords in accent-bright orange, operators muted, everything else the
+// primary off-white. Shiki themes can't reference CSS variables, so the hex
+// values are duplicated here.
+const modrexCodeTheme = {
+    name: 'modrex',
+    type: 'dark',
+    colors: {
+        'editor.background': '#1c1c1c', // --color-surface-raised
+        'editor.foreground': '#f4f4f3', // --color-text
+    },
+    tokenColors: [
+        { scope: ['comment'], settings: { foreground: '#71717a' } }, // --color-text-subtle
+        {
+            scope: [
+                'keyword',
+                'storage',
+                'entity.name.function',
+                'entity.name.command',
+                'support.function',
+                'entity.name.tag',
+            ],
+            settings: { foreground: '#f87d36' }, // --color-accent-bright
+        },
+        {
+            scope: ['keyword.operator', 'punctuation'],
+            settings: { foreground: '#8e8e96' }, // --color-text-muted
+        },
+        {
+            scope: ['string', 'variable', 'constant', 'entity.name.type', 'support'],
+            settings: { foreground: '#f4f4f3' }, // --color-text
+        },
+    ],
+}
+import mdx from '@astrojs/mdx'
+import sitemap from '@astrojs/sitemap'
+import starlight from '@astrojs/starlight'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+    site: 'https://modrex.net',
+    integrations: [
+        starlight({
+            title: 'Modrex',
+            description:
+                'Documentation for installing, managing, and troubleshooting mods with Modrex.',
+            favicon: '/favicon.ico',
+            titleDelimiter: '-',
+            customCss: ['./src/styles/starlight.css'],
+            expressiveCode: {
+                themes: [modrexCodeTheme],
+                useStarlightUiThemeColors: true,
+                styleOverrides: {
+                    borderRadius: 'var(--radius-sm)',
+                    borderColor: 'var(--color-border)',
+                    codeBackground: 'var(--color-surface-raised)',
+                    codeFontFamily: 'var(--font-mono)',
+                    frames: {
+                        frameBoxShadowCssValue: 'none',
+                    },
+                },
+            },
+            disable404Route: true,
+            components: {
+                Head: './src/components/starlight/Head.astro',
+                Header: './src/components/starlight/Header.astro',
+                Sidebar: './src/components/starlight/Sidebar.astro',
+                ThemeProvider: './src/components/starlight/DarkThemeProvider.astro',
+            },
+            social: [
+                { icon: 'github', label: 'GitHub', href: 'https://github.com/modrexio/modrex' },
+                { icon: 'discord', label: 'Discord', href: 'https://discord.gg/tenzpx8JRM' },
+            ],
+            sidebar: [
+                {
+                    label: 'Start here',
+                    items: [
+                        { label: 'Documentation', link: '/docs/' },
+                        { slug: 'docs/getting-started' },
+                    ],
+                },
+                {
+                    label: 'Games',
+                    items: [{ autogenerate: { directory: 'docs/games' } }],
+                },
+                {
+                    label: 'Concepts',
+                    items: [{ autogenerate: { directory: 'docs/concepts' } }],
+                },
+                {
+                    label: 'Using Modrex',
+                    items: [
+                        { slug: 'docs/installing-mods' },
+                        { slug: 'docs/organizing' },
+                        { slug: 'docs/launching' },
+                    ],
+                },
+                {
+                    label: 'Reference',
+                    items: [{ slug: 'docs/settings' }, { slug: 'docs/troubleshooting' }],
+                },
+            ],
+            head: [
+                {
+                    tag: 'meta',
+                    attrs: {
+                        name: 'google-site-verification',
+                        content: 'BPDEmTr1cgOYsYwW_cXaEN4UAOcAgcVXiVaCAoHunk0',
+                    },
+                },
+                {
+                    tag: 'link',
+                    attrs: { rel: 'apple-touch-icon', href: '/icon.png' },
+                },
+                {
+                    tag: 'link',
+                    attrs: { rel: 'manifest', href: '/site.webmanifest' },
+                },
+                {
+                    tag: 'meta',
+                    attrs: { name: 'theme-color', content: '#131313' },
+                },
+            ],
+        }),
+        mdx(),
+        sitemap({
+            filter: (page) => !page.includes('/privacy') && !page.includes('/terms'),
+        }),
+    ],
+    vite: {
+        plugins: [tailwindcss()],
+    },
+})

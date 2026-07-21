@@ -1,0 +1,11 @@
+<script is:inline>
+    window.document.documentElement.dataset.theme = 'dark'
+    try {
+        window.localStorage.removeItem('starlight-theme')
+    } catch {
+        // localStorage can be unavailable in restricted browser contexts.
+    }
+    window.StarlightThemeProvider = {
+        updatePickers() {},
+    }
+</script>
