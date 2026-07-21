@@ -43,13 +43,13 @@ jobs:
             - run: pnpm check-updater
             - run: pnpm typecheck
             - run: cargo clippy --all-targets -- -D warnings
-              working-directory: src-tauri
+              working-directory: apps/desktop/src-tauri
             - run: pnpm test
 
-            # cargo test just regenerated src/shared/bindings.ts from the command
+            # cargo test just regenerated apps/desktop/src/shared/bindings.ts from the command
             # registry; a diff means the committed bindings are stale.
             - name: Fail if generated bindings are stale
-              run: git diff --exit-code src/shared/bindings.ts
+              run: git diff --exit-code apps/desktop/src/shared/bindings.ts
 
     check-licenses:
         runs-on: ubuntu-latest
@@ -76,8 +76,8 @@ jobs:
 
             - run: pnpm generate-licenses
 
-            - name: Fail if THIRD_PARTY_LICENSES.md is stale
-              run: git diff --exit-code THIRD_PARTY_LICENSES.md
+            - name: Fail if desktop third-party licenses are stale
+              run: git diff --exit-code apps/desktop/THIRD_PARTY_LICENSES.md
 
     security-audit:
         runs-on: ubuntu-latest
@@ -106,5 +106,5 @@ jobs:
               run: cargo install cargo-audit --locked
 
             - name: Audit Rust dependencies
-              working-directory: src-tauri
+              working-directory: apps/desktop/src-tauri
               run: cargo audit

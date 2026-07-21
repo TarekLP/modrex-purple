@@ -1,11 +1,14 @@
 ---
 paths:
-    - 'src-tauri/src/commands/analytics.rs'
-    - 'src/renderer/src/lib/analytics/**'
-    - 'src/renderer/src/components/TelemetryConsent*'
+    - 'apps/desktop/src-tauri/src/commands/analytics.rs'
+    - 'apps/desktop/src/renderer/src/lib/analytics/**'
+    - 'apps/desktop/src/renderer/src/components/TelemetryConsent*'
 ---
 
 ## Usage analytics (opt-in telemetry)
+
+Paths in this rule are relative to `apps/desktop` unless they already start with
+`apps/desktop`.
 
 Anonymous, opt-in usage analytics sent to **GA4 via the Measurement Protocol, from Rust** (`commands/analytics.rs`) — never an in-page `gtag.js` tag. Sending server-side keeps the consent gate in one place, attaches reliable `os`/`arch`/`app_version`, and isn't stripped by the ad/DNS blockers this audience runs. `analytics.rs` is the **only** file that knows the backend is GA4; `send_event` builds the MP payload and is the single swap point for any future backend.
 

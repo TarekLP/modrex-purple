@@ -3,9 +3,9 @@ pnpm lint || (echo "" && echo "Lint errors found. Run: pnpm lint:fix" && exit 1)
 pnpm check-commands || (echo "" && echo "Command registration mismatch, see errors above." && exit 1)
 pnpm check-csp || (echo "" && echo "CSP mismatch between csp and devCsp, see errors above." && exit 1)
 
-if git diff --cached --name-only | grep -qE '(Cargo\.toml|Cargo\.lock|package\.json|pnpm-lock\.yaml)'; then
+if git diff --cached --name-only | grep -qE '(apps/desktop/package\.json|apps/desktop/src-tauri/Cargo\.toml|apps/desktop/src-tauri/Cargo\.lock|pnpm-lock\.yaml)'; then
     echo "Dep files changed — regenerating THIRD_PARTY_LICENSES.md (may take ~15s)..."
     pnpm generate-licenses
-    git add THIRD_PARTY_LICENSES.md
+    git add apps/desktop/THIRD_PARTY_LICENSES.md
     echo "THIRD_PARTY_LICENSES.md updated and staged."
 fi

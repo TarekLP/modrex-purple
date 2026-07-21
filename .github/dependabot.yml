@@ -16,7 +16,7 @@ updates:
                   - patch
 
     - package-ecosystem: cargo
-      directory: /src-tauri
+      directory: /apps/desktop/src-tauri
       schedule:
           interval: monthly
       commit-message:

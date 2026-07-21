@@ -1,9 +1,12 @@
 ---
 paths:
-    - 'src/renderer/**'
+    - 'apps/desktop/src/renderer/**'
 ---
 
 ### Renderer (`src/renderer/src/`)
+
+Paths in this rule are relative to `apps/desktop` unless they already start with
+`apps/desktop`.
 
 **`api.ts`** — the only renderer file that talks to the IPC layer: it calls the generated `commands.*` functions from `src/shared/bindings.ts` (which owns the raw `invoke` strings) plus `listen`. All other renderer code imports from here — never from the bindings directly (check-commands enforces both). The bindings are generated from lib.rs's `ipc_builder()` registry by the `export_bindings` Rust test; never edit them by hand. Generated optional params are `T | null` — wrappers pass `x ?? null` and keep their public `?:` signatures. Mod data is typed end to end: `listMods`, `getMod`, `listModFiles`, `listModLinks` and `nexusSearchMods` are assigned to the hand-written types in `src/shared/types.ts` **without a cast**, so any drift from the generated shapes is a compile error in this file. Only the few genuinely untyped passthroughs still return `unknown` and are cast. `onEvent<T>` wraps `listen` with a cancellation-safe pattern (resolves the `UnlistenFn` async, cancels immediately if component unmounts first). Every game-scoped wrapper takes a **required** `gameId: string` — there is no pd3 default any more: an unknown or absent game id is a hard command error on the Rust side, per the game registry (`commands/games.rs`). Always pass `activeGame` from context. `installFromZipEntry(..., gamePath, gameId, folderId?, locationTag?, entryKind?)` and `installDroppedFile(path, gamePath, gameId, folderId?)` put the required `gameId` before their optional trailing params; pass `payload.targetTag` as `locationTag` from `ZipMultiPakPayload`.
 

@@ -14,9 +14,10 @@ Start with the five dangerous patterns from `AI_DANGER_PATTERNS.md`. These are w
 Determine the target based on the argument passed:
 
 - **No argument** — scan uncommitted changes only (`git diff HEAD`)
-- **Path argument** (e.g. `src/renderer/`) — scan that path only
+- **Path argument** (e.g. `apps/desktop/src/renderer/`) — scan that path only
 - **`--diff`** — scan the diff of the current branch against main (`git diff main...HEAD`)
-- **`--all`** — scan the full codebase (`src/` and `src-tauri/src/`)
+- **`--all`** — scan the full codebase (`apps/desktop/src/` and
+  `apps/desktop/src-tauri/src/`)
 
 Fix each issue you find, then report a 1-3 sentence summary of what you changed.
 

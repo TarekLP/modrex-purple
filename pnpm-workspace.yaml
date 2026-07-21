@@ -1,0 +1,10 @@
+packages:
+    - 'apps/*'
+    - 'packages/*'
+
+onlyBuiltDependencies:
+    - esbuild
+
+overrides:
+    js-yaml: 4.3.0
+    '@babel/core': 7.29.6

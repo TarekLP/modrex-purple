@@ -1,9 +1,12 @@
 ---
 paths:
-    - 'src-tauri/**'
+    - 'apps/desktop/src-tauri/**'
 ---
 
 ### Rust backend modules (`src-tauri/src/commands/`)
+
+Paths in this rule are relative to `apps/desktop` unless they already start with
+`apps/desktop`.
 
 **App startup sequence** (`src-tauri/src/lib.rs` setup hook, fires before the window shows): `migrate_from_electron` runs synchronously first, then fire-and-forget: `cleanup_thumbnail_cache` and the `mod_index` download/TTL refresh.
 

@@ -52,7 +52,7 @@
         "createUpdaterArtifacts": true,
         "targets": ["nsis", "deb", "rpm", "appimage"],
         "icon": ["../assets/icon.ico", "../assets/icon.png"],
-        "license": "../LICENSE",
+        "license": "../../../LICENSE",
         "resources": ["../THIRD_PARTY_LICENSES.md"],
         "windows": {
             "nsis": {

@@ -42,7 +42,7 @@ if (conf.bundle?.createUpdaterArtifacts !== true) {
     )
 }
 
-const release = readFileSync('.github/workflows/release.yml', 'utf8')
+const release = readFileSync('../../.github/workflows/release.yml', 'utf8')
 
 if (!/>\s*latest\.json\b/.test(release)) {
     problems.push('release.yml does not generate latest.json (no "> latest.json" redirect found)')

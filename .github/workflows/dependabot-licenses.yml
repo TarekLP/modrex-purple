@@ -5,10 +5,10 @@ on:
         branches: [main]
         types: [opened, synchronize, reopened]
         paths:
-            - package.json
+            - apps/desktop/package.json
             - pnpm-lock.yaml
-            - src-tauri/Cargo.toml
-            - src-tauri/Cargo.lock
+            - apps/desktop/src-tauri/Cargo.toml
+            - apps/desktop/src-tauri/Cargo.lock
 
 concurrency:
     group: dependabot-licenses-${{ github.event.pull_request.number }}
@@ -53,7 +53,7 @@ jobs:
             - name: Check generated licenses
               id: licenses
               run: |
-                  if git diff --quiet -- THIRD_PARTY_LICENSES.md; then
+                  if git diff --quiet -- apps/desktop/THIRD_PARTY_LICENSES.md; then
                     echo "changed=false" >> "$GITHUB_OUTPUT"
                   else
                     echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -63,7 +63,7 @@ jobs:
               if: steps.licenses.outputs.changed == 'true'
               with:
                   name: third-party-licenses
-                  path: THIRD_PARTY_LICENSES.md
+                  path: apps/desktop/THIRD_PARTY_LICENSES.md
                   if-no-files-found: error
                   retention-days: 1
 
@@ -97,10 +97,10 @@ jobs:
               env:
                   HEAD_REF: ${{ github.event.pull_request.head.ref }}
               run: |
-                  cp .generated/THIRD_PARTY_LICENSES.md THIRD_PARTY_LICENSES.md
+                  cp .generated/THIRD_PARTY_LICENSES.md apps/desktop/THIRD_PARTY_LICENSES.md
 
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                  git add THIRD_PARTY_LICENSES.md
+                  git add apps/desktop/THIRD_PARTY_LICENSES.md
                   git commit -m "chore(deps): regenerate third-party licenses" -m "[dependabot skip]"
                   git push origin "HEAD:$HEAD_REF"

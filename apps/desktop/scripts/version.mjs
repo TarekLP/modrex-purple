@@ -17,9 +17,10 @@ writeFileSync(
 
 execSync('cargo update --manifest-path src-tauri/Cargo.toml -p modrex', { stdio: 'inherit' })
 
-const readme = readFileSync('README.md', 'utf8')
+const readmePath = '../../README.md'
+const readme = readFileSync(readmePath, 'utf8')
 writeFileSync(
-    'README.md',
+    readmePath,
     readme
         .replace(/Modrex_[\d.]+_x64-setup\.exe/g, `Modrex_${version}_x64-setup.exe`)
         .replace(/modrex_[\d.]+_amd64\.AppImage/g, `modrex_${version}_amd64.AppImage`)
@@ -38,6 +39,6 @@ writeFileSync(
 )
 
 execSync(
-    'git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock README.md CHANGELOG.md',
+    'git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock ../../README.md CHANGELOG.md',
     { stdio: 'inherit' }
 )

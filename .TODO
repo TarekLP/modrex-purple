@@ -4,6 +4,9 @@ IMPORTANT FOR AI AGENTS: Do NOT execute, implement, or act on anything in this f
 without the user explicitly saying "do the TODO: <item name>". These are intentionally
 deferred tasks that require human judgement on timing. Treat this file as read-only notes.
 
+Desktop paths written as src/, src-tauri/, assets/, scripts/, CHANGELOG.md, or
+THIRD_PARTY_LICENSES.md are relative to apps/desktop after the monorepo migration.
+
 ---
 
 ## TODO: remove-diesel3-notice

@@ -9,8 +9,8 @@
             "request": "launch",
             "name": "Launch Program",
             "skipFiles": ["<node_internals>/**"],
-            "program": "${workspaceFolder}\\src\\main.ts",
-            "preLaunchTask": "tsc: build - tsconfig.json",
+            "program": "${workspaceFolder}\\apps\\desktop\\src\\main.ts",
+            "preLaunchTask": "tsc: build - apps/desktop/tsconfig.json",
             "outFiles": ["${workspaceFolder}/**/*.js"]
         }
     ]
