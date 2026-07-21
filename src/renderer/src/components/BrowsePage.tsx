@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo, startTransition } from 'react'
+import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Search, LayoutGrid, ArrowDownUp } from 'lucide-react'
 import type {
     Mod,
@@ -744,7 +745,7 @@ export function BrowsePage({
                 />
             )}
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className={`flex items-center justify-between gap-3 ${TITLE_ROW_MIN_H}`}>
                     <div className="flex items-center gap-3 min-w-0">
                         <h1 className="text-lg font-semibold shrink-0">{t('browse.title')}</h1>
                         <SourceSelect

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { TITLE_ROW_MIN_H } from './pageHeader'
 import { nativeIdFor } from '../sources'
 import { Search, Download, ThumbsUp, Clock, Trash2, ArrowDownUp } from 'lucide-react'
 import type { GameId, InstalledMod, ModSummary, Paginated } from '../../../shared/types'
@@ -377,7 +378,7 @@ export function NexusBrowsePage({
     return (
         <div className="h-full flex flex-col">
             <div className="px-6 py-4 border-b border-border shrink-0 flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className={`flex items-center justify-between gap-3 ${TITLE_ROW_MIN_H}`}>
                     <div className="flex items-center gap-3 min-w-0">
                         <h1 className="text-lg font-semibold shrink-0">{t('browse.title')}</h1>
                         <SourceSelect
