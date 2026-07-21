@@ -425,6 +425,143 @@ SHA256 will match multiple identities.
 
 ---
 
+## TODO: index-postgres-builder-and-r2-hosting
+
+Rearchitects how the mod index is BUILT and DISTRIBUTED. Designed 2026-07-20; every
+decision below was made deliberately, including the rejected options, so do not re-derive
+them. Large. Blocked on nothing technically, but see "sequencing" at the end.
+
+### The shape, in one diagram
+
+    GitHub Actions (stays as the compute)
+            |
+            |-- reads/writes --> PostgreSQL (Neon)   source of truth, incremental, resumable
+            |
+            `-- exports -------> SQLite artifacts    read-only snapshots
+                                        |
+                                        `-- uploads --> R2 (index.modrex.net)
+
+The client keeps doing exactly what it does today: download a SQLite file and query it
+locally, offline, read-only. Only the URL changes.
+
+### Decisions, and why (do not relitigate)
+
+1. PostgreSQL is the BUILDER's store only. The client NEVER connects to it.
+   Rejected: Postgres as the client database. `mod_index.rs` queries during get_installed
+   at startup and on every window focus, for potentially hundreds of installed mods.
+   Server-side queries would break offline use, turn instant local lookups into round
+   trips on a hot path, require an always-on service with uptime and cost obligations,
+   and send every user's installed-mod hashes to us (a privacy property we currently do
+   not have to reason about). SQLite is correct for a shipped read-only artifact; it is
+   designed as an application file format.
+
+2. GitHub Actions STAYS. Rejected: moving the build to Cloudflare.
+   Workers have CPU/duration limits that a multi-hour scrape of tens of thousands of
+   files does not fit; it would mean chunking through Queues and Durable Objects for no
+   gain. The actual cause of "a job died and I lost three hours" is NOT the host: the
+   builder already checkpoints per-mod state in `builder-state.db`, but publishes it as a
+   release asset only when the run COMPLETES. With Postgres, every processed mod is a
+   committed row, so a dead job resumes wherever it stopped, on any host.
+
+3. Postgres host is Neon (not Supabase, not Cloudflare).
+   Cloudflare has no managed Postgres. D1 is serverless SQLite: persistent and in-
+   ecosystem, but written over HTTP (slow for bulk inserts) and being SQLite it buys no
+   capability we lack. Hyperdrive is a connection pooler, not a database. Between Neon
+   and Supabase: Neon scale-to-zero WAKES ON CONNECTION, Supabase pauses free projects
+   after about a week of inactivity and needs manual reactivation. Since this job runs on
+   manual dispatch and can go weeks between runs, Supabase would fail a run at exactly
+   the wrong moment.
+
+4. The compiled DB lives on R2, served from a SUBDOMAIN (index.modrex.net).
+   That is one DNS record in the modrex.net zone we already own, not a second domain.
+   Rejected: serving it from a path on modrex.net via a Pages Function. We have that
+   pattern already (functions/install.sh.ts), but it puts a Worker in the path of a
+   multi-megabyte download. An R2 custom domain serves the object directly with R2's own
+   caching and no compute in the path.
+
+5. GitHub Releases keeps BINARIES only. The DB stops being a release asset for new
+   clients (but see the dual-publish constraint below).
+
+6. Export PER-GAME SHARDS, not one monolith. A PD2-only user should not download PD3,
+   Crime Boss and RAID data. On R2 shards are just separate keys, so this is nearly free
+   to do at the same time as the host change, and retrofitting later is worse: the
+   client's fetch logic would have to change again, and old clients can never change.
+
+7. Adding a game must not rescan other games.
+   Rejected: build a separate DB for the new game and merge it into the existing one.
+   That is a workaround for a missing WHERE clause. build-index.ts has NO --game=X
+   scoping today (game ids are hardcoded constants at the top), so a backfill re-examines
+   everything. With Postgres as the store, "index game X" is scoped by definition; no
+   second database, no merge step, no reconciliation bugs.
+
+### Hard constraints
+
+- DUAL-PUBLISH IS MANDATORY. `INDEX_URL` in mod_index.rs is compiled into every shipped
+  binary:
+  https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db
+  Every 0.12.2-and-earlier install fetches that forever. The job must keep publishing the
+  monolithic index.db to that exact tag, or those users silently stop identifying newly
+  released mods (degradation with no error message). New clients fetch shards from R2.
+  The modrex-index repo therefore stays alive as a publish target even if its source
+  moves. modrex-site also reads index-stats.json from the same tag
+  (src/lib/mod-index-shared.ts).
+
+- THE EXPORTED SCHEMA IS FROZEN for shipped clients. mod_index.rs joins
+  files -> mods -> sources -> games and filters on games.name. Postgres may model things
+  however it likes internally; the export must flatten back to exactly that shape.
+
+- Unknown game ids must stay a hard error when mapping game -> shard URL, never a silent
+  fallback (same reasoning as the old kill-pd3-fallback work).
+
+### Verified sizing (2026-07-20, re-check before committing since tiers change)
+
+Neon free: 0.5 GB storage/project, 100 CU-hours/month, scale-to-zero after 5 min with no
+CU-hours accruing while suspended, wakes on connection, no credit card.
+R2 free: 10 GB storage, 1M Class A ops, 10M Class B ops, and egress to internet FREE.
+
+At 10 games and 10k users:
+- Postgres: ~50-70k file rows, roughly 50-100 MB with indexes, so 10-20% of Neon's
+  0.5 GB. Users generate ZERO Postgres load; only the CI job connects. Compute is only
+  what the job actually burns, since idle costs nothing.
+- R2: ensure_index fires once per app launch (not on a timer), so roughly one fetch per
+  user per day. At today's ~17 MB that is ~5 TB/month of egress, which is FREE on R2 and
+  would be a real bill anywhere else. ~300k Class B ops against a 10M allowance (3%).
+  Sharding reduces both further.
+- Conclusion: comfortably free on both, 90%+ headroom on every dimension. The variable
+  that would change this is a single game with an order of magnitude more mods than the
+  PAYDAY family (Skyrim-scale), not user count.
+
+### Deliberately NOT in this entry
+
+Conditional fetch (If-Modified-Since / ETag). `mod_index.rs` currently does an
+unconditional GET, so every launch re-downloads the whole file even when unchanged.
+Adding conditional requests would cut that by roughly 99% and works on the CURRENT host
+with no migration. It is a real win but it is an optimization, orthogonal to this
+rearchitecture, and it was explicitly parked on 2026-07-20 to keep this entry about
+architecture. Do it whenever; it does not block or depend on any of the above.
+
+### Relationship to other entries
+
+- `index-download-scaling` owns the per-game sharding rationale in more depth. This entry
+  supersedes its assumption that the artifact lives in GitHub Releases, but its sharding
+  plan and its notes on interaction with manifests and multi-source still apply.
+- `ecosystem-monorepo` is where the "adding a game triggers the index build" pipeline
+  belongs, since that requires the repos to share a home. Scope any auto-trigger to a
+  BACKFILL FOR THE NEW GAME ONLY; update-index.yml already supports run modes, and firing
+  a full rebuild on any registry change would be very expensive.
+- `manifest-backfill-and-size` option 3 (a separate lazily-fetched asset) becomes easier
+  once artifacts are arbitrary R2 keys rather than release assets.
+
+### Sequencing
+
+Postgres migration and the R2 cutover are separable. Doing Postgres first fixes
+resumability and per-game scoping without touching what clients fetch, which keeps the
+blast radius away from the download path. The R2 cutover plus sharding is the part that
+changes a URL compiled into shipped binaries, so it wants the dual-publish step working
+and verified before anything else moves.
+
+---
+
 ## TODO: index-download-scaling
 
 The app downloads the ENTIRE `index.db` (one GitHub release asset,
@@ -434,6 +571,13 @@ TTL cached in `app_data_dir()/mod-index.db`. Today that is ~16.8 MB for 4 games 
 records the plan for keeping that download bounded as the catalog grows. Nothing here is
 urgent at 4 games; do it before scaling past a handful of games (same trigger as
 `kill-pd3-fallback`) or when the Nexus merge starts inflating the pak games.
+
+### Superseded in part (read first)
+
+`index-postgres-builder-and-r2-hosting` above changes WHERE the artifact lives (R2, not
+GitHub Releases) and settles that shards are exported from Postgres. The sharding
+rationale and the interaction notes below still apply; only the assumption that the
+artifact is a GitHub release asset does not.
 
 ### Relationship to existing TODOs (read first)
 
@@ -643,6 +787,78 @@ modrex-index indexes RAID and docsGames.ts has no RAID entry at all. `pnpm check
 catches Rust-vs-TS drift inside modrex-main only; nothing sees across repo boundaries.
 Secondary benefit: one structure for contributors instead of four.
 
+### What the repos already share, and what that means
+
+The three repos are near-independent but not fully: they are stitched together by CI and
+by URLs, and the monorepo turns each of those cross-repo couplings into an intra-repo one.
+
+- modrex-main's `.github/workflows/site-deploy-hook.yml` ("Trigger modrex-site rebuild")
+  POSTs a Cloudflare Pages deploy hook when a release is published, so modrex.net rebuilds
+  with the new release metadata. In one repo this can become an ordinary job step instead
+  of a webhook between repos, but the deploy hook secret still has to move with it.
+- modrex-site fetches modrex-main release metadata from the GitHub Releases API at build
+  time, and refreshes its recognized-mod counter from modrex-index's index-stats.json.
+- modrex-site's install.sh Function fetches modrex-main's install.config.json from the
+  main branch on every request (see constraint 2).
+- Adding a game touches all three and triggers NOTHING automatically; modrex-index's
+  workflow is dispatched by hand.
+
+That last one is the daily pain and the reason for the "new game" pipeline below.
+
+### Relationship to plugin-system (they converge)
+
+`plugin-system` Tier 1 is "a game or loader shipped as DATA, a manifest conforming to the
+GameSpec/LoaderSpec shape, loaded at runtime". `packages/games` in this entry is the same
+manifest, just consumed at build time by three co-located projects instead of at runtime
+by a third party. Doing the monorepo well therefore makes Tier 1 substantially cheaper:
+the neutral shape already exists, is already the single source of truth, and already has
+consumers proving it is sufficient. Design packages/games with that in mind (a data shape
+that could be loaded from disk at runtime, not one that only works as a compile-time
+import), but do NOT build any plugin loading here. Tier 1 still waits on its own trigger,
+which is real ecosystem demand.
+
+Note the monorepo does NOT unblock `modrex-core-crate`. That entry needs a concrete second
+consumer of the mod engine, and co-locating repos does not create one; the indexer is
+TypeScript and does not use the Rust engine. Its trigger is unchanged.
+
+### The shared documentation system (the strongest reason to do this)
+
+The triplication above is not just three lists of ids. modrex-site RESTATES facts that
+modrex-main already owns as data, and six doc components read that restatement:
+src/data/docsGames.ts feeds GameFacts.astro, GameSupportTable.astro, LauncherIcon.astro,
+LauncherMatrix.astro, LauncherSupportTable.astro and ModTargetsTable.astro. docsGames.ts
+carries per-game `name`, `slug`, `launchers` and `targets` (mod install paths + notes),
+all of which exist in modrex-main already: launchers come from the `GameDef` storefront
+fields in commands/launchers/games/, and targets are the `ScanTarget` mods_subpath values
+in commands/mods/engine.rs.
+
+So the site's game documentation is a hand-maintained copy of the engine's own truth, and
+it drifts (RAID is the proof). In one repo the site can consume the registry at BUILD
+time instead: export the game data as JSON from the Rust registries during the site build,
+or have packages/games hold the neutral shape both sides import.
+
+Two cautions:
+- Not everything in docsGames.ts is derivable. `slug`, prose `notes`, and doc-only
+  phrasing are editorial and should STAY hand-written. Only the mechanical facts (which
+  launchers, which install paths, which games exist) should be generated. Generating the
+  editorial parts is how docs become unreadable.
+- The site builds on Cloudflare Pages without a Rust toolchain, so it cannot run cargo to
+  extract the registry. Either commit a generated JSON artifact to the repo (simplest, and
+  a CI check can assert it is current the same way check-games does), or move the neutral
+  game data into packages/games as the source both Rust and the site read.
+
+### The "new game" pipeline
+
+The other half of the payoff: adding a game today means remembering to trigger
+modrex-index's workflow by hand, and nothing links the two. In one repo a game landing in
+the registry can kick the index build automatically.
+
+Scope it to a BACKFILL FOR THE NEW GAME ONLY. update-index.yml already has run modes, and
+the build streams SHA256 of every .pak on modworkshop, so firing a full rebuild on any
+registry change would be very expensive and slow. See
+`index-postgres-builder-and-r2-hosting`, which is what makes per-game scoping natural
+(today build-index.ts has no --game=X flag at all).
+
 ### Target tree
 
 Follow deadlock-mod-manager's workspace shape (apps/*, packages/*, tools/*), which is
@@ -723,6 +939,10 @@ frontendDist/beforeBuildCommand, and every path filter in .claude/rules/.
    draft before tagging anything real.
 5. packages/games last - it is the payoff, but it is a behavior change on top of a
    structural one and should not ride along with the move.
+6. The shared docs and the new-game trigger come AFTER packages/games, since both consume
+   it: the site's doc components switch from docsGames.ts to the shared data, and the
+   index build gets triggered from a registry change. Each is separately shippable, so do
+   not bundle them with the move either.
 
 ---
 
@@ -848,5 +1068,17 @@ tier that demand actually requires.
   boundaries pay off.
 - The public plugin-api surface (cf. Refract_MC's packages/plugin-api) should be EXTRACTED
   from a working core when Tier 2 is real, never declared up front.
+
+### If ecosystem-monorepo lands first (2026-07-20)
+
+Tier 1 gets substantially cheaper. That entry's `packages/games` is the SAME manifest this
+tier would load: a neutral game shape, single source of truth, already proven sufficient
+by three consumers (the app, the indexer, the site's docs). If the monorepo happens first,
+design packages/games as data that COULD be read from disk at runtime rather than as a
+compile-time-only import, and Tier 1 becomes mostly a loader plus validation.
+
+This does not change the trigger. Tier 1 still waits on real ecosystem demand, and Tier 2
+still waits on modrex-core-crate, whose own trigger (a concrete second consumer of the mod
+engine) the monorepo does NOT satisfy.
 
 ---
