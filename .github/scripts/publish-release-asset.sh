@@ -84,7 +84,7 @@ rename_asset() {
 # Upload under a unique name first. A failed upload cannot remove the live asset.
 uploaded=0
 for attempt in 1 2 3 4 5; do
-  if gh release upload "$tag" "$staged_file" || wait_for_staged_asset; then
+  if gh release upload --repo "$repo" "$tag" "$staged_file" || wait_for_staged_asset; then
     uploaded=1
     break
   fi
