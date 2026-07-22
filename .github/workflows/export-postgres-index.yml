@@ -1,0 +1,53 @@
+name: Export Postgres index
+
+on:
+    workflow_dispatch:
+        inputs:
+            game:
+                description: 'Game to export'
+                required: true
+                type: choice
+                options: [pd3, pd2, pdth, cb, raid]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: export-postgres-index-${{ inputs.game }}
+    cancel-in-progress: false
+
+jobs:
+    export:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 10.32.1
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Apply Postgres schema migrations
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+              run: pnpm --dir apps/index migrate:postgres
+
+            - name: Export SQLite database
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+              run: pnpm --dir apps/index export:postgres-sqlite -- --game=${{ inputs.game }} --output=artifacts/${{ inputs.game }}.db
+
+            - name: Upload SQLite artifact
+              uses: actions/upload-artifact@v7
+              with:
+                  name: postgres-index-${{ inputs.game }}
+                  path: artifacts/${{ inputs.game }}.db
+                  if-no-files-found: error

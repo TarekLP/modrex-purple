@@ -5,7 +5,9 @@
     "license": "MIT",
     "scripts": {
         "build-index": "tsx build-index.ts",
+        "export:postgres-sqlite": "tsx postgres/export-sqlite.ts",
         "migrate:postgres": "tsx postgres/migrate.ts",
+        "process:postgres-content": "tsx postgres/process-content.ts",
         "sync:postgres-listings": "tsx postgres/sync-listings.ts",
         "verify:postgres-catalog": "tsx postgres/verify-catalog.ts",
         "test:staged-rebuild": "node test-staged-rebuild.mjs"

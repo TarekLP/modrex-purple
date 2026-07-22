@@ -1,0 +1,59 @@
+name: Process Postgres index content
+
+on:
+    workflow_dispatch:
+        inputs:
+            game:
+                description: 'Game to process'
+                required: true
+                type: choice
+                options: [pd3, pd2, pdth, cb, raid]
+            limit:
+                description: 'Listings to process (1-100)'
+                required: true
+                default: '25'
+                type: string
+
+permissions:
+    contents: read
+
+concurrency:
+    group: process-postgres-content-${{ inputs.game }}
+    cancel-in-progress: false
+
+jobs:
+    process:
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 10.32.1
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install system dependencies
+              run: sudo apt-get install -y p7zip-full
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Apply Postgres schema migrations
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+              run: pnpm --dir apps/index migrate:postgres
+
+            - name: Verify Postgres game catalog
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+              run: pnpm --dir apps/index verify:postgres-catalog
+
+            - name: Process archive content
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+              run: pnpm --dir apps/index process:postgres-content -- --game=${{ inputs.game }} --limit=${{ inputs.limit }}
