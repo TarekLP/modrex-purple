@@ -117,36 +117,41 @@ function parseCentralDirectory(buffer: Buffer): CentralDirectoryEntry[] {
 }
 
 async function markerFromZip(url: string, size: number | null): Promise<ContentEntry | null> {
-    const archiveSize = size ?? (await contentLength(url))
-    if (!archiveSize || archiveSize < 22) return null
+    try {
+        const archiveSize = size ?? (await contentLength(url))
+        if (!archiveSize || archiveSize < 22) return null
 
-    const tail = await rangeGet(url, Math.max(0, archiveSize - 65_557), archiveSize - 1)
-    const eocd = findEocd(tail)
-    if (!eocd) return null
+        const tail = await rangeGet(url, Math.max(0, archiveSize - 65_557), archiveSize - 1)
+        const eocd = findEocd(tail)
+        if (!eocd) return null
 
-    const entries = parseCentralDirectory(
-        await rangeGet(url, eocd.offset, eocd.offset + eocd.size - 1)
-    )
-    const name = chooseMarker(entries.map((entry) => entry.name))
-    const entry = name ? entries.find((candidate) => candidate.name === name) : undefined
-    if (!entry || entry.compressedSize === 0) return null
+        const entries = parseCentralDirectory(
+            await rangeGet(url, eocd.offset, eocd.offset + eocd.size - 1)
+        )
+        const name = chooseMarker(entries.map((entry) => entry.name))
+        const entry = name ? entries.find((candidate) => candidate.name === name) : undefined
+        if (!entry || entry.compressedSize === 0) return null
 
-    const header = await rangeGet(url, entry.localOffset, entry.localOffset + 29)
-    if (header.readUInt32LE(0) !== 0x04034b50) return null
-    const dataStart = entry.localOffset + 30 + header.readUInt16LE(26) + header.readUInt16LE(28)
-    const compressed = await rangeGet(url, dataStart, dataStart + entry.compressedSize - 1)
+        const header = await rangeGet(url, entry.localOffset, entry.localOffset + 29)
+        if (header.readUInt32LE(0) !== 0x04034b50) return null
+        const dataStart = entry.localOffset + 30 + header.readUInt16LE(26) + header.readUInt16LE(28)
+        const compressed = await rangeGet(url, dataStart, dataStart + entry.compressedSize - 1)
 
-    let content: Buffer
-    if (entry.compressionMethod === 0) content = compressed
-    else if (entry.compressionMethod === 8) {
-        try {
-            content = inflateRawSync(compressed)
-        } catch {
-            return null
-        }
-    } else return null
+        let content: Buffer
+        if (entry.compressionMethod === 0) content = compressed
+        else if (entry.compressionMethod === 8) {
+            try {
+                content = inflateRawSync(compressed)
+            } catch {
+                return null
+            }
+        } else return null
 
-    return { sha256: createHash('sha256').update(content).digest('hex'), entryName: entry.name }
+        return { sha256: createHash('sha256').update(content).digest('hex'), entryName: entry.name }
+    } catch (error) {
+        if (error instanceof Error && error.message === 'range request returned 416') return null
+        throw error
+    }
 }
 
 async function markerFromFullArchive(
@@ -166,6 +171,7 @@ async function markerFromFullArchive(
         } catch {
             return null
         }
+        if (!existsSync(output)) return null
         const paths = (readdirSync(output, { recursive: true }) as string[])
             .filter((path) => statSync(join(output, path)).isFile())
             .map((path) => path.replace(/\\/g, '/'))

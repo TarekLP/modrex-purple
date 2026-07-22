@@ -1,8 +1,6 @@
 name: Refresh Postgres index
 
 on:
-    schedule:
-        - cron: '*/30 * * * *'
     workflow_dispatch:
         inputs:
             game:
@@ -42,8 +40,8 @@ jobs:
             R2_BUCKET: ${{ secrets.R2_BUCKET }}
             R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
             INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
-            GAME: ${{ inputs.game || 'auto' }}
-            LIMIT: ${{ inputs.limit || '1000' }}
+            GAME: ${{ inputs.game }}
+            LIMIT: ${{ inputs.limit }}
         steps:
             - uses: actions/checkout@v4
 
