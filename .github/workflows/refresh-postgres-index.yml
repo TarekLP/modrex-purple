@@ -1,6 +1,8 @@
 name: Refresh Postgres index
 
 on:
+    schedule:
+        - cron: '*/30 * * * *'
     workflow_dispatch:
         inputs:
             game:
@@ -10,6 +12,7 @@ on:
                 type: choice
                 options:
                     - all
+                    - auto
                     - pd3
                     - pd2
                     - pdth
@@ -39,8 +42,8 @@ jobs:
             R2_BUCKET: ${{ secrets.R2_BUCKET }}
             R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
             INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
-            GAME: ${{ inputs.game }}
-            LIMIT: ${{ inputs.limit }}
+            GAME: ${{ inputs.game || 'auto' }}
+            LIMIT: ${{ inputs.limit || '1000' }}
         steps:
             - uses: actions/checkout@v4
 
@@ -73,14 +76,21 @@ jobs:
                   if [ "${LIMIT}" -lt 1 ] || [ "${LIMIT}" -gt 1000 ]; then
                       exit 1
                   fi
+                  pnpm --dir apps/index migrate:postgres
+                  pnpm --dir apps/index verify:postgres-catalog
+                  pnpm --dir apps/index sync:postgres-listings
+                  if [ "${GAME}" = auto ]; then
+                      GAME="$(pnpm --dir apps/index exec tsx postgres/report-coverage.ts --next)"
+                      if [ -z "${GAME}" ]; then
+                          echo 'No pending archive work.'
+                          exit 0
+                      fi
+                  fi
                   case "${GAME}" in
                       all) games='pd3 pd2 pdth cb raid' ;;
                       pd3|pd2|pdth|cb|raid) games="${GAME}" ;;
                       *) exit 1 ;;
                   esac
-                  pnpm --dir apps/index migrate:postgres
-                  pnpm --dir apps/index verify:postgres-catalog
-                  pnpm --dir apps/index sync:postgres-listings
                   mkdir -p apps/index/artifacts
                   for game in ${games}; do
                       pnpm --dir apps/index process:postgres-content -- --game="${game}" --limit="${LIMIT}"
