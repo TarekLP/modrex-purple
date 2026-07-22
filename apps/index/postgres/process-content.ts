@@ -23,6 +23,15 @@ interface Paginated<T> {
     meta: { current_page: number; last_page: number }
 }
 
+class ModWorkshopApiError extends Error {
+    constructor(
+        readonly status: number,
+        readonly path: string
+    ) {
+        super(`ModWorkshop API ${status}: ${path}`)
+    }
+}
+
 const databaseUrl = process.env.INDEX_DATABASE_URL
 if (!databaseUrl) throw new Error('INDEX_DATABASE_URL is required')
 
@@ -69,7 +78,7 @@ async function apiGet<T>(path: string): Promise<T> {
         headers: { Accept: 'application/json', 'User-Agent': userAgent },
         signal: AbortSignal.timeout(30_000),
     })
-    if (!response.ok) throw new Error(`ModWorkshop API ${response.status}: ${path}`)
+    if (!response.ok) throw new ModWorkshopApiError(response.status, path)
     return (await response.json()) as T
 }
 
@@ -103,10 +112,30 @@ const listings = (await sql`
     LIMIT ${limit}
 `) as Listing[]
 
+async function recordCheck(listing: Listing, fileIds: number[]): Promise<void> {
+    await sql`
+        INSERT INTO mod_checks (source_id, remote_id, updated_at, file_ids, checked_at)
+        VALUES (${listing.source_id}, ${listing.remote_id}, ${listing.updated_at}, ${JSON.stringify(fileIds)}::jsonb, ${new Date().toISOString()})
+        ON CONFLICT (source_id, remote_id) DO UPDATE SET
+            updated_at = EXCLUDED.updated_at,
+            file_ids = EXCLUDED.file_ids,
+            checked_at = EXCLUDED.checked_at
+    `
+}
+
 const failures: string[] = []
 for (const listing of listings) {
     try {
-        const files = await listFiles(listing.remote_id)
+        let files: ModFile[]
+        try {
+            files = await listFiles(listing.remote_id)
+        } catch (error) {
+            if (error instanceof ModWorkshopApiError && error.status === 404) {
+                await recordCheck(listing, [])
+                continue
+            }
+            throw error
+        }
         const indexedFileIds: number[] = []
         let failed = false
 
@@ -186,14 +215,7 @@ for (const listing of listings) {
         }
 
         if (!failed) {
-            await sql`
-                INSERT INTO mod_checks (source_id, remote_id, updated_at, file_ids, checked_at)
-                VALUES (${listing.source_id}, ${listing.remote_id}, ${listing.updated_at}, ${JSON.stringify(indexedFileIds)}::jsonb, ${new Date().toISOString()})
-                ON CONFLICT (source_id, remote_id) DO UPDATE SET
-                    updated_at = EXCLUDED.updated_at,
-                    file_ids = EXCLUDED.file_ids,
-                    checked_at = EXCLUDED.checked_at
-            `
+            await recordCheck(listing, indexedFileIds)
         }
     } catch (error) {
         failures.push(
