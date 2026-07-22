@@ -73,7 +73,8 @@ Exit code `2` means "nothing new — skip upload"; the workflow gates the releas
 
 - _default_ — incremental and **time-windowed**: `listModsSince(lastRunAt)` only examines mods updated since the previous run, and skips files already in `files`.
 - `--backfill` — scans **all** mods (`since = null`), skipping already-indexed files and mods whose `mod_checks` state is current (see builder state below). Cheap to re-run: a backfill where nothing changed costs roughly the listing pages (~10 min), not the historical ~2 h.
-- `--recheck-all` — ignores `mod_checks` entirely; every listed mod is re-examined (the pre-check-state backfill cost). **Required after any coverage change** (a new archive format, a new game, or raising `PD2_MAX_FULL_DOWNLOAD_BYTES`): a plain backfill skips checked mods, so previously-skipped files only get picked up by `--backfill --recheck-all`. Also the escape hatch if a mod was wrongly memoized (corrupt download recorded as zero-yield, or a mod change that didn't touch its `updated_at`).
+- `--recheck-all` — ignores `mod_checks` entirely; every listed mod is re-examined (the pre-check-state backfill cost). **Required after a coverage change to an existing game** (a new archive format or raising `PD2_MAX_FULL_DOWNLOAD_BYTES`): a plain backfill skips checked mods, so previously-skipped files only get picked up by `--backfill --recheck-all`. Also the escape hatch if a mod was wrongly memoized (corrupt download recorded as zero-yield, or a mod change that didn't touch its `updated_at`).
+- `--backfill --game=<id>` — scans every historical listing for one game only. Adding exactly one game to `packages/games/index.ts` triggers this mode automatically; use the workflow's `game` input for a manual retry.
 - `--repair-versions` — rewrites the `version` column from the listings; no downloads.
 
 The `--staged-rebuild`, `--game`, `--max-runtime-minutes`, and

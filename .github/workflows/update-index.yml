@@ -1,8 +1,16 @@
 name: Update mod index
 
 on:
+    push:
+        branches: [main]
+        paths:
+            - packages/games/index.ts
     workflow_dispatch:
         inputs:
+            game:
+                description: 'Backfill one game ID from all historical ModWorkshop listings'
+                type: string
+                default: ''
             full_rebuild:
                 description: 'Full rebuild (ignore existing index, re-index all mods)'
                 type: boolean
@@ -38,8 +46,25 @@ concurrency:
     cancel-in-progress: false
 
 jobs:
+    detect-added-game:
+        if: ${{ github.event_name == 'push' }}
+        runs-on: ubuntu-latest
+        outputs:
+            game: ${{ steps.detect.outputs.game }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 2
+
+            - id: detect
+              env:
+                  BEFORE: ${{ github.event.before }}
+                  AFTER: ${{ github.sha }}
+              run: echo "game=$(node .github/scripts/detect-added-games.mjs \"$BEFORE\" \"$AFTER\")" >> "$GITHUB_OUTPUT"
+
     update:
-        if: ${{ !inputs.full_rebuild }}
+        needs: detect-added-game
+        if: ${{ (github.event_name == 'workflow_dispatch' || needs.detect-added-game.outputs.game != '') && !inputs.full_rebuild }}
         runs-on: ubuntu-latest
         # Incremental/backfill runs fit comfortably below this. Full rebuilds use the
         # checkpointed jobs below because a single hosted job cannot exceed six hours.
@@ -121,6 +146,8 @@ jobs:
 
             - name: Run indexer
               id: indexer
+              env:
+                  TARGET_GAME: ${{ github.event_name == 'push' && needs.detect-added-game.outputs.game || inputs.game }}
               run: |
                   set +e
                   args=""
@@ -128,6 +155,7 @@ jobs:
                   ${{ inputs.repair_versions == true }} && args="$args --repair-versions"
                   ${{ inputs.recheck_all == true }} && args="$args --recheck-all"
                   [ -n "${{ inputs.concurrency }}" ] && args="$args --concurrency=${{ inputs.concurrency }}"
+                  [ -n "$TARGET_GAME" ] && args="$args --backfill --game=$TARGET_GAME"
                   pnpm build-index $args
                   code=$?
                   set -e

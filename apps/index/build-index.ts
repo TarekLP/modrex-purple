@@ -1092,10 +1092,16 @@ async function main(): Promise<void> {
                 '--staged-rebuild cannot be combined with backfill, repair, or recheck modes'
             )
         }
-    } else if (SELECTED_GAME || FINALIZE_REBUILD || MAX_RUNTIME_MINUTES > 0) {
-        throw new Error(
-            '--game, --finalize-rebuild, and --max-runtime-minutes require --staged-rebuild'
-        )
+    } else if (FINALIZE_REBUILD || MAX_RUNTIME_MINUTES > 0) {
+        throw new Error('--finalize-rebuild and --max-runtime-minutes require --staged-rebuild')
+    }
+    if (!STAGED_REBUILD && SELECTED_GAME) {
+        if (!VALID_GAMES.includes(SELECTED_GAME as GameSlug)) {
+            throw new Error(`--game must be one of ${VALID_GAMES.join('|')}`)
+        }
+        if (!BACKFILL) {
+            throw new Error('--game requires --backfill outside a staged rebuild')
+        }
     }
     if (FINALIZE_REBUILD && SELECTED_GAME !== 'raid') {
         throw new Error('--finalize-rebuild is only valid for the final RAID stage')
@@ -1239,7 +1245,7 @@ async function main(): Promise<void> {
     const { pd3Mods, pd2Mods, pdthMods, cbMods, raidMods } = await timePhase(
         'listing',
         async () => {
-            const selected = (game: GameSlug) => !STAGED_REBUILD || SELECTED_GAME === game
+            const selected = (game: GameSlug) => !SELECTED_GAME || SELECTED_GAME === game
             const list = async (game: GameSlug, gameId: number, label: string): Promise<Mod[]> => {
                 if (!selected(game)) return []
                 console.log(`Fetching ${label} mod list...`)
@@ -1879,7 +1885,12 @@ async function main(): Promise<void> {
     )
     const stats = writeIndexStats(db, runStartedAt.toISOString())
     console.log(`Wrote index-stats.json (${stats.supportedMods} supported mods).`)
-    writeRunSummary(BACKFILL ? 'backfill' : 'incremental', newFiles, filledNames, errors.length)
+    writeRunSummary(
+        BACKFILL ? `backfill${SELECTED_GAME ? `-${SELECTED_GAME}` : ''}` : 'incremental',
+        newFiles,
+        filledNames,
+        errors.length
+    )
 
     db.close()
     stateDb.close()

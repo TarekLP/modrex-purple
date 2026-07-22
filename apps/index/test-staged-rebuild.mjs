@@ -130,6 +130,11 @@ try {
 
     const stats = JSON.parse(await readFile(join(outputDir, 'index-stats.json'), 'utf8'))
     assert.equal(stats.lastRunAt, startedAt)
+
+    await run(['--game=pd3'], 1)
+    const scopedBackfillOutput = await run(['--backfill', '--game=pd3'], 2)
+    assert.match(scopedBackfillOutput, /Fetching PD3 mod list/)
+    assert.doesNotMatch(scopedBackfillOutput, /Fetching PD2 mod list/)
     console.log('staged rebuild checkpoint/resume test passed')
 } finally {
     server.close()
