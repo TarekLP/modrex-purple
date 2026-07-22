@@ -5,10 +5,12 @@
     "license": "MIT",
     "scripts": {
         "build-index": "tsx build-index.ts",
+        "migrate:postgres": "tsx postgres/migrate.ts",
         "test:staged-rebuild": "node test-staged-rebuild.mjs"
     },
     "dependencies": {
-        "@modrex/games": "workspace:*"
+        "@modrex/games": "workspace:*",
+        "@neondatabase/serverless": "^1.1.0"
     },
     "devDependencies": {
         "@types/adm-zip": "^0.5.8",

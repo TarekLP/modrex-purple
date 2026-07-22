@@ -4,7 +4,9 @@ Read the root `CLAUDE.md` before this file. This package is part of the Modrex m
 
 ## What this is
 
-TypeScript build pipeline that downloads every mod file from modworkshop.net for PD2, PDTH, PD3, Crime Boss: Rockay City, and RAID: World War II, hashes the relevant content with SHA256, and stores the results in `index.db` (SQLite). During the migration, the database remains published as a GitHub Release asset in `modrexio/modrex-index` at tag `latest-index` — never commit it to git. A tiny `index-stats.json` asset is published beside it for website counters; it also carries `lastRunAt` — the incremental window — because it's uploaded on every run, unlike `index.db` (a no-op exit-2 run skips the DB upload, so the DB's own `last_run_at` metadata can be stale; the indexer takes the later of the two at startup). The desktop app downloads `index.db` on startup with a 1-hour TTL cached in `app_data_dir()`.
+TypeScript build pipeline that downloads every mod file from modworkshop.net for PD2, PDTH, PD3, Crime Boss: Rockay City, and RAID: World War II, hashes the relevant content with SHA256, and stores the results in `index.db` (SQLite). The existing desktop app downloads that legacy database on startup with a 1-hour TTL cached in `app_data_dir()`.
+
+`modrexio/modrex-index` permanently owns the legacy production pipeline and its `latest-index` release. This workspace no longer publishes legacy assets. The Postgres migration workflow only prepares the new builder's source of truth; it does not download mods, build SQLite files, or serve a desktop client.
 
 ## Commands
 
@@ -46,40 +48,24 @@ metadata      (key, value)                                          -- last_run_
 
 `modrex-main` queries via `files → mods → sources → games` filtered by `games.name`. Cross-game isolation is enforced: a PD2 SHA256 never matches a PD3 mod. The `games.name` string is load-bearing, not cosmetic — it must match `modrex-main`'s `ModEngineConfig.index_game_name` exactly (e.g. Crime Boss's row is `"Crime Boss: Rockay City"`, matching `CRIMEBOSS_ENGINE.index_game_name`).
 
-### GitHub Actions workflow
+### Legacy workflow
 
-The root `.github/workflows/update-index.yml` is triggered via `workflow_dispatch` (no built-in cron yet). It needs the `INDEX_RELEASE_TOKEN` repository secret, with access to `modrexio/modrex-index`, and uploads assets to that repository's `latest-index` tag (always overwrites — one tag, consumers always hit the same URLs). Do not add a scheduler or change the release target in this structural migration step.
+The legacy production workflow lives in the independent `modrexio/modrex-index` repository. Its five-minute scheduler remains responsible for the frozen legacy game set and release assets consumed by desktop versions through 0.12.2. Do not add a legacy release workflow to this workspace.
 
-The workflow downloads the previous `index.db` from the release before running so the build is incremental. Download is retried up to 5× with an integrity check (`PRAGMA integrity_check`) because the release CDN can briefly serve a stale copy after an asset is replaced. Concurrent runs are queued, not cancelled (`cancel-in-progress: false`), to avoid splitting the shared 90 req/min API budget.
+### Postgres migration workflow
 
-A full rebuild cannot fit safely in one GitHub-hosted job: PD2 alone is close to the
-six-hour hard limit. The workflow therefore runs one game at a time and carries
-`index.db` plus `builder-state.db` between jobs as short-lived Actions artifacts.
-PD2 is additionally divided into three 100-minute checkpoint jobs and one finishing
-job. Each checkpoint re-lists PD2 and skips completed mods via `mod_checks`, so list
-reordering cannot create gaps. Partial databases are never published. The final RAID
-job verifies that every game completed, writes the original rebuild start time as
-`last_run_at`, integrity-checks both databases, stores a final recovery artifact,
-and only then promotes the three release assets.
+The root `.github/workflows/migrate-postgres-index.yml` runs only through `workflow_dispatch`. It needs the `INDEX_DATABASE_URL` repository secret and applies the idempotent migrations in `postgres/schema.ts` to Neon. Its sole responsibility is preparing the new builder's database schema.
 
-Release assets are replaced through `.github/scripts/publish-release-asset.sh`:
-upload under a unique staged name, verify size and SHA256, preserve the old asset as
-a rollback copy, then promote the staged asset. Never restore `gh release upload
---clobber`; it deletes the live asset before the replacement upload has succeeded.
-
-Exit code `2` means "nothing new — skip upload"; the workflow gates the release-asset upload on exit code `0`. Exit `1` means an unhandled error.
-
-**Run modes** (`workflow_dispatch` inputs / CLI flags):
+**Legacy builder run modes** (CLI flags):
 
 - _default_ — incremental and **time-windowed**: `listModsSince(lastRunAt)` only examines mods updated since the previous run, and skips files already in `files`.
 - `--backfill` — scans **all** mods (`since = null`), skipping already-indexed files and mods whose `mod_checks` state is current (see builder state below). Cheap to re-run: a backfill where nothing changed costs roughly the listing pages (~10 min), not the historical ~2 h.
 - `--recheck-all` — ignores `mod_checks` entirely; every listed mod is re-examined (the pre-check-state backfill cost). **Required after a coverage change to an existing game** (a new archive format or raising `PD2_MAX_FULL_DOWNLOAD_BYTES`): a plain backfill skips checked mods, so previously-skipped files only get picked up by `--backfill --recheck-all`. Also the escape hatch if a mod was wrongly memoized (corrupt download recorded as zero-yield, or a mod change that didn't touch its `updated_at`).
-- `--backfill --game=<id>` — scans every historical listing for one game only. Adding exactly one game to `packages/games/index.ts` triggers this mode automatically; use the workflow's `game` input for a manual retry.
+- `--backfill --game=<id>` — scans every historical listing for one game only.
 - `--repair-versions` — rewrites the `version` column from the listings; no downloads.
 
-The `--staged-rebuild`, `--game`, `--max-runtime-minutes`, and
-`--finalize-rebuild` flags are internal workflow plumbing. Do not use them for an
-ordinary local or incremental build.
+The `--staged-rebuild`, `--max-runtime-minutes`, and `--finalize-rebuild` flags are
+legacy workflow plumbing. Do not use them for an ordinary local build.
 
 ### Builder state (`builder-state.db`)
 

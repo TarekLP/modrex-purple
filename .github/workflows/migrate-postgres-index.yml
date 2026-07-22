@@ -1,0 +1,35 @@
+name: Migrate Postgres index
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: migrate-postgres-index
+    cancel-in-progress: false
+
+jobs:
+    migrate:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 10.32.1
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Apply Postgres schema migrations
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+              run: pnpm --dir apps/index migrate:postgres
