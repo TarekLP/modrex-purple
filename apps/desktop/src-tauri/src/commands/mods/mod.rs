@@ -163,7 +163,8 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
     let mods_hidden = backup_dir(&game_path, cfg.primary()).exists();
 
     let mut state = reconcile_state(&game_path, &state_path, cfg);
-    let any_upgraded = upgrade_negative_ids(&app, &mut state.mods, cfg.index_game_name);
+    let any_upgraded =
+        upgrade_negative_ids(&app, &mut state.mods, cfg.game_id, cfg.index_game_name);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
     // The player can also toggle mods from Crime Boss's own Options > Mods screen — pull that
@@ -196,7 +197,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         };
         let hit = sha256
             .as_deref()
-            .and_then(|s| mod_index::lookup_sha256(&app, s, cfg.index_game_name));
+            .and_then(|s| mod_index::lookup_sha256(&app, s, cfg.game_id, cfg.index_game_name));
         let location = Some(format!("host:{}:{}", host_id, subpath));
         let entry = match hit {
             Some(h) => InstalledMod {
@@ -280,7 +281,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         },
     );
     let sha256s = hash_untracked(&game_path, &untracked, cfg).await;
-    let index = mod_index::open_index(&app);
+    let index = mod_index::open_index(&app, cfg.game_id);
     let mods = identify_untracked(
         &mut state,
         &untracked,

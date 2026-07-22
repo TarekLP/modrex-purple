@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
-use crate::commands::mod_index::index_path;
+use crate::commands::mod_index::{index_dir, legacy_index_path};
 
 /// Sizes in bytes of the app's regenerable on-disk caches, for the Settings
 /// storage view. settings.json (user data) and the renderer's localStorage
@@ -88,9 +88,10 @@ fn remove_file_freed(path: &Path) -> u64 {
 #[specta::specta]
 pub fn get_storage_usage(app: AppHandle) -> StorageUsage {
     let thumbnails = thumbnails_dir(&app).map(|d| dir_size(&d)).unwrap_or(0);
-    let index_db = std::fs::metadata(index_path(&app))
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let index_db = dir_size(&index_dir(&app))
+        + std::fs::metadata(legacy_index_path(&app))
+            .map(|m| m.len())
+            .unwrap_or(0);
     let news = news_files(&app)
         .iter()
         .filter_map(|p| std::fs::metadata(p).ok())
@@ -114,7 +115,7 @@ pub fn clear_thumbnail_cache(app: AppHandle) -> u64 {
 #[tauri::command]
 #[specta::specta]
 pub fn clear_index_cache(app: AppHandle) -> u64 {
-    remove_file_freed(&index_path(&app))
+    remove_files_in(&index_dir(&app)) + remove_file_freed(&legacy_index_path(&app))
 }
 
 #[tauri::command]

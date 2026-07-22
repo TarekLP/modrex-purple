@@ -180,9 +180,10 @@ pub(crate) fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Opt
 pub(crate) fn upgrade_negative_ids(
     app: &AppHandle,
     mods: &mut [InstalledMod],
+    game_id: &str,
     game_name: &str,
 ) -> bool {
-    let Some(conn) = mod_index::open_index(app) else {
+    let Some(conn) = mod_index::open_index(app, game_id) else {
         return false;
     };
     let mut any = false;

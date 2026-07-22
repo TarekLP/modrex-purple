@@ -1,9 +1,27 @@
-use std::path::PathBuf;
+use sha2::Digest;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
-const INDEX_URL: &str =
-    "https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db";
-const MAX_AGE_SECS: u64 = 3600;
+const INDEX_MANIFEST_URL: &str = "https://index.modrex.net/catalog/latest.json";
+const INDEX_BASE_URL: &str = "https://index.modrex.net";
+
+#[derive(serde::Deserialize)]
+struct IndexManifest {
+    games: HashMap<String, IndexGeneration>,
+}
+
+#[derive(serde::Deserialize)]
+struct IndexGeneration {
+    key: String,
+    sha256: String,
+    size: u64,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct IndexCacheEntry {
+    sha256: String,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -21,15 +39,43 @@ pub struct IndexModFile {
     pub entry_name: String,
 }
 
-pub fn index_path(app: &AppHandle) -> PathBuf {
+pub(crate) fn legacy_index_path(app: &AppHandle) -> PathBuf {
     app.path()
         .app_data_dir()
         .expect("failed to resolve app data dir")
         .join("mod-index.db")
 }
 
+pub fn index_dir(app: &AppHandle) -> PathBuf {
+    app.path()
+        .app_data_dir()
+        .expect("failed to resolve app data dir")
+        .join("indexes")
+}
+
+pub fn index_path(app: &AppHandle, game_id: &str) -> PathBuf {
+    index_dir(app).join(format!("{game_id}.db"))
+}
+
+fn index_cache_path(app: &AppHandle, game_id: &str) -> PathBuf {
+    index_dir(app).join(format!("{game_id}.json"))
+}
+
 pub async fn ensure_index(app: AppHandle) {
-    let outcome = refresh_index(&app).await;
+    let games = crate::commands::settings::read_settings(&app)
+        .games
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(game_id, settings)| {
+            settings
+                .game_path
+                .as_deref()
+                .filter(|path| Path::new(path).exists())
+                .and_then(|_| crate::commands::games::game_spec(&game_id))
+                .map(|spec| spec.id)
+        })
+        .collect::<Vec<_>>();
+    let outcome = refresh_indexes(&app, &games).await;
     crate::commands::analytics::track(
         &app,
         "index_refresh",
@@ -37,70 +83,111 @@ pub async fn ensure_index(app: AppHandle) {
     );
 }
 
-/// Refreshes the on-disk index if stale, returning the outcome for telemetry.
-/// Outcomes: `cached` (still fresh), `updated` (downloaded), or a specific failure.
-async fn refresh_index(app: &AppHandle) -> &'static str {
-    let path = index_path(app);
-    if path.exists() {
-        let age_ok = std::fs::metadata(&path)
-            .ok()
-            .and_then(|m| m.modified().ok())
-            .and_then(|t| t.elapsed().ok())
-            .map(|e| e.as_secs() < MAX_AGE_SECS)
-            .unwrap_or(false);
-        if age_ok {
-            return "cached";
-        }
+async fn refresh_indexes(app: &AppHandle, games: &[&str]) -> &'static str {
+    if games.is_empty() {
+        return "not_configured";
     }
-    let client = match reqwest::Client::builder()
-        .user_agent(concat!("modrex/", env!("CARGO_PKG_VERSION")))
-        // The index is a single multi-megabyte download that grows with the catalog. A whole
-        // request deadline aborts a healthy but slow connection partway through the body,
-        // stranding the user with no index and every mod unidentified, and it only gets
-        // tighter as the index grows. Bound the connect attempt and per-read stalls instead:
-        // a dead host still fails fast, but a slow steady download is allowed to finish.
-        .connect_timeout(std::time::Duration::from_secs(15))
-        .read_timeout(std::time::Duration::from_secs(30))
-        .build()
+
+    let manifest = match crate::commands::api::http_client()
+        .get(INDEX_MANIFEST_URL)
+        .header("User-Agent", crate::commands::api::user_agent(app))
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await
     {
-        Ok(c) => c,
-        Err(_) => return "client_error",
-    };
-    let resp = match client.get(INDEX_URL).send().await {
-        Ok(r) if r.status().is_success() => r,
-        Ok(r) => {
-            log::warn!("mod_index: download failed: HTTP {}", r.status());
-            return "http_error";
+        Ok(response) if response.status().is_success() => {
+            match response.json::<IndexManifest>().await {
+                Ok(manifest) => manifest,
+                Err(error) => {
+                    log::warn!("mod_index: manifest decode failed: {error}");
+                    return "manifest_error";
+                }
+            }
         }
-        Err(e) => {
-            log::warn!("mod_index: download failed: {e}");
+        Ok(response) => {
+            log::warn!("mod_index: manifest failed: HTTP {}", response.status());
+            return "manifest_error";
+        }
+        Err(error) => {
+            log::warn!("mod_index: manifest request failed: {error}");
             return "network_error";
         }
     };
-    let bytes = match resp.bytes().await {
-        Ok(b) => b,
-        Err(e) => {
-            log::warn!("mod_index: read response body failed: {e}");
-            return "read_error";
+
+    let mut updated = false;
+    for game_id in games {
+        let Some(generation) = manifest.games.get(*game_id) else {
+            log::warn!("mod_index: manifest omitted {game_id}");
+            continue;
+        };
+        match refresh_game_index(app, game_id, generation).await {
+            Ok(did_update) => updated |= did_update,
+            Err(error) => log::warn!("mod_index: {game_id} refresh failed: {error}"),
         }
-    };
-    // The refresh runs fire-and-forget while get_installed holds this same file open
-    // read-only for identification. Overwriting the multi-megabyte index in place lets that
-    // reader observe a truncated database, and a crash mid-write leaves a short file carrying
-    // a fresh mtime that still reads as cached for the next hour. Stage into a sibling temp
-    // file and rename over the live index instead: rename is atomic on one volume, so a
-    // reader always opens a whole database, old or new.
-    let tmp = path.with_extension("db.tmp");
-    if let Err(e) = std::fs::write(&tmp, &bytes) {
-        log::warn!("mod_index: write failed: {e}");
-        return "write_error";
     }
-    if let Err(e) = std::fs::rename(&tmp, &path) {
-        log::warn!("mod_index: rename failed: {e}");
-        let _ = std::fs::remove_file(&tmp);
-        return "write_error";
+    if updated {
+        "updated"
+    } else {
+        "cached"
     }
-    "updated"
+}
+
+async fn refresh_game_index(
+    app: &AppHandle,
+    game_id: &str,
+    generation: &IndexGeneration,
+) -> Result<bool, String> {
+    if !generation.key.starts_with("catalog/")
+        || !generation.key.ends_with(&format!("/{game_id}.db"))
+    {
+        return Err("invalid manifest key".to_string());
+    }
+    let path = index_path(app, game_id);
+    let cache_path = index_cache_path(app, game_id);
+    if path.exists()
+        && std::fs::read(&cache_path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<IndexCacheEntry>(&bytes).ok())
+            .is_some_and(|cache| cache.sha256 == generation.sha256)
+    {
+        return Ok(false);
+    }
+
+    let url = format!("{INDEX_BASE_URL}/{}", generation.key);
+    let response = crate::commands::api::http_client()
+        .get(url)
+        .header("User-Agent", crate::commands::api::user_agent(app))
+        .timeout(std::time::Duration::from_secs(300))
+        .send()
+        .await
+        .map_err(|error| error.to_string())?;
+    if !response.status().is_success() {
+        return Err(format!("download returned HTTP {}", response.status()));
+    }
+    let bytes = response.bytes().await.map_err(|error| error.to_string())?;
+    if bytes.len() as u64 != generation.size {
+        return Err("download size did not match manifest".to_string());
+    }
+    let sha256 = hex::encode(sha2::Sha256::digest(&bytes));
+    if sha256 != generation.sha256 {
+        return Err("download SHA-256 did not match manifest".to_string());
+    }
+
+    std::fs::create_dir_all(index_dir(app)).map_err(|error| error.to_string())?;
+    let temporary_path = path.with_extension("db.tmp");
+    std::fs::write(&temporary_path, &bytes).map_err(|error| error.to_string())?;
+    std::fs::rename(&temporary_path, &path).map_err(|error| error.to_string())?;
+    let temporary_cache_path = cache_path.with_extension("json.tmp");
+    std::fs::write(
+        &temporary_cache_path,
+        serde_json::to_vec(&IndexCacheEntry {
+            sha256: generation.sha256.clone(),
+        })
+        .map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| error.to_string())?;
+    std::fs::rename(&temporary_cache_path, &cache_path).map_err(|error| error.to_string())?;
+    Ok(true)
 }
 
 fn open_conn(path: &std::path::Path) -> Option<rusqlite::Connection> {
@@ -113,12 +200,9 @@ fn open_conn(path: &std::path::Path) -> Option<rusqlite::Connection> {
 
 /// Opens the on-disk index once so a caller can run several queries against one connection
 /// instead of reopening per lookup. Returns None when the index is absent.
-pub(crate) fn open_index(app: &AppHandle) -> Option<rusqlite::Connection> {
-    let path = index_path(app);
-    if !path.exists() {
-        return None;
-    }
-    open_conn(&path)
+pub(crate) fn open_index(app: &AppHandle, game_id: &str) -> Option<rusqlite::Connection> {
+    let path = index_path(app, game_id);
+    open_conn(&path).or_else(|| open_conn(&legacy_index_path(app)))
 }
 
 /// Returns true when the index contains at least one mod entry for the given game name.
@@ -253,12 +337,13 @@ fn query_mod_files(
     .unwrap_or_default()
 }
 
-pub fn lookup_mod_files(app: &AppHandle, mod_remote_id: i64, game_name: &str) -> Vec<IndexModFile> {
-    let path = index_path(app);
-    if !path.exists() {
-        return Vec::new();
-    }
-    match open_conn(&path) {
+pub fn lookup_mod_files(
+    app: &AppHandle,
+    mod_remote_id: i64,
+    game_id: &str,
+    game_name: &str,
+) -> Vec<IndexModFile> {
+    match open_index(app, game_id) {
         Some(conn) => query_mod_files(&conn, mod_remote_id, game_name),
         None => Vec::new(),
     }
@@ -272,15 +357,21 @@ pub fn get_index_mod_files(
     game_id: String,
 ) -> Result<Vec<IndexModFile>, String> {
     let cfg = crate::commands::mods::engine_for_game(game_id.as_str())?;
-    Ok(lookup_mod_files(&app, mod_id, cfg.index_game_name))
+    Ok(lookup_mod_files(
+        &app,
+        mod_id,
+        cfg.game_id,
+        cfg.index_game_name,
+    ))
 }
 
-pub fn lookup_sha256(app: &AppHandle, sha256: &str, game_name: &str) -> Option<IndexMatch> {
-    let path = index_path(app);
-    if !path.exists() {
-        return None;
-    }
-    let conn = open_conn(&path)?;
+pub fn lookup_sha256(
+    app: &AppHandle,
+    sha256: &str,
+    game_id: &str,
+    game_name: &str,
+) -> Option<IndexMatch> {
+    let conn = open_index(app, game_id)?;
     query_sha256(&conn, sha256, game_name)
 }
 

@@ -260,10 +260,14 @@ fn resolve_and_save_game_path(
 #[tauri::command]
 #[specta::specta]
 pub async fn configure_game_path(app: AppHandle, game_id: String, game_path: Option<String>) {
+    let index_app = app.clone();
     let _ = tauri::async_runtime::spawn_blocking(move || {
         resolve_and_save_game_path(&app, game_id, game_path)
     })
     .await;
+    tauri::async_runtime::spawn(async move {
+        crate::commands::mod_index::ensure_index(index_app).await;
+    });
 }
 
 #[tauri::command]
