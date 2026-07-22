@@ -1,4 +1,5 @@
 ---
+import { GAMES, type ModTargetId } from '@modrex/games'
 import { getDocsGame, type DocsGameId } from '../../data/docsGames'
 
 interface Props {
@@ -6,6 +7,8 @@ interface Props {
 }
 
 const game = getDocsGame(Astro.props.game)
+const targetPath = (targetId: ModTargetId) =>
+    GAMES[game.id].modTargets.find((target) => target.id === targetId)!.path
 ---
 
 <table class="docs-data-table">
@@ -22,7 +25,13 @@ const game = getDocsGame(Astro.props.game)
                 <tr>
                     <td>{target.label}</td>
                     <td>
-                        {target.pathIsCode === false ? target.path : <code>{target.path}</code>}
+                        {target.pathIsCode === false ? (
+                            target.path
+                        ) : (
+                            <code>
+                                {target.targetId ? targetPath(target.targetId) : target.path}
+                            </code>
+                        )}
                     </td>
                     <td>{target.notes}</td>
                 </tr>

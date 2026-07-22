@@ -1,4 +1,4 @@
-import { type GameId } from '@modrex/games'
+import { type GameId, type ModTargetId } from '@modrex/games'
 
 export type DocsGameId = GameId & ('pd3' | 'pd2' | 'pdth' | 'cb')
 
@@ -11,7 +11,8 @@ export interface OverviewTarget {
 
 export interface ModTarget {
     label: string
-    path: string
+    targetId?: ModTargetId
+    path?: string
     pathIsCode?: boolean
     notes: string
 }
@@ -34,12 +35,12 @@ export const docsGames: readonly DocsGame[] = [
         targets: [
             {
                 label: 'Pak mods',
-                path: 'PAYDAY3/Content/Paks/~mods',
+                targetId: 'paks',
                 notes: 'Primary target for pak files. Disabled files are kept under disabled with a .disabled suffix.',
             },
             {
                 label: 'UE4SS mods',
-                path: 'PAYDAY3/Binaries/Win64/Mods',
+                targetId: 'ue4ss_mods',
                 notes: 'Used for Lua mods when UE4SS is installed. Modrex excludes bundled UE4SS framework modules from the installed list.',
             },
         ],
@@ -54,12 +55,12 @@ export const docsGames: readonly DocsGame[] = [
         targets: [
             {
                 label: 'BLT and BeardLib mods',
-                path: 'mods',
+                targetId: 'mods',
                 notes: 'Modrex recognizes folders with mod.txt or main.xml.',
             },
             {
                 label: 'Asset replacements',
-                path: 'assets/mod_overrides',
+                targetId: 'mod_overrides',
                 notes: 'Marker-less folders are routed here when they match the mod_overrides layout.',
             },
             {
@@ -80,12 +81,12 @@ export const docsGames: readonly DocsGame[] = [
         targets: [
             {
                 label: 'BLT and DAHM mods',
-                path: 'mods',
+                targetId: 'mods',
                 notes: 'Modrex recognizes BLT folders with mod.txt and DAHM sub-mods with base.lua when they match the mod index.',
             },
             {
                 label: 'Asset replacements',
-                path: 'assets/mod_overrides',
+                targetId: 'mod_overrides',
                 notes: 'Marker-less asset replacement folders are routed here.',
             },
         ],
@@ -101,17 +102,17 @@ export const docsGames: readonly DocsGame[] = [
         targets: [
             {
                 label: 'Official ModKit mods',
-                path: 'CrimeBoss/Mods',
+                targetId: 'mods',
                 notes: 'Primary target for new installs. Modrex creates the expected folder structure around extracted files when needed.',
             },
             {
                 label: 'Legacy pak mods',
-                path: 'CrimeBoss/Content/Paks/~mods',
+                targetId: 'paks',
                 notes: 'Used for pre-existing loose pak installs and loose-triplet mods.',
             },
             {
                 label: 'UE4SS mods',
-                path: 'CrimeBoss/Binaries/Win64/Mods',
+                targetId: 'ue4ss_mods',
                 notes: 'Used for Lua mods when UE4SS is installed. Bundled UE4SS framework modules are excluded from the installed list.',
             },
         ],

@@ -34,6 +34,8 @@ const launcherFields = [
     ['Epic Games', 'epic'],
     ['Xbox App', 'xbox'],
 ]
+const engineNames = { pd3: 'PD3', pd2: 'PD2', pdth: 'PDTH', cb: 'CRIMEBOSS', raid: 'RAID' }
+const engineSource = readFileSync('src-tauri/src/commands/mods/engine.rs', 'utf8')
 
 const missingInTs = rustIds.filter((id) => !tsIds.includes(id))
 const missingInRust = tsIds.filter((id) => !rustIds.includes(id))
@@ -68,6 +70,24 @@ for (const id of tsIds) {
             `Launcher support for '${id}' differs: Rust has ${rustLaunchers.join(', ') || 'none'}; ` +
                 `@modrex/games has ${sharedLaunchers.join(', ') || 'none'}`
         )
+    }
+
+    const targetsBlock = spec?.match(/modTargets:\s*\[([\s\S]*?)\],/)?.[1]
+    const sharedTargets = [
+        ...(targetsBlock?.matchAll(/id: '([^']+)', path: '([^']+)'/g) ?? []),
+    ].map((match) => `${match[1]}:${match[2]}`)
+    const engine = engineSource.match(
+        new RegExp(`pub static ${engineNames[id]}_ENGINE[\\s\\S]*?(?=\\npub static|\\npub fn)`)
+    )?.[0]
+    const rustTargets = [
+        ...(engine?.matchAll(/tag:\s*"([^"]+)",[\s\S]*?mods_subpath:\s*&\[([^\]]*)\]/g) ?? []),
+    ].map(
+        (match) =>
+            `${match[1]}:${[...match[2].matchAll(/"([^"]+)"/g)].map((part) => part[1]).join('/')}`
+    )
+    if (sharedTargets.join('|') !== rustTargets.join('|')) {
+        failed = true
+        console.error(`Mod targets for '${id}' differ between Rust and @modrex/games`)
     }
 }
 
