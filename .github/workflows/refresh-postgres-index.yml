@@ -3,8 +3,20 @@ name: Refresh Postgres index
 on:
     workflow_dispatch:
         inputs:
+            game:
+                description: 'Game to refresh, or all five games'
+                required: true
+                default: all
+                type: choice
+                options:
+                    - all
+                    - pd3
+                    - pd2
+                    - pdth
+                    - cb
+                    - raid
             limit:
-                description: 'Unprocessed listings per game (1-100)'
+                description: 'Unprocessed listings per selected game (1-1000)'
                 required: true
                 default: '10'
                 type: string
@@ -27,6 +39,7 @@ jobs:
             R2_BUCKET: ${{ secrets.R2_BUCKET }}
             R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
             INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+            GAME: ${{ inputs.game }}
             LIMIT: ${{ inputs.limit }}
         steps:
             - uses: actions/checkout@v4
@@ -57,14 +70,19 @@ jobs:
                   case "${LIMIT}" in
                       ''|*[!0-9]*) exit 1 ;;
                   esac
-                  if [ "${LIMIT}" -lt 1 ] || [ "${LIMIT}" -gt 100 ]; then
+                  if [ "${LIMIT}" -lt 1 ] || [ "${LIMIT}" -gt 1000 ]; then
                       exit 1
                   fi
+                  case "${GAME}" in
+                      all) games='pd3 pd2 pdth cb raid' ;;
+                      pd3|pd2|pdth|cb|raid) games="${GAME}" ;;
+                      *) exit 1 ;;
+                  esac
                   pnpm --dir apps/index migrate:postgres
                   pnpm --dir apps/index verify:postgres-catalog
                   pnpm --dir apps/index sync:postgres-listings
                   mkdir -p apps/index/artifacts
-                  for game in pd3 pd2 pdth cb raid; do
+                  for game in ${games}; do
                       pnpm --dir apps/index process:postgres-content -- --game="${game}" --limit="${LIMIT}"
                       database="apps/index/artifacts/${game}.db"
                       pnpm --dir apps/index export:postgres-sqlite -- --game="${game}" --output="artifacts/${game}.db" --require-files

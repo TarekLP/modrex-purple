@@ -35,8 +35,8 @@ if (!supportedGames.includes(game as (typeof supportedGames)[number])) {
 const limit = Number(
     process.argv.find((argument) => argument.startsWith('--limit='))?.slice(8) ?? '25'
 )
-if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-    throw new Error('--limit must be an integer from 1 through 100')
+if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+    throw new Error('--limit must be an integer from 1 through 1000')
 }
 
 const apiBase = process.env.MODWORKSHOP_API_BASE ?? 'https://api.modworkshop.net'
