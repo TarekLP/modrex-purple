@@ -138,6 +138,10 @@ for (const listing of listings) {
                     entries = entry ? [entry] : []
                 }
                 if (entries.length === 0) continue
+                const indexedEntries = entries.map((entry) => ({
+                    sha256: entry.sha256,
+                    entry_name: entry.entryName,
+                }))
 
                 await sql.query(
                     `WITH indexed_mod AS (
@@ -163,7 +167,7 @@ for (const listing of listings) {
                         listing.remote_id,
                         listing.name,
                         `https://modworkshop.net/mod/${listing.remote_id}`,
-                        JSON.stringify(entries),
+                        JSON.stringify(indexedEntries),
                         file.id,
                         file.version || listing.version,
                         new Date().toISOString(),
