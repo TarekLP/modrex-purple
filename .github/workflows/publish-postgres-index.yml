@@ -1,0 +1,84 @@
+name: Publish Postgres index to R2
+
+on:
+    workflow_dispatch:
+        inputs:
+            game:
+                description: 'Game to publish'
+                required: true
+                type: choice
+                options: [pd3, pd2, pdth, cb, raid]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: publish-postgres-index-${{ inputs.game }}
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        env:
+            AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION: auto
+            R2_BUCKET: ${{ secrets.R2_BUCKET }}
+            R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+              with:
+                  version: 10.32.1
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Install AWS CLI
+              run: sudo apt-get update && sudo apt-get install -y awscli
+
+            - name: Apply Postgres schema migrations
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+              run: pnpm --dir apps/index migrate:postgres
+
+            - name: Export and publish immutable generation
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+                  GAME: ${{ inputs.game }}
+              run: |
+                  set -euo pipefail
+                  generation="$(date -u +%Y-%m-%dT%H%M%SZ)"
+                  database="apps/index/artifacts/${GAME}.db"
+                  key="catalog/${generation}/${GAME}.db"
+                  mkdir -p apps/index/artifacts
+                  pnpm --dir apps/index export:postgres-sqlite -- --game="${GAME}" --output="artifacts/${GAME}.db" --require-files
+                  sha256="$(sha256sum "${database}" | cut -d ' ' -f 1)"
+                  size="$(wc -c < "${database}")"
+                  if ! aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"; then
+                      printf '%s\n' '{"version":1,"games":{}}' > latest.json
+                  fi
+                  previous_sha256="$(jq -r --arg game "${GAME}" '.games[$game].sha256 // empty' latest.json)"
+                  if [ "${sha256}" = "${previous_sha256}" ]; then
+                      printf 'No content change for %s; keeping the current generation.\n' "${GAME}"
+                      exit 0
+                  fi
+                  aws s3 cp "${database}" "s3://${R2_BUCKET}/${key}" \
+                      --endpoint-url "${R2_ENDPOINT}" \
+                      --content-type application/vnd.sqlite3 \
+                      --cache-control 'public, max-age=31536000, immutable'
+                  jq --arg game "${GAME}" --arg key "${key}" --arg sha256 "${sha256}" --arg generation "${generation}" --argjson size "${size}" \
+                      '.version = 1 | .generated_at = $generation | .games = (.games // {}) | .games[$game] = {key: $key, sha256: $sha256, size: $size, generated_at: $generation}' \
+                      latest.json > latest.next.json
+                  aws s3 cp latest.next.json "s3://${R2_BUCKET}/catalog/latest.json" \
+                      --endpoint-url "${R2_ENDPOINT}" \
+                      --content-type application/json \
+                      --cache-control 'no-cache'
+                  printf 'Published %s with sha256 %s\n' "${key}" "${sha256}"

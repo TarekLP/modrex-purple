@@ -13,6 +13,7 @@ if (!isGameId(game)) throw new Error(`--game must be one of ${GAME_IDS.join(', '
 
 const output = process.argv.find((argument) => argument.startsWith('--output='))?.slice(9)
 if (!output) throw new Error('--output is required')
+const requireFiles = process.argv.includes('--require-files')
 
 const outputPath = resolve(output)
 const temporaryPath = `${outputPath}.tmp`
@@ -92,6 +93,7 @@ const rows = (await sql`
     WHERE games.slug = ${game}
     ORDER BY files.id
 `) as ExportRow[]
+if (requireFiles && rows.length === 0) throw new Error(`no indexed file records exist for ${game}`)
 
 const catalog = (await sql`
     SELECT games.id AS game_id, games.name AS game_name, games.slug AS game_slug,
