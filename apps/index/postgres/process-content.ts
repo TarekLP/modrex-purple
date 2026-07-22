@@ -138,10 +138,13 @@ for (const listing of listings) {
                     entries = entry ? [entry] : []
                 }
                 if (entries.length === 0) continue
-                const indexedEntries = entries.map((entry) => ({
-                    sha256: entry.sha256,
-                    entry_name: entry.entryName,
-                }))
+                const indexedEntries: Array<{ sha256: string; entry_name: string }> = []
+                const indexedHashes = new Set<string>()
+                for (const entry of entries) {
+                    if (indexedHashes.has(entry.sha256)) continue
+                    indexedHashes.add(entry.sha256)
+                    indexedEntries.push({ sha256: entry.sha256, entry_name: entry.entryName })
+                }
 
                 await sql.query(
                     `WITH indexed_mod AS (
