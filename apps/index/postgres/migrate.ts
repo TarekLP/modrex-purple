@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { neon } from '@neondatabase/serverless'
 
+import { bootstrapCatalog } from './bootstrap.js'
 import { migrations } from './schema.js'
 
 const databaseUrl = process.env.INDEX_DATABASE_URL
@@ -42,3 +43,6 @@ for (const migration of migrations) {
     ])
     console.log(`Applied ${migration.version}`)
 }
+
+await bootstrapCatalog(sql)
+console.log('Bootstrapped game catalog')
