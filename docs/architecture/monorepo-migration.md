@@ -34,9 +34,10 @@ The migration must preserve all of these contracts:
    `https://github.com/modrexio/modrex/releases/latest/download/latest.json` remains valid.
 2. `install.config.json` stays at the repository root so
    `https://raw.githubusercontent.com/modrexio/modrex/main/install.config.json` remains valid.
-3. `modrexio/modrex-index` remains the publication target for the `latest-index` release.
-   Existing clients permanently fetch
-   `https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db`.
+3. `modrexio/modrex-index` remains an independent legacy producer for the `latest-index`
+   release. Existing clients permanently fetch
+   `https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db`; its
+   fixed game set and exported schema remain frozen for old desktop versions.
 4. `modrexio/mget` remains the tag host used by the install-script Function.
 5. `modrex.net`, `/install.sh`, and `/api/collect` remain available throughout the site
    migration.

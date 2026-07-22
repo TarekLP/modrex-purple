@@ -482,8 +482,8 @@ locally, offline, read-only. Only the URL changes.
    multi-megabyte download. An R2 custom domain serves the object directly with R2's own
    caching and no compute in the path.
 
-5. GitHub Releases keeps BINARIES only. The DB stops being a release asset for new
-   clients (but see the dual-publish constraint below).
+5. GitHub Releases keeps BINARIES only for new clients. The independent legacy producer
+   keeps its frozen monolithic DB on `modrexio/modrex-index`; new clients use R2.
 
 6. Export PER-GAME SHARDS, not one monolith. A PD2-only user should not download PD3,
    Crime Boss and RAID data. On R2 shards are just separate keys, so this is nearly free
@@ -499,15 +499,14 @@ locally, offline, read-only. Only the URL changes.
 
 ### Hard constraints
 
-- DUAL-PUBLISH IS MANDATORY. `INDEX_URL` in mod_index.rs is compiled into every shipped
-  binary:
+- THE LEGACY PRODUCER IS MANDATORY. `INDEX_URL` in old mod_index.rs is compiled into every
+  shipped binary:
   https://github.com/modrexio/modrex-index/releases/download/latest-index/index.db
-  Every 0.12.2-and-earlier install fetches that forever. The job must keep publishing the
-  monolithic index.db to that exact tag, or those users silently stop identifying newly
-  released mods (degradation with no error message). New clients fetch shards from R2.
-  The modrex-index repo therefore stays alive as a publish target even if its source
-  moves. modrex-site also reads index-stats.json from the same tag
-  (src/lib/mod-index-shared.ts).
+  Every 0.12.2-and-earlier install fetches that forever. `modrexio/modrex-index` therefore
+  keeps its own five-minute producer, frozen game set, schema, scheduler, and release tag.
+  It continues indexing updates for games old clients already support, but never needs new
+  games or R2 shards. The new Postgres builder does not publish this artifact. New clients
+  fetch shards from R2. The site moves its counter to the new pipeline when R2 cuts over.
 
 - THE EXPORTED SCHEMA IS FROZEN for shipped clients. mod_index.rs joins
   files -> mods -> sources -> games and filters on games.name. Postgres may model things
@@ -557,11 +556,13 @@ architecture. Do it whenever; it does not block or depend on any of the above.
 
 ### Sequencing
 
-Postgres migration and the R2 cutover are separable. Doing Postgres first fixes
+Postgres migration and the R2 cutover are separable. First restore the legacy repository's
+five-minute scheduler and disable the temporary monorepo legacy scheduler; the two producers
+must never write the same release. Doing Postgres first fixes
 resumability and per-game scoping without touching what clients fetch, which keeps the
 blast radius away from the download path. The R2 cutover plus sharding is the part that
-changes a URL compiled into shipped binaries, so it wants the dual-publish step working
-and verified before anything else moves.
+changes a URL compiled into new binaries, so it wants the R2 export path working and verified
+before any desktop client moves.
 
 ---
 
