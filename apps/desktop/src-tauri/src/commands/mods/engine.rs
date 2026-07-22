@@ -68,6 +68,13 @@ impl ScanTarget {
         }
     }
 
+    pub fn excluded_names(&self) -> &'static [&'static str] {
+        match &self.unit {
+            ModUnit::Directory { excluded_names, .. } => excluded_names,
+            ModUnit::File { .. } => &[],
+        }
+    }
+
     pub fn priority_prefix_enabled(&self) -> bool {
         match &self.unit {
             ModUnit::File {
@@ -207,7 +214,7 @@ pub static PD2_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &["mod.txt", "main.xml"],
                 scan_markers: &["mod.txt", "main.xml"],
                 index_gated_markers: &[],
-                excluded_names: &[],
+                excluded_names: BLT_INFRA_FOLDERS,
                 priority_prefix: false,
             },
             label_key: "mods",
@@ -248,7 +255,7 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
                 entry_markers: &["mod.txt", "base.lua"],
                 scan_markers: &["mod.txt"],
                 index_gated_markers: &["base.lua"],
-                excluded_names: &[],
+                excluded_names: BLT_INFRA_FOLDERS,
                 priority_prefix: false,
             },
             label_key: "mods",
@@ -273,11 +280,17 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     ],
 };
 
-// BLT infrastructure dirs that live under RAID's mods/ but are never user mods — mirrors
+// BLT/Diesel infrastructure dirs the loader creates under mods/ but which are never user mods:
+// base (the SuperBLT basemod), plus the downloads/logs/saves runtime dirs BLT and BeardLib
+// recreate on every launch. Common to every Diesel game (RAID, PD2, PDTH); mirrors
 // RAIDWW2-BeardLib's own _ignore_folders list (Classes/Frameworks.lua), verified against a real
-// install. BeardLib (the framework) is deliberately omitted: unlike these runtime/basemod dirs
-// it's a normal installable mod page (id 49760), tracked like any other mod (matching PD2).
-const RAID_INFRA_FOLDERS: &[&str] = &["base", "downloads", "logs", "saves"];
+// install. On RAID's blanket-accept target this list is what keeps them out of the mod scan; on
+// PD2/PDTH markers already exclude them from the scan, but the list is still needed so
+// launch_without_mods (which moves folders regardless of markers) doesn't back them up and then
+// fail to restore them once the loader recreates them. BeardLib (the framework) is deliberately
+// omitted: unlike these runtime/basemod dirs it's a normal installable mod page (id 49760),
+// tracked like any other mod.
+const BLT_INFRA_FOLDERS: &[&str] = &["base", "downloads", "logs", "saves"];
 
 // RAID's modern loader (RAID-SuperBLT + RAIDWW2-BeardLib) loads BLT script mods AND asset
 // override packs from a single mods/<name>/ folder: the game's older assets/mod_overrides mount
@@ -299,7 +312,7 @@ pub static RAID_ENGINE: ModEngineConfig = ModEngineConfig {
             entry_markers: &[],
             scan_markers: &[],
             index_gated_markers: &[],
-            excluded_names: RAID_INFRA_FOLDERS,
+            excluded_names: BLT_INFRA_FOLDERS,
             priority_prefix: false,
         },
         label_key: "mods",

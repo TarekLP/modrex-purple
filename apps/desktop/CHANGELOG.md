@@ -47,6 +47,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed a mod loader showing as installed immediately after installing it while installing the mod still reported it missing. Loader status is now re-checked against the game folder instead of assumed, which also corrects PAYDAY 2's Diesel 3.0 branch, where SuperBLT cannot work even when its file is present.
 - Fixed dependencies that need a manual choice, such as picking from a multi-file archive, doing nothing when installed from a mod's Dependencies tab. They now explain that the dependency has to be installed from its own mod page.
 - Fixed overlapping operations on the same game, such as a download finishing while the mod list refreshed, being able to discard each other's changes to the installed mod list.
+- Fixed the "mods are hidden" warning sometimes never clearing after launching PAYDAY 2 or PAYDAY: The Heist without mods.
 
 ### Security
 

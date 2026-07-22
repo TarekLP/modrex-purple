@@ -284,6 +284,11 @@ pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option
     .ok()?
 }
 
+// Loader-created runtime dirs safe to drop from a stranded backup on restore: pure caches/logs the
+// loader regenerates. Deliberately narrower than a target's full excluded_names: saves/ (mod
+// user data) and base/ are on that list too but must never be auto-deleted.
+const DISPOSABLE_BACKUP_DIRS: &[&str] = &["logs", "downloads"];
+
 fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> Result<(), String> {
     for target in cfg.targets {
         let mods_dir = mods_base(game_path, target);
@@ -298,7 +303,22 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
             if let Ok(entries) = fs::read_dir(&mods_bak) {
                 for entry in entries.flatten() {
                     let name = entry.file_name();
-                    let _ = fs::rename(mods_bak.join(&name), mods_dir.join(&name));
+                    let dest = mods_dir.join(&name);
+                    // Self-heal installs stranded by the pre-fix behaviour: a disposable runtime dir
+                    // (BLT's logs/downloads) backed up by an older build, then recreated in mods/
+                    // while the game ran, can't rename back over the fresh copy, which strands
+                    // mods.bak and pins the "mods hidden" banner. These are regenerated caches, not
+                    // mods, so drop the stale backup so mods.bak can clear. Deliberately excludes
+                    // saves/ (mod-persisted user data) and base/: those are never auto-deleted.
+                    let name_str = name.to_string_lossy();
+                    if dest.exists()
+                        && target.excluded_names().contains(&name_str.as_ref())
+                        && DISPOSABLE_BACKUP_DIRS.contains(&name_str.as_ref())
+                    {
+                        fs::remove_dir_all(mods_bak.join(&name)).ok();
+                        continue;
+                    }
+                    let _ = fs::rename(mods_bak.join(&name), dest);
                 }
             }
             // remove_dir no-ops when non-empty, so any entry that failed to rename is never deleted.
@@ -379,8 +399,17 @@ pub fn launch_without_mods(app: AppHandle, game_id: String) -> Result<(), String
                         if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
                             continue;
                         }
-                        if i == 0 && entry.file_name().to_string_lossy() == "base" {
+                        let name = entry.file_name();
+                        let name = name.to_string_lossy();
+                        if i == 0 && name == "base" {
                             continue; // BLT recreates base/ if missing, showing a "base mod missing" dialog
+                        }
+                        // Never back up runtime/infra folders (RAID's downloads/logs/saves): the
+                        // game recreates them in mods/ while running, so a restore would then fail
+                        // to rename the backed-up copy over the fresh one, stranding mods.bak and
+                        // pinning the "mods hidden" banner on forever.
+                        if target.excluded_names().contains(&name.as_ref()) {
+                            continue;
                         }
                         let _ = fs::rename(
                             mods_dir.join(entry.file_name()),
