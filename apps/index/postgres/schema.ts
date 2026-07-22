@@ -56,4 +56,22 @@ export const migrations: Migration[] = [
             )`,
         ],
     },
+    {
+        version: '002_mod_listings',
+        statements: [
+            `CREATE TABLE mod_listings (
+                source_id BIGINT NOT NULL REFERENCES sources(id),
+                remote_id BIGINT NOT NULL,
+                name TEXT NOT NULL,
+                version TEXT NOT NULL,
+                has_download BOOLEAN NOT NULL,
+                bumped_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                download_id BIGINT,
+                download_type TEXT,
+                PRIMARY KEY(source_id, remote_id)
+            )`,
+            'CREATE INDEX mod_listings_source_bumped_at_idx ON mod_listings(source_id, bumped_at)',
+        ],
+    },
 ]
