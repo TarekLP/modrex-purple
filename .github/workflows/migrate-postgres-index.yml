@@ -33,3 +33,8 @@ jobs:
               env:
                   INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
               run: pnpm --dir apps/index migrate:postgres
+
+            - name: Verify Postgres game catalog
+              env:
+                  INDEX_DATABASE_URL: ${{ secrets.INDEX_DATABASE_URL }}
+              run: pnpm --dir apps/index verify:postgres-catalog
