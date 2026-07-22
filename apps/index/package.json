@@ -7,6 +7,9 @@
         "build-index": "tsx build-index.ts",
         "test:staged-rebuild": "node test-staged-rebuild.mjs"
     },
+    "dependencies": {
+        "@modrex/games": "workspace:*"
+    },
     "devDependencies": {
         "@types/adm-zip": "^0.5.8",
         "@types/better-sqlite3": "^7.6.13",

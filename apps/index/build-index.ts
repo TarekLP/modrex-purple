@@ -34,13 +34,9 @@ import {
 } from 'fs'
 import { execFileSync } from 'child_process'
 import { tmpdir } from 'os'
+import { GAME_IDS, GAMES, type GameId } from '@modrex/games'
 
 const BASE = process.env.MODWORKSHOP_API_BASE ?? 'https://api.modworkshop.net'
-const PD3_GAME_ID = 853
-const PD2_GAME_ID = 1
-const PDTH_GAME_ID = 2
-const CRIMEBOSS_GAME_ID = 857
-const RAID_GAME_ID = 543
 const USER_AGENT = 'modrex-indexer/1.0'
 const OUTPUT_DIR = process.env.MODREX_INDEX_OUTPUT_DIR ?? import.meta.dirname
 const DB_PATH = join(OUTPUT_DIR, 'index.db')
@@ -58,8 +54,8 @@ const RECHECK_ALL = process.argv.includes('--recheck-all')
 const STAGED_REBUILD = process.argv.includes('--staged-rebuild')
 const FINALIZE_REBUILD = process.argv.includes('--finalize-rebuild')
 const SELECTED_GAME = process.argv.find((a) => a.startsWith('--game='))?.split('=')[1] ?? null
-const VALID_GAMES = ['pd3', 'pd2', 'pdth', 'cb', 'raid'] as const
-type GameSlug = (typeof VALID_GAMES)[number]
+const VALID_GAMES = GAME_IDS
+type GameSlug = GameId
 const MAX_RUNTIME_MINUTES = parseFloat(
     process.argv.find((a) => a.startsWith('--max-runtime-minutes='))?.split('=')[1] ?? '0'
 )
@@ -251,33 +247,33 @@ function openDb(): {
     )
     const getSource = db.prepare('SELECT id FROM sources WHERE game_id = ? AND name = ?')
 
-    upsertGame.run('PAYDAY 3', 'pd3')
+    upsertGame.run(GAMES.pd3.name, 'pd3')
     const pd3Game = getGame.get('pd3') as { id: number }
-    upsertSource.run(pd3Game.id, 'modworkshop', BASE, String(PD3_GAME_ID))
+    upsertSource.run(pd3Game.id, 'modworkshop', BASE, String(GAMES.pd3.workshopId))
     const pd3Source = getSource.get(pd3Game.id, 'modworkshop') as { id: number }
 
-    upsertGame.run('PAYDAY 2', 'pd2')
+    upsertGame.run(GAMES.pd2.name, 'pd2')
     const pd2Game = getGame.get('pd2') as { id: number }
-    upsertSource.run(pd2Game.id, 'modworkshop', BASE, String(PD2_GAME_ID))
+    upsertSource.run(pd2Game.id, 'modworkshop', BASE, String(GAMES.pd2.workshopId))
     const pd2Source = getSource.get(pd2Game.id, 'modworkshop') as { id: number }
 
-    upsertGame.run('PAYDAY: The Heist', 'pdth')
+    upsertGame.run(GAMES.pdth.name, 'pdth')
     const pdthGame = getGame.get('pdth') as { id: number }
-    upsertSource.run(pdthGame.id, 'modworkshop', BASE, String(PDTH_GAME_ID))
+    upsertSource.run(pdthGame.id, 'modworkshop', BASE, String(GAMES.pdth.workshopId))
     const pdthSource = getSource.get(pdthGame.id, 'modworkshop') as { id: number }
 
     // Slug/name match modrex-main's CRIMEBOSS_ENGINE.index_game_name exactly — modrex-main
     // joins files -> mods -> sources -> games filtered by games.name, so this string is load-
     // bearing, not cosmetic.
-    upsertGame.run('Crime Boss: Rockay City', 'cb')
+    upsertGame.run(GAMES.cb.name, 'cb')
     const cbGame = getGame.get('cb') as { id: number }
-    upsertSource.run(cbGame.id, 'modworkshop', BASE, String(CRIMEBOSS_GAME_ID))
+    upsertSource.run(cbGame.id, 'modworkshop', BASE, String(GAMES.cb.workshopId))
     const cbSource = getSource.get(cbGame.id, 'modworkshop') as { id: number }
 
     // Name matches modrex-main's RAID_ENGINE.index_game_name — load-bearing, see above.
-    upsertGame.run('RAID: World War II', 'raid')
+    upsertGame.run(GAMES.raid.name, 'raid')
     const raidGame = getGame.get('raid') as { id: number }
-    upsertSource.run(raidGame.id, 'modworkshop', BASE, String(RAID_GAME_ID))
+    upsertSource.run(raidGame.id, 'modworkshop', BASE, String(GAMES.raid.workshopId))
     const raidSource = getSource.get(raidGame.id, 'modworkshop') as { id: number }
 
     return {
@@ -1251,11 +1247,11 @@ async function main(): Promise<void> {
                 console.log(`  ${mods.length} ${label} mods to process\n`)
                 return mods
             }
-            const pd3Mods = await list('pd3', PD3_GAME_ID, 'PD3')
-            const pd2Mods = await list('pd2', PD2_GAME_ID, 'PD2')
-            const pdthMods = await list('pdth', PDTH_GAME_ID, 'PDTH')
-            const cbMods = await list('cb', CRIMEBOSS_GAME_ID, 'Crime Boss')
-            const raidMods = await list('raid', RAID_GAME_ID, 'RAID')
+            const pd3Mods = await list('pd3', GAMES.pd3.workshopId, 'PD3')
+            const pd2Mods = await list('pd2', GAMES.pd2.workshopId, 'PD2')
+            const pdthMods = await list('pdth', GAMES.pdth.workshopId, 'PDTH')
+            const cbMods = await list('cb', GAMES.cb.workshopId, 'Crime Boss')
+            const raidMods = await list('raid', GAMES.raid.workshopId, 'RAID')
             return { pd3Mods, pd2Mods, pdthMods, cbMods, raidMods }
         }
     )

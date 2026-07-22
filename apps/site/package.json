@@ -34,6 +34,7 @@
         "zod": "4.4.3"
     },
     "dependencies": {
+        "@modrex/games": "workspace:*",
         "@astrojs/sitemap": "3.7.3",
         "@astrojs/starlight": "0.41.3",
         "lucide": "1.17.0"

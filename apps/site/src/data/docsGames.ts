@@ -1,7 +1,9 @@
+import { GAMES, type GameId } from '@modrex/games'
+
 export const allLaunchers = ['Steam', 'Epic Games', 'Xbox App'] as const
 
 export type LauncherName = (typeof allLaunchers)[number]
-export type DocsGameId = 'pd3' | 'pd2' | 'pdth' | 'cb'
+export type DocsGameId = GameId & ('pd3' | 'pd2' | 'pdth' | 'cb')
 
 export interface OverviewTarget {
     label: string
@@ -30,7 +32,7 @@ export const docsGames: readonly DocsGame[] = [
     {
         id: 'pd3',
         slug: 'payday-3',
-        name: 'PAYDAY 3',
+        name: GAMES.pd3.name,
         launchers: ['Steam', 'Epic Games', 'Xbox App'],
         overviewTargets: [
             { code: '.pak', label: 'files', path: '~mods' },
@@ -52,7 +54,7 @@ export const docsGames: readonly DocsGame[] = [
     {
         id: 'pd2',
         slug: 'payday-2',
-        name: 'PAYDAY 2',
+        name: GAMES.pd2.name,
         launchers: ['Steam', 'Epic Games'],
         overviewTargets: [
             { label: 'BLT/BeardLib folders', path: 'mods' },
@@ -80,7 +82,7 @@ export const docsGames: readonly DocsGame[] = [
     {
         id: 'pdth',
         slug: 'payday-the-heist',
-        name: 'PAYDAY: The Heist',
+        name: GAMES.pdth.name,
         launchers: ['Steam'],
         overviewTargets: [
             { label: 'BLT/DAHM folders', path: 'mods' },
@@ -102,7 +104,7 @@ export const docsGames: readonly DocsGame[] = [
     {
         id: 'cb',
         slug: 'crime-boss',
-        name: 'Crime Boss: Rockay City',
+        name: GAMES.cb.name,
         launchers: ['Steam', 'Epic Games'],
         overviewTargets: [
             { label: 'Official ModKit folders', path: 'CrimeBoss/Mods' },

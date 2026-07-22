@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 
 // modworkshop's per-game id is registered twice by necessity: SOURCE_REGISTRY in Rust and
-// workshopId in GAME_SPECS, which the renderer uses directly to build API calls. Neither
+// workshopId in @modrex/games, which the renderer uses directly to build API calls. Neither
 // side can see the other, so adding a game to one and forgetting the other compiles fine
 // and fails at runtime. This check diffs the two.
 //
@@ -27,10 +27,10 @@ for (const chunk of registryBlock.split(/\bid:\s*"/).slice(1)) {
     rustSources.set(sourceId, new Map(pairs))
 }
 
-const ts = readFileSync('src/shared/types.ts', 'utf8')
+const ts = readFileSync('../../packages/games/index.ts', 'utf8')
 const specsBlock = ts.match(/const GAME_SPECS = \{([\s\S]*?)\n\} satisfies/)?.[1]
 if (!specsBlock) {
-    console.error('check-sources: GAME_SPECS not found in src/shared/types.ts')
+    console.error('check-sources: GAMES not found in packages/games/index.ts')
     process.exit(1)
 }
 
@@ -53,18 +53,20 @@ function diff(sourceId, tsMap) {
     }
     for (const [gameId, native] of rustMap) {
         if (!tsMap.has(gameId)) {
-            errors.push(`${sourceId}: Rust maps '${gameId}' but GAME_SPECS does not`)
+            errors.push(`${sourceId}: Rust maps '${gameId}' but @modrex/games does not`)
             continue
         }
         if (tsMap.get(gameId) !== native) {
             errors.push(
-                `${sourceId}: '${gameId}' is '${native}' in Rust but '${tsMap.get(gameId)}' in GAME_SPECS`
+                `${sourceId}: '${gameId}' is '${native}' in Rust but '${tsMap.get(gameId)}' in @modrex/games`
             )
         }
     }
     for (const gameId of tsMap.keys()) {
         if (!rustMap.has(gameId)) {
-            errors.push(`${sourceId}: GAME_SPECS maps '${gameId}' but the Rust registry does not`)
+            errors.push(
+                `${sourceId}: @modrex/games maps '${gameId}' but the Rust registry does not`
+            )
         }
     }
 }

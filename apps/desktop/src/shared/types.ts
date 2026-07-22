@@ -153,59 +153,10 @@ export const THUMBNAIL_BASE_URL = 'https://storage.modworkshop.net/mods/images'
 export const AVATAR_BASE_URL = 'https://storage.modworkshop.net/users/images'
 export const GAME_STORAGE_KEY = 'pd3'
 
-export interface GameSpec {
-    name: string
-    shortName: string
-    workshopId: number
-    storageKey: string
-    hasNews: boolean
-    // Launch argument this game needs for mods to load; absent = none required.
-    // Drives the launch warning in TopBar and the Settings launch-options hint.
-    requiredLaunchFlag?: string
-}
-
-const GAME_SPECS = {
-    pd3: {
-        name: 'PAYDAY 3',
-        shortName: 'PD3',
-        workshopId: 853,
-        storageKey: 'pd3',
-        hasNews: true,
-        requiredLaunchFlag: '-fileopenlog',
-    },
-    pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2', hasNews: true },
-    pdth: {
-        name: 'PAYDAY: The Heist',
-        shortName: 'PDTH',
-        workshopId: 2,
-        storageKey: 'pdth',
-        hasNews: true,
-    },
-    cb: {
-        name: 'Crime Boss: Rockay City',
-        shortName: 'CBRC',
-        workshopId: 857,
-        storageKey: 'cb',
-        hasNews: false,
-    },
-    raid: {
-        name: 'RAID: World War II',
-        shortName: 'RAID',
-        workshopId: 543,
-        storageKey: 'raid',
-        hasNews: false,
-    },
-} satisfies Record<string, GameSpec>
-
-// Adding a game is one GAME_SPECS entry: GameId and every Object.keys(GAMES) consumer
-// (App's valid-id check, WelcomeScreen's picker) pick it up automatically.
-export type GameId = keyof typeof GAME_SPECS
-
-export const GAMES: Record<GameId, GameSpec> = GAME_SPECS
-
-export function isGameId(value: string | null): value is GameId {
-    return value !== null && Object.hasOwn(GAMES, value)
-}
+// Game identity data is shared with the indexer and site. GAME_STORAGE_KEY remains the
+// desktop's persisted selected-game default, rather than part of the shared registry.
+export { GAMES, isGameId } from '@modrex/games'
+export type { GameId, GameSpec } from '@modrex/games'
 
 // Wire types owned by the Rust side and generated into bindings.ts; re-exported
 // here so renderer code keeps one import path for shared shapes.
