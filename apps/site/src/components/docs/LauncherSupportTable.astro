@@ -1,5 +1,6 @@
 ---
-import { allLaunchers, getDocsGame, type DocsGameId } from '../../data/docsGames'
+import { GAMES, LAUNCHERS } from '@modrex/games'
+import { type DocsGameId } from '../../data/docsGames'
 import SupportBadge from './SupportBadge.astro'
 import LauncherIcon from './LauncherIcon.astro'
 
@@ -7,8 +8,7 @@ interface Props {
     game: DocsGameId
 }
 
-const game = getDocsGame(Astro.props.game)
-const supportedLaunchers = new Set(game.launchers)
+const supportedLaunchers = new Set(GAMES[Astro.props.game].launchers)
 ---
 
 <table class="docs-data-table">
@@ -20,7 +20,7 @@ const supportedLaunchers = new Set(game.launchers)
     </thead>
     <tbody>
         {
-            allLaunchers.map((launcher) => (
+            LAUNCHERS.map((launcher) => (
                 <tr>
                     <td>
                         <LauncherIcon launcher={launcher} />

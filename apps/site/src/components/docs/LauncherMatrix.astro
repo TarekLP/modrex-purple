@@ -1,5 +1,6 @@
 ---
-import { allLaunchers, docsGames } from '../../data/docsGames'
+import { GAMES, LAUNCHERS } from '@modrex/games'
+import { docsGames } from '../../data/docsGames'
 import SupportBadge from './SupportBadge.astro'
 import LauncherIcon from './LauncherIcon.astro'
 ---
@@ -9,7 +10,7 @@ import LauncherIcon from './LauncherIcon.astro'
         <tr>
             <th>Game</th>
             {
-                allLaunchers.map((launcher) => (
+                LAUNCHERS.map((launcher) => (
                     <th>
                         <LauncherIcon launcher={launcher} />
                         {launcher}
@@ -22,10 +23,10 @@ import LauncherIcon from './LauncherIcon.astro'
         {
             docsGames.map((game) => (
                 <tr>
-                    <td>{game.name}</td>
-                    {allLaunchers.map((launcher) => (
+                    <td>{GAMES[game.id].name}</td>
+                    {LAUNCHERS.map((launcher) => (
                         <td>
-                            <SupportBadge supported={game.launchers.includes(launcher)} />
+                            <SupportBadge supported={GAMES[game.id].launchers.includes(launcher)} />
                         </td>
                     ))}
                 </tr>

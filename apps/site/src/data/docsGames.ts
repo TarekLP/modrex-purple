@@ -1,8 +1,5 @@
-import { GAMES, type GameId } from '@modrex/games'
+import { type GameId } from '@modrex/games'
 
-export const allLaunchers = ['Steam', 'Epic Games', 'Xbox App'] as const
-
-export type LauncherName = (typeof allLaunchers)[number]
 export type DocsGameId = GameId & ('pd3' | 'pd2' | 'pdth' | 'cb')
 
 export interface OverviewTarget {
@@ -22,8 +19,6 @@ export interface ModTarget {
 export interface DocsGame {
     id: DocsGameId
     slug: string
-    name: string
-    launchers: readonly LauncherName[]
     overviewTargets: readonly OverviewTarget[]
     targets: readonly ModTarget[]
 }
@@ -32,8 +27,6 @@ export const docsGames: readonly DocsGame[] = [
     {
         id: 'pd3',
         slug: 'payday-3',
-        name: GAMES.pd3.name,
-        launchers: ['Steam', 'Epic Games', 'Xbox App'],
         overviewTargets: [
             { code: '.pak', label: 'files', path: '~mods' },
             { label: 'UE4SS Lua mods', note: 'when the loader is installed' },
@@ -54,8 +47,6 @@ export const docsGames: readonly DocsGame[] = [
     {
         id: 'pd2',
         slug: 'payday-2',
-        name: GAMES.pd2.name,
-        launchers: ['Steam', 'Epic Games'],
         overviewTargets: [
             { label: 'BLT/BeardLib folders', path: 'mods' },
             { label: 'asset replacements', path: 'assets/mod_overrides' },
@@ -82,8 +73,6 @@ export const docsGames: readonly DocsGame[] = [
     {
         id: 'pdth',
         slug: 'payday-the-heist',
-        name: GAMES.pdth.name,
-        launchers: ['Steam'],
         overviewTargets: [
             { label: 'BLT/DAHM folders', path: 'mods' },
             { label: 'asset replacements', path: 'assets/mod_overrides' },
@@ -104,8 +93,6 @@ export const docsGames: readonly DocsGame[] = [
     {
         id: 'cb',
         slug: 'crime-boss',
-        name: GAMES.cb.name,
-        launchers: ['Steam', 'Epic Games'],
         overviewTargets: [
             { label: 'Official ModKit folders', path: 'CrimeBoss/Mods' },
             { label: 'legacy pak files' },

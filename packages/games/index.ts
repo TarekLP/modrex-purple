@@ -1,3 +1,7 @@
+export const LAUNCHERS = ['Steam', 'Epic Games', 'Xbox App'] as const
+
+export type LauncherName = (typeof LAUNCHERS)[number]
+
 export interface GameSpec {
     name: string
     shortName: string
@@ -5,6 +9,7 @@ export interface GameSpec {
     storageKey: string
     hasNews: boolean
     requiredLaunchFlag?: string
+    launchers: readonly LauncherName[]
 }
 
 const GAME_SPECS = {
@@ -15,14 +20,23 @@ const GAME_SPECS = {
         storageKey: 'pd3',
         hasNews: true,
         requiredLaunchFlag: '-fileopenlog',
+        launchers: ['Steam', 'Epic Games', 'Xbox App'],
     },
-    pd2: { name: 'PAYDAY 2', shortName: 'PD2', workshopId: 1, storageKey: 'pd2', hasNews: true },
+    pd2: {
+        name: 'PAYDAY 2',
+        shortName: 'PD2',
+        workshopId: 1,
+        storageKey: 'pd2',
+        hasNews: true,
+        launchers: ['Steam', 'Epic Games'],
+    },
     pdth: {
         name: 'PAYDAY: The Heist',
         shortName: 'PDTH',
         workshopId: 2,
         storageKey: 'pdth',
         hasNews: true,
+        launchers: ['Steam'],
     },
     cb: {
         name: 'Crime Boss: Rockay City',
@@ -30,6 +44,7 @@ const GAME_SPECS = {
         workshopId: 857,
         storageKey: 'cb',
         hasNews: false,
+        launchers: ['Steam', 'Epic Games'],
     },
     raid: {
         name: 'RAID: World War II',
@@ -37,6 +52,7 @@ const GAME_SPECS = {
         workshopId: 543,
         storageKey: 'raid',
         hasNews: false,
+        launchers: ['Steam'],
     },
 } satisfies Record<string, GameSpec>
 

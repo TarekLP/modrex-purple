@@ -1,4 +1,5 @@
 ---
+import { GAMES } from '@modrex/games'
 import { docsGames } from '../../data/docsGames'
 ---
 
@@ -16,9 +17,9 @@ import { docsGames } from '../../data/docsGames'
                 docsGames.map((game) => (
                     <tr>
                         <td>
-                            <a href={`/docs/games/${game.slug}`}>{game.name}</a>
+                            <a href={`/docs/games/${game.slug}`}>{GAMES[game.id].name}</a>
                         </td>
-                        <td>{game.launchers.join(', ')}</td>
+                        <td>{GAMES[game.id].launchers.join(', ')}</td>
                         <td>
                             <ul>
                                 {game.overviewTargets.map((target) => (

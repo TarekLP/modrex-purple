@@ -22,6 +22,19 @@ if (!specsBlock) {
 }
 const tsIds = [...specsBlock.matchAll(/^ {4}(\w+):\s*\{/gm)].map((m) => m[1])
 
+const gameFiles = {
+    pd3: 'pd3',
+    pd2: 'pd2',
+    pdth: 'pdth',
+    cb: 'crimeboss',
+    raid: 'raid',
+}
+const launcherFields = [
+    ['Steam', 'steam'],
+    ['Epic Games', 'epic'],
+    ['Xbox App', 'xbox'],
+]
+
 const missingInTs = rustIds.filter((id) => !tsIds.includes(id))
 const missingInRust = tsIds.filter((id) => !rustIds.includes(id))
 
@@ -35,6 +48,27 @@ if (missingInRust.length > 0) {
     failed = true
     console.error('Games in GAMES (packages/games) but missing from Rust GAME_REGISTRY:')
     for (const id of missingInRust) console.error(`  ${id}`)
+}
+
+for (const id of tsIds) {
+    const spec = specsBlock.split(new RegExp(`^ {4}${id}:\\s*\\{`, 'm'))[1]
+    const declared = spec?.match(/launchers:\s*\[([^\]]*)\]/)?.[1]
+    const sharedLaunchers = [...(declared?.matchAll(/'([^']+)'/g) ?? [])].map((m) => m[1])
+    const rustGame = readFileSync(
+        `src-tauri/src/commands/launchers/games/${gameFiles[id]}.rs`,
+        'utf8'
+    )
+    const rustLaunchers = launcherFields
+        .filter(([, field]) => new RegExp(`\\b${field}:\\s*Some`).test(rustGame))
+        .map(([name]) => name)
+
+    if (sharedLaunchers.join('|') !== rustLaunchers.join('|')) {
+        failed = true
+        console.error(
+            `Launcher support for '${id}' differs: Rust has ${rustLaunchers.join(', ') || 'none'}; ` +
+                `@modrex/games has ${sharedLaunchers.join(', ') || 'none'}`
+        )
+    }
 }
 
 if (failed) process.exit(1)
