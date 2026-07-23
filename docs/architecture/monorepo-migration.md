@@ -1,7 +1,13 @@
 # Monorepo Migration Contract
 
-Status: approved for implementation on 2026-07-21. The August-release sequencing gate
-was explicitly overridden by the project owner.
+Status: delivered on 2026-07-23. The August-release sequencing gate was explicitly
+overridden by the project owner.
+
+The monorepo, shared game package, Cloudflare Pages migration, and unified quality gates
+are live. The legacy `modrex-index` repository remains a permanent, independent producer
+for desktop versions through 0.12.2. New index delivery is separate: Neon is the
+resumable builder store; immutable per-game SQLite snapshots are published to R2 at
+`index.modrex.net`; and the site reads `catalog/latest.json`.
 
 This document defines the invariants and review boundaries for moving the Modrex product
 repositories into `modrexio/modrex`. It is a structural migration: a step must not change

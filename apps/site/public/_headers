@@ -3,7 +3,7 @@
 #
 # The CSP is Report-Only on purpose: it enforces nothing, it only reports violations to the
 # browser console, so a host we missed cannot break the live site. Load a deploy, confirm the
-# console shows no CSP violations (Google Fonts, Pagefind search, GA4, the index-stats.json
+# console shows no CSP violations (Google Fonts, Pagefind search, GA4, the R2 catalog manifest
 # count fetch, GitHub download links), then promote it by renaming the header to
 # Content-Security-Policy.
 /*

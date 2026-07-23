@@ -36,8 +36,10 @@ Project-specific commands can also be run from the application directory.
 
 - Bare vX.Y.Z tags and GitHub Releases belong to the desktop application.
 - install.config.json stays at the repository root.
-- Existing desktop clients continue downloading index.db from the
-  modrexio/modrex-index repository's latest-index release.
+- Desktop versions through 0.12.2 continue downloading the legacy monolithic `index.db`
+  from `modrexio/modrex-index`'s `latest-index` release. The new index pipeline stores
+  its resumable catalog in Neon, publishes immutable per-game SQLite shards to R2 at
+  `index.modrex.net`, and the site reads its aggregate stats from R2's `catalog/latest.json`.
 - modrexio/mget remains an independent repository and tag host.
 - Never run a git command that touches a remote. Write the command for the owner instead.
 - Never commit unless the owner explicitly approves the reviewed step.

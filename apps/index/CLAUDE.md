@@ -4,9 +4,15 @@ Read the root `CLAUDE.md` before this file. This package is part of the Modrex m
 
 ## What this is
 
-TypeScript build pipeline that downloads every mod file from modworkshop.net for PD2, PDTH, PD3, Crime Boss: Rockay City, and RAID: World War II, hashes the relevant content with SHA256, and stores the results in `index.db` (SQLite). The existing desktop app downloads that legacy database on startup with a 1-hour TTL cached in `app_data_dir()`.
+TypeScript build pipeline for PD2, PDTH, PD3, Crime Boss: Rockay City, and RAID: World
+War II. The current production path syncs listings and extracted content into Neon
+Postgres, exports immutable per-game SQLite snapshots, and publishes them to R2 at
+`index.modrex.net`. The desktop app downloads those snapshots locally and queries them
+offline.
 
-`modrexio/modrex-index` permanently owns the legacy production pipeline and its `latest-index` release. This workspace no longer publishes legacy assets. The Postgres migration workflow only prepares the new builder's source of truth; it does not download mods, build SQLite files, or serve a desktop client.
+`modrexio/modrex-index` permanently owns the separate legacy production pipeline and its
+`latest-index` release for desktop versions through 0.12.2. It remains independent; this
+workspace never publishes legacy assets.
 
 ## Commands
 
@@ -52,9 +58,14 @@ metadata      (key, value)                                          -- last_run_
 
 The legacy production workflow lives in the independent `modrexio/modrex-index` repository. Its five-minute scheduler remains responsible for the frozen legacy game set and release assets consumed by desktop versions through 0.12.2. Do not add a legacy release workflow to this workspace.
 
-### Postgres migration workflow
+### Postgres and R2 workflow
 
-The root `.github/workflows/migrate-postgres-index.yml` runs only through `workflow_dispatch`. It needs the `INDEX_DATABASE_URL` repository secret and applies the idempotent migrations in `postgres/schema.ts` to Neon. Its sole responsibility is preparing the new builder's database schema.
+`.github/workflows/refresh-postgres-index.yml` is externally dispatched every 30 minutes.
+It applies idempotent migrations, syncs listings, processes pending archive content,
+exports only changed per-game SQLite shards, uploads immutable generation keys to R2, and
+atomically updates `catalog/latest.json`. The manual migration, sync, process, export,
+and publish workflows remain available for recovery and diagnosis. They need
+`INDEX_DATABASE_URL` plus the R2 credentials configured as repository secrets.
 
 **Legacy builder run modes** (CLI flags):
 

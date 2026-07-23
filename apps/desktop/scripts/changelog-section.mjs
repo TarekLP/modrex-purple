@@ -6,7 +6,7 @@ if (!version) {
     process.exit(1)
 }
 
-const changelog = readFileSync('CHANGELOG.md', 'utf8')
+const changelog = readFileSync('../../CHANGELOG.md', 'utf8')
 const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const match = changelog.match(new RegExp(`## ${escaped}\\n([\\s\\S]*?)(?=\\n## |$)`))
 
