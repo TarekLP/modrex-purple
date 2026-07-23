@@ -743,37 +743,6 @@ future or an "identify unknowns" fallback. The drop-`indexed_at` + compression +
 wins are worth doing independently whenever someone touches the build, minding the
 rollout-safety ranking above.
 
----
-
-## TODO: remove-legacy-linux-install-script
-
-`scripts/install.sh` was superseded by `modrex.net/install.sh` (served by
-`modrex-site/functions/install.sh.ts`, backed by the shared `mget` engine at
-github.com/modrexio/mget). All public-facing docs/copy (README.md, the site's
-getting-started page, the download card, the ModWorkshop description) already point
-at the new command. The two were deliberately left coexisting rather than swapped in
-one step, so there was a fallback while the new path got real-machine testing.
-
-mget was brought to parity with `scripts/install.sh` specifically so this removal
-would be safe later: native package-manager preference (apt/dnf/zypper before
-AppImage), `.desktop`/icon registration, confirmation prompts before destructive
-uninstall actions, `--purge` for full data/config/cache removal, and download
-progress feedback. Verified end-to-end (install + uninstall) on a real Arch-based
-Linux machine (CachyOS) via the AppImage path; the `.deb`/`.rpm` path is still
-untested on any real Debian/Ubuntu/Fedora machine as of this writing.
-
-### What to do (once mget has run in production long enough to trust it)
-
-- Delete `scripts/install.sh`
-- Remove any reference to it from README.md, CHANGELOG.md, or CI/release workflows
-  (check `release.yml` for anything that packages or references the script)
-- Confirm nothing else links to
-  `raw.githubusercontent.com/modrexio/modrex/main/scripts/install.sh` before deleting
-  (grep across modrex-main and modrex-site; this was the exact search done when adding
-  the new command, so it should be a quick re-check, not a fresh audit)
-
----
-
 ## TODO: ecosystem-monorepo
 
 Structure. Large, mostly mechanical. Blocked on: the August release shipping. Do NOT
