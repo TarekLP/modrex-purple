@@ -149,6 +149,7 @@ for (const listing of listings) {
                         headers: { 'User-Agent': userAgent },
                         signal: AbortSignal.timeout(120_000),
                     })
+                    if (response.status === 404) continue
                     if (!response.ok) throw new Error(`download ${response.status}`)
                     const fallbackName = decodeURIComponent(
                         new URL(file.download_url).pathname.split('/').pop() ?? ''

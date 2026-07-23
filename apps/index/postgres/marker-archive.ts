@@ -23,6 +23,8 @@ interface CentralDirectoryEntry {
     compressionMethod: number
 }
 
+class MissingArchiveError extends Error {}
+
 const maxFullArchiveBytes = 50 * 1024 * 1024
 const pdmodPassword = `0$45'5))66S2ixF51a<6}L2UK`
 const pdmodHashlistPath = join(import.meta.dirname, '..', 'pdmod_hashlist.txt')
@@ -82,6 +84,7 @@ async function rangeGet(url: string, start: number, end: number): Promise<Buffer
         headers: { Range: `bytes=${start}-${end}` },
         signal: AbortSignal.timeout(60_000),
     })
+    if (response.status === 404) throw new MissingArchiveError()
     if (response.status !== 200 && response.status !== 206) {
         throw new Error(`range request returned ${response.status}`)
     }
@@ -149,7 +152,10 @@ async function markerFromZip(url: string, size: number | null): Promise<ContentE
 
         return { sha256: createHash('sha256').update(content).digest('hex'), entryName: entry.name }
     } catch (error) {
-        if (error instanceof Error && error.message === 'range request returned 416') return null
+        if (error instanceof MissingArchiveError) return null
+        if (error instanceof Error && error.message === 'range request returned 416') {
+            return null
+        }
         throw error
     }
 }
@@ -159,6 +165,7 @@ async function markerFromFullArchive(
     extension: '.7z' | '.rar'
 ): Promise<ContentEntry | null> {
     const response = await request(url, { signal: AbortSignal.timeout(120_000) })
+    if (response.status === 404) return null
     if (!response.ok) throw new Error(`download returned ${response.status}`)
 
     const temporaryDirectory = mkdtempSync(join(tmpdir(), 'modrex-marker-'))
@@ -287,6 +294,7 @@ interface PdmodItem {
 
 export async function extractPdmodEntry(url: string): Promise<ContentEntry | null> {
     const response = await request(url, { signal: AbortSignal.timeout(120_000) })
+    if (response.status === 404) return null
     if (!response.ok) throw new Error(`download returned ${response.status}`)
     const temporaryDirectory = mkdtempSync(join(tmpdir(), 'modrex-pdmod-'))
     try {
