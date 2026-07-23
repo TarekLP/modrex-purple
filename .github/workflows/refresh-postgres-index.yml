@@ -80,13 +80,13 @@ jobs:
                   if [ "${GAME}" = auto ]; then
                       GAME="$(pnpm --dir apps/index exec tsx postgres/report-coverage.ts --next)"
                       if [ -z "${GAME}" ]; then
-                          echo 'No pending archive work.'
-                          exit 0
+                          GAME=none
                       fi
                   fi
                   case "${GAME}" in
                       all) games='pd3 pd2 pdth cb raid' ;;
                       pd3|pd2|pdth|cb|raid) games="${GAME}" ;;
+                      none) games='' ;;
                       *) exit 1 ;;
                   esac
                   mkdir -p apps/index/artifacts
@@ -113,6 +113,18 @@ jobs:
                       aws s3 cp latest.next.json "s3://${R2_BUCKET}/catalog/latest.json" --endpoint-url "${R2_ENDPOINT}" --content-type application/json --cache-control 'no-cache'
                       printf 'Published %s with sha256 %s\n' "${key}" "${sha256}"
                   done
+                  supported_mods="$(pnpm --dir apps/index exec tsx postgres/report-stats.ts)"
+                  if ! aws s3 cp "s3://${R2_BUCKET}/catalog/latest.json" latest.json --endpoint-url "${R2_ENDPOINT}"; then
+                      printf '%s\n' '{"version":1,"games":{}}' > latest.json
+                  fi
+                  previous_supported_mods="$(jq -r '.stats.supportedMods // empty' latest.json)"
+                  if [ "${supported_mods}" != "${previous_supported_mods}" ]; then
+                      generated_at="$(date -u +%Y-%m-%dT%H%M%SZ)"
+                      jq --argjson supported_mods "${supported_mods}" --arg generated_at "${generated_at}" \
+                          '.version = 1 | .stats = {supportedMods: $supported_mods, generatedAt: $generated_at}' \
+                          latest.json > latest.next.json
+                      aws s3 cp latest.next.json "s3://${R2_BUCKET}/catalog/latest.json" --endpoint-url "${R2_ENDPOINT}" --content-type application/json --cache-control 'no-cache'
+                  fi
 
             - name: Report remaining archive work
               run: pnpm --dir apps/index report:postgres-coverage

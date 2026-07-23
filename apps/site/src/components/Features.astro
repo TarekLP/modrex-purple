@@ -92,8 +92,13 @@ const features: [string, string, string][] = [
 
         const stats = (await res.json()) as ModIndexStatsPayload
 
-        if (Number.isFinite(stats.supportedMods) && stats.supportedMods > 0) {
-            countEl.textContent = new Intl.NumberFormat('en-US').format(stats.supportedMods)
+        const supportedMods = stats.stats?.supportedMods
+        if (
+            typeof supportedMods === 'number' &&
+            Number.isFinite(supportedMods) &&
+            supportedMods > 0
+        ) {
+            countEl.textContent = new Intl.NumberFormat('en-US').format(supportedMods)
         }
     }
 

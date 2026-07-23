@@ -4,14 +4,15 @@ export interface ModIndexStats {
     supportedMods: number
 }
 
-// Build-time only: read the recognized-mod count from the tiny index-stats.json asset that the
-// modrex-index pipeline publishes next to index.db. Downloading the full index.db here and
-// counting it with sql.js meant every build pulled the whole multi-megabyte database (which
-// grows with the catalog) just to render one number the JSON already carries. The browser
-// refresh in Features.astro already reads this same asset.
-export async function getModIndexStats(): Promise<ModIndexStats> {
+// Build-time only: read the recognized-mod count from the R2 catalog manifest. Downloading a
+// database just to count its mods would make every site build fetch a multi-megabyte asset.
+export async function getModIndexStats(): Promise<ModIndexStats | null> {
     const res = await fetch(INDEX_STATS_URL)
     if (!res.ok) throw new Error(`Index stats download error: ${res.status}`)
     const stats = (await res.json()) as ModIndexStatsPayload
-    return { supportedMods: stats.supportedMods }
+    const supportedMods = stats.stats?.supportedMods
+    if (typeof supportedMods !== 'number' || !Number.isFinite(supportedMods)) {
+        return null
+    }
+    return { supportedMods }
 }
