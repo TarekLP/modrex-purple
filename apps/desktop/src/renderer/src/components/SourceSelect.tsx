@@ -40,6 +40,23 @@ function subscribe(fn: () => void): () => void {
     }
 }
 
+// A signed-out Nexus count caches as null (see fetchCount), but that null is recoverable:
+// signing in mid-session makes the real total available. Drop every cached Nexus count on
+// sign-in so ensureCount re-fetches instead of honouring the stale null forever. Registered
+// once at module load; the listener lives for the app's lifetime.
+api.onNexusOAuthSignedIn(() => {
+    const games: GameId[] = []
+    for (const key of [...countCache.keys()]) {
+        if (!key.endsWith(':nexus')) continue
+        countCache.delete(key)
+        games.push(key.slice(0, -':nexus'.length) as GameId)
+    }
+    if (games.length === 0) return
+    // Flip the visible counts to skeletons immediately, then re-fetch the real totals.
+    for (const l of listeners) l()
+    for (const g of games) ensureCount(g, 'nexus')
+})
+
 function ensureCount(gameId: GameId, sourceId: string): void {
     const key = cacheKey(gameId, sourceId)
     if (countCache.has(key) || inFlight.has(key)) return
