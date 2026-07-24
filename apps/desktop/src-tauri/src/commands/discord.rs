@@ -108,7 +108,7 @@ pub fn set_discord_presence_enabled(
 ) {
     state.enabled.store(enabled, Ordering::Relaxed);
     crate::commands::settings::update_settings(&app, |s| {
-        s.discord_rich_presence_enabled = Some(enabled);
+        s.discord_rich_presence_enabled = enabled;
     });
 }
 

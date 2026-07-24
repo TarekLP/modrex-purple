@@ -234,9 +234,8 @@ pub fn run() {
     );
 
     {
-        let discord_enabled = commands::settings::read_settings(app.handle())
-            .discord_rich_presence_enabled
-            .unwrap_or(true);
+        let discord_enabled =
+            commands::settings::read_settings(app.handle()).discord_rich_presence_enabled;
         let discord_state = app.state::<commands::discord::DiscordState>();
         discord_state
             .enabled

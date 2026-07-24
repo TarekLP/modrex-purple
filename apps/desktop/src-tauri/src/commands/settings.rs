@@ -1,19 +1,79 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone, specta::Type)]
+/// Treats an explicit JSON null as the field's default.
+///
+/// serde(default) only covers an ABSENT field. Every field below that carries this used
+/// to be Option<T>, so every settings.json written before this version has it present
+/// with an explicit `null` rather than absent — without this, deserializing that file
+/// fails with "invalid type: null, expected ..." and read_settings falls back to
+/// Settings::default(), silently wiping every game path, launcher, and preference on
+/// the user's very next launch. Same problem, same fix, as domain.rs's null_default for
+/// modworkshop's API responses.
+fn null_default<'de, D, T>(d: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(d)?.unwrap_or_default())
+}
+
+fn null_or_true<'de, D>(d: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<bool>::deserialize(d)?.unwrap_or(true))
+}
+
+fn null_or_crimeboss_mode<'de, D>(d: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(d)?.unwrap_or_else(default_crimeboss_mode))
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GameSettings {
+    // Not-yet-detected is a real third state here (auto-detection hasn't resolved,
+    // or the game isn't installed) — these two stay Option.
     pub game_path: Option<String>,
     pub launcher: Option<String>,
-    pub launch_options: Option<String>,
-    pub suppress_crash_reporter: Option<bool>,
+    // deserialize_with only ever narrows null to the same wire type (see null_default);
+    // #[specta(type)] tells specta that, since it can't infer through a custom deserializer.
+    #[serde(default, deserialize_with = "null_default")]
+    #[specta(type = String)]
+    pub launch_options: String,
+    #[serde(default, deserialize_with = "null_default")]
+    #[specta(type = bool)]
+    pub suppress_crash_reporter: bool,
     // Crime Boss only: "auto" (default, every install lands in Mods/) or "ask" (the renderer
-    // shows a Mods/ vs ~mods choice before each new install). `None` behaves as "auto".
-    pub crimeboss_install_mode: Option<String>,
+    // shows a Mods/ vs ~mods choice before each new install).
+    #[serde(
+        default = "default_crimeboss_mode",
+        deserialize_with = "null_or_crimeboss_mode"
+    )]
+    #[specta(type = String)]
+    pub crimeboss_install_mode: String,
+}
+
+fn default_crimeboss_mode() -> String {
+    "auto".to_string()
+}
+
+impl Default for GameSettings {
+    fn default() -> Self {
+        Self {
+            game_path: None,
+            launcher: None,
+            launch_options: String::new(),
+            suppress_crash_reporter: false,
+            crimeboss_install_mode: default_crimeboss_mode(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -28,20 +88,30 @@ pub struct NexusOAuthTokens {
     pub expires_at: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub games: Option<HashMap<String, GameSettings>>,
-    pub skip_file_open_log_warning: Option<bool>,
+    #[serde(default, deserialize_with = "null_default")]
+    pub skip_file_open_log_warning: bool,
     // modworkshop mod ids only; ids from other sources must not land here.
-    pub dismissed_deps_warnings: Option<Vec<i32>>,
-    // Telemetry. `analytics_enabled` is tri-state: `None` = user hasn't been
-    // asked yet (renderer shows the first-run consent dialog), `Some(true/false)`
-    // = explicit choice. `analytics_id` is a random per-install identifier; it is
-    // never transmitted unless the user has enabled analytics.
-    pub analytics_enabled: Option<bool>,
+    #[serde(default, deserialize_with = "null_default")]
+    pub dismissed_deps_warnings: Vec<i32>,
+    // Telemetry: analytics_consent_asked distinguishes "never shown the first-run
+    // consent dialog" from "shown it, and this is their answer" — kept as its own
+    // bool so that state survives without the dialog either nagging forever or the
+    // saved choice being indistinguishable from "never asked". A pre-upgrade file
+    // never has this key at all (it's new), so read_settings recovers it from the
+    // old analyticsEnabled field's presence — see the comment there. analytics_id
+    // is a random per-install identifier; it is never transmitted unless the user
+    // has enabled analytics.
+    #[serde(default)]
+    pub analytics_consent_asked: bool,
+    #[serde(default, deserialize_with = "null_default")]
+    pub analytics_enabled: bool,
     pub analytics_id: Option<String>,
-    pub discord_rich_presence_enabled: Option<bool>,
+    #[serde(default = "default_true", deserialize_with = "null_or_true")]
+    pub discord_rich_presence_enabled: bool,
     // OAuth credentials are persisted only in local settings and sent only to
     // Nexus's OAuth and API endpoints.
     pub nexus_oauth: Option<NexusOAuthTokens>,
@@ -49,16 +119,46 @@ pub struct Settings {
     // so it shares the telemetry consent's lifecycle: survives uninstall/reinstall
     // (the NSIS uninstaller never touches app data) and only resets on a full
     // app-data wipe, where the guards below re-rate-limit it to once per 7+ days.
-    pub successful_installs: Option<u64>,
-    pub first_install_at: Option<u64>,
-    pub support_prompt_shown: Option<bool>,
-    // Legacy flat fields: deserialized from old files but never written back.
+    #[serde(default, deserialize_with = "null_default")]
+    pub successful_installs: u64,
+    // 0 = not yet recorded; a real first-install timestamp is never anywhere near epoch.
+    #[serde(default, deserialize_with = "null_default")]
+    pub first_install_at: u64,
+    #[serde(default, deserialize_with = "null_default")]
+    pub support_prompt_shown: bool,
+    // Legacy flat fields: deserialized from old files but never written back. Stay
+    // Option since their whole purpose is detecting "field absent in an old file".
     #[serde(skip_serializing, default)]
     pub game_path: Option<String>,
     #[serde(skip_serializing, default)]
     pub launcher: Option<String>,
     #[serde(skip_serializing, default)]
     pub launch_options: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            games: None,
+            skip_file_open_log_warning: false,
+            dismissed_deps_warnings: Vec::new(),
+            analytics_consent_asked: false,
+            analytics_enabled: false,
+            analytics_id: None,
+            discord_rich_presence_enabled: true,
+            nexus_oauth: None,
+            successful_installs: 0,
+            first_install_at: 0,
+            support_prompt_shown: false,
+            game_path: None,
+            launcher: None,
+            launch_options: None,
+        }
+    }
 }
 
 fn settings_path(app: &AppHandle) -> PathBuf {
@@ -77,7 +177,7 @@ pub fn migrate_settings(mut s: Settings) -> Settings {
                 GameSettings {
                     game_path: s.game_path.clone(),
                     launcher: s.launcher.clone(),
-                    launch_options: s.launch_options.clone(),
+                    launch_options: s.launch_options.clone().unwrap_or_default(),
                     ..GameSettings::default()
                 },
             );
@@ -93,14 +193,30 @@ pub fn read_settings(app: &AppHandle) -> Settings {
         return Settings::default();
     }
     let content = std::fs::read_to_string(&path).unwrap_or_default();
-    let s: Settings = match serde_json::from_str(&content) {
+    let mut s: Settings = match serde_json::from_str(&content) {
         Ok(s) => s,
         Err(e) => {
             log::warn!("read_settings: parse {path:?}: {e}; falling back to defaults");
             Settings::default()
         }
     };
+    recover_legacy_analytics_consent(&mut s, &content);
     migrate_settings(s)
+}
+
+/// analytics_consent_asked postdates analyticsEnabled, so it's absent (defaults false)
+/// in every pre-upgrade file — without this, a user who already answered the consent
+/// dialog (recorded as an explicit true/false, not the null that meant "never asked")
+/// would see it again on their first launch after updating.
+pub(crate) fn recover_legacy_analytics_consent(s: &mut Settings, raw_content: &str) {
+    if s.analytics_consent_asked {
+        return;
+    }
+    if let Ok(raw) = serde_json::from_str::<serde_json::Value>(raw_content) {
+        if raw.get("analyticsEnabled").is_some_and(|v| v.is_boolean()) {
+            s.analytics_consent_asked = true;
+        }
+    }
 }
 
 pub(crate) fn write_settings(app: &AppHandle, settings: &Settings) {
@@ -250,7 +366,7 @@ pub fn get_settings(app: AppHandle) -> crate::commands::api::Json {
     crate::commands::api::Json(serde_json::json!({
         "gamePath": gs.and_then(|g| g.game_path.as_deref()),
         "launcher": gs.and_then(|g| g.launcher.as_deref()),
-        "launchOptions": gs.and_then(|g| g.launch_options.as_deref()),
+        "launchOptions": gs.map(|g| g.launch_options.as_str()),
         "skipFileOpenLogWarning": s.skip_file_open_log_warning,
         "dismissedDepsWarnings": s.dismissed_deps_warnings,
     }))
@@ -287,7 +403,7 @@ pub fn set_launch_options(app: AppHandle, game_id: String, launch_options: Strin
             .get_or_insert_with(HashMap::new)
             .entry(game_id)
             .or_default()
-            .launch_options = Some(launch_options);
+            .launch_options = launch_options;
     });
 }
 
@@ -299,7 +415,7 @@ pub fn set_crimeboss_install_mode(app: AppHandle, mode: String) {
             .get_or_insert_with(HashMap::new)
             .entry("cb".to_string())
             .or_default()
-            .crimeboss_install_mode = Some(mode);
+            .crimeboss_install_mode = mode;
     });
 }
 
@@ -311,21 +427,24 @@ pub fn set_suppress_crash_reporter(app: AppHandle, game_id: String, suppress: bo
             .get_or_insert_with(HashMap::new)
             .entry(game_id)
             .or_default()
-            .suppress_crash_reporter = Some(suppress);
+            .suppress_crash_reporter = suppress;
     });
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
-    update_settings(&app, |s| s.skip_file_open_log_warning = Some(skip));
+    update_settings(&app, |s| s.skip_file_open_log_warning = skip);
 }
 
 /// Current analytics consent: None = not yet asked, Some(true/false) = chosen.
+/// The Option only exists at this IPC boundary — settings.json itself tracks
+/// "asked" and "enabled" as two separate plain bools (see Settings).
 #[tauri::command]
 #[specta::specta]
 pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {
-    read_settings(&app).analytics_enabled
+    let s = read_settings(&app);
+    s.analytics_consent_asked.then_some(s.analytics_enabled)
 }
 
 /// Records the user's explicit analytics choice. Generates the anonymous install
@@ -334,7 +453,8 @@ pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {
 #[specta::specta]
 pub fn set_analytics_consent(app: AppHandle, enabled: bool) {
     update_settings(&app, |s| {
-        s.analytics_enabled = Some(enabled);
+        s.analytics_consent_asked = true;
+        s.analytics_enabled = enabled;
         if enabled && s.analytics_id.is_none() {
             s.analytics_id = Some(uuid::Uuid::new_v4().to_string());
         }
@@ -375,14 +495,17 @@ pub fn record_successful_install(app: AppHandle, clean_session: bool) {
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
     let show_prompt = update_settings(&app, |s| {
-        if s.support_prompt_shown == Some(true) {
+        if s.support_prompt_shown {
             return false;
         }
-        let first = *s.first_install_at.get_or_insert(now);
-        let count = s.successful_installs.unwrap_or(0) + 1;
-        s.successful_installs = Some(count);
+        if s.first_install_at == 0 {
+            s.first_install_at = now;
+        }
+        let first = s.first_install_at;
+        s.successful_installs += 1;
+        let count = s.successful_installs;
         if clean_session && support_prompt_eligible(count, first, now) {
-            s.support_prompt_shown = Some(true);
+            s.support_prompt_shown = true;
             return true;
         }
         false
@@ -396,9 +519,8 @@ pub fn record_successful_install(app: AppHandle, clean_session: bool) {
 #[specta::specta]
 pub fn dismiss_deps_warning(app: AppHandle, mod_id: i32) {
     update_settings(&app, |s| {
-        let warnings = s.dismissed_deps_warnings.get_or_insert_with(Vec::new);
-        if !warnings.contains(&mod_id) {
-            warnings.push(mod_id);
+        if !s.dismissed_deps_warnings.contains(&mod_id) {
+            s.dismissed_deps_warnings.push(mod_id);
         }
     });
 }

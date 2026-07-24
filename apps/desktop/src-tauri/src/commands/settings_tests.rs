@@ -24,22 +24,22 @@ fn roundtrip_all_fields_set() {
         GameSettings {
             game_path: Some("C:\\Games\\PAYDAY3".to_string()),
             launcher: Some("steam".to_string()),
-            launch_options: Some("-fileopenlog".to_string()),
-            suppress_crash_reporter: Some(true),
+            launch_options: "-fileopenlog".to_string(),
+            suppress_crash_reporter: true,
             ..Default::default()
         },
     );
     games.insert(
         "cb".to_string(),
         GameSettings {
-            crimeboss_install_mode: Some("ask".to_string()),
+            crimeboss_install_mode: "ask".to_string(),
             ..Default::default()
         },
     );
     let original = Settings {
         games: Some(games),
-        skip_file_open_log_warning: Some(true),
-        dismissed_deps_warnings: Some(vec![1, 2, 3]),
+        skip_file_open_log_warning: true,
+        dismissed_deps_warnings: vec![1, 2, 3],
         ..Default::default()
     };
     write_to(f.path(), &original);
@@ -47,40 +47,46 @@ fn roundtrip_all_fields_set() {
     let pd3 = loaded.games.as_ref().unwrap().get("pd3").unwrap();
     assert_eq!(pd3.game_path.as_deref(), Some("C:\\Games\\PAYDAY3"));
     assert_eq!(pd3.launcher.as_deref(), Some("steam"));
-    assert_eq!(pd3.launch_options.as_deref(), Some("-fileopenlog"));
-    assert_eq!(pd3.suppress_crash_reporter, Some(true));
+    assert_eq!(pd3.launch_options, "-fileopenlog");
+    assert!(pd3.suppress_crash_reporter);
     let cb = loaded.games.as_ref().unwrap().get("cb").unwrap();
-    assert_eq!(cb.crimeboss_install_mode.as_deref(), Some("ask"));
-    assert_eq!(loaded.skip_file_open_log_warning, Some(true));
-    assert_eq!(loaded.dismissed_deps_warnings, Some(vec![1, 2, 3]));
+    assert_eq!(cb.crimeboss_install_mode, "ask");
+    assert!(loaded.skip_file_open_log_warning);
+    assert_eq!(loaded.dismissed_deps_warnings, vec![1, 2, 3]);
 }
 
 #[test]
-fn roundtrip_all_optional_fields_none() {
+fn roundtrip_defaults_when_absent() {
     let f = NamedTempFile::new().unwrap();
     let original = Settings::default();
     write_to(f.path(), &original);
     let loaded = read_from(f.path());
+    // Truly optional (no default value makes sense): stay None.
     assert_eq!(loaded.game_path, None);
     assert_eq!(loaded.launcher, None);
     assert_eq!(loaded.launch_options, None);
-    assert_eq!(loaded.skip_file_open_log_warning, None);
-    assert_eq!(loaded.dismissed_deps_warnings, None);
-    assert_eq!(loaded.analytics_enabled, None);
     assert_eq!(loaded.analytics_id, None);
+    // Everything else has a real default and must never be null on disk.
+    assert!(!loaded.skip_file_open_log_warning);
+    assert!(loaded.dismissed_deps_warnings.is_empty());
+    assert!(!loaded.analytics_consent_asked);
+    assert!(!loaded.analytics_enabled);
+    assert!(loaded.discord_rich_presence_enabled);
 }
 
 #[test]
 fn roundtrip_analytics_fields() {
     let f = NamedTempFile::new().unwrap();
     let original = Settings {
-        analytics_enabled: Some(true),
+        analytics_consent_asked: true,
+        analytics_enabled: true,
         analytics_id: Some("11111111-2222-3333-4444-555555555555".to_string()),
         ..Default::default()
     };
     write_to(f.path(), &original);
     let loaded = read_from(f.path());
-    assert_eq!(loaded.analytics_enabled, Some(true));
+    assert!(loaded.analytics_consent_asked);
+    assert!(loaded.analytics_enabled);
     assert_eq!(
         loaded.analytics_id.as_deref(),
         Some("11111111-2222-3333-4444-555555555555")
@@ -88,13 +94,15 @@ fn roundtrip_analytics_fields() {
 }
 
 #[test]
-fn analytics_consent_is_tristate() {
-    // An old settings file with no analytics keys must read back as "not yet asked"
-    // (None), not as an implicit opt-in or opt-out.
+fn analytics_consent_defaults_to_not_asked() {
+    // An old settings file with no analytics keys must read back as "not yet asked",
+    // not as an implicit opt-in or opt-out — asked/enabled are tracked as two plain
+    // bools specifically so this state doesn't need a nullable field to represent it.
     let mut f = NamedTempFile::new().unwrap();
     write!(f, r#"{{"gamePath":"C:\\Games"}}"#).unwrap();
     let loaded = read_from(f.path());
-    assert_eq!(loaded.analytics_enabled, None);
+    assert!(!loaded.analytics_consent_asked);
+    assert!(!loaded.analytics_enabled);
     assert_eq!(loaded.analytics_id, None);
 }
 
@@ -144,7 +152,7 @@ fn migration_from_legacy_flat_fields() {
     let pd3 = migrated.games.as_ref().unwrap().get("pd3").unwrap();
     assert_eq!(pd3.game_path.as_deref(), Some("C:\\Games\\PAYDAY3"));
     assert_eq!(pd3.launcher.as_deref(), Some("steam"));
-    assert_eq!(migrated.skip_file_open_log_warning, Some(true));
+    assert!(migrated.skip_file_open_log_warning);
 }
 
 #[test]
@@ -196,4 +204,78 @@ fn support_prompt_eligible_tolerates_clock_moved_backwards() {
     // now < first_install_at (clock skew / manual clock change) must not panic
     // or become eligible via underflow.
     assert!(!support_prompt_eligible(10, 5_000_000, 1_000_000));
+}
+
+// A real pre-upgrade settings.json: every field converted from Option<T> in this
+// version is present with an explicit `null`, not absent, because that's what the
+// old Option<T> fields serialized as. serde(default) alone does not cover this — it
+// only fires for an absent key — so without null_default (settings.rs) this file
+// fails to parse and read_settings falls back to Settings::default(), silently
+// wiping every game path, launcher, and preference on the user's next launch.
+const PRE_UPGRADE_SETTINGS_JSON: &str = r#"{
+  "games": {
+    "pd3": {
+      "gamePath": "G:/SteamLibrary/steamapps/common/PAYDAY3",
+      "launcher": "steam",
+      "launchOptions": null,
+      "suppressCrashReporter": null,
+      "crimebossInstallMode": null
+    }
+  },
+  "skipFileOpenLogWarning": null,
+  "dismissedDepsWarnings": null,
+  "analyticsEnabled": true,
+  "analyticsId": "4ccecb9b-11a9-4784-a0a7-bb1e7bcc91f6",
+  "discordRichPresenceEnabled": null,
+  "nexusOauth": null,
+  "successfulInstalls": null,
+  "firstInstallAt": null,
+  "supportPromptShown": null
+}"#;
+
+#[test]
+fn pre_upgrade_settings_with_explicit_nulls_still_parses() {
+    let s: Settings =
+        serde_json::from_str(PRE_UPGRADE_SETTINGS_JSON).expect("must parse despite explicit nulls");
+    let pd3 = s.games.as_ref().unwrap().get("pd3").unwrap();
+    assert_eq!(
+        pd3.game_path.as_deref(),
+        Some("G:/SteamLibrary/steamapps/common/PAYDAY3")
+    );
+    assert_eq!(pd3.launch_options, "");
+    assert!(!pd3.suppress_crash_reporter);
+    assert_eq!(pd3.crimeboss_install_mode, "auto");
+    assert!(!s.skip_file_open_log_warning);
+    assert!(s.dismissed_deps_warnings.is_empty());
+    assert!(s.discord_rich_presence_enabled);
+    assert_eq!(s.successful_installs, 0);
+    assert_eq!(s.first_install_at, 0);
+    assert!(!s.support_prompt_shown);
+    assert!(s.analytics_enabled);
+}
+
+#[test]
+fn recover_legacy_analytics_consent_from_explicit_bool() {
+    let mut s: Settings = serde_json::from_str(PRE_UPGRADE_SETTINGS_JSON).unwrap();
+    assert!(!s.analytics_consent_asked); // absent in the old file, defaults false
+    recover_legacy_analytics_consent(&mut s, PRE_UPGRADE_SETTINGS_JSON);
+    // The old file's analyticsEnabled: true proves the user was already asked —
+    // must not re-show the first-run consent dialog to them.
+    assert!(s.analytics_consent_asked);
+}
+
+#[test]
+fn recover_legacy_analytics_consent_ignores_never_asked_null() {
+    let json = r#"{"analyticsEnabled": null}"#;
+    let mut s: Settings = serde_json::from_str(json).unwrap();
+    recover_legacy_analytics_consent(&mut s, json);
+    assert!(!s.analytics_consent_asked);
+}
+
+#[test]
+fn recover_legacy_analytics_consent_noop_when_key_absent() {
+    let json = r#"{}"#;
+    let mut s: Settings = serde_json::from_str(json).unwrap();
+    recover_legacy_analytics_consent(&mut s, json);
+    assert!(!s.analytics_consent_asked);
 }

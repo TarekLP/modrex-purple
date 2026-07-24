@@ -164,7 +164,7 @@ fn suppress_crash_reporter_removes_only_known_files() {
         &GameSettings {
             game_path: Some(dir.path().to_string_lossy().into_owned()),
             launcher: Some("xbox".to_string()),
-            suppress_crash_reporter: Some(true),
+            suppress_crash_reporter: true,
             ..Default::default()
         },
     );
@@ -191,7 +191,7 @@ fn suppress_crash_reporter_requires_pd3_xbox_opt_in() {
         &GameSettings {
             game_path: Some(dir.path().to_string_lossy().into_owned()),
             launcher: Some("steam".to_string()),
-            suppress_crash_reporter: Some(true),
+            suppress_crash_reporter: true,
             ..Default::default()
         },
     );
@@ -202,7 +202,7 @@ fn suppress_crash_reporter_requires_pd3_xbox_opt_in() {
         &GameSettings {
             game_path: Some(dir.path().to_string_lossy().into_owned()),
             launcher: Some("xbox".to_string()),
-            suppress_crash_reporter: Some(false),
+            suppress_crash_reporter: false,
             ..Default::default()
         },
     );

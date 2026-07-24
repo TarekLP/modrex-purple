@@ -34,7 +34,7 @@ export const commands = {
 	 *  Commit 4 will switch callers to get_game_settings once the game switcher lands.
 	 */
 	getSettings: () => __TAURI_INVOKE<unknown>("get_settings"),
-	getGameSettings: (gameId: string) => __TAURI_INVOKE<GameSettings>("get_game_settings", { gameId }),
+	getGameSettings: (gameId: string) => __TAURI_INVOKE<GameSettings_Serialize>("get_game_settings", { gameId }),
 	setLauncher: (gameId: string, launcher: string) => __TAURI_INVOKE<void>("set_launcher", { gameId, launcher }),
 	setLaunchOptions: (gameId: string, launchOptions: string) => __TAURI_INVOKE<void>("set_launch_options", { gameId, launchOptions }),
 	setCrimebossInstallMode: (mode: string) => __TAURI_INVOKE<void>("set_crimeboss_install_mode", { mode }),
@@ -48,7 +48,11 @@ export const commands = {
 	 *  prompt can never fire twice while settings.json survives.
 	 */
 	recordSuccessfulInstall: (cleanSession: boolean) => __TAURI_INVOKE<void>("record_successful_install", { cleanSession }),
-	/**  Current analytics consent: None = not yet asked, Some(true/false) = chosen. */
+	/**
+	 *  Current analytics consent: None = not yet asked, Some(true/false) = chosen.
+	 *  The Option only exists at this IPC boundary — settings.json itself tracks
+	 *  "asked" and "enabled" as two separate plain bools (see Settings).
+	 */
 	getAnalyticsConsent: () => __TAURI_INVOKE<boolean | null>("get_analytics_consent"),
 	/**
 	 *  Records the user's explicit analytics choice. Generates the anonymous install
@@ -186,12 +190,22 @@ export type FilePage = {
 	meta: PageMeta,
 };
 
-export type GameSettings = {
+export type GameSettings = GameSettings_Serialize | GameSettings_Deserialize;
+
+export type GameSettings_Deserialize = {
 	gamePath: string | null,
 	launcher: string | null,
-	launchOptions: string | null,
-	suppressCrashReporter: boolean | null,
-	crimebossInstallMode: string | null,
+	launchOptions?: string,
+	suppressCrashReporter?: boolean,
+	crimebossInstallMode?: string,
+};
+
+export type GameSettings_Serialize = {
+	gamePath: string | null,
+	launcher: string | null,
+	launchOptions: string,
+	suppressCrashReporter: boolean,
+	crimebossInstallMode: string,
 };
 
 export type HostPackPayload = HostPackPayload_Serialize | HostPackPayload_Deserialize;

@@ -14,7 +14,7 @@
 //! Cloudflare Pages Function at `modrex-site/functions/api/collect.ts` forwards
 //! the request verbatim to GA4 — see that file for the other half of this.
 //!
-//! Nothing is transmitted unless `analytics_enabled == Some(true)` in settings and
+//! Nothing is transmitted unless `analytics_enabled` is true in settings and
 //! the build was compiled with the GA credentials below. This module is the only
 //! place that knows the backend is GA4 — swapping to another sink later is a
 //! change to `send_event` alone.
@@ -75,7 +75,7 @@ pub(crate) fn track(app: &AppHandle, name: &str, params: Value) {
 
 async fn send_event(app: &AppHandle, name: &str, mut params: Value) {
     // Consent gate — the single choke point. No opt-in, nothing leaves the device.
-    if settings::read_settings(app).analytics_enabled != Some(true) {
+    if !settings::read_settings(app).analytics_enabled {
         return;
     }
     let (Some(measurement_id), Some(api_secret)) = (measurement_id(), api_secret()) else {

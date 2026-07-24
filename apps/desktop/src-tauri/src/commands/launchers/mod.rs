@@ -166,7 +166,7 @@ fn remove_pd3_xbox_crash_reporter_files(game_path: &str) {
 fn maybe_suppress_crash_reporter(game_id: &str, settings: &GameSettings) {
     if game_id != "pd3"
         || settings.launcher.as_deref() != Some("xbox")
-        || settings.suppress_crash_reporter != Some(true)
+        || !settings.suppress_crash_reporter
     {
         return;
     }
@@ -364,7 +364,7 @@ pub fn launch_game(app: AppHandle, game_id: String) -> Result<(), String> {
         gs.launcher.as_deref().unwrap_or("steam"),
         game_def_for_id(game_id)?,
         game_path,
-        gs.launch_options.as_deref(),
+        Some(gs.launch_options.as_str()),
     );
     Ok(())
 }
@@ -442,7 +442,7 @@ pub fn launch_without_mods(app: AppHandle, game_id: String) -> Result<(), String
         gs.launcher.as_deref().unwrap_or("steam"),
         game_def_for_id(game_id)?,
         game_path,
-        gs.launch_options.as_deref(),
+        Some(gs.launch_options.as_str()),
     );
     Ok(())
 }
