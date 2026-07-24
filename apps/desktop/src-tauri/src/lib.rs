@@ -38,6 +38,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::nexus_oauth::nexus_oauth_signed_in,
             commands::nexus_oauth::nexus_oauth_sign_out,
             commands::api::list_tags,
+            // secrets (OS credential store; not Nexus-specific)
+            commands::secrets::secret_store_available,
             // discord
             commands::discord::set_discord_presence_enabled,
             commands::discord::update_discord_presence,

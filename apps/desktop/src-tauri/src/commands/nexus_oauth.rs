@@ -15,9 +15,14 @@ use tauri::{AppHandle, Emitter};
 
 use crate::commands::api::{http_client, user_agent};
 use crate::commands::launchers::shell_open_external;
-use crate::commands::settings::{read_settings, write_settings, NexusOAuthTokens};
+use crate::commands::secrets;
+use crate::commands::settings::{read_settings, update_settings, NexusOAuthTokens};
 
 const OAUTH_BASE: &str = "https://users.nexusmods.com/oauth";
+
+// Credential-store keys for the two tokens; see commands::secrets.
+const ACCESS_TOKEN_KEY: &str = "nexus_access_token";
+const REFRESH_TOKEN_KEY: &str = "nexus_refresh_token";
 
 // These values must remain aligned with the registered public OAuth client.
 pub(crate) const CLIENT_ID: &str = "modrex";
@@ -195,7 +200,7 @@ async fn handle_oauth_callback(app: &AppHandle, url: &str) -> Result<(), String>
     }
 
     let tokens = exchange_code(app, &code, &pending.verifier).await?;
-    store_tokens(app, &tokens);
+    store_tokens(app, &tokens).await?;
     log::info!("nexus oauth: signed in");
     app.emit("nexus-oauth:signed-in", ())
         .map_err(|e| e.to_string())
@@ -213,8 +218,45 @@ fn needs_refresh(expires_at: i64, now: i64) -> bool {
 // refresh tokens the losing request would invalidate the winner's grant.
 static REFRESH_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
+struct LoadedTokens {
+    access_token: String,
+    refresh_token: String,
+    expires_at: i64,
+}
+
+// settings.json's nexus_oauth record is the sign-in marker either way; the two token
+// values themselves live either inline (credential store was unavailable at write
+// time) or in the OS credential store (the normal path) — see store_tokens.
+async fn load_tokens(app: &AppHandle) -> Result<Option<LoadedTokens>, String> {
+    let Some(saved) = read_settings(app).nexus_oauth else {
+        return Ok(None);
+    };
+    if let (Some(access_token), Some(refresh_token)) =
+        (saved.access_token.clone(), saved.refresh_token.clone())
+    {
+        return Ok(Some(LoadedTokens {
+            access_token,
+            refresh_token,
+            expires_at: saved.expires_at,
+        }));
+    }
+    let missing =
+        || "nexus oauth: stored sign-in missing from credential store, sign in again".to_string();
+    let access_token = secrets::get_secret(ACCESS_TOKEN_KEY)
+        .await?
+        .ok_or_else(missing)?;
+    let refresh_token = secrets::get_secret(REFRESH_TOKEN_KEY)
+        .await?
+        .ok_or_else(missing)?;
+    Ok(Some(LoadedTokens {
+        access_token,
+        refresh_token,
+        expires_at: saved.expires_at,
+    }))
+}
+
 pub(crate) async fn access_token(app: &AppHandle) -> Result<String, String> {
-    let Some(tokens) = read_settings(app).nexus_oauth else {
+    let Some(tokens) = load_tokens(app).await? else {
         return Err("nexus oauth: sign in required".to_string());
     };
     if !needs_refresh(tokens.expires_at, chrono::Utc::now().timestamp()) {
@@ -223,7 +265,7 @@ pub(crate) async fn access_token(app: &AppHandle) -> Result<String, String> {
 
     let _guard = REFRESH_LOCK.lock().await;
     // Another request may have refreshed while this one waited on the lock.
-    let Some(tokens) = read_settings(app).nexus_oauth else {
+    let Some(tokens) = load_tokens(app).await? else {
         return Err("nexus oauth: sign in required".to_string());
     };
     if !needs_refresh(tokens.expires_at, chrono::Utc::now().timestamp()) {
@@ -233,18 +275,35 @@ pub(crate) async fn access_token(app: &AppHandle) -> Result<String, String> {
     let fresh = refresh_tokens(app, &tokens.refresh_token)
         .await
         .map_err(|e| format!("nexus oauth: token refresh failed ({e}), sign in again"))?;
-    store_tokens(app, &fresh);
+    // The fresh token is still returned below even if persisting it fails: it's valid
+    // for this call regardless, and the only consequence of a failed persist is the
+    // user needing to sign in again next launch, not a broken current request.
+    if let Err(e) = store_tokens(app, &fresh).await {
+        log::warn!("nexus oauth: token refreshed but failed to persist ({e})");
+    }
     Ok(fresh.access_token)
 }
 
-pub(crate) fn store_tokens(app: &AppHandle, tokens: &TokenResponse) {
-    let mut settings = read_settings(app);
-    settings.nexus_oauth = Some(NexusOAuthTokens {
-        access_token: tokens.access_token.clone(),
-        refresh_token: tokens.refresh_token.clone(),
-        expires_at: chrono::Utc::now().timestamp() + tokens.expires_in as i64,
-    });
-    write_settings(app, &settings);
+pub(crate) async fn store_tokens(app: &AppHandle, tokens: &TokenResponse) -> Result<(), String> {
+    let expires_at = chrono::Utc::now().timestamp() + tokens.expires_in as i64;
+    let record = if secrets::store_status().await == secrets::SecretStoreStatus::Available {
+        secrets::store_secret(ACCESS_TOKEN_KEY, tokens.access_token.clone()).await?;
+        secrets::store_secret(REFRESH_TOKEN_KEY, tokens.refresh_token.clone()).await?;
+        NexusOAuthTokens {
+            access_token: None,
+            refresh_token: None,
+            expires_at,
+        }
+    } else {
+        log::warn!("nexus oauth: credential store unavailable, storing tokens in settings.json");
+        NexusOAuthTokens {
+            access_token: Some(tokens.access_token.clone()),
+            refresh_token: Some(tokens.refresh_token.clone()),
+            expires_at,
+        }
+    };
+    update_settings(app, |s| s.nexus_oauth = Some(record));
+    Ok(())
 }
 
 #[tauri::command]
@@ -255,10 +314,18 @@ pub fn nexus_oauth_signed_in(app: AppHandle) -> bool {
 
 #[tauri::command]
 #[specta::specta]
-pub fn nexus_oauth_sign_out(app: AppHandle) {
-    let mut settings = read_settings(&app);
-    settings.nexus_oauth = None;
-    write_settings(&app, &settings);
+pub async fn nexus_oauth_sign_out(app: AppHandle) {
+    // Attempted unconditionally: a sign-in stored under the settings.json fallback
+    // never touched the credential store, so these are no-ops for it (delete_secret
+    // treats a missing entry as success), and a sign-in stored securely is fully
+    // cleared either way.
+    if let Err(e) = secrets::delete_secret(ACCESS_TOKEN_KEY).await {
+        log::warn!("nexus oauth sign out: {e}");
+    }
+    if let Err(e) = secrets::delete_secret(REFRESH_TOKEN_KEY).await {
+        log::warn!("nexus oauth sign out: {e}");
+    }
+    update_settings(&app, |s| s.nexus_oauth = None);
 }
 
 #[cfg(test)]

@@ -13,6 +13,7 @@ import {
     Heart,
     Globe,
     Info,
+    TriangleAlert,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { siGithub, siDiscord } from 'simple-icons'
@@ -165,6 +166,7 @@ export function SettingsPage({
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() => readSavedTab(globalOnly))
     const [nexusSignedIn, setNexusSignedIn] = useState<boolean | null>(null)
     const [nexusSignInError, setNexusSignInError] = useState<string | null>(null)
+    const [secretStoreAvailable, setSecretStoreAvailable] = useState<boolean | null>(null)
     const [confirmNexusSignOut, setConfirmNexusSignOut] = useState(false)
     const [modFolders, setModFolders] = useState<{ tag: string; labelKey: string }[]>([])
 
@@ -221,6 +223,11 @@ export function SettingsPage({
         let cancelled = false
         api.isNexusSignedIn().then((signedIn) => {
             if (!cancelled) setNexusSignedIn(signedIn)
+        })
+        // Not tied to sign-in state: this reflects a static OS fact, checked once
+        // per session, so the warning below is accurate even for an existing session.
+        api.secretStoreAvailable().then((available) => {
+            if (!cancelled) setSecretStoreAvailable(available)
         })
         const offSignedIn = api.onNexusOAuthSignedIn(() => {
             setNexusSignedIn(true)
@@ -663,6 +670,14 @@ export function SettingsPage({
                                                 error: nexusSignInError,
                                             })}
                                         </p>
+                                    )}
+                                    {nexusSignedIn === true && secretStoreAvailable === false && (
+                                        <div className="mt-2 flex items-start gap-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
+                                            <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                            <span>
+                                                {t('settings.nexusAccount.insecureStorage')}
+                                            </span>
+                                        </div>
                                     )}
                                     <Dialog
                                         open={confirmNexusSignOut}

@@ -208,6 +208,12 @@ export const api = {
     nexusSignOut(): Promise<void> {
         return commands.nexusOauthSignOut()
     },
+    // Whether the OS credential store (Windows Credential Manager / Linux Secret
+    // Service) is currently usable — not Nexus-specific, but Nexus sign-in is the one
+    // feature today that needs it, so this is what gates the Settings warning banner.
+    secretStoreAvailable(): Promise<boolean> {
+        return commands.secretStoreAvailable()
+    },
     // GraphQL v2 search, verified live via schema introspection. Empty query omits
     // the name filter (browse-by-sort instead of search). sort is one of
     // "relevance" | "downloads" | "endorsements" | "updatedAt".

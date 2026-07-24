@@ -26,6 +26,7 @@ export const commands = {
 	nexusOauthSignedIn: () => __TAURI_INVOKE<boolean>("nexus_oauth_signed_in"),
 	nexusOauthSignOut: () => __TAURI_INVOKE<void>("nexus_oauth_sign_out"),
 	listTags: (gameId: number) => __TAURI_INVOKE<unknown>("list_tags", { gameId }),
+	secretStoreAvailable: () => __TAURI_INVOKE<boolean>("secret_store_available"),
 	setDiscordPresenceEnabled: (enabled: boolean) => __TAURI_INVOKE<void>("set_discord_presence_enabled", { enabled }),
 	updateDiscordPresence: (game: string) => __TAURI_INVOKE<void>("update_discord_presence", { game }),
 	/**

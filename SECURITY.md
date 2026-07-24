@@ -30,6 +30,7 @@ Modrex downloads and installs third-party content, renders third-party text, and
 - links or embeds launching arbitrary programs or bypassing the URL scheme allowlist
 - the update pipeline accepting a tampered or wrongly signed artifact
 - the Linux install script delivered at modrex.net/install.sh
+- Nexus Mods OAuth tokens landing outside the OS credential store on a platform where one is available, or being exposed in logs
 
 Vulnerabilities in the companion repositories ([modrex-index](https://github.com/modrexio/modrex-index), [modrex-site](https://github.com/modrexio/modrex-site), [mget](https://github.com/modrexio/mget)) affect the same users - report them through the same form.
 

@@ -14,6 +14,7 @@ pub mod news;
 pub mod nexus;
 pub mod nexus_oauth;
 pub mod nxm;
+pub mod secrets;
 pub mod settings;
 pub mod sources;
 pub mod startup;

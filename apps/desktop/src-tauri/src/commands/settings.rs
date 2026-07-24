@@ -19,8 +19,11 @@ pub struct GameSettings {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct NexusOAuthTokens {
-    pub access_token: String,
-    pub refresh_token: String,
+    // Present only when the OS credential store was unavailable at write time (see
+    // commands::secrets); the normal path stores both tokens there instead and leaves
+    // these None, with only expires_at kept here either way.
+    pub access_token: Option<String>,
+    pub refresh_token: Option<String>,
     // Unix seconds, computed from the token response's expires_in at receipt.
     pub expires_at: i64,
 }
