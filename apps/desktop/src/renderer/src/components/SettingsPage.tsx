@@ -21,6 +21,7 @@ import { t } from '../i18n'
 import { Select } from './Select'
 import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
+import { SkeletonBar } from './Skeleton'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { StorageSettings } from './StorageSettings'
 import { api } from '../api'
@@ -84,6 +85,20 @@ const NAV_ITEMS: { id: SettingsTab; label: string; icon: LucideIcon }[] = [
     { id: 'advanced', label: t('settings.nav.advanced'), icon: Wrench },
     { id: 'about', label: t('settings.nav.about'), icon: Info },
 ]
+
+function SettingsSkeleton() {
+    return (
+        <div className="flex flex-col gap-6 animate-pulse" aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+                <div key={i} className="flex flex-col gap-2">
+                    <SkeletonBar className="h-3 w-32" />
+                    <SkeletonBar className="h-2.5 w-2/3" />
+                    <SkeletonBar className="h-11 w-full rounded-lg mt-1" />
+                </div>
+            ))}
+        </div>
+    )
+}
 
 function Section({
     title,
@@ -151,6 +166,9 @@ export function SettingsPage({
     const [installedLaunchers, setInstalledLaunchers] = useState<string[]>(
         () => getSettingsCache(activeGame)?.installedLaunchers ?? []
     )
+    const [installedLaunchersReady, setInstalledLaunchersReady] = useState(
+        () => getSettingsCache(activeGame) !== undefined
+    )
     const [launchOptions, setLaunchOptions] = useState(
         () => getSettingsCache(activeGame)?.settings.launchOptions ?? ''
     )
@@ -185,30 +203,48 @@ export function SettingsPage({
         localStorage.setItem(globalOnly ? GLOBAL_TAB_KEY : GAME_TAB_KEY, tab)
     }
 
+    // getGameSettings is a plain settings.json read (near-instant); getInstalledLaunchers
+    // probes every store's registry/VDF/manifests (can take seconds). Fetching them
+    // separately means the page only waits on the fast read, not the probe.
     useEffect(() => {
         launchOptionsLoaded.current = false
         let cancelled = false
-        const cached = getSettingsCache(activeGame)
-        const launchers = cached
-            ? Promise.resolve(cached.installedLaunchers)
-            : api.getInstalledLaunchers(activeGame)
-        Promise.all([api.getGameSettings(activeGame), launchers]).then(([gs, installed]) => {
-            setSettingsCache(activeGame, { settings: gs, installedLaunchers: installed })
+
+        api.getGameSettings(activeGame).then((gs) => {
             if (cancelled) return
-            setInstalledLaunchers(installed)
             setSettings(gs)
-            const effective = effectiveLauncher(gs, installed)
-            setLauncher(effective)
-            if (effective !== gs.launcher) api.setLauncher(effective, activeGame)
             setLaunchOptions(gs.launchOptions ?? '')
             launchOptionsLoaded.current = true
             setCrimeBossInstallMode(gs.crimebossInstallMode ?? 'auto')
             setSuppressCrashReporter(gs.suppressCrashReporter === true)
         })
+
+        const cached = getSettingsCache(activeGame)
+        setInstalledLaunchersReady(cached !== undefined)
+        const launchers = cached
+            ? Promise.resolve(cached.installedLaunchers)
+            : api.getInstalledLaunchers(activeGame)
+        launchers.then((installed) => {
+            if (cancelled) return
+            setInstalledLaunchers(installed)
+            setInstalledLaunchersReady(true)
+        })
+
         return () => {
             cancelled = true
         }
     }, [activeGame])
+
+    // Only reconciles the saved launcher once both halves above have landed —
+    // installedLaunchers is an empty array both while loading and when genuinely
+    // empty, so installedLaunchersReady is what tells those two states apart.
+    useEffect(() => {
+        if (!settings || !installedLaunchersReady) return
+        setSettingsCache(activeGame, { settings, installedLaunchers })
+        const effective = effectiveLauncher(settings, installedLaunchers)
+        setLauncher(effective)
+        if (effective !== settings.launcher) api.setLauncher(effective, activeGame)
+    }, [settings, installedLaunchers, installedLaunchersReady, activeGame])
 
     useEffect(() => {
         if (!launchOptionsLoaded.current) return
@@ -302,8 +338,6 @@ export function SettingsPage({
         setNexusSignedIn(false)
     }
 
-    if (settings === null) return null
-
     const visibleTabs = globalOnly ? NAV_ITEMS.filter((item) => item.id !== 'game') : NAV_ITEMS
 
     return (
@@ -337,434 +371,478 @@ export function SettingsPage({
 
                 <div className="flex-1 overflow-y-auto px-6 py-6">
                     <div className="max-w-xl flex flex-col gap-6">
-                        {activeTab === 'game' && (
+                        {settings === null ? (
+                            <SettingsSkeleton />
+                        ) : (
                             <>
-                                <Section
-                                    title={t('settings.gamePath.title')}
-                                    description={t('settings.gamePath.description', {
-                                        game: GAMES[activeGame].name,
-                                    })}
-                                >
-                                    <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
-                                        {!gamePathReady ? (
-                                            <span className="text-sm flex-1 text-text-muted flex items-center gap-2">
-                                                <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
-                                                {t('settings.gamePath.detecting')}
-                                            </span>
-                                        ) : (
-                                            <span className="text-sm font-mono truncate flex-1 text-text-muted">
-                                                {gamePath ?? t('settings.gamePath.notFound')}
-                                            </span>
-                                        )}
-                                        <div className="flex gap-2 shrink-0">
-                                            <Button
-                                                variant="accent"
-                                                size="md"
-                                                disabled={picking}
-                                                onClick={handleBrowse}
-                                            >
-                                                <FolderOpen className="w-3.5 h-3.5" />
-                                                {picking
-                                                    ? t('settings.gamePath.picking')
-                                                    : t('settings.gamePath.browse')}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    {pathError ? (
-                                        <p className="text-xs text-danger-text">{pathError}</p>
-                                    ) : !gamePathReady ? null : gamePath ? (
-                                        <p className="text-xs text-success-text">
-                                            {t('settings.gamePath.autoDetected')}
-                                        </p>
-                                    ) : (
-                                        <p className="text-xs text-danger-text">
-                                            {t('settings.gamePath.notDetected', {
+                                {activeTab === 'game' && (
+                                    <>
+                                        <Section
+                                            title={t('settings.gamePath.title')}
+                                            description={t('settings.gamePath.description', {
                                                 game: GAMES[activeGame].name,
                                             })}
-                                        </p>
-                                    )}
-                                </Section>
-
-                                <Section
-                                    title={t('settings.launcher.title')}
-                                    description={t('settings.launcher.description', {
-                                        game: GAMES[activeGame].name,
-                                    })}
-                                >
-                                    <div className="mt-1">
-                                        <Select
-                                            value={launcher}
-                                            onChange={handleLauncherChange}
-                                            options={availableLaunchers}
-                                            disabled={availableLaunchers.length <= 1}
-                                        />
-                                    </div>
-                                </Section>
-
-                                {activeGame === 'cb' && (
-                                    <Section
-                                        title={t('settings.crimeBossInstallMode.title')}
-                                        description={t('settings.crimeBossInstallMode.description')}
-                                    >
-                                        <div className="mt-1">
-                                            <Select
-                                                value={crimeBossInstallMode}
-                                                onChange={handleCrimeBossInstallModeChange}
-                                                options={[
-                                                    {
-                                                        value: 'auto',
-                                                        label: t(
-                                                            'settings.crimeBossInstallMode.auto'
-                                                        ),
-                                                    },
-                                                    {
-                                                        value: 'ask',
-                                                        label: t(
-                                                            'settings.crimeBossInstallMode.ask'
-                                                        ),
-                                                    },
-                                                ]}
-                                            />
-                                        </div>
-                                    </Section>
-                                )}
-
-                                {activeGame === 'pd3' && launcher === 'xbox' && (
-                                    <Section title={t('settings.crashReporter.title')}>
-                                        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
-                                            <span className="text-sm text-text-muted pr-4">
-                                                {t('settings.crashReporter.description')}
-                                            </span>
-                                            <Toggle
-                                                checked={suppressCrashReporter}
-                                                onChange={handleSuppressCrashReporterChange}
-                                                title={t('settings.crashReporter.title')}
-                                            />
-                                        </div>
-                                    </Section>
-                                )}
-
-                                <Section title={t('settings.launchOptions.title')}>
-                                    {requiredLaunchFlag &&
-                                        (launcher === 'xbox' ? (
-                                            <p className="text-xs text-text-subtle">
-                                                {t('settings.launchOptions.xboxNotePre')}{' '}
-                                                <span className="font-mono text-text">
-                                                    {requiredLaunchFlag}
-                                                </span>{' '}
-                                                {t('settings.launchOptions.xboxNotePost')}
-                                            </p>
-                                        ) : (
-                                            <p className="text-xs text-text-subtle">
-                                                {t('settings.launchOptions.descriptionPre')}{' '}
-                                                <span className="font-mono text-text">
-                                                    {requiredLaunchFlag}
-                                                </span>{' '}
-                                                {t('settings.launchOptions.descriptionPost')}
-                                            </p>
-                                        ))}
-                                    <input
-                                        type="text"
-                                        value={launchOptions}
-                                        onChange={(e) => setLaunchOptions(e.target.value)}
-                                        placeholder={requiredLaunchFlag ?? ''}
-                                        disabled={launcher === 'xbox'}
-                                        className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
-                                    />
-                                </Section>
-                            </>
-                        )}
-
-                        {activeTab === 'application' && (
-                            <>
-                                <Section title={t('settings.updates.title')}>
-                                    <div className="flex items-center gap-3 mt-1">
-                                        <Button
-                                            variant="secondary"
-                                            size="md"
-                                            disabled={checkState === 'checking'}
-                                            onClick={handleCheckForUpdates}
                                         >
-                                            <RefreshCw
-                                                className={`w-3.5 h-3.5 ${checkState === 'checking' ? 'animate-spin' : ''}`}
-                                            />
-                                            {checkState === 'checking'
-                                                ? t('settings.updates.checking')
-                                                : t('settings.updates.check')}
-                                        </Button>
-                                        {checkState === 'upToDate' && (
-                                            <span className="text-xs text-success-text">
-                                                {t('settings.updates.upToDate')}
-                                            </span>
-                                        )}
-                                    </div>
-                                </Section>
-
-                                <Section title={t('telemetry.settingsTitle')}>
-                                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
-                                        <span className="text-sm text-text-muted pr-4">
-                                            {t('telemetry.settingsDescription')}
-                                        </span>
-                                        <Toggle
-                                            checked={analyticsConsent === true}
-                                            onChange={onAnalyticsConsent}
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={() => setShowAnalyticsDetails(true)}
-                                        className="text-xs text-accent hover:underline self-start"
-                                    >
-                                        {t('telemetry.detailsToggle')}
-                                    </button>
-                                </Section>
-
-                                <Section title={t('telemetry.discordPresenceTitle')}>
-                                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
-                                        <span className="text-sm text-text-muted pr-4">
-                                            {t('telemetry.discordPresenceDescription')}
-                                        </span>
-                                        <Toggle
-                                            checked={discordPresenceEnabled}
-                                            onChange={onDiscordPresenceEnabled}
-                                        />
-                                    </div>
-                                </Section>
-                            </>
-                        )}
-
-                        {activeTab === 'about' && (
-                            <>
-                                <div className="flex flex-col items-center gap-1 py-6 text-center">
-                                    <span
-                                        style={{
-                                            fontFamily: "'Bebas Neue', sans-serif",
-                                            fontSize: '3rem',
-                                            letterSpacing: '0.05em',
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        <span style={{ color: 'var(--color-text)' }}>MOD</span>
-                                        <span style={{ color: 'var(--color-accent)' }}>REX</span>
-                                    </span>
-                                    <span className="text-xs text-text-subtle">{APP_VERSION}</span>
-                                    <p className="text-sm text-text-muted mt-2">
-                                        {t('settings.about.tagline')}
-                                    </p>
-                                </div>
-
-                                <Section title={t('settings.about.supportTitle')}>
-                                    <div className="flex flex-col gap-3 px-4 py-3 rounded-lg border border-border bg-surface-raised mt-1">
-                                        <p className="text-sm text-text-muted">
-                                            {t('settings.about.supportBody')}
-                                        </p>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Button
-                                                variant="accent"
-                                                size="md"
-                                                onClick={() => api.openExternal(SPONSOR_URL)}
-                                            >
-                                                <Heart className="w-3.5 h-3.5 shrink-0" />
-                                                {t('settings.about.sponsor')}
-                                            </Button>
-                                            <Button
-                                                variant="secondary"
-                                                size="md"
-                                                onClick={() => api.openExternal(GITHUB_URL)}
-                                            >
-                                                <svg
-                                                    viewBox="0 0 24 24"
-                                                    className={iconClass}
-                                                    aria-hidden
-                                                >
-                                                    <path d={siGithub.path} />
-                                                </svg>
-                                                {t('settings.about.star')}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </Section>
-
-                                <Section title={t('settings.about.communityTitle')}>
-                                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                                        <Button
-                                            variant="secondary"
-                                            size="md"
-                                            onClick={() => api.openExternal(DISCORD_URL)}
-                                        >
-                                            <svg
-                                                viewBox="0 0 24 24"
-                                                className={iconClass}
-                                                aria-hidden
-                                            >
-                                                <path d={siDiscord.path} />
-                                            </svg>
-                                            {t('settings.about.discord')}
-                                        </Button>
-                                        <Button
-                                            variant="secondary"
-                                            size="md"
-                                            onClick={() => api.openExternal(WEBSITE_URL)}
-                                        >
-                                            <Globe className="w-3.5 h-3.5 shrink-0" />
-                                            {t('settings.about.website')}
-                                        </Button>
-                                    </div>
-                                </Section>
-
-                                <p className="text-xs text-text-subtle">
-                                    {t('settings.about.disclaimer')}
-                                </p>
-                            </>
-                        )}
-
-                        {activeTab === 'advanced' && (
-                            <>
-                                <Section
-                                    title={t('settings.logs.title')}
-                                    description={t('settings.logs.description')}
-                                >
-                                    <div className="mt-1">
-                                        <Button
-                                            variant="secondary"
-                                            size="md"
-                                            onClick={() => api.openLog()}
-                                        >
-                                            <ScrollText className="w-3.5 h-3.5" />
-                                            {t('settings.logs.open')}
-                                        </Button>
-                                    </div>
-                                </Section>
-
-                                <Section
-                                    title={t('settings.nexusAccount.title')}
-                                    badge={<BetaBadge />}
-                                    description={t('settings.nexusAccount.description')}
-                                >
-                                    <div className="flex items-center gap-3 mt-1">
-                                        {nexusSignedIn === true ? (
-                                            <>
-                                                <span className="text-xs text-success-text">
-                                                    {t('settings.nexusAccount.signedIn')}
-                                                </span>
-                                                <Button
-                                                    variant="secondary"
-                                                    size="md"
-                                                    onClick={() => setConfirmNexusSignOut(true)}
-                                                >
-                                                    {t('settings.nexusAccount.signOut')}
-                                                </Button>
-                                            </>
-                                        ) : (
-                                            <Button
-                                                variant="accent"
-                                                size="md"
-                                                onClick={handleNexusSignIn}
-                                            >
-                                                {t('settings.nexusAccount.signIn')}
-                                            </Button>
-                                        )}
-                                    </div>
-                                    {nexusSignInError !== null && (
-                                        <p className="text-xs text-danger-text">
-                                            {t('settings.nexusAccount.failed', {
-                                                error: nexusSignInError,
-                                            })}
-                                        </p>
-                                    )}
-                                    {nexusSignedIn === true && secretStoreAvailable === false && (
-                                        <div className="mt-2 flex items-start gap-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
-                                            <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                                            <span>
-                                                {t('settings.nexusAccount.insecureStorage')}
-                                            </span>
-                                        </div>
-                                    )}
-                                    <Dialog
-                                        open={confirmNexusSignOut}
-                                        onOpenChange={(open) =>
-                                            !open && setConfirmNexusSignOut(false)
-                                        }
-                                        title={t('settings.nexusAccount.signOutConfirmTitle')}
-                                        className="w-80"
-                                    >
-                                        <DialogHeader
-                                            title={t('settings.nexusAccount.signOutConfirmTitle')}
-                                            subtitle={t('settings.nexusAccount.signOutConfirmBody')}
-                                            onClose={() => setConfirmNexusSignOut(false)}
-                                            wrapSubtitle
-                                        />
-                                        <div className="flex items-center justify-end gap-2 px-5 py-4 shrink-0">
-                                            <Button
-                                                variant="secondary"
-                                                size="md"
-                                                onClick={() => setConfirmNexusSignOut(false)}
-                                            >
-                                                {t('common.cancel')}
-                                            </Button>
-                                            <Button
-                                                variant="accent"
-                                                size="md"
-                                                onClick={handleNexusSignOut}
-                                            >
-                                                {t('settings.nexusAccount.signOutConfirm')}
-                                            </Button>
-                                        </div>
-                                    </Dialog>
-                                </Section>
-                                <Section
-                                    title={t('settings.folders.title')}
-                                    description={t('settings.folders.description')}
-                                >
-                                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                                        {!globalOnly && gamePath && (
-                                            <>
-                                                <Button
-                                                    variant="secondary"
-                                                    size="md"
-                                                    onClick={() => api.openPath(gamePath)}
-                                                >
-                                                    <FolderOpen className="w-3.5 h-3.5" />
-                                                    {t('settings.folders.gameFolder')}
-                                                </Button>
-                                                {modFolders.map((f) => (
+                                            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-hover border border-border mt-1">
+                                                {!gamePathReady ? (
+                                                    <span className="text-sm flex-1 text-text-muted flex items-center gap-2">
+                                                        <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                                        {t('settings.gamePath.detecting')}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-sm font-mono truncate flex-1 text-text-muted">
+                                                        {gamePath ??
+                                                            t('settings.gamePath.notFound')}
+                                                    </span>
+                                                )}
+                                                <div className="flex gap-2 shrink-0">
                                                     <Button
-                                                        key={f.tag}
+                                                        variant="accent"
+                                                        size="md"
+                                                        disabled={picking}
+                                                        onClick={handleBrowse}
+                                                    >
+                                                        <FolderOpen className="w-3.5 h-3.5" />
+                                                        {picking
+                                                            ? t('settings.gamePath.picking')
+                                                            : t('settings.gamePath.browse')}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            {pathError ? (
+                                                <p className="text-xs text-danger-text">
+                                                    {pathError}
+                                                </p>
+                                            ) : !gamePathReady ? null : gamePath ? (
+                                                <p className="text-xs text-success-text">
+                                                    {t('settings.gamePath.autoDetected')}
+                                                </p>
+                                            ) : (
+                                                <p className="text-xs text-danger-text">
+                                                    {t('settings.gamePath.notDetected', {
+                                                        game: GAMES[activeGame].name,
+                                                    })}
+                                                </p>
+                                            )}
+                                        </Section>
+
+                                        <Section
+                                            title={t('settings.launcher.title')}
+                                            description={t('settings.launcher.description', {
+                                                game: GAMES[activeGame].name,
+                                            })}
+                                        >
+                                            <div className="mt-1">
+                                                {!installedLaunchersReady ? (
+                                                    <span className="text-sm text-text-muted flex items-center gap-2">
+                                                        <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                                        {t('settings.launcher.detecting')}
+                                                    </span>
+                                                ) : (
+                                                    <Select
+                                                        value={launcher}
+                                                        onChange={handleLauncherChange}
+                                                        options={availableLaunchers}
+                                                        disabled={availableLaunchers.length <= 1}
+                                                    />
+                                                )}
+                                            </div>
+                                        </Section>
+
+                                        {activeGame === 'cb' && (
+                                            <Section
+                                                title={t('settings.crimeBossInstallMode.title')}
+                                                description={t(
+                                                    'settings.crimeBossInstallMode.description'
+                                                )}
+                                            >
+                                                <div className="mt-1">
+                                                    <Select
+                                                        value={crimeBossInstallMode}
+                                                        onChange={handleCrimeBossInstallModeChange}
+                                                        options={[
+                                                            {
+                                                                value: 'auto',
+                                                                label: t(
+                                                                    'settings.crimeBossInstallMode.auto'
+                                                                ),
+                                                            },
+                                                            {
+                                                                value: 'ask',
+                                                                label: t(
+                                                                    'settings.crimeBossInstallMode.ask'
+                                                                ),
+                                                            },
+                                                        ]}
+                                                    />
+                                                </div>
+                                            </Section>
+                                        )}
+
+                                        {activeGame === 'pd3' && launcher === 'xbox' && (
+                                            <Section title={t('settings.crashReporter.title')}>
+                                                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                                                    <span className="text-sm text-text-muted pr-4">
+                                                        {t('settings.crashReporter.description')}
+                                                    </span>
+                                                    <Toggle
+                                                        checked={suppressCrashReporter}
+                                                        onChange={handleSuppressCrashReporterChange}
+                                                        title={t('settings.crashReporter.title')}
+                                                    />
+                                                </div>
+                                            </Section>
+                                        )}
+
+                                        <Section title={t('settings.launchOptions.title')}>
+                                            {requiredLaunchFlag &&
+                                                (launcher === 'xbox' ? (
+                                                    <p className="text-xs text-text-subtle">
+                                                        {t('settings.launchOptions.xboxNotePre')}{' '}
+                                                        <span className="font-mono text-text">
+                                                            {requiredLaunchFlag}
+                                                        </span>{' '}
+                                                        {t('settings.launchOptions.xboxNotePost')}
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-xs text-text-subtle">
+                                                        {t('settings.launchOptions.descriptionPre')}{' '}
+                                                        <span className="font-mono text-text">
+                                                            {requiredLaunchFlag}
+                                                        </span>{' '}
+                                                        {t(
+                                                            'settings.launchOptions.descriptionPost'
+                                                        )}
+                                                    </p>
+                                                ))}
+                                            <input
+                                                type="text"
+                                                value={launchOptions}
+                                                onChange={(e) => setLaunchOptions(e.target.value)}
+                                                placeholder={requiredLaunchFlag ?? ''}
+                                                disabled={launcher === 'xbox'}
+                                                className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+                                            />
+                                        </Section>
+                                    </>
+                                )}
+
+                                {activeTab === 'application' && (
+                                    <>
+                                        <Section title={t('settings.updates.title')}>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    disabled={checkState === 'checking'}
+                                                    onClick={handleCheckForUpdates}
+                                                >
+                                                    <RefreshCw
+                                                        className={`w-3.5 h-3.5 ${checkState === 'checking' ? 'animate-spin' : ''}`}
+                                                    />
+                                                    {checkState === 'checking'
+                                                        ? t('settings.updates.checking')
+                                                        : t('settings.updates.check')}
+                                                </Button>
+                                                {checkState === 'upToDate' && (
+                                                    <span className="text-xs text-success-text">
+                                                        {t('settings.updates.upToDate')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </Section>
+
+                                        <Section title={t('telemetry.settingsTitle')}>
+                                            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                                                <span className="text-sm text-text-muted pr-4">
+                                                    {t('telemetry.settingsDescription')}
+                                                </span>
+                                                <Toggle
+                                                    checked={analyticsConsent === true}
+                                                    onChange={onAnalyticsConsent}
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={() => setShowAnalyticsDetails(true)}
+                                                className="text-xs text-accent hover:underline self-start"
+                                            >
+                                                {t('telemetry.detailsToggle')}
+                                            </button>
+                                        </Section>
+
+                                        <Section title={t('telemetry.discordPresenceTitle')}>
+                                            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                                                <span className="text-sm text-text-muted pr-4">
+                                                    {t('telemetry.discordPresenceDescription')}
+                                                </span>
+                                                <Toggle
+                                                    checked={discordPresenceEnabled}
+                                                    onChange={onDiscordPresenceEnabled}
+                                                />
+                                            </div>
+                                        </Section>
+                                    </>
+                                )}
+
+                                {activeTab === 'about' && (
+                                    <>
+                                        <div className="flex flex-col items-center gap-1 py-6 text-center">
+                                            <span
+                                                style={{
+                                                    fontFamily: "'Bebas Neue', sans-serif",
+                                                    fontSize: '3rem',
+                                                    letterSpacing: '0.05em',
+                                                    lineHeight: 1,
+                                                }}
+                                            >
+                                                <span style={{ color: 'var(--color-text)' }}>
+                                                    MOD
+                                                </span>
+                                                <span style={{ color: 'var(--color-accent)' }}>
+                                                    REX
+                                                </span>
+                                            </span>
+                                            <span className="text-xs text-text-subtle">
+                                                {APP_VERSION}
+                                            </span>
+                                            <p className="text-sm text-text-muted mt-2">
+                                                {t('settings.about.tagline')}
+                                            </p>
+                                        </div>
+
+                                        <Section title={t('settings.about.supportTitle')}>
+                                            <div className="flex flex-col gap-3 px-4 py-3 rounded-lg border border-border bg-surface-raised mt-1">
+                                                <p className="text-sm text-text-muted">
+                                                    {t('settings.about.supportBody')}
+                                                </p>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Button
+                                                        variant="accent"
+                                                        size="md"
+                                                        onClick={() =>
+                                                            api.openExternal(SPONSOR_URL)
+                                                        }
+                                                    >
+                                                        <Heart className="w-3.5 h-3.5 shrink-0" />
+                                                        {t('settings.about.sponsor')}
+                                                    </Button>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="md"
+                                                        onClick={() => api.openExternal(GITHUB_URL)}
+                                                    >
+                                                        <svg
+                                                            viewBox="0 0 24 24"
+                                                            className={iconClass}
+                                                            aria-hidden
+                                                        >
+                                                            <path d={siGithub.path} />
+                                                        </svg>
+                                                        {t('settings.about.star')}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </Section>
+
+                                        <Section title={t('settings.about.communityTitle')}>
+                                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => api.openExternal(DISCORD_URL)}
+                                                >
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        className={iconClass}
+                                                        aria-hidden
+                                                    >
+                                                        <path d={siDiscord.path} />
+                                                    </svg>
+                                                    {t('settings.about.discord')}
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => api.openExternal(WEBSITE_URL)}
+                                                >
+                                                    <Globe className="w-3.5 h-3.5 shrink-0" />
+                                                    {t('settings.about.website')}
+                                                </Button>
+                                            </div>
+                                        </Section>
+
+                                        <p className="text-xs text-text-subtle">
+                                            {t('settings.about.disclaimer')}
+                                        </p>
+                                    </>
+                                )}
+
+                                {activeTab === 'advanced' && (
+                                    <>
+                                        <Section
+                                            title={t('settings.logs.title')}
+                                            description={t('settings.logs.description')}
+                                        >
+                                            <div className="mt-1">
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => api.openLog()}
+                                                >
+                                                    <ScrollText className="w-3.5 h-3.5" />
+                                                    {t('settings.logs.open')}
+                                                </Button>
+                                            </div>
+                                        </Section>
+
+                                        <Section
+                                            title={t('settings.nexusAccount.title')}
+                                            badge={<BetaBadge />}
+                                            description={t('settings.nexusAccount.description')}
+                                        >
+                                            <div className="flex items-center gap-3 mt-1">
+                                                {nexusSignedIn === true ? (
+                                                    <>
+                                                        <span className="text-xs text-success-text">
+                                                            {t('settings.nexusAccount.signedIn')}
+                                                        </span>
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="md"
+                                                            onClick={() =>
+                                                                setConfirmNexusSignOut(true)
+                                                            }
+                                                        >
+                                                            {t('settings.nexusAccount.signOut')}
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <Button
+                                                        variant="accent"
+                                                        size="md"
+                                                        onClick={handleNexusSignIn}
+                                                    >
+                                                        {t('settings.nexusAccount.signIn')}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {nexusSignInError !== null && (
+                                                <p className="text-xs text-danger-text">
+                                                    {t('settings.nexusAccount.failed', {
+                                                        error: nexusSignInError,
+                                                    })}
+                                                </p>
+                                            )}
+                                            {nexusSignedIn === true &&
+                                                secretStoreAvailable === false && (
+                                                    <div className="mt-2 flex items-start gap-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
+                                                        <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                                        <span>
+                                                            {t(
+                                                                'settings.nexusAccount.insecureStorage'
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            <Dialog
+                                                open={confirmNexusSignOut}
+                                                onOpenChange={(open) =>
+                                                    !open && setConfirmNexusSignOut(false)
+                                                }
+                                                title={t(
+                                                    'settings.nexusAccount.signOutConfirmTitle'
+                                                )}
+                                                className="w-80"
+                                            >
+                                                <DialogHeader
+                                                    title={t(
+                                                        'settings.nexusAccount.signOutConfirmTitle'
+                                                    )}
+                                                    subtitle={t(
+                                                        'settings.nexusAccount.signOutConfirmBody'
+                                                    )}
+                                                    onClose={() => setConfirmNexusSignOut(false)}
+                                                    wrapSubtitle
+                                                />
+                                                <div className="flex items-center justify-end gap-2 px-5 py-4 shrink-0">
+                                                    <Button
                                                         variant="secondary"
                                                         size="md"
                                                         onClick={() =>
-                                                            api.openModFolder(activeGame, f.tag)
+                                                            setConfirmNexusSignOut(false)
                                                         }
                                                     >
-                                                        <FolderOpen className="w-3.5 h-3.5" />
-                                                        {t('settings.folders.open', {
-                                                            name:
-                                                                FOLDER_LABELS[f.labelKey] ??
-                                                                f.labelKey,
-                                                        })}
+                                                        {t('common.cancel')}
                                                     </Button>
-                                                ))}
-                                            </>
-                                        )}
-                                        <Button
-                                            variant="secondary"
-                                            size="md"
-                                            onClick={() => api.openDataFolder()}
+                                                    <Button
+                                                        variant="accent"
+                                                        size="md"
+                                                        onClick={handleNexusSignOut}
+                                                    >
+                                                        {t('settings.nexusAccount.signOutConfirm')}
+                                                    </Button>
+                                                </div>
+                                            </Dialog>
+                                        </Section>
+                                        <Section
+                                            title={t('settings.folders.title')}
+                                            description={t('settings.folders.description')}
                                         >
-                                            <FolderOpen className="w-3.5 h-3.5" />
-                                            {t('settings.folders.dataFolder')}
-                                        </Button>
-                                        <Button
-                                            variant="secondary"
-                                            size="md"
-                                            onClick={() => api.openAppFolder()}
-                                        >
-                                            <FolderOpen className="w-3.5 h-3.5" />
-                                            {t('settings.folders.appFolder')}
-                                        </Button>
-                                    </div>
-                                </Section>
+                                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                {!globalOnly && gamePath && (
+                                                    <>
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="md"
+                                                            onClick={() => api.openPath(gamePath)}
+                                                        >
+                                                            <FolderOpen className="w-3.5 h-3.5" />
+                                                            {t('settings.folders.gameFolder')}
+                                                        </Button>
+                                                        {modFolders.map((f) => (
+                                                            <Button
+                                                                key={f.tag}
+                                                                variant="secondary"
+                                                                size="md"
+                                                                onClick={() =>
+                                                                    api.openModFolder(
+                                                                        activeGame,
+                                                                        f.tag
+                                                                    )
+                                                                }
+                                                            >
+                                                                <FolderOpen className="w-3.5 h-3.5" />
+                                                                {t('settings.folders.open', {
+                                                                    name:
+                                                                        FOLDER_LABELS[f.labelKey] ??
+                                                                        f.labelKey,
+                                                                })}
+                                                            </Button>
+                                                        ))}
+                                                    </>
+                                                )}
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => api.openDataFolder()}
+                                                >
+                                                    <FolderOpen className="w-3.5 h-3.5" />
+                                                    {t('settings.folders.dataFolder')}
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => api.openAppFolder()}
+                                                >
+                                                    <FolderOpen className="w-3.5 h-3.5" />
+                                                    {t('settings.folders.appFolder')}
+                                                </Button>
+                                            </div>
+                                        </Section>
 
-                                <StorageSettings />
+                                        <StorageSettings />
+                                    </>
+                                )}
                             </>
                         )}
                     </div>

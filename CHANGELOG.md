@@ -17,7 +17,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Changed
 
-- Loading placeholders now use one consistent design across mod cards, mod details, galleries, downloads, and formatted text.
+- Loading placeholders now use one consistent design across mod cards, mod details, galleries, downloads, formatted text, and the Settings page.
 - Replaced the native title bar with a custom one, unified across all platforms.
 - Improved app startup time.
 - Redesigned the startup screen as a compact window with loading progress.
@@ -38,6 +38,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed the game picker's "Installed only" filter sometimes hiding installed games.
 - Fixed installed mods not being recognized on slower internet connections, where the mod identification data could time out before it finished downloading.
 - Fixed a rare case where an interrupted background update left the mod identification data unreadable, keeping installed mods unrecognized until the next refresh.
+- Fixed the Settings > Game tab's launcher selector staying disabled with no explanation while launcher detection was still running in the background; it now shows a detecting indicator instead.
 - Fixed mods whose names contain characters such as `%` or `_` not being recognized by name.
 - Fixed the app not remembering which tab you were on after switching games.
 - Fixed the analytics consent prompt not appearing on first launch until a game was selected.

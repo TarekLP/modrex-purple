@@ -340,6 +340,7 @@
         "launcher": {
             "title": "Launcher",
             "description": "How to launch {game}. Detected automatically when the game path is set.",
+            "detecting": "Detecting…",
             "steam": "Steam",
             "epic": "Epic Games",
             "xbox": "Xbox",
