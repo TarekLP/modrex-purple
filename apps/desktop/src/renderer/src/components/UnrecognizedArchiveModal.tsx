@@ -41,7 +41,8 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
             open={true}
             onOpenChange={(open) => !open && onClose()}
             title={t('unrecognized.title')}
-            className="w-[480px] max-h-[70vh]"
+            size="list"
+            className="w-[480px]"
         >
             <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
                 <h2 className="text-sm font-semibold">{t('unrecognized.title')}</h2>
@@ -55,7 +56,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
                 </Button>
             </div>
 
-            <div className="px-5 py-4 overflow-y-auto flex flex-col gap-3">
+            <div className="px-5 py-4 overflow-y-auto flex-1 flex flex-col gap-3">
                 <p className="text-sm text-text-muted">{t('unrecognized.body')}</p>
                 {instructions === null ? (
                     <SkeletonText />

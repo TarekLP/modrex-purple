@@ -149,7 +149,8 @@ export function FileSelectModal({
                 open={true}
                 onOpenChange={(open) => !open && onClose()}
                 title={t('fileSelect.title')}
-                className="w-[540px] max-h-[80vh]"
+                size="list"
+                className="w-[540px]"
             >
                 <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
                     <div className="min-w-0">

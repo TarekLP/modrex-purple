@@ -178,6 +178,7 @@ export function UpdatesModal({
                 open={visible}
                 onOpenChange={(open) => !open && onClose()}
                 title={t('installed.updatesModal.title', { count: updatable.length })}
+                size="list"
                 className="w-[32rem]"
             >
                 <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
@@ -189,7 +190,7 @@ export function UpdatesModal({
                     </Button>
                 </div>
 
-                <div className="overflow-y-auto max-h-96">
+                <div className="overflow-y-auto flex-1">
                     {updatable.map((ins) => {
                         const mod = modData.get(ins.id)!
                         const checked = selectedIds.has(ins.id)

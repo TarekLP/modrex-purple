@@ -417,7 +417,8 @@ export function ZipPickerModal({
             open={true}
             onOpenChange={(open) => !open && !isBusy && onClose()}
             title={t('zipPicker.title')}
-            className="w-[520px] max-h-[75vh]"
+            size="list"
+            className="w-[520px]"
         >
             <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
                 <div className="min-w-0">

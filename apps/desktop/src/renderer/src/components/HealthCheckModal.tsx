@@ -226,7 +226,8 @@ export function HealthCheckModal({
             open={visible}
             onOpenChange={(open) => !open && onClose()}
             title={t('installed.health.title')}
-            className="w-[48rem] max-h-[60vh]"
+            size="panel"
+            className="w-[48rem]"
         >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
                 <h2 className="text-sm font-semibold">{t('installed.health.title')}</h2>

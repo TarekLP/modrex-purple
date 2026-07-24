@@ -368,7 +368,8 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             open={true}
             onOpenChange={(open) => !open && onClose()}
             title={modName}
-            className="w-[32rem] max-h-[70vh] text-text"
+            size="list"
+            className="w-[32rem] text-text"
             onOpenAutoFocus={(e) => e.preventDefault()}
         >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
