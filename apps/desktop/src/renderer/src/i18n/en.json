@@ -373,7 +373,10 @@
             "signIn": "Sign in with Nexus Mods",
             "signOut": "Sign out",
             "signedIn": "Signed in to Nexus Mods.",
-            "failed": "Sign-in failed: {error}"
+            "failed": "Sign-in failed: {error}",
+            "signOutConfirmTitle": "Sign out of Nexus Mods?",
+            "signOutConfirmBody": "You'll need to sign in again in your browser to browse and install Nexus Mods.",
+            "signOutConfirm": "Sign out"
         },
         "folders": {
             "title": "Folders",

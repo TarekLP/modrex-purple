@@ -18,6 +18,7 @@ import type { LucideIcon } from 'lucide-react'
 import { siGithub, siDiscord } from 'simple-icons'
 import { t } from '../i18n'
 import { Select } from './Select'
+import { Dialog } from './Dialog'
 import { Toggle } from './Toggle'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { StorageSettings } from './StorageSettings'
@@ -164,6 +165,7 @@ export function SettingsPage({
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() => readSavedTab(globalOnly))
     const [nexusSignedIn, setNexusSignedIn] = useState<boolean | null>(null)
     const [nexusSignInError, setNexusSignInError] = useState<string | null>(null)
+    const [confirmNexusSignOut, setConfirmNexusSignOut] = useState(false)
     const [modFolders, setModFolders] = useState<{ tag: string; labelKey: string }[]>([])
 
     // Re-read on activation, not just mount: the page stays mounted as a hidden
@@ -288,6 +290,7 @@ export function SettingsPage({
     }
 
     async function handleNexusSignOut() {
+        setConfirmNexusSignOut(false)
         await api.nexusSignOut()
         setNexusSignedIn(false)
     }
@@ -639,7 +642,7 @@ export function SettingsPage({
                                                 <Button
                                                     variant="secondary"
                                                     size="md"
-                                                    onClick={handleNexusSignOut}
+                                                    onClick={() => setConfirmNexusSignOut(true)}
                                                 >
                                                     {t('settings.nexusAccount.signOut')}
                                                 </Button>
@@ -661,6 +664,41 @@ export function SettingsPage({
                                             })}
                                         </p>
                                     )}
+                                    <Dialog
+                                        open={confirmNexusSignOut}
+                                        onOpenChange={(open) =>
+                                            !open && setConfirmNexusSignOut(false)
+                                        }
+                                        title={t('settings.nexusAccount.signOutConfirmTitle')}
+                                        className="w-80"
+                                    >
+                                        <div className="p-5 flex flex-col gap-4">
+                                            <div>
+                                                <p className="text-sm font-semibold">
+                                                    {t('settings.nexusAccount.signOutConfirmTitle')}
+                                                </p>
+                                                <p className="text-xs text-text-muted mt-1">
+                                                    {t('settings.nexusAccount.signOutConfirmBody')}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button
+                                                    variant="secondary"
+                                                    size="md"
+                                                    onClick={() => setConfirmNexusSignOut(false)}
+                                                >
+                                                    {t('common.cancel')}
+                                                </Button>
+                                                <Button
+                                                    variant="accent"
+                                                    size="md"
+                                                    onClick={handleNexusSignOut}
+                                                >
+                                                    {t('settings.nexusAccount.signOutConfirm')}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </Dialog>
                                 </Section>
                                 <Section
                                     title={t('settings.folders.title')}
