@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from './ui/Button'
-import { X } from 'lucide-react'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { MarkdownContent } from './MarkdownContent'
 import { t } from '../i18n'
 import { getCachedMod } from '../modCache'
@@ -44,17 +43,7 @@ export function UnrecognizedArchiveModal({ modId, onClose }: Props) {
             size="list"
             className="w-[480px]"
         >
-            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
-                <h2 className="text-sm font-semibold">{t('unrecognized.title')}</h2>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onClose}
-                    className="-mr-1 shrink-0 mt-0.5"
-                >
-                    <X className="w-4 h-4" />
-                </Button>
-            </div>
+            <DialogHeader title={t('unrecognized.title')} onClose={onClose} />
 
             <div className="px-5 py-4 overflow-y-auto flex-1 flex flex-col gap-3">
                 <p className="text-sm text-text-muted">{t('unrecognized.body')}</p>

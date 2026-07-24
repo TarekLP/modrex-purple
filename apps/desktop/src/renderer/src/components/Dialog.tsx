@@ -1,5 +1,8 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
+import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { t } from '../i18n'
+import { Button } from './ui/Button'
 
 // Height envelopes keep content-variable modals from resizing (and re-centering)
 // as their content changes. 'panel' is a fixed height for tabbed modals whose body
@@ -43,5 +46,61 @@ export function Dialog({
                 </RadixDialog.Content>
             </RadixDialog.Portal>
         </RadixDialog.Root>
+    )
+}
+
+interface DialogHeaderProps {
+    title: ReactNode
+    subtitle?: ReactNode
+    icon?: ReactNode
+    onClose?: () => void
+    // Busy states dim the close control the same way each modal already guarded it.
+    closeDisabled?: boolean
+    // Forced dialogs (analytics consent) opt out of a close affordance entirely.
+    showClose?: boolean
+    // Subtitles are truncated by default (single-line mod names); confirm dialogs
+    // whose subtitle is a full sentence set this so the text wraps instead of clipping.
+    wrapSubtitle?: boolean
+}
+
+// Standard modal header: title (optional icon + subtitle) and a top-right close X.
+// Every modal renders this instead of hand-rolling its own header row.
+export function DialogHeader({
+    title,
+    subtitle,
+    icon,
+    onClose,
+    closeDisabled = false,
+    showClose = true,
+    wrapSubtitle = false,
+}: DialogHeaderProps) {
+    return (
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
+            <div className="min-w-0">
+                <h2 className="text-sm font-semibold flex items-center gap-2 min-w-0">
+                    {icon}
+                    <span className="truncate">{title}</span>
+                </h2>
+                {subtitle && (
+                    <p
+                        className={`text-xs text-text-muted mt-0.5 ${wrapSubtitle ? '' : 'truncate'}`}
+                    >
+                        {subtitle}
+                    </p>
+                )}
+            </div>
+            {showClose && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={closeDisabled ? undefined : onClose}
+                    disabled={closeDisabled}
+                    aria-label={t('common.close')}
+                    className="-mr-1 shrink-0"
+                >
+                    <X className="w-4 h-4" />
+                </Button>
+            )}
+        </div>
     )
 }

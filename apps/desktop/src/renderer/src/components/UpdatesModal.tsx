@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { Button } from './ui/Button'
-import { X } from 'lucide-react'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import type { GameId, InstalledMod, ModSummary } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
@@ -181,14 +180,10 @@ export function UpdatesModal({
                 size="list"
                 className="w-[32rem]"
             >
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-                    <h2 className="text-sm font-semibold">
-                        {t('installed.updatesModal.title', { count: updatable.length })}
-                    </h2>
-                    <Button variant="ghost" size="icon" onClick={onClose} className="-m-1">
-                        <X className="w-4 h-4" />
-                    </Button>
-                </div>
+                <DialogHeader
+                    title={t('installed.updatesModal.title', { count: updatable.length })}
+                    onClose={onClose}
+                />
 
                 <div className="overflow-y-auto flex-1">
                     {updatable.map((ins) => {

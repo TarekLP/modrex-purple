@@ -1,4 +1,4 @@
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import type { CrimeBossInstallTarget } from '../hooks/useCrimeBossInstallTarget'
 import { Button } from './ui/Button'
@@ -26,12 +26,13 @@ export function CrimeBossInstallTargetModal({ modName, busy, error, onChoose, on
             title={t('crimeBossInstallChoice.title', { name: modName })}
             className="w-96"
         >
-            <div className="px-5 py-4 border-b border-border shrink-0">
-                <h2 className="text-sm font-semibold">
-                    {t('crimeBossInstallChoice.title', { name: modName })}
-                </h2>
-                <p className="text-xs text-text-muted mt-1">{t('crimeBossInstallChoice.body')}</p>
-            </div>
+            <DialogHeader
+                title={t('crimeBossInstallChoice.title', { name: modName })}
+                subtitle={t('crimeBossInstallChoice.body')}
+                onClose={onCancel}
+                closeDisabled={busy}
+                wrapSubtitle
+            />
             {error && (
                 <div className="px-5 py-3 text-xs text-danger-text border-b border-border">
                     {error}

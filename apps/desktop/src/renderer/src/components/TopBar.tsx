@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from './ui/Button'
 import { Play, Square, TriangleAlert, X, RefreshCw, Loader } from 'lucide-react'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { WindowControls } from './WindowControls'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
@@ -265,13 +265,13 @@ export function TopBar({
                 title={t('topBar.missingLaunchOption.title')}
                 className="w-96"
             >
-                <div className="p-6 flex flex-col gap-4">
-                    <div className="flex flex-col gap-1">
-                        <h2 className="text-sm font-semibold flex items-center gap-2">
-                            <TriangleAlert className="w-4 h-4 text-warning shrink-0" />
-                            {t('topBar.missingLaunchOption.title')}
-                        </h2>
-                        <p className="text-xs text-text-muted">
+                <DialogHeader
+                    title={t('topBar.missingLaunchOption.title')}
+                    icon={<TriangleAlert className="w-4 h-4 text-warning shrink-0" />}
+                    onClose={() => setShowWarning(false)}
+                    wrapSubtitle
+                    subtitle={
+                        <>
                             <span className="font-mono text-text">
                                 {GAMES[activeGame].requiredLaunchFlag}
                             </span>{' '}
@@ -280,32 +280,26 @@ export function TopBar({
                                 {t('topBar.missingLaunchOption.location')}
                             </span>
                             .
-                        </p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={dontShowAgain}
-                                onChange={(e) => setDontShowAgain(e.target.checked)}
-                                className="accent-accent"
-                            />
-                            <span className="text-xs text-text-muted">
-                                {t('common.dontShowAgain')}
-                            </span>
-                        </label>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="secondary"
-                                size="md"
-                                onClick={() => setShowWarning(false)}
-                            >
-                                {t('common.cancel')}
-                            </Button>
-                            <Button variant="accent" size="md" onClick={confirmLaunch}>
-                                {t('topBar.missingLaunchOption.launchAnyway')}
-                            </Button>
-                        </div>
+                        </>
+                    }
+                />
+                <div className="flex items-center justify-between px-6 py-4 shrink-0">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={dontShowAgain}
+                            onChange={(e) => setDontShowAgain(e.target.checked)}
+                            className="accent-accent"
+                        />
+                        <span className="text-xs text-text-muted">{t('common.dontShowAgain')}</span>
+                    </label>
+                    <div className="flex gap-2">
+                        <Button variant="secondary" size="md" onClick={() => setShowWarning(false)}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button variant="accent" size="md" onClick={confirmLaunch}>
+                            {t('topBar.missingLaunchOption.launchAnyway')}
+                        </Button>
                     </div>
                 </div>
             </Dialog>

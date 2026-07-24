@@ -1,4 +1,4 @@
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { Button } from './ui/Button'
 
@@ -40,10 +40,13 @@ export function MoveCrimeBossTargetModal({
             title={t(titleKey)}
             className="w-96"
         >
-            <div className="px-5 py-4 border-b border-border shrink-0">
-                <h2 className="text-sm font-semibold">{t(titleKey)}</h2>
-                <p className="text-xs text-text-muted mt-1">{t(bodyKey, { name: modName })}</p>
-            </div>
+            <DialogHeader
+                title={t(titleKey)}
+                subtitle={t(bodyKey, { name: modName })}
+                onClose={onCancel}
+                closeDisabled={busy}
+                wrapSubtitle
+            />
             {error && (
                 <div className="px-5 py-3 text-xs text-danger-text border-b border-border">
                     {error}

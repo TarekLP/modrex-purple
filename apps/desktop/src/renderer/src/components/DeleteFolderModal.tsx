@@ -1,4 +1,4 @@
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { Button } from './ui/Button'
 
@@ -15,12 +15,12 @@ export function DeleteFolderModal({ onConfirm, onCancel }: Props) {
             title={t('installed.folder.delete')}
             className="w-80"
         >
-            <div className="px-5 py-4 border-b border-border shrink-0">
-                <h2 className="text-sm font-semibold">{t('installed.folder.delete')}</h2>
-                <p className="text-xs text-text-muted mt-1">
-                    {t('installed.folder.deleteConfirm')}
-                </p>
-            </div>
+            <DialogHeader
+                title={t('installed.folder.delete')}
+                subtitle={t('installed.folder.deleteConfirm')}
+                onClose={onCancel}
+                wrapSubtitle
+            />
             <div className="flex items-center justify-end gap-2 px-5 py-4 shrink-0">
                 <Button variant="secondary" size="sm" onClick={onCancel}>
                     {t('common.cancel')}

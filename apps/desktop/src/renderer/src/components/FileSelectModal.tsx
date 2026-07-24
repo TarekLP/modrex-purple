@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Button } from './ui/Button'
-import { X, Tag, Download, Clock, AlertTriangle } from 'lucide-react'
+import { Tag, Download, Clock, AlertTriangle } from 'lucide-react'
 import type { ModFile, InstalledMod, ModSummary } from '../../../shared/types'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { MarkdownContent } from './MarkdownContent'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
@@ -152,22 +152,11 @@ export function FileSelectModal({
                 size="list"
                 className="w-[540px]"
             >
-                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
-                    <div className="min-w-0">
-                        <h2 className="text-sm font-semibold">{t('fileSelect.title')}</h2>
-                        <p className="text-xs text-text-muted mt-0.5 truncate">
-                            {t('fileSelect.subtitle', { modName: mod.name })}
-                        </p>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onClose}
-                        className="-mr-1 shrink-0 mt-0.5"
-                    >
-                        <X className="w-4 h-4" />
-                    </Button>
-                </div>
+                <DialogHeader
+                    title={t('fileSelect.title')}
+                    subtitle={t('fileSelect.subtitle', { modName: mod.name })}
+                    onClose={onClose}
+                />
 
                 {downloadProgress !== null && (
                     <div className="h-0.5 bg-surface-active shrink-0">

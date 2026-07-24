@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Button } from './ui/Button'
 import { SearchClearButton } from './ui/SearchClearButton'
-import { X, Trash2, ChevronDown, ChevronRight, Search, Download } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronRight, Search, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { Tooltip } from './Tooltip'
 import { t } from '../i18n'
 import { api } from '../api'
@@ -372,17 +372,11 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             className="w-[32rem] text-text"
             onOpenAutoFocus={(e) => e.preventDefault()}
         >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-                <div className="min-w-0">
-                    <h2 className="text-sm font-semibold truncate">{modName}</h2>
-                    <p className="text-xs text-text-muted mt-0.5">
-                        {t('installed.fileCount', { count: mods.length })}
-                    </p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={onClose} className="-mr-1 shrink-0">
-                    <X className="w-4 h-4" />
-                </Button>
-            </div>
+            <DialogHeader
+                title={modName}
+                subtitle={t('installed.fileCount', { count: mods.length })}
+                onClose={onClose}
+            />
 
             <div className="flex items-center gap-2 px-3 pt-3 shrink-0">
                 <div className="relative flex-1">

@@ -18,7 +18,7 @@ import type { LucideIcon } from 'lucide-react'
 import { siGithub, siDiscord } from 'simple-icons'
 import { t } from '../i18n'
 import { Select } from './Select'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { StorageSettings } from './StorageSettings'
@@ -672,31 +672,27 @@ export function SettingsPage({
                                         title={t('settings.nexusAccount.signOutConfirmTitle')}
                                         className="w-80"
                                     >
-                                        <div className="p-5 flex flex-col gap-4">
-                                            <div>
-                                                <p className="text-sm font-semibold">
-                                                    {t('settings.nexusAccount.signOutConfirmTitle')}
-                                                </p>
-                                                <p className="text-xs text-text-muted mt-1">
-                                                    {t('settings.nexusAccount.signOutConfirmBody')}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    variant="secondary"
-                                                    size="md"
-                                                    onClick={() => setConfirmNexusSignOut(false)}
-                                                >
-                                                    {t('common.cancel')}
-                                                </Button>
-                                                <Button
-                                                    variant="accent"
-                                                    size="md"
-                                                    onClick={handleNexusSignOut}
-                                                >
-                                                    {t('settings.nexusAccount.signOutConfirm')}
-                                                </Button>
-                                            </div>
+                                        <DialogHeader
+                                            title={t('settings.nexusAccount.signOutConfirmTitle')}
+                                            subtitle={t('settings.nexusAccount.signOutConfirmBody')}
+                                            onClose={() => setConfirmNexusSignOut(false)}
+                                            wrapSubtitle
+                                        />
+                                        <div className="flex items-center justify-end gap-2 px-5 py-4 shrink-0">
+                                            <Button
+                                                variant="secondary"
+                                                size="md"
+                                                onClick={() => setConfirmNexusSignOut(false)}
+                                            >
+                                                {t('common.cancel')}
+                                            </Button>
+                                            <Button
+                                                variant="accent"
+                                                size="md"
+                                                onClick={handleNexusSignOut}
+                                            >
+                                                {t('settings.nexusAccount.signOutConfirm')}
+                                            </Button>
                                         </div>
                                     </Dialog>
                                 </Section>

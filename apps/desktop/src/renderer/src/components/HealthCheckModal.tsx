@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X } from 'lucide-react'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { computeHealthSummary } from '../hooks/installedUtils'
 import type { InstalledGroup } from '../hooks/installedUtils'
@@ -229,12 +228,7 @@ export function HealthCheckModal({
             size="panel"
             className="w-[48rem]"
         >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-                <h2 className="text-sm font-semibold">{t('installed.health.title')}</h2>
-                <Button variant="ghost" size="icon" onClick={onClose} className="-m-1">
-                    <X className="w-4 h-4" />
-                </Button>
-            </div>
+            <DialogHeader title={t('installed.health.title')} onClose={onClose} />
 
             <Tabs.Root
                 value={activeTab}

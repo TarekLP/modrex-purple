@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Loader, Trash2, RotateCcw, TriangleAlert } from 'lucide-react'
 import { Button } from './ui/Button'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { api } from '../api'
 import { t } from '../i18n'
 import { formatBytes } from './modDetail/format'
@@ -259,10 +259,15 @@ export function StorageSettings() {
                 className="w-[440px]"
             >
                 {confirm && (
-                    <div className="p-6 flex flex-col gap-4">
-                        <h2 className="text-sm font-semibold">{confirm.title}</h2>
-                        <p className="text-xs text-text-muted">{confirm.body}</p>
-                        <div className="flex items-center justify-end gap-2">
+                    <>
+                        <DialogHeader
+                            title={confirm.title}
+                            subtitle={confirm.body}
+                            onClose={() => setConfirm(null)}
+                            closeDisabled={confirmBusy}
+                            wrapSubtitle
+                        />
+                        <div className="flex items-center justify-end gap-2 px-6 py-4 shrink-0">
                             <Button
                                 variant="secondary"
                                 size="md"
@@ -283,7 +288,7 @@ export function StorageSettings() {
                                 {confirmBusy ? confirm.busyLabel : confirm.actionLabel}
                             </Button>
                         </div>
-                    </div>
+                    </>
                 )}
             </Dialog>
         </section>

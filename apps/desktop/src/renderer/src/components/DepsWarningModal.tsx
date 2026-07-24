@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Button } from './ui/Button'
-import { X, TriangleAlert, ExternalLink } from 'lucide-react'
+import { TriangleAlert, ExternalLink } from 'lucide-react'
 import type { ModDependency } from '../../../shared/types'
 import { THUMBNAIL_BASE_URL } from '../../../shared/types'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
 import { uninstallablePromptMessage } from '../installSentinels'
@@ -123,24 +123,14 @@ export function DepsWarningModal({
             title={t('depsWarning.title')}
             className="w-[480px]"
         >
+            <DialogHeader
+                title={t('depsWarning.title')}
+                subtitle={t('depsWarning.body')}
+                icon={<TriangleAlert className="w-4 h-4 text-warning shrink-0" />}
+                onClose={onClose}
+                wrapSubtitle
+            />
             <div className="p-6 flex flex-col gap-4">
-                <div className="flex items-start justify-between gap-2">
-                    <div className="flex flex-col gap-1">
-                        <h2 className="text-sm font-semibold flex items-center gap-2">
-                            <TriangleAlert className="w-4 h-4 text-warning shrink-0" />
-                            {t('depsWarning.title')}
-                        </h2>
-                        <p className="text-xs text-text-muted">{t('depsWarning.body')}</p>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onClose}
-                        className="-mr-1 shrink-0 mt-0.5"
-                    >
-                        <X className="w-4 h-4" />
-                    </Button>
-                </div>
                 <div className="flex flex-col gap-2">
                     {missingRequired
                         .filter((dep) => dep.mod === null && !!dep.url)

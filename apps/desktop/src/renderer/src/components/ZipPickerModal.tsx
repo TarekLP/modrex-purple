@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Button } from './ui/Button'
-import { X, Folder } from 'lucide-react'
+import { Folder } from 'lucide-react'
 import type { GameId, InstalledMod } from '../../../shared/types'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
 import { setArchiveEntries } from '../archiveEntriesCache'
@@ -420,23 +420,12 @@ export function ZipPickerModal({
             size="list"
             className="w-[520px]"
         >
-            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
-                <div className="min-w-0">
-                    <h2 className="text-sm font-semibold">{t('zipPicker.title')}</h2>
-                    <p className="text-xs text-text-muted mt-0.5 truncate">
-                        {t('zipPicker.subtitle', { modName: payload.modName })}
-                    </p>
-                </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={!isBusy ? onClose : undefined}
-                    disabled={isBusy}
-                    className="-mr-1 shrink-0 mt-0.5"
-                >
-                    <X className="w-4 h-4" />
-                </Button>
-            </div>
+            <DialogHeader
+                title={t('zipPicker.title')}
+                subtitle={t('zipPicker.subtitle', { modName: payload.modName })}
+                onClose={onClose}
+                closeDisabled={isBusy}
+            />
 
             <div className="overflow-y-auto flex-1 px-4 py-3 flex flex-col gap-2">
                 {error && (

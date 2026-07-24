@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Button } from './ui/Button'
-import { X } from 'lucide-react'
 import type { GameId, InstalledMod } from '../../../shared/types'
-import { Dialog } from './Dialog'
+import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import { api } from '../api'
 
@@ -97,21 +96,12 @@ export function HostPackModal({
             title={t('hostPack.title')}
             className="w-[460px]"
         >
-            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
-                <div className="min-w-0">
-                    <h2 className="text-sm font-semibold">{t('hostPack.title')}</h2>
-                    <p className="text-xs text-text-muted mt-0.5 truncate">{payload.modName}</p>
-                </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={!busy ? onClose : undefined}
-                    disabled={busy}
-                    className="-mr-1 shrink-0 mt-0.5"
-                >
-                    <X className="w-4 h-4" />
-                </Button>
-            </div>
+            <DialogHeader
+                title={t('hostPack.title')}
+                subtitle={payload.modName}
+                onClose={onClose}
+                closeDisabled={busy}
+            />
 
             <div className="px-5 py-4 flex flex-col gap-3">
                 {error && (
