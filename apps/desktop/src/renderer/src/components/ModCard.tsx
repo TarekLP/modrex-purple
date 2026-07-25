@@ -108,22 +108,30 @@ export function ModCard({
                         <span className="text-xs text-text-subtle">{installed.version}</span>
                     ) : (
                         <div className="flex items-center gap-3 text-xs text-text-subtle">
-                            <span className="flex items-center gap-1">
-                                <Heart className="w-3 h-3" />
-                                {formatCount(mod.likes)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <Download className="w-3 h-3" />
-                                {formatCount(mod.downloads)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <Eye className="w-3 h-3" />
-                                {formatCount(mod.views)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatRelativeTime(mod.bumped_at)}
-                            </span>
+                            {mod.likes > 0 && (
+                                <span className="flex items-center gap-1">
+                                    <Heart className="w-3 h-3" />
+                                    {formatCount(mod.likes)}
+                                </span>
+                            )}
+                            {mod.downloads > 0 && (
+                                <span className="flex items-center gap-1">
+                                    <Download className="w-3 h-3" />
+                                    {formatCount(mod.downloads)}
+                                </span>
+                            )}
+                            {mod.views > 0 && (
+                                <span className="flex items-center gap-1">
+                                    <Eye className="w-3 h-3" />
+                                    {formatCount(mod.views)}
+                                </span>
+                            )}
+                            {mod.bumped_at && (
+                                <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatRelativeTime(mod.bumped_at)}
+                                </span>
+                            )}
                         </div>
                     )}
                 </div>

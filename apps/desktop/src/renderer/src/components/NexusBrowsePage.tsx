@@ -1,17 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { nativeIdFor } from '../sources'
-import { Search, Download, ThumbsUp, Clock, Trash2, ArrowDownUp } from 'lucide-react'
+import { Search, ArrowDownUp } from 'lucide-react'
 import type { GameId, InstalledMod, ModSummary, Paginated } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
 import { SearchClearButton } from './ui/SearchClearButton'
 import { SkeletonCard } from './SkeletonCard'
+import { ModCard } from './ModCard'
 import { Select } from './Select'
 import { SourceSelect } from './SourceSelect'
-import { Button } from './ui/Button'
-import { Toggle } from './Toggle'
-import { Tooltip } from './Tooltip'
-import { formatCount, formatRelativeTime } from './modDetail/format'
 import { t } from '../i18n'
 import { api } from '../api'
 
@@ -59,146 +56,11 @@ function buildPages(current: number, last: number): (number | '...')[] {
     return pages
 }
 
-interface NexusModCardProps {
-    mod: ModSummary
-    domain: string
-    installed: InstalledMod | undefined
-    busy: boolean
-    progress: { downloaded: number; total: number } | null
-    gamePath: string | null
-    onUninstall: (ins: InstalledMod) => void
-    onEnable: (ins: InstalledMod) => void
-    onDisable: (ins: InstalledMod) => void
-}
-
-function NexusModCard({
-    mod,
-    domain,
-    installed,
-    busy,
-    progress,
-    gamePath,
-    onUninstall,
-    onEnable,
-    onDisable,
-}: NexusModCardProps) {
-    const [thumbLoaded, setThumbLoaded] = useState(false)
-    const canAct = !!gamePath && !busy
-
-    const progressPct =
-        progress && progress.total > 0
-            ? Math.round((progress.downloaded / progress.total) * 100)
-            : null
-
-    // The files tab hosts "Mod Manager Download", which hands the download back
-    // to Modrex via the nxm:// deep link, the sanctioned free-tier flow.
-    function openOnNexus() {
-        api.openExternal(`https://www.nexusmods.com/${domain}/mods/${mod.id}?tab=files`)
-    }
-
-    return (
-        <div className="h-full bg-surface-raised border border-border rounded-lg overflow-hidden flex flex-col transition-colors hover:border-accent/25">
-            <div className="cursor-pointer group relative" onClick={openOnNexus}>
-                {mod.thumbnail?.file ? (
-                    <img
-                        src={mod.thumbnail?.file}
-                        alt={mod.name}
-                        loading="lazy"
-                        ref={(el) => {
-                            if (el?.complete) setThumbLoaded(true)
-                        }}
-                        onLoad={() => setThumbLoaded(true)}
-                        className={`w-full h-36 object-cover transition-opacity ${thumbLoaded ? '' : 'opacity-0'}${installed && !installed.enabled ? ' grayscale' : ''}`}
-                    />
-                ) : (
-                    <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
-                        <span className="text-text-subtle text-xs">{t('common.noImage')}</span>
-                    </div>
-                )}
-                <div className="px-3 pt-3 pb-1 flex flex-col gap-1 min-h-[76px]">
-                    <h3 className="text-sm font-semibold leading-[20px] line-clamp-2 group-hover:text-accent-bright transition-colors">
-                        {mod.name}
-                    </h3>
-                    <p className="text-xs leading-4 text-text-muted">{mod.user.name}</p>
-                </div>
-            </div>
-
-            <div className="px-3 pb-3 pt-2 flex items-center justify-between mt-auto">
-                {installed ? (
-                    <>
-                        <span className="text-xs text-text-subtle">{installed.version}</span>
-                        <div className="flex items-center gap-2">
-                            <Toggle
-                                checked={installed.enabled}
-                                onChange={(v) => (v ? onEnable(installed) : onDisable(installed))}
-                                disabled={!canAct}
-                            />
-                            <Tooltip content={t('common.remove')}>
-                                <Button
-                                    variant="danger"
-                                    size="icon-md"
-                                    disabled={!canAct}
-                                    onClick={() => onUninstall(installed)}
-                                >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                            </Tooltip>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <div className="flex items-center gap-3 text-xs text-text-subtle">
-                            {mod.downloads > 0 && (
-                                <span className="flex items-center gap-1">
-                                    <Download className="w-3 h-3" />
-                                    {formatCount(mod.downloads)}
-                                </span>
-                            )}
-                            {mod.likes > 0 && (
-                                <span className="flex items-center gap-1">
-                                    <ThumbsUp className="w-3 h-3" />
-                                    {formatCount(mod.likes)}
-                                </span>
-                            )}
-                            {mod.bumped_at && (
-                                <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {formatRelativeTime(mod.bumped_at)}
-                                </span>
-                            )}
-                        </div>
-                        {progress ? (
-                            <Button variant="accent" size="sm" disabled>
-                                {progressPct === null
-                                    ? t('common.downloading')
-                                    : progressPct < 100
-                                      ? `${progressPct}%`
-                                      : t('common.installing')}
-                            </Button>
-                        ) : (
-                            <Button variant="accent" size="sm" onClick={openOnNexus}>
-                                <Download className="w-3.5 h-3.5" />
-                                {t('common.install')}
-                            </Button>
-                        )}
-                    </>
-                )}
-            </div>
-
-            {progress && !installed && (
-                <div className="h-0.5 bg-surface-active">
-                    {progress.total > 0 ? (
-                        <div
-                            className="h-full bg-accent transition-[width] duration-100"
-                            style={{ width: `${progressPct}%` }}
-                        />
-                    ) : (
-                        <div className="h-full bg-accent animate-pulse w-full" />
-                    )}
-                </div>
-            )}
-        </div>
-    )
+// The files tab hosts "Mod Manager Download", which hands the download back to
+// Modrex via the nxm:// deep link, the sanctioned free-tier flow — there is no
+// in-app install trigger, so ModCard's onOpen/onInstall both route here.
+function openOnNexus(mod: ModSummary, domain: string) {
+    api.openExternal(`https://www.nexusmods.com/${domain}/mods/${mod.id}?tab=files`)
 }
 
 export function NexusBrowsePage({
@@ -445,17 +307,20 @@ export function NexusBrowsePage({
                             {result.data.map((mod) => {
                                 const ins = installedByNexusId.get(mod.id)
                                 return (
-                                    <NexusModCard
+                                    <ModCard
                                         key={mod.id}
                                         mod={mod}
-                                        domain={domain}
                                         installed={ins}
-                                        busy={ins !== undefined && ins.uid === busyUid}
+                                        onOpen={() => openOnNexus(mod, domain)}
+                                        onInstall={() => openOnNexus(mod, domain)}
+                                        onUninstall={() => ins && handleUninstall(ins)}
+                                        onEnable={() => ins && handleEnable(ins)}
+                                        onDisable={() => ins && handleDisable(ins)}
+                                        loading={
+                                            ins ? ins.uid === busyUid : downloadMap.has(mod.id)
+                                        }
                                         progress={downloadMap.get(mod.id) ?? null}
                                         gamePath={gamePath}
-                                        onUninstall={handleUninstall}
-                                        onEnable={handleEnable}
-                                        onDisable={handleDisable}
                                     />
                                 )
                             })}
