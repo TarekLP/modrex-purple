@@ -43,6 +43,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed the app not remembering which tab you were on after switching games.
 - Fixed the analytics consent prompt not appearing on first launch until a game was selected.
 - Fixed the game picker still acting on the previously selected game, which could show a game-specific notice or the wrong Discord status while no game was chosen.
+- Fixed mod cards varying in height depending on their title and description length, which made grid rows uneven across Browse and Installed.
 - Fixed installing multiple files from one archive keeping only the last selected file, as each file's install removed the previously installed one.
 - Fixed an empty duplicate folder appearing next to a mod's card when the mod's files span that folder and the top level.
 - Fixed PAYDAY: The Heist reporting every mod loader dependency as missing in the health check, which checked for PAYDAY 2's SuperBLT instead of PDTH's own loaders.

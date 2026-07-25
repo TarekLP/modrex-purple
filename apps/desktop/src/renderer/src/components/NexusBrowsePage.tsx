@@ -115,12 +115,11 @@ function NexusModCard({
                         <span className="text-text-subtle text-xs">{t('common.noImage')}</span>
                     </div>
                 )}
-                <div className="px-3 pt-3 pb-1 flex flex-col gap-1">
-                    <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-accent-bright transition-colors">
+                <div className="px-3 pt-3 pb-1 flex flex-col gap-1 min-h-[76px]">
+                    <h3 className="text-sm font-semibold leading-[20px] line-clamp-2 group-hover:text-accent-bright transition-colors">
                         {mod.name}
                     </h3>
-                    <p className="text-xs text-text-muted">{mod.user.name}</p>
-                    <p className="text-xs text-text-subtle line-clamp-2">{mod.short_desc}</p>
+                    <p className="text-xs leading-4 text-text-muted">{mod.user.name}</p>
                 </div>
             </div>
 
