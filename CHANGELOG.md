@@ -52,6 +52,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed overlapping operations on the same game, such as a download finishing while the mod list refreshed, being able to discard each other's changes to the installed mod list.
 - Fixed the "mods are hidden" warning sometimes never clearing after launching PAYDAY 2 or PAYDAY: The Heist without mods.
 - Fixed several dialogs missing a close button in the top corner, so every dialog can now be closed with an X.
+- Fixed the Linux app not having a proper icon in the taskbar, application menu, and window switcher.
 
 ### Security
 
