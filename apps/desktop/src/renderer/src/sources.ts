@@ -11,9 +11,9 @@ export async function loadSourceRegistry(): Promise<void> {
 }
 
 /**
- * The sources a game offers. modworkshop covers every game; Nexus only the two with a
- * domain, so this is empty of Nexus for PD2, PDTH and RAID. Order follows the registry,
- * which puts modworkshop first, so callers can treat the first entry as the default.
+ * The sources a game offers. modworkshop covers every game; Nexus has no RAID presence,
+ * so this is empty of Nexus for RAID only. Order follows the registry, which puts
+ * modworkshop first, so callers can treat the first entry as the default.
  */
 export function sourcesForGame(gameId: string): SourceInfo[] {
     return registry.filter((s) => s.games.some((g) => g.gameId === gameId))

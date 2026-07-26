@@ -90,9 +90,9 @@ export default function App() {
         const saved = localStorage.getItem('modrex:active-game')
         return isGameId(saved) ? saved : 'pd3'
     })
-    // Which source Browse is showing. Per game because availability is per game (only
-    // PD3 and Crime Boss have Nexus) and because a search in one source means nothing
-    // in the other, so the pages keep their own state either way.
+    // Which source Browse is showing. Per game because availability is per game (RAID
+    // has no Nexus presence) and because a search in one source means nothing in the
+    // other, so the pages keep their own state either way.
     const [browseSource, setBrowseSource] = useState<string>(() =>
         readBrowseSource(localStorage.getItem('modrex:active-game') ?? '')
     )

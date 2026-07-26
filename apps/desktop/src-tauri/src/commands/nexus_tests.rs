@@ -23,13 +23,14 @@ fn returns_none_when_malformed() {
 #[test]
 fn domain_maps_supported_games() {
     assert_eq!(nexus_domain("pd3"), Ok("payday3"));
+    assert_eq!(nexus_domain("pd2"), Ok("payday2"));
+    assert_eq!(nexus_domain("pdth"), Ok("paydaytheheist"));
     assert_eq!(nexus_domain("cb"), Ok("crimebossrockaycity"));
 }
 
 #[test]
 fn domain_rejects_unsupported_games() {
-    assert!(nexus_domain("pd2").is_err());
-    assert!(nexus_domain("pdth").is_err());
+    assert!(nexus_domain("raid").is_err());
     assert!(nexus_domain("made_up").is_err());
 }
 

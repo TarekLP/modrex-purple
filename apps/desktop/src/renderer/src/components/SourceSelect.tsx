@@ -107,8 +107,8 @@ function cachedCounts(gameId: GameId): Record<string, number | null> {
  * the second one exists. Uses the mod detail page's underlined-tab treatment, sitting on
  * the title line so it reads as where you are browsing rather than as another filter.
  *
- * Renders nothing when the game has only one source, which is the case for PD2, PDTH and
- * RAID: a switcher offering a single choice is noise.
+ * Renders nothing when the game has only one source, which is the case for RAID (no
+ * Nexus presence): a switcher offering a single choice is noise.
  *
  * Results are deliberately NOT merged across sources. The two have separate search
  * engines, so their sort options differ, their relevance scores are not comparable, and

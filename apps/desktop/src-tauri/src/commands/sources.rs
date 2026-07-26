@@ -1,6 +1,6 @@
 //! The one table a mod source registers in: which games it serves and the id it
 //! knows each game by. Sources differ per game (modworkshop covers all five, Nexus
-//! only the two with a domain), and each names games in its own way - modworkshop by
+//! has no RAID presence), and each names games in its own way - modworkshop by
 //! numeric game id, Nexus by domain slug - so the mapping is the data both sides need
 //! and neither should restate. nexus_domain and its reverse derive from this.
 
@@ -48,6 +48,14 @@ pub static SOURCE_REGISTRY: &[SourceSpec] = &[
             SourceGame {
                 game_id: "pd3",
                 native_id: "payday3",
+            },
+            SourceGame {
+                game_id: "pd2",
+                native_id: "payday2",
+            },
+            SourceGame {
+                game_id: "pdth",
+                native_id: "paydaytheheist",
             },
             SourceGame {
                 game_id: "cb",
@@ -257,9 +265,7 @@ mod tests {
     fn unknown_source_or_game_resolves_to_nothing() {
         assert_eq!(native_id("no-such-source", "pd3"), None);
         assert_eq!(native_id("nexus", "no-such-game"), None);
-        // Nexus has no PD2/PDTH/RAID presence, so those must not resolve.
-        assert_eq!(native_id("nexus", "pd2"), None);
-        assert_eq!(native_id("nexus", "pdth"), None);
+        // Nexus has no RAID presence, so that must not resolve.
         assert_eq!(native_id("nexus", "raid"), None);
     }
 }
