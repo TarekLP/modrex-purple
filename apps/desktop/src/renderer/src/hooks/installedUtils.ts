@@ -23,6 +23,36 @@ export function displayFilename(filename: string): string {
     return stripped || filename
 }
 
+// An InstalledMod.id is always an opaque, source-scoped local key (see Rust's
+// sources::source_native_local_id) — never a real, callable id for any source, not even
+// modworkshop. The in-app detail page needs the real remote id back (plus the 'nexus'
+// source flag for Nexus, since ModDetailPage's source prop treats absent as modworkshop)
+// to know what to actually fetch.
+export function isIdentified(m: InstalledMod): boolean {
+    return !!m.remoteId
+}
+
+// The real, deduplicated modworkshop ids among the installed list — for the handful of
+// call sites (dependency checks) that need to fetch fresh data from modworkshop's own
+// API, which only ever takes a real id, never InstalledMod's opaque local one.
+export function modworkshopRemoteIds(mods: InstalledMod[]): number[] {
+    const ids = new Set<number>()
+    for (const m of mods) {
+        if (m.source && m.source !== 'modworkshop') continue
+        const remoteId = Number(m.remoteId)
+        if (Number.isFinite(remoteId) && remoteId > 0) ids.add(remoteId)
+    }
+    return [...ids]
+}
+
+export function detailNavArgs(ins: InstalledMod): [modId: number, source: 'nexus' | undefined] {
+    const remoteModId = Number(ins.remoteId)
+    if (Number.isFinite(remoteModId) && remoteModId > 0) {
+        return [remoteModId, ins.source === 'nexus' ? 'nexus' : undefined]
+    }
+    return [ins.id, undefined]
+}
+
 const SOURCE_LABELS: Record<string, string> = { nexus: 'Nexus Mods' }
 
 export function syntheticMod(ins: InstalledMod): ModSummary {
@@ -90,7 +120,7 @@ export function filterInstalled(
 export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
     const groups = new Map<number, InstalledMod[]>()
     for (const m of mods) {
-        if (m.id < 0) continue
+        if (!isIdentified(m)) continue
         const g = groups.get(m.id)
         if (g) g.push(m)
         else groups.set(m.id, [m])
@@ -138,7 +168,7 @@ export interface InstalledGroup {
 export function groupInstalledByIdentity(mods: InstalledMod[]): InstalledGroup[] {
     const groups = new Map<string, InstalledGroup>()
     for (const m of mods) {
-        const key = m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`
+        const key = isIdentified(m) ? `id:${m.id}` : `uid:${m.uid}`
         const g = groups.get(key)
         if (g) g.mods.push(m)
         else groups.set(key, { key, id: m.id, mods: [m] })
@@ -162,13 +192,14 @@ export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
         archiveBroken: groups.filter((g) => g.mods.some((m) => m.archiveBroken)),
         outdated: groups.filter(
             (g) =>
-                g.id >= 0 &&
+                g.mods.some(isIdentified) &&
                 (g.mods.some((m) => m.updateStatus === 'outdated') ||
                     g.mods.some((m) => m.fileId != null && suspectFileIds.has(m.fileId)))
         ),
-        // Installs from other sources carry a negative id by design; a recorded
-        // remoteId means identified, just not on modworkshop.
-        unidentified: groups.filter((g) => g.id < 0 && g.mods.every((m) => !m.remoteId)),
+        // remoteId is the one "identified" signal, regardless of source or of id's sign —
+        // id is always an opaque, source-scoped key (see sources::source_native_local_id
+        // on the Rust side), never a hint about which source or whether it's real.
+        unidentified: groups.filter((g) => g.mods.every((m) => !isIdentified(m))),
     }
 }
 
@@ -189,7 +220,11 @@ export interface SuspectFileGroup {
 export function findSuspectDuplicateGroups(mods: InstalledMod[]): SuspectFileGroup[] {
     const byFileId = new Map<number, InstalledMod[]>()
     for (const m of mods) {
-        if (m.id < 0 || m.location || m.fileId == null) continue
+        // The uid/fileId convention this whole function reasons about is specific to
+        // modworkshop's own install paths (install_mod/install_file/install_from_zip_entry
+        // in mod.rs) — it has no meaning for a Nexus-sourced entry's uid scheme.
+        const isModworkshop = !m.source || m.source === 'modworkshop'
+        if (!isModworkshop || !isIdentified(m) || m.location || m.fileId == null) continue
         const g = byFileId.get(m.fileId)
         if (g) g.push(m)
         else byFileId.set(m.fileId, [m])

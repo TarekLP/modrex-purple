@@ -3,8 +3,9 @@ import { Button } from './ui/Button'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
 import type { GameId, InstalledMod, ModSummary } from '../../../shared/types'
-import { THUMBNAIL_BASE_URL } from '../../../shared/types'
 import { api } from '../api'
+import { useThumbnail } from '../hooks/useThumbnail'
+import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import type { InstallOutcome } from '../api'
 import {
     ZipPickerModal,
@@ -17,6 +18,8 @@ import type { HostPackPayload } from './HostPackModal'
 import { CrimeBossFlatArchiveModal } from './CrimeBossFlatArchiveModal'
 import type { CbFlatArchivePayload } from './CrimeBossFlatArchiveModal'
 import { UnrecognizedArchiveModal } from './UnrecognizedArchiveModal'
+import { detailNavArgs } from '../hooks/installedUtils'
+import { nativeIdFor } from '../sources'
 
 interface Props {
     updatable: InstalledMod[]
@@ -27,7 +30,85 @@ interface Props {
     visible: boolean
     onRefreshInstalled: () => Promise<void>
     onClose: () => void
-    onOpenDetail: (modId: number) => void
+    onOpenDetail: (modId: number, source?: 'nexus') => void
+}
+
+// Nexus has no "install this exact version" call for a free account (see
+// nexus_get_download_link's key/expires requirement) — its own site is the only
+// place that can hand back a real nxm:// download, same as everywhere else Nexus
+// installs originate from this app.
+function nexusUpdateUrl(ins: InstalledMod, gameId: string): string | null {
+    if (ins.source !== 'nexus') return null
+    const domain = nativeIdFor(gameId as GameId, 'nexus')
+    const [nexusModId] = detailNavArgs(ins)
+    return domain ? `https://www.nexusmods.com/${domain}/mods/${nexusModId}?tab=files` : null
+}
+
+function UpdateModalRow({
+    ins,
+    mod,
+    checked,
+    isLoading,
+    gamePath,
+    onToggle,
+    onOpenDetail,
+    onUpdate,
+}: {
+    ins: InstalledMod
+    mod: ModSummary
+    checked: boolean
+    isLoading: boolean
+    gamePath: string | null
+    onToggle: () => void
+    onOpenDetail: () => void
+    onUpdate: () => void
+}) {
+    // useThumbnail passes an absolute URL (Nexus's picture_url) through untouched,
+    // unlike a bare THUMBNAIL_BASE_URL concatenation, which would have doubled up
+    // into a broken URL for any Nexus mod that actually has a picture.
+    const thumbSrc = useThumbnail(mod.thumbnail?.file)
+    return (
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0">
+            <input
+                type="checkbox"
+                checked={checked}
+                disabled={isLoading}
+                onChange={onToggle}
+                className="accent-[oklch(0.65_0.18_47)] w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+            />
+            <button
+                onClick={onOpenDetail}
+                className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
+            >
+                {thumbSrc ? (
+                    <img src={thumbSrc} alt="" className="w-9 h-9 rounded object-cover shrink-0" />
+                ) : (
+                    <div className="w-9 h-9 rounded bg-surface-active shrink-0 flex items-center justify-center">
+                        {ins.source === 'nexus' && (
+                            <NexusIcon className="w-4 h-4 text-text-subtle" />
+                        )}
+                    </div>
+                )}
+                <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{mod.name}</div>
+                    <div className="text-xs text-text-subtle">
+                        {ins.version} to {mod.version}
+                    </div>
+                </div>
+            </button>
+            <button
+                disabled={!gamePath || isLoading}
+                onClick={onUpdate}
+                className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+            >
+                {isLoading
+                    ? t('installed.updatesModal.updating')
+                    : ins.source === 'nexus'
+                      ? t('detail.downloads.viaNexus')
+                      : t('installed.updatesModal.update')}
+            </button>
+        </div>
+    )
 }
 
 export function UpdatesModal({
@@ -109,16 +190,26 @@ export function UpdatesModal({
         return 'manual'
     }
 
-    async function handleUpdate(uid: string, modId: number) {
+    async function handleUpdate(ins: InstalledMod) {
         if (!gamePath) return
-        setLoadingMod(uid)
+        const nexusUrl = nexusUpdateUrl(ins, gameId)
+        if (nexusUrl) {
+            api.openExternal(nexusUrl)
+            return
+        }
+        // Not a Nexus mod at this point, so the real modworkshop id — what
+        // api.installMod actually needs — lives in remoteId, never InstalledMod.id
+        // (an opaque local key).
+        const remoteId = Number(ins.remoteId)
+        if (!Number.isFinite(remoteId) || remoteId <= 0) return
+        setLoadingMod(ins.uid)
         setUpdateError(null)
         try {
-            const outcome = await api.installMod(modId, gamePath, gameId)
+            const outcome = await api.installMod(remoteId, gamePath, gameId)
             if (outcome === 'installed') {
                 await onRefreshInstalled()
             } else {
-                await resolveInstallPrompt(outcome, modId)
+                await resolveInstallPrompt(outcome, remoteId)
             }
         } catch {
             setUpdateError(t('installed.updatesModal.error'))
@@ -134,11 +225,19 @@ export function UpdatesModal({
         while (queueRef.current.length > 0) {
             const ins = queueRef.current[0]
             queueRef.current = queueRef.current.slice(1)
+            const nexusUrl = nexusUpdateUrl(ins, gameId)
+            if (nexusUrl) {
+                api.openExternal(nexusUrl)
+                setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
+                continue
+            }
+            const remoteId = Number(ins.remoteId)
+            if (!Number.isFinite(remoteId) || remoteId <= 0) continue
             try {
-                const outcome = await api.installMod(ins.id, gamePath, gameId)
+                const outcome = await api.installMod(remoteId, gamePath, gameId)
                 setUpdateProgress((prev) => prev && { done: prev.done + 1, total: prev.total })
                 if (outcome !== 'installed') {
-                    const resolution = await resolveInstallPrompt(outcome, ins.id)
+                    const resolution = await resolveInstallPrompt(outcome, remoteId)
                     // 'resolved' = auto-applied silently, continue with the next mod;
                     // 'manual' = picker handles this mod, pause until its onClose resumes.
                     if (resolution === 'manual') return
@@ -186,56 +285,19 @@ export function UpdatesModal({
                 />
 
                 <div className="overflow-y-auto flex-1">
-                    {updatable.map((ins) => {
-                        const mod = modData.get(ins.id)!
-                        const checked = selectedIds.has(ins.id)
-                        const isLoading = loadingMod === ins.uid || updatingAll
-                        return (
-                            <div
-                                key={ins.uid}
-                                className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0"
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    disabled={updatingAll}
-                                    onChange={() => toggleSelected(ins.id)}
-                                    className="accent-[oklch(0.65_0.18_47)] w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
-                                />
-                                <button
-                                    onClick={() => onOpenDetail(ins.id)}
-                                    className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
-                                >
-                                    {mod.thumbnail ? (
-                                        <img
-                                            src={`${THUMBNAIL_BASE_URL}/${mod.thumbnail.file}`}
-                                            alt=""
-                                            className="w-9 h-9 rounded object-cover shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-9 h-9 rounded bg-surface-active shrink-0" />
-                                    )}
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-medium truncate">
-                                            {mod.name}
-                                        </div>
-                                        <div className="text-xs text-text-subtle">
-                                            {ins.version} to {mod.version}
-                                        </div>
-                                    </div>
-                                </button>
-                                <button
-                                    disabled={!gamePath || isLoading}
-                                    onClick={() => handleUpdate(ins.uid, ins.id)}
-                                    className="text-xs px-3 py-1 rounded bg-surface-active hover:bg-surface-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
-                                >
-                                    {loadingMod === ins.uid
-                                        ? t('installed.updatesModal.updating')
-                                        : t('installed.updatesModal.update')}
-                                </button>
-                            </div>
-                        )
-                    })}
+                    {updatable.map((ins) => (
+                        <UpdateModalRow
+                            key={ins.uid}
+                            ins={ins}
+                            mod={modData.get(ins.id)!}
+                            checked={selectedIds.has(ins.id)}
+                            isLoading={loadingMod === ins.uid || updatingAll}
+                            gamePath={gamePath}
+                            onToggle={() => toggleSelected(ins.id)}
+                            onOpenDetail={() => onOpenDetail(...detailNavArgs(ins))}
+                            onUpdate={() => handleUpdate(ins)}
+                        />
+                    ))}
                 </div>
 
                 <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">

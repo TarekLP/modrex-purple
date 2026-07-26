@@ -4,9 +4,14 @@ import type { InstalledMod } from '../../../shared/types'
 import type { ZipMultiPakPayload } from './ZipPickerModal'
 
 function makeInstalled(overrides: Partial<InstalledMod> = {}): InstalledMod {
+    const id = overrides.id ?? 100
     return {
         uid: 'uid',
-        id: 100,
+        id,
+        // InstalledMod.id is an opaque local key; payload.modId (what
+        // computeAutoUpdateSelection actually matches against) is always real, so these
+        // fixtures need remoteId set to match — mirrors modId's real value by default.
+        remoteId: id >= 0 ? String(id) : undefined,
         name: 'Some Mod',
         version: '1.0',
         filename: 'SomeMod.pak',

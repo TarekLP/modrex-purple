@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { Button } from './ui/Button'
 import { formatCount, formatRelativeTime } from './modDetail/format'
+import { isIdentified } from '../hooks/installedUtils'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 
 interface Props {
@@ -167,17 +168,18 @@ export function ModCard({
                                 <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
                                     {t('common.fileMissing')}
                                 </span>
-                                {installed.id >= 0 && (
-                                    <Tooltip content={t('common.reinstall')}>
-                                        <button
-                                            disabled={!canAct}
-                                            onClick={onReinstall}
-                                            className="p-1.5 rounded bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <RotateCcw className="w-3.5 h-3.5" />
-                                        </button>
-                                    </Tooltip>
-                                )}
+                                {isIdentified(installed) &&
+                                    (!installed.source || installed.source === 'modworkshop') && (
+                                        <Tooltip content={t('common.reinstall')}>
+                                            <button
+                                                disabled={!canAct}
+                                                onClick={onReinstall}
+                                                className="p-1.5 rounded bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5" />
+                                            </button>
+                                        </Tooltip>
+                                    )}
                             </>
                         )}
                         {installed.archiveBroken && (

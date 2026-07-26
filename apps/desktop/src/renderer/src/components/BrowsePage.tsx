@@ -575,7 +575,12 @@ export function BrowsePage({
     const handleUninstall = useCallback(
         async (modId: number) => {
             if (!gamePath) return
-            const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+            // modId here is always a real modworkshop id (Browse is modworkshop-only);
+            // InstalledMod.id is an opaque local key, so match against remoteId instead.
+            const modIdStr = String(modId)
+            const uids = installed
+                .filter((m) => (!m.source || m.source === 'modworkshop') && m.remoteId === modIdStr)
+                .map((m) => m.uid)
             if (uids.length === 0) return
             addInstalling(modId)
             try {
@@ -591,7 +596,12 @@ export function BrowsePage({
     const handleEnable = useCallback(
         async (modId: number) => {
             if (!gamePath) return
-            const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+            // modId here is always a real modworkshop id (Browse is modworkshop-only);
+            // InstalledMod.id is an opaque local key, so match against remoteId instead.
+            const modIdStr = String(modId)
+            const uids = installed
+                .filter((m) => (!m.source || m.source === 'modworkshop') && m.remoteId === modIdStr)
+                .map((m) => m.uid)
             if (uids.length === 0) return
             addInstalling(modId)
             try {
@@ -607,7 +617,12 @@ export function BrowsePage({
     const handleDisable = useCallback(
         async (modId: number) => {
             if (!gamePath) return
-            const uids = installed.filter((m) => m.id === modId).map((m) => m.uid)
+            // modId here is always a real modworkshop id (Browse is modworkshop-only);
+            // InstalledMod.id is an opaque local key, so match against remoteId instead.
+            const modIdStr = String(modId)
+            const uids = installed
+                .filter((m) => (!m.source || m.source === 'modworkshop') && m.remoteId === modIdStr)
+                .map((m) => m.uid)
             if (uids.length === 0) return
             addInstalling(modId)
             try {
@@ -623,9 +638,16 @@ export function BrowsePage({
     const installedByModId = useMemo(() => {
         const map = new Map<number, InstalledMod[]>()
         for (const m of installed) {
-            const list = map.get(m.id)
+            // Keyed by real modworkshop id (what ModCard/handlers look this up by), not
+            // InstalledMod.id — an opaque local key that never means "modworkshop id".
+            // Source-gated too: a Nexus mod's remoteId is a real Nexus id, which can
+            // coincidentally equal some unrelated modworkshop mod's id.
+            if (m.source && m.source !== 'modworkshop') continue
+            const remoteId = Number(m.remoteId)
+            if (!Number.isFinite(remoteId) || remoteId <= 0) continue
+            const list = map.get(remoteId)
             if (list) list.push(m)
-            else map.set(m.id, [m])
+            else map.set(remoteId, [m])
         }
         return map
     }, [installed])
@@ -663,7 +685,11 @@ export function BrowsePage({
                     mod={fileSelect.mod}
                     files={fileSelect.files}
                     gamePath={gamePath}
-                    installedFiles={installed.filter((m) => m.id === fileSelect.mod.id)}
+                    installedFiles={installed.filter(
+                        (m) =>
+                            (!m.source || m.source === 'modworkshop') &&
+                            m.remoteId === String(fileSelect.mod.id)
+                    )}
                     gameId={activeGame}
                     onRefreshInstalled={onRefreshInstalled}
                     onClose={() => setFileSelect(null)}

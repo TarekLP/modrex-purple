@@ -25,7 +25,9 @@ const superbltDep = dep({
     url: 'https://superblt.znix.xyz/',
 })
 
-const installedFive = [{ id: 5 } as InstalledMod]
+// InstalledMod.id is an opaque local key; missingRequiredDeps matches a dependency's
+// real modworkshop id against remoteId, not id.
+const installedFive = [{ id: 5, remoteId: '5' } as InstalledMod]
 
 describe('collectDeps', () => {
     it('merges direct and template deps', () => {

@@ -821,6 +821,182 @@ pub fn parse_nexus_page(
     })
 }
 
+// REST v1's /mods/{id}.json, unlike the GraphQL search selection, DOES carry a real
+// version field. snake_case here (not camelCase) because this is the v1 REST API, not v2
+// GraphQL.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireNexusDetail {
+    #[serde(deserialize_with = "null_default")]
+    mod_id: i64,
+    #[serde(deserialize_with = "null_default")]
+    name: String,
+    summary: Option<String>,
+    description: Option<String>,
+    picture_url: Option<String>,
+    #[serde(deserialize_with = "null_default")]
+    mod_unique_downloads: i64,
+    #[serde(deserialize_with = "null_default")]
+    endorsement_count: i64,
+    #[serde(deserialize_with = "null_default")]
+    version: String,
+    created_time: Option<String>,
+    updated_time: Option<String>,
+    author: Option<String>,
+    user: Option<WireNexusUser>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct WireNexusUser {
+    member_id: Option<i64>,
+}
+
+/// Parses a Nexus mod-detail response into the neutral detail shape. Nexus has no
+/// equivalent of modworkshop's images, dependencies, tags, members, changelog or
+/// license, so those all come back empty or None. ModDetailPage's tabs already hide
+/// themselves on absent data, so this degrades to a smaller but still correct page
+/// rather than an error. desc is Nexus's own BBCode markup, parsed by the renderer's
+/// NexusDescription component rather than treated as markdown or HTML.
+pub fn parse_nexus_detail(value: serde_json::Value) -> Result<ModDetail, String> {
+    let w: WireNexusDetail = serde_json::from_value(value)
+        .map_err(|e| format!("nexus mod detail did not parse: {e}"))?;
+    let short_desc = w.summary.unwrap_or_default();
+    Ok(ModDetail {
+        id: w.mod_id,
+        name: w.name,
+        desc: w.description.unwrap_or_else(|| short_desc.clone()),
+        short_desc,
+        version: w.version,
+        downloads: w.mod_unique_downloads,
+        likes: w.endorsement_count,
+        views: 0,
+        published_at: w.created_time.unwrap_or_default(),
+        bumped_at: w.updated_time.unwrap_or_default(),
+        category_id: 0,
+        has_download: true,
+        disable_mod_managers: None,
+        thumbnail: w.picture_url.map(|file| ModThumbnail {
+            file,
+            has_thumb: None,
+        }),
+        download: None,
+        user: ModUser {
+            id: w.user.and_then(|u| u.member_id),
+            name: w.author.unwrap_or_default(),
+            donation_url: None,
+            avatar: None,
+            avatar_has_thumb: None,
+        },
+        changelog: None,
+        instructions: None,
+        license: None,
+        repo_url: None,
+        donation: None,
+        banner: None,
+        images: Vec::new(),
+        dependencies: Vec::new(),
+        instructs_template: None,
+        tags: Vec::new(),
+        members: Vec::new(),
+    })
+}
+
+// REST v1's own IFileInfo shape (node-nexus-api's official client), verified against
+// its published .d.ts: file_id, name, version, mod_version, size_kb, category_name,
+// description, file_name, uploaded_time. size is redundant with size_kb on the wire and
+// is not modelled here.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireNexusFile {
+    #[serde(deserialize_with = "null_default")]
+    file_id: i64,
+    #[serde(deserialize_with = "null_default")]
+    name: String,
+    #[serde(deserialize_with = "null_default")]
+    version: String,
+    #[serde(deserialize_with = "null_default")]
+    mod_version: String,
+    #[serde(deserialize_with = "null_default")]
+    size_kb: i64,
+    category_name: Option<String>,
+    description: Option<String>,
+    #[serde(deserialize_with = "null_default")]
+    file_name: String,
+    uploaded_time: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct WireNexusFiles {
+    #[serde(deserialize_with = "null_default")]
+    files: Vec<WireNexusFile>,
+}
+
+fn nexus_file_to_mod_file(w: WireNexusFile, domain: &str, mod_id: u32) -> ModFile {
+    let kind = std::path::Path::new(&w.file_name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_lowercase);
+    ModFile {
+        id: w.file_id,
+        name: if w.name.is_empty() {
+            w.file_name
+        } else {
+            w.name
+        },
+        version: if w.version.is_empty() {
+            w.mod_version
+        } else {
+            w.version
+        },
+        size: w.size_kb.saturating_mul(1024),
+        kind,
+        download_url: String::new(),
+        // nmm=1 is Nexus's own mod-manager-download deep link param (verified against
+        // Vortex's own source, which opens exactly this URL shape to resolve a free-tier
+        // download): with a file_id present it auto-triggers that file's "Mod Manager
+        // Download" action on page load, skipping the extra click of finding the button.
+        url: Some(format!(
+            "https://www.nexusmods.com/{domain}/mods/{mod_id}?tab=files&file_id={}&nmm=1",
+            w.file_id
+        )),
+        image_id: None,
+        desc: w.description.filter(|d| !d.is_empty()),
+        label: w.category_name,
+        downloads: None,
+        created_at: w.uploaded_time,
+    }
+}
+
+/// Parses a Nexus mod's file listing into the neutral file-page shape. Nexus files carry
+/// no direct download URL for a free account (only Premium or a real nxm:// handoff from
+/// the site produces one), so download_url stays empty and url instead deep-links to the
+/// file's own tab on the mod's Nexus page, the same fallback DownloadsTab already shows
+/// when no files are known at all.
+pub fn parse_nexus_files(
+    value: serde_json::Value,
+    domain: &str,
+    mod_id: u32,
+) -> Result<FilePage, String> {
+    let wire: WireNexusFiles = serde_json::from_value(value)
+        .map_err(|e| format!("nexus file listing did not parse: {e}"))?;
+    let data: Vec<ModFile> = wire
+        .files
+        .into_iter()
+        .map(|f| nexus_file_to_mod_file(f, domain, mod_id))
+        .collect();
+    let total = data.len() as i64;
+    Ok(FilePage {
+        data,
+        meta: PageMeta {
+            current_page: 1,
+            last_page: 1,
+            per_page: total,
+            total,
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1189,5 +1365,116 @@ mod tests {
         assert_eq!(page.data[0].id, 9);
         assert_eq!(page.data[0].downloads, 0);
         assert_eq!(page.meta.total, 0);
+    }
+
+    #[test]
+    fn nexus_detail_carries_a_real_version_and_empty_modworkshop_only_fields() {
+        let detail = parse_nexus_detail(
+            serde_json::from_str(
+                r#"{"mod_id":900,"name":"Nexus Mod","summary":"short","description":"long",
+                "picture_url":"https://cdn.nexus.test/a.png","mod_unique_downloads":12,
+                "endorsement_count":3,"version":"1.2.0","created_time":"2026-01-01",
+                "updated_time":"2026-02-01","author":"Someone"}"#,
+            )
+            .expect("json"),
+        )
+        .expect("detail");
+        assert_eq!(detail.id, 900);
+        assert_eq!(detail.version, "1.2.0");
+        assert_eq!(detail.desc, "long");
+        assert_eq!(detail.short_desc, "short");
+        assert_eq!(detail.downloads, 12);
+        assert_eq!(detail.likes, 3);
+        assert!(detail.images.is_empty());
+        assert!(detail.dependencies.is_empty());
+        assert!(detail.tags.is_empty());
+        assert!(detail.changelog.is_none());
+    }
+
+    #[test]
+    fn nexus_detail_carries_the_uploader_member_id() {
+        let detail = parse_nexus_detail(
+            serde_json::from_str(
+                r#"{"mod_id":52,"name":"RinoHud","author":"Abkarino",
+                "uploaded_by":"abkarino",
+                "uploaded_users_profile_url":"https://www.nexusmods.com/users/170994828",
+                "user":{"member_id":170994828,"member_group_id":27,"name":"abkarino"}}"#,
+            )
+            .expect("json"),
+        )
+        .expect("detail");
+        assert_eq!(detail.user.id, Some(170994828));
+        assert_eq!(detail.user.name, "Abkarino");
+    }
+
+    #[test]
+    fn a_nexus_detail_missing_description_falls_back_to_summary() {
+        let detail = parse_nexus_detail(
+            serde_json::from_str(r#"{"mod_id":1,"name":"N","summary":"short only"}"#)
+                .expect("json"),
+        )
+        .expect("detail");
+        assert_eq!(detail.desc, "short only");
+        assert_eq!(detail.short_desc, "short only");
+    }
+
+    #[test]
+    fn parses_a_real_nexus_file_listing_shape() {
+        let page = parse_nexus_files(
+            serde_json::from_str(
+                r#"{"files":[{"file_id":789,"name":"Main File","version":"1.2.0",
+                "mod_version":"1.2.0","category_name":"MAIN","size_kb":512,
+                "description":"the main archive","file_name":"CoolMod-789-1-2-0.zip",
+                "uploaded_time":"2026-01-01T00:00:00.000+00:00"}],
+                "file_updates":[]}"#,
+            )
+            .expect("json"),
+            "payday3",
+            900,
+        )
+        .expect("page");
+        let f = &page.data[0];
+        assert_eq!(f.id, 789);
+        assert_eq!(f.name, "Main File");
+        assert_eq!(f.version, "1.2.0");
+        assert_eq!(f.size, 512 * 1024);
+        assert_eq!(f.kind.as_deref(), Some("zip"));
+        assert_eq!(f.label.as_deref(), Some("MAIN"));
+        assert_eq!(f.download_url, "", "no direct URL without an nxm handoff");
+        assert_eq!(
+            f.url.as_deref(),
+            Some("https://www.nexusmods.com/payday3/mods/900?tab=files&file_id=789&nmm=1")
+        );
+        assert_eq!(page.meta.total, 1);
+    }
+
+    // A file with no display name or per-file version is real (mods that only fill in
+    // the mod-level version). Both must fall back rather than surface as blank.
+    #[test]
+    fn a_nexus_file_without_a_name_or_version_falls_back() {
+        let page = parse_nexus_files(
+            serde_json::from_str(
+                r#"{"files":[{"file_id":1,"mod_version":"2.0","file_name":"mod.7z"}]}"#,
+            )
+            .expect("json"),
+            "crimebossrockaycity",
+            5,
+        )
+        .expect("page");
+        let f = &page.data[0];
+        assert_eq!(f.name, "mod.7z");
+        assert_eq!(f.version, "2.0");
+        assert_eq!(f.kind.as_deref(), Some("7z"));
+    }
+
+    #[test]
+    fn an_empty_nexus_description_is_treated_as_absent() {
+        let page = parse_nexus_files(
+            serde_json::from_str(r#"{"files":[{"file_id":1,"description":""}]}"#).expect("json"),
+            "payday3",
+            1,
+        )
+        .expect("page");
+        assert!(page.data[0].desc.is_none());
     }
 }

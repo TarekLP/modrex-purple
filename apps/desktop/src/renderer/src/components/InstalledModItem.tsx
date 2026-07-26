@@ -1,14 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { nativeIdFor } from '../sources'
 import { MoreVertical } from 'lucide-react'
 import { t } from '../i18n'
-import { api } from '../api'
 import type { InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
 import { ModListRow } from './ModListRow'
 import { SkeletonCard } from './SkeletonCard'
 import { SkeletonListRow } from './SkeletonListRow'
-import { syntheticMod } from '../hooks/installedUtils'
+import { syntheticMod, detailNavArgs, isIdentified } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
 
@@ -52,7 +50,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     const id = ins.id
     const repUid = ins.uid
     // Stable across file deletions (repUid is not — the rep file can be the one deleted)
-    const groupKey = id >= 0 ? `id:${id}` : `uid:${repUid}`
+    const groupKey = isIdentified(ins) ? `id:${id}` : `uid:${repUid}`
     const showManageFiles = manageFilesKey === groupKey
     const apiMod = modData.get(id)
     const isBusy = mods.some((m) => loadingMod === m.uid)
@@ -63,19 +61,13 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         missing: mods.some((m) => m.missing) ? true : undefined,
         archiveBroken: mods.some((m) => m.archiveBroken) ? true : undefined,
     }
-    // Nexus-sourced mods have no in-app detail page; their mod page on
-    // nexusmods.com is the equivalent destination.
-    const nexusDomain = nativeIdFor(activeGame, 'nexus')
-    const nexusRemoteId = ins.source === 'nexus' ? ins.remoteId : undefined
+    // A Nexus mod always has a real detail source to fetch from (its own REST call,
+    // independent of modData), so it can navigate in-app immediately — unlike a
+    // modworkshop mod, which has nothing to show until modData actually resolves.
     const handleOpen =
-        apiMod !== undefined
-            ? () => onOpenDetail(id)
-            : nexusRemoteId !== undefined && nexusDomain !== undefined
-              ? () =>
-                    api.openExternal(
-                        `https://www.nexusmods.com/${nexusDomain}/mods/${nexusRemoteId}`
-                    )
-              : () => {}
+        ins.source === 'nexus' || apiMod !== undefined
+            ? () => onOpenDetail(...detailNavArgs(ins))
+            : () => {}
 
     // CB-only: the primary mods/ (ModKit) and legacy ~mods targets are alternate shapes of the
     // same content (see CLAUDE.md's Crime Boss section) — ue4ss_mods and host packs aren't.
@@ -133,7 +125,11 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
         )
     }
 
-    if (!apiMod && !failedIds.has(id) && id >= 0) {
+    // Nexus's own fetch trickles in slowly (rate-limited, one at a time), so a Nexus mod
+    // always falls straight to syntheticMod instead of blocking on a skeleton — matching
+    // handleOpen's same source split above.
+    const isModworkshopSourced = !ins.source || ins.source === 'modworkshop'
+    if (!apiMod && !failedIds.has(id) && isModworkshopSourced && isIdentified(ins)) {
         return viewMode === 'list' ? <SkeletonListRow /> : <SkeletonCard />
     }
 

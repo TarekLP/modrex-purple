@@ -17,7 +17,7 @@ export interface InstalledContextValue {
     folders: ModFolder[]
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
-    onOpenDetail: (modId: number) => void
+    onOpenDetail: (modId: number, source?: 'nexus') => void
     manageFilesKey: string | null
     setManageFilesKey: (key: string | null) => void
     loadingMod: string | null

@@ -2,7 +2,10 @@ import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
 
 // Every numeric id in this file is a modworkshop mod id, and every check applies to
 // modworkshop dependency metadata only. Never feed ids from another source (Nexus,
-// mod.io) into these tables: two sources collide on numbers.
+// mod.io) into these tables: two sources collide on numbers. InstalledMod.id is an
+// opaque, source-scoped local key (see sources::source_native_local_id on the Rust
+// side), never a real modworkshop id even for a modworkshop-sourced entry — matching
+// against a real id here always goes through remoteId instead.
 
 /**
  * Combines a mod's direct and instructs-template dependencies, keeping
@@ -56,7 +59,10 @@ export function missingRequiredDeps(
         if (d.mod !== null) {
             const id = d.mod.id
             if (id in loaderModIds) return loaderModIds[id] === false
-            return !installed.some((m) => m.id === id)
+            const idStr = String(id)
+            return !installed.some(
+                (m) => (!m.source || m.source === 'modworkshop') && m.remoteId === idStr
+            )
         }
         if (!d.url) return false
         if (isLoaderDep(d)) return loaderInstalled === false

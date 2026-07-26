@@ -48,7 +48,10 @@ export function useCrimeBossInstallTarget(
     async function relocateNewEntries(modId: number) {
         if (!gamePath) return
         const { mods } = await api.getInstalled(activeGame)
-        const fresh = mods.filter((m) => m.id === modId && !m.location)
+        // modId here is always the real modworkshop id (Nexus installs never reach this
+        // hook) — InstalledMod.id is an opaque local key, so match against remoteId.
+        const modIdStr = String(modId)
+        const fresh = mods.filter((m) => m.remoteId === modIdStr && !m.location)
         for (const m of fresh) {
             await api.moveCrimeBossModTarget(m.uid, gamePath)
         }

@@ -225,6 +225,16 @@ export const api = {
     ): Promise<Paginated<ModSummary>> {
         return commands.nexusSearchMods(gameId, query, sort, offset ?? null)
     },
+    // REST v1 /mods/{id}.json, mapped onto the same Mod shape modworkshop's getMod
+    // returns. Unlike nexusSearchMods, this carries a real version.
+    nexusGetModDetail(gameId: string, modId: number): Promise<Mod> {
+        return commands.nexusGetModDetail(gameId, modId)
+    },
+    // REST v1 /mods/{id}/files.json. Files carry no direct download_url for a free
+    // account, only a per-file link to the Nexus site's Mod Manager Download button.
+    nexusListModFiles(gameId: string, modId: number): Promise<Paginated<ModFile>> {
+        return commands.nexusListModFiles(gameId, modId)
+    },
 
     // ── Analytics ────────────────────────────────────────────────────────────────
     // Fire-and-forget: the Rust side gates on consent and swallows errors, so callers

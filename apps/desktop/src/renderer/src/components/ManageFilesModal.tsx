@@ -14,6 +14,7 @@ import {
     stripPriorityPrefix,
     findSuspectDuplicateGroups,
     resolveStaleDuplicates,
+    isIdentified,
 } from '../hooks/installedUtils'
 import { getCachedModFiles } from '../modCache'
 import { getArchiveEntries, mergeArchiveEntries, setArchiveEntries } from '../archiveEntriesCache'
@@ -81,12 +82,13 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     // installedUtils.ts for why a structural collision is required before this even runs.
     useEffect(() => {
         const suspects = findSuspectDuplicateGroups(mods)
-        if (suspects.length === 0 || mods[0].id < 0) {
+        const remoteId = Number(mods[0].remoteId)
+        if (suspects.length === 0 || !Number.isFinite(remoteId) || remoteId <= 0) {
             setStaleUids(new Set())
             return
         }
         let cancelled = false
-        getCachedModFiles(mods[0].id)
+        getCachedModFiles(remoteId)
             .then((files) => {
                 if (!cancelled) setStaleUids(resolveStaleDuplicates(suspects, files))
             })
@@ -101,7 +103,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     // Seed the cache from what's installed right now, so deletions show up as
     // installable rows even for mods installed before the cache existed.
     useEffect(() => {
-        if (mods[0].id < 0) return
+        if (!isIdentified(mods[0])) return
         const byId = new Map(installed.map((m) => [m.uid, m]))
         const byFileId = new Map<number, string[]>()
         for (const m of mods) {
@@ -121,15 +123,17 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     // (alternate downloads, old versions) were never theirs, and bare-file
     // installs (uid === fileId) can't match — the app renames them on disk and
     // the index only has the CDN blob name for them, not a real filename.
-    const modId = mods[0].id
+    // The real modworkshop id (api.getIndexModFiles/getCachedModFiles/installModFile all
+    // need this) — InstalledMod.id is an opaque local key, never that, even here.
+    const modRemoteId = Number(mods[0].remoteId)
     useEffect(() => {
-        if (modId < 0) return
+        if (!Number.isFinite(modRemoteId) || modRemoteId <= 0) return
         const archiveFileIds = new Set(
             mods.filter((m) => m.fileId != null && m.uid !== String(m.fileId)).map((m) => m.fileId)
         )
         if (archiveFileIds.size === 0) return
         let cancelled = false
-        api.getIndexModFiles(modId, activeGame)
+        api.getIndexModFiles(modRemoteId, activeGame)
             .then((rows) => {
                 if (cancelled) return
                 const byFileId = new Map<number, string[]>()
@@ -152,7 +156,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         return () => {
             cancelled = true
         }
-    }, [modId, mods, activeGame])
+    }, [modRemoteId, mods, activeGame])
 
     function toggleCollapse(folderId: string) {
         setCollapsed((prev) => {
@@ -184,17 +188,18 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
 
     async function handleInstallEntry(ghost: GhostFile) {
         if (!gamePath || loadingMod || installingEntry) return
+        if (!Number.isFinite(modRemoteId) || modRemoteId <= 0) return
         setInstallError(null)
         setInstallingEntry(ghost.entry)
         try {
-            const files = await getCachedModFiles(mods[0].id)
+            const files = await getCachedModFiles(modRemoteId)
             const file = files.find((f) => f.id === ghost.fileId)
             if (!file?.download_url) {
                 setInstallError(t('installed.manageFiles.fileUnavailable'))
                 return
             }
             const outcome = await api.installModFile(
-                mods[0].id,
+                modRemoteId,
                 modName,
                 file.id,
                 file.download_url,
@@ -289,17 +294,16 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     // Each ghost lands in the folder where its archive-directory siblings live.
     // Bare-file installs (uid === fileId) contribute no ghosts: their only
     // entry is the installed file itself, under an app-constructed disk name.
-    const fileIds =
-        mods[0].id >= 0
-            ? [
-                  ...new Set(
-                      mods
-                          .filter((m) => m.uid !== String(m.fileId))
-                          .map((m) => m.fileId)
-                          .filter((id): id is number => id != null)
-                  ),
-              ]
-            : []
+    const fileIds = isIdentified(mods[0])
+        ? [
+              ...new Set(
+                  mods
+                      .filter((m) => m.uid !== String(m.fileId))
+                      .map((m) => m.fileId)
+                      .filter((id): id is number => id != null)
+              ),
+          ]
+        : []
     const installedNames = new Set(mods.map((m) => stripPriorityPrefix(m.filename)))
     const ghostFiles: GhostFile[] = []
     for (const fileId of fileIds) {

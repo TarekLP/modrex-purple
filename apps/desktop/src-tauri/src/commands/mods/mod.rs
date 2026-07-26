@@ -77,6 +77,7 @@ use crate::commands::api::{api_get, http_client, user_agent};
 use crate::commands::download::download_file;
 use crate::commands::mod_index;
 use crate::commands::settings::{game_settings, read_settings};
+use crate::commands::sources;
 use chrono::Utc;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -202,11 +203,12 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         let entry = match hit {
             Some(h) => InstalledMod {
                 uid: format!("{}_{}", h.file_remote_id, set_name),
-                id: h.mod_remote_id,
+                id: sources::source_native_local_id("modworkshop", &h.mod_remote_id.to_string()),
                 name: h.mod_name,
                 version: h.version,
                 filename: set_name,
                 enabled,
+                remote_id: Some(h.mod_remote_id.to_string()),
                 file_id: Some(h.file_remote_id),
                 sha256,
                 location,
@@ -421,13 +423,22 @@ pub async fn install_mod(
             }
         };
         let uid = file_id.to_string();
+        // The real modworkshop id, kept as a string for remote_id and identity
+        // comparisons — InstalledMod.id itself is an opaque, source-scoped key (see
+        // sources::source_native_local_id) and is never compared against this directly.
+        let remote_id_str = remote_id.to_string();
+        let local_id = sources::source_native_local_id("modworkshop", &remote_id_str);
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
             if remote_id <= 0 {
                 return None;
             }
-            let same: Vec<_> = saved.mods.iter().filter(|m| m.id == remote_id).collect();
+            let same: Vec<_> = saved
+                .mods
+                .iter()
+                .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
+                .collect();
             // Only inherit for single-entry mods; multi-pak entries span different folders.
             if same.len() == 1 {
                 same.into_iter().next()
@@ -438,7 +449,14 @@ pub async fn install_mod(
         let was_disabled = existing_entry.is_some_and(|e| !e.enabled);
         // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
         let effective_folder_id = folder_id.or_else(|| {
-            if remote_id > 0 && saved.mods.iter().filter(|m| m.id == remote_id).count() > 1 {
+            if remote_id > 0
+                && saved
+                    .mods
+                    .iter()
+                    .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
+                    .count()
+                    > 1
+            {
                 return None;
             }
             existing_entry.and_then(|e| e.folder_id.clone())
@@ -464,7 +482,11 @@ pub async fn install_mod(
         // (i.e. an older version with a different file_id), remove it first so
         // install_mod_from_path doesn't produce two entries for the same mod.
         if saved.mods.iter().all(|m| m.uid != uid) && remote_id > 0 {
-            let same: Vec<_> = saved.mods.iter().filter(|m| m.id == remote_id).collect();
+            let same: Vec<_> = saved
+                .mods
+                .iter()
+                .filter(|m| m.remote_id.as_deref() == Some(remote_id_str.as_str()))
+                .collect();
             if same.len() == 1 {
                 uninstall_mod_op(&game_path, &sp, &same[0].uid.clone(), cfg);
             }
@@ -475,12 +497,13 @@ pub async fn install_mod(
             &sp,
             InstalledMod {
                 uid: uid.clone(),
-                id: remote_id,
+                id: local_id,
                 name: mod_name,
                 version: mod_version,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
+                remote_id: Some(remote_id_str.clone()),
                 file_id: Some(file_id),
                 file_type: Some(file_type.clone()),
                 sha256: Some(sha256),
@@ -623,13 +646,19 @@ pub async fn install_file(
             }
         };
         let uid = file_id.to_string();
+        let mod_id_str = mod_id.to_string();
+        let local_id = sources::source_native_local_id("modworkshop", &mod_id_str);
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
         let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
             if mod_id <= 0 {
                 return None;
             }
-            let same: Vec<_> = saved.mods.iter().filter(|m| m.id == mod_id).collect();
+            let same: Vec<_> = saved
+                .mods
+                .iter()
+                .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
+                .collect();
             if same.len() == 1 {
                 same.into_iter().next()
             } else {
@@ -637,12 +666,18 @@ pub async fn install_file(
             }
         });
         // Never inherit folder when this mod_id already has multiple installed files.
-        let effective_folder_id =
-            if mod_id > 0 && saved.mods.iter().filter(|m| m.id == mod_id).count() > 1 {
-                None
-            } else {
-                existing_entry.and_then(|e| e.folder_id.clone())
-            };
+        let effective_folder_id = if mod_id > 0
+            && saved
+                .mods
+                .iter()
+                .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
+                .count()
+                > 1
+        {
+            None
+        } else {
+            existing_entry.and_then(|e| e.folder_id.clone())
+        };
         let filename = saved
             .mods
             .iter()
@@ -671,12 +706,13 @@ pub async fn install_file(
             &sp,
             InstalledMod {
                 uid,
-                id: mod_id,
+                id: local_id,
                 name: mod_name,
                 version: mod_version,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
+                remote_id: Some(mod_id_str.clone()),
                 file_id: Some(file_id),
                 file_type: Some(file_type.clone()),
                 sha256: Some(sha256),
@@ -748,8 +784,10 @@ pub(crate) struct NexusInstallMeta {
     pub file_type: String,
 }
 
-// Keep Nexus identity separate unless an exact SHA256 match proves the mod was
-// cross-posted. Picker sentinels cannot be forwarded because their UI requires
+// Nexus identity always stays its own tracked entry, never merged into a modworkshop
+// one even when a byte-identical cross-posted file exists elsewhere (see identify.rs's
+// upgrade_negative_ids, which never reassigns an entry that already carries a
+// remote_id). Picker sentinels cannot be forwarded because their UI requires
 // modworkshop metadata that this handoff does not have.
 pub(crate) async fn install_nexus_download(
     app: &AppHandle,
@@ -844,7 +882,10 @@ pub(crate) async fn install_nexus_download(
             &sp,
             InstalledMod {
                 uid,
-                id: -(nexus_mod_id as i64),
+                id: crate::commands::sources::source_native_local_id(
+                    "nexus",
+                    &nexus_mod_id.to_string(),
+                ),
                 name: mod_name.clone(),
                 version: mod_version,
                 filename,
@@ -1073,12 +1114,16 @@ fn stale_entry_for_zip_install<'a>(
     mods: &'a [InstalledMod],
     uid: &str,
     mod_id: i64,
+    mod_id_str: &str,
     file_id: i64,
 ) -> Option<&'a InstalledMod> {
     if mod_id <= 0 || mods.iter().any(|m| m.uid == uid) {
         return None;
     }
-    let same: Vec<_> = mods.iter().filter(|m| m.id == mod_id).collect();
+    let same: Vec<_> = mods
+        .iter()
+        .filter(|m| m.remote_id.as_deref() == Some(mod_id_str))
+        .collect();
     if same.len() != 1 || same[0].uid.starts_with(&format!("{file_id}_")) {
         return None;
     }
@@ -1208,6 +1253,8 @@ pub async fn install_from_zip_entry(
         };
         let sp = get_state_path(&game_path, cfg);
         let saved = read_state(&sp);
+        let mod_id_str = mod_id.to_string();
+        let local_id = sources::source_native_local_id("modworkshop", &mod_id_str);
 
         // Reuse existing uid by SHA256 so a reinstall moves the entry in-place rather than duplicating.
         let sha256_match = saved
@@ -1216,7 +1263,9 @@ pub async fn install_from_zip_entry(
             .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
         let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
 
-        if let Some(stale) = stale_entry_for_zip_install(&saved.mods, &uid, mod_id, file_id) {
+        if let Some(stale) =
+            stale_entry_for_zip_install(&saved.mods, &uid, mod_id, &mod_id_str, file_id)
+        {
             let stale_uid = stale.uid.clone();
             uninstall_mod_op(&game_path, &sp, &stale_uid, cfg);
         }
@@ -1229,12 +1278,13 @@ pub async fn install_from_zip_entry(
             &sp,
             InstalledMod {
                 uid,
-                id: mod_id,
+                id: local_id,
                 name: mod_name,
                 version: mod_version,
                 filename: install_filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
+                remote_id: Some(mod_id_str.clone()),
                 file_id: Some(file_id),
                 file_type: Some(file_type),
                 sha256: Some(sha256),
@@ -1328,12 +1378,13 @@ pub async fn install_cb_flat_archive(
             &sp,
             InstalledMod {
                 uid,
-                id: mod_id,
+                id: sources::source_native_local_id("modworkshop", &mod_id.to_string()),
                 name: mod_name,
                 version: mod_version,
                 filename,
                 enabled: true,
                 installed_at: Utc::now().to_rfc3339(),
+                remote_id: Some(mod_id.to_string()),
                 file_id: Some(file_id),
                 file_type: Some(file_type.clone()),
                 sha256: Some(sha256),
@@ -1417,9 +1468,10 @@ pub async fn install_host_pack(app: AppHandle, args: InstallHostPackArgs) -> Res
     let sp = get_state_path(&game_path, cfg);
     let install_format = file_type.clone();
     let mod_data = InstalledMod {
-        id: mod_id,
+        id: sources::source_native_local_id("modworkshop", &mod_id.to_string()),
         name: mod_name,
         version: mod_version,
+        remote_id: Some(mod_id.to_string()),
         file_id: Some(file_id),
         file_type: Some(file_type),
         location: Some(format!("host:{}:{}", host_mod_id, host_subpath)),

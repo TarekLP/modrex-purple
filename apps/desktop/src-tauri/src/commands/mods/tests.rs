@@ -1013,8 +1013,11 @@ fn reconcile_state_recovers_source_identity_from_uid() {
     let nexus = state.mods.iter().find(|m| m.source == "nexus").unwrap();
     assert_eq!(nexus.remote_id.as_deref(), Some("123"));
     assert_eq!(nexus.file_remote_id.as_deref(), Some("456"));
-    let workshop = state.mods.iter().find(|m| m.id == 42).unwrap();
-    assert_eq!(workshop.remote_id, None);
+    // The workshop entry's old id (42) WAS its real modworkshop id, before id became
+    // opaque for every source — reconcile backfills remote_id from it directly (no
+    // SHA256/name re-derivation) and only then re-derives id as the opaque local key.
+    let workshop = state.mods.iter().find(|m| m.uid == "789").unwrap();
+    assert_eq!(workshop.remote_id.as_deref(), Some("42"));
     assert_eq!(workshop.file_remote_id, None);
 
     // Persisted, so the parse never needs to run for these entries again.
@@ -1056,10 +1059,205 @@ fn reconcile_state_leaves_unparsable_source_uid_alone() {
 }
 
 #[test]
+fn reconcile_state_backfills_remote_id_for_a_legacy_modworkshop_entry_without_touching_version() {
+    // Reproduces the upgrade path for every existing user: a modworkshop mod installed
+    // before remote_id existed for that source has a real positive id and no remote_id at
+    // all. Without the backfill, upgrade_negative_ids (identify.rs) can't tell that apart
+    // from "genuinely never identified" and would run its fuzzy SHA256/name fallback on
+    // it — the name-match branch specifically wipes the version and marks it Outdated,
+    // which must not happen here since this entry was already correctly identified.
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let sp = get_state_path(game, cfg);
+
+    let legacy = InstalledMod {
+        uid: "100088".to_string(),
+        id: 58065,
+        name: "Alternative RinoHUD Icons".to_string(),
+        version: "1.2.1".to_string(),
+        filename: "alt_rinohud.pak".to_string(),
+        enabled: true,
+        file_id: Some(100088),
+        sha256: Some("nomatchhere".to_string()),
+        ..InstalledMod::default()
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![legacy],
+        },
+    );
+
+    let mut state = reconcile_state(game, &sp, cfg);
+    let expected_id = crate::commands::sources::source_native_local_id("modworkshop", "58065");
+    assert_eq!(state.mods[0].remote_id.as_deref(), Some("58065"));
+    assert_eq!(state.mods[0].id, expected_id);
+    assert_eq!(
+        state.mods[0].version, "1.2.1",
+        "backfill must not touch version"
+    );
+    assert_eq!(state.mods[0].update_status, UpdateStatus::Known);
+
+    // The scenario that motivated this: an empty index (or a genuine SHA256/name miss)
+    // must not retroactively "re-identify" an already-identified entry.
+    let conn = setup_identify_index();
+    let changed =
+        super::identify::upgrade_negative_ids_with_conn(&conn, &mut state.mods, "PAYDAY 3");
+    assert!(!changed);
+    assert_eq!(state.mods[0].version, "1.2.1");
+    assert_eq!(state.mods[0].update_status, UpdateStatus::Known);
+}
+
+#[test]
+fn reconcile_state_repairs_a_source_native_id_wrongly_promoted_to_modworkshop() {
+    // Reproduces a real corrupted save: an older, unguarded upgrade_negative_ids let a
+    // Nexus-installed mod's id drift to a modworkshop id (an exact SHA256 match against a
+    // cross-posted file), while source/remote_id stayed "nexus"/"52" — the sign of id is
+    // what a Nexus mod's card badge and its own per-source update check both rely on, so a
+    // stuck-positive id needs an active repair, not just a guard against new occurrences.
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let sp = get_state_path(game, cfg);
+
+    let expected_id = crate::commands::sources::source_native_local_id("nexus", "52");
+    let corrupted = InstalledMod {
+        uid: "nexus:52:640".to_string(),
+        id: 55809,
+        name: "RinoHud".to_string(),
+        filename: "rinohud.pak".to_string(),
+        enabled: true,
+        source: "nexus".to_string(),
+        remote_id: Some("52".to_string()),
+        file_remote_id: Some("640".to_string()),
+        file_id: Some(640),
+        ..InstalledMod::default()
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![corrupted],
+        },
+    );
+
+    let state = reconcile_state(game, &sp, cfg);
+    assert_eq!(state.mods[0].id, expected_id);
+    assert_eq!(state.mods[0].name, "RinoHud", "only id is repaired");
+
+    // Persisted, so the repair never needs to run again for this entry.
+    let saved = read_state(&sp);
+    assert_eq!(saved.mods[0].id, expected_id);
+}
+
+#[test]
+fn reconcile_state_leaves_a_correct_source_native_id_alone() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let sp = get_state_path(game, cfg);
+
+    let expected_id = crate::commands::sources::source_native_local_id("nexus", "52");
+    let entry = InstalledMod {
+        uid: "nexus:52:640".to_string(),
+        id: expected_id,
+        name: "RinoHud".to_string(),
+        filename: "rinohud.pak".to_string(),
+        enabled: true,
+        source: "nexus".to_string(),
+        remote_id: Some("52".to_string()),
+        file_remote_id: Some("640".to_string()),
+        ..InstalledMod::default()
+    };
+    save_state(
+        &sp,
+        &ModsState {
+            folders: vec![],
+            mods: vec![entry],
+        },
+    );
+
+    let state = reconcile_state(game, &sp, cfg);
+    assert_eq!(state.mods[0].id, expected_id);
+}
+
+// ── upgrade_negative_ids_with_conn ─────────────────────────────────────────────
+
+fn setup_identify_index() -> rusqlite::Connection {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    conn.execute_batch(
+        "
+        CREATE TABLE games (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE sources (id INTEGER PRIMARY KEY, game_id INTEGER);
+        CREATE TABLE mods (id INTEGER PRIMARY KEY, source_id INTEGER, remote_id INTEGER, name TEXT);
+        CREATE TABLE files (id INTEGER PRIMARY KEY, mod_id INTEGER, remote_id INTEGER, sha256 TEXT, version TEXT, entry_name TEXT NOT NULL DEFAULT '');
+
+        INSERT INTO games VALUES (1, 'PAYDAY 3');
+        INSERT INTO sources VALUES (1, 1);
+        INSERT INTO mods VALUES (1, 1, 55809, 'Alternative RinoHUD Icons');
+        INSERT INTO files VALUES (1, 1, 640, 'crosspostedsha', '1.2.2', '');
+        ",
+    )
+    .unwrap();
+    conn
+}
+
+#[test]
+fn upgrade_negative_ids_never_promotes_a_source_native_entry_even_on_an_exact_sha256_hit() {
+    // A Nexus-installed file that happens to byte-match a modworkshop file (a real
+    // cross-post) must not have its id reassigned to that modworkshop mod's id — the
+    // corruption this reproduces: same sha256, entry ends up positive while source and
+    // remote_id still say "nexus", desyncing its card badge and its own update check.
+    let conn = setup_identify_index();
+    let mut mods = vec![InstalledMod {
+        uid: "nexus:52:640".to_string(),
+        id: -52,
+        name: "RinoHud".to_string(),
+        filename: "rinohud.pak".to_string(),
+        enabled: true,
+        source: "nexus".to_string(),
+        remote_id: Some("52".to_string()),
+        file_remote_id: Some("640".to_string()),
+        sha256: Some("crosspostedsha".to_string()),
+        ..InstalledMod::default()
+    }];
+    let changed = super::identify::upgrade_negative_ids_with_conn(&conn, &mut mods, "PAYDAY 3");
+    assert!(!changed);
+    assert_eq!(mods[0].id, -52);
+    assert_eq!(mods[0].name, "RinoHud");
+}
+
+#[test]
+fn upgrade_negative_ids_still_upgrades_a_genuinely_unidentified_entry_by_sha256() {
+    let conn = setup_identify_index();
+    let mut mods = vec![InstalledMod {
+        uid: "rinohud.pak".to_string(),
+        id: -1,
+        name: "some_local_pak".to_string(),
+        filename: "rinohud.pak".to_string(),
+        enabled: true,
+        sha256: Some("crosspostedsha".to_string()),
+        ..InstalledMod::default()
+    }];
+    let changed = super::identify::upgrade_negative_ids_with_conn(&conn, &mut mods, "PAYDAY 3");
+    assert!(changed);
+    assert_eq!(mods[0].remote_id.as_deref(), Some("55809"));
+    assert_eq!(
+        mods[0].id,
+        crate::commands::sources::source_native_local_id("modworkshop", "55809")
+    );
+    assert_eq!(mods[0].name, "Alternative RinoHUD Icons");
+}
+
+#[test]
 fn regroup_by_name_suffix_skips_entries_with_source_identity() {
+    let base_id = crate::commands::sources::source_native_local_id("modworkshop", "100");
     let base = InstalledMod {
         uid: "100".to_string(),
-        id: 100,
+        id: base_id,
+        remote_id: Some("100".to_string()),
         name: "Cool Mod".to_string(),
         filename: "cool_mod.pak".to_string(),
         enabled: true,
@@ -1088,7 +1286,7 @@ fn regroup_by_name_suffix_skips_entries_with_source_identity() {
     let mut mods = vec![base, unidentified, sourced];
     super::identify::regroup_negative_ids_by_name_suffix(&mut mods);
 
-    assert_eq!(mods[1].id, 100);
+    assert_eq!(mods[1].id, base_id);
     assert_eq!(mods[2].id, -9);
 }
 
@@ -1230,6 +1428,7 @@ fn host_fixture() -> (TempDir, std::path::PathBuf, NamedTempFile) {
             mods: vec![InstalledMod {
                 uid: "Menu Backgrounds".into(),
                 id: 17160,
+                remote_id: Some("17160".into()),
                 name: "Menu Backgrounds".into(),
                 filename: "Menu Backgrounds".into(),
                 enabled: true,
@@ -1248,6 +1447,7 @@ fn host_fixture() -> (TempDir, std::path::PathBuf, NamedTempFile) {
 fn bg_mod_data() -> InstalledMod {
     InstalledMod {
         id: 57135,
+        remote_id: Some("57135".into()),
         name: "BG Mod".into(),
         version: "1".into(),
         file_id: Some(999),
@@ -1272,7 +1472,7 @@ fn install_host_pack_op_places_set_and_records() {
     let rec = read_state(&sp)
         .mods
         .into_iter()
-        .find(|m| m.id == 57135)
+        .find(|m| m.name == "BG Mod")
         .expect("recorded");
     assert_eq!(rec.location.as_deref(), Some("host:17160:Assets"));
     assert_eq!(rec.filename, "My Set");
@@ -1298,7 +1498,7 @@ fn reconcile_keeps_installed_host_pack() {
     install_host_pack_op(game, &sp, zip.path(), "My Set", bg_mod_data(), cfg).unwrap();
 
     let state = reconcile_state(game, &sp, cfg);
-    let rec = state.mods.iter().find(|m| m.id == 57135).unwrap();
+    let rec = state.mods.iter().find(|m| m.name == "BG Mod").unwrap();
     assert_eq!(
         rec.missing, None,
         "installed host pack must not read as missing"
@@ -1424,7 +1624,7 @@ fn disable_then_enable_host_pack_moves_files() {
         !read_state(&sp)
             .mods
             .iter()
-            .find(|m| m.id == 57135)
+            .find(|m| m.name == "BG Mod")
             .unwrap()
             .enabled
     );
@@ -1438,7 +1638,7 @@ fn disable_then_enable_host_pack_moves_files() {
         read_state(&sp)
             .mods
             .iter()
-            .find(|m| m.id == 57135)
+            .find(|m| m.name == "BG Mod")
             .unwrap()
             .enabled
     );
@@ -1453,7 +1653,7 @@ fn reconcile_keeps_disabled_host_pack() {
     disable_mod_op(game, &sp, "999_My Set", cfg, None);
 
     let state = reconcile_state(game, &sp, cfg);
-    let rec = state.mods.iter().find(|m| m.id == 57135).unwrap();
+    let rec = state.mods.iter().find(|m| m.name == "BG Mod").unwrap();
     assert_eq!(
         rec.missing, None,
         "a disabled host pack must not read as missing"
@@ -1840,7 +2040,12 @@ fn identify_untracked_uses_embedded_id_when_hash_misses() {
 
     assert_eq!(mods.len(), 1);
     let m = &mods[0];
-    assert_eq!(m.id, 300); // identified by the embedded modworkshop id
+    // identified by the embedded modworkshop id; id itself is an opaque source-scoped key
+    assert_eq!(m.remote_id.as_deref(), Some("300"));
+    assert_eq!(
+        m.id,
+        crate::commands::sources::source_native_local_id("modworkshop", "300")
+    );
     assert_eq!(m.name, "Cool Mod (Official Name)"); // real name pulled from the index
     assert_eq!(m.file_id, None); // a drifted install pins no specific file
     assert_eq!(m.version, "2.0"); // installed version = the mod's own declaration
@@ -1872,7 +2077,12 @@ fn identify_untracked_hash_beats_embedded_id() {
     );
 
     let m = &mods[0];
-    assert_eq!(m.id, 999); // exact hash wins over the embedded id 300
+    // exact hash wins over the embedded id 300
+    assert_eq!(m.remote_id.as_deref(), Some("999"));
+    assert_eq!(
+        m.id,
+        crate::commands::sources::source_native_local_id("modworkshop", "999")
+    );
     assert_eq!(m.name, "Hash Match Mod");
     assert_eq!(m.file_id, Some(555));
     assert_eq!(m.version, "9.0");
@@ -1907,7 +2117,11 @@ fn identify_untracked_embedded_without_version_uses_index_version() {
     );
 
     let m = &mods[0];
-    assert_eq!(m.id, 301);
+    assert_eq!(m.remote_id.as_deref(), Some("301"));
+    assert_eq!(
+        m.id,
+        crate::commands::sources::source_native_local_id("modworkshop", "301")
+    );
     assert_eq!(m.version, "3.3"); // no declared version → index's current version (avoids false update)
     assert_eq!(m.file_id, None);
 }
@@ -1932,7 +2146,12 @@ fn identify_untracked_falls_back_to_name_without_embedded() {
     );
 
     let m = &mods[0];
-    assert_eq!(m.id, 555); // matched by name
+    // matched by name
+    assert_eq!(m.remote_id.as_deref(), Some("555"));
+    assert_eq!(
+        m.id,
+        crate::commands::sources::source_native_local_id("modworkshop", "555")
+    );
     assert_eq!(m.file_id, None);
     // SHA256 missed the index's current file, so the installed bytes are known-stale.
     // Outdated (not Unknown) is what surfaces an update instead of suppressing it, and
@@ -2926,10 +3145,11 @@ fn move_crimeboss_mod_preserves_disabled_state() {
 // install of a 36-entry archive left only the last entry, because every install saw exactly
 // one same-id entry — the sibling installed a moment earlier — and pre-removed it.
 
-fn zip_install_entry(uid: &str, id: i64, file_id: i64) -> InstalledMod {
+fn zip_install_entry(uid: &str, remote_id: i64, file_id: i64) -> InstalledMod {
     InstalledMod {
         uid: uid.to_string(),
-        id,
+        id: crate::commands::sources::source_native_local_id("modworkshop", &remote_id.to_string()),
+        remote_id: Some(remote_id.to_string()),
         filename: format!("{uid}.pak"),
         enabled: true,
         file_id: Some(file_id),
@@ -2940,13 +3160,16 @@ fn zip_install_entry(uid: &str, id: i64, file_id: i64) -> InstalledMod {
 #[test]
 fn stale_entry_keeps_same_archive_sibling() {
     let mods = vec![zip_install_entry("98276_zDarkMatter_AG-9", 56976, 98276)];
-    assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_ATK-7", 56976, 98276).is_none());
+    assert!(
+        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_ATK-7", 56976, "56976", 98276)
+            .is_none()
+    );
 }
 
 #[test]
 fn stale_entry_removes_bare_packaging_of_same_file() {
     let mods = vec![zip_install_entry("98276", 56976, 98276)];
-    let stale = stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, 98276);
+    let stale = stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276);
     assert_eq!(stale.map(|m| m.uid.as_str()), Some("98276"));
 }
 
@@ -2954,7 +3177,8 @@ fn stale_entry_removes_bare_packaging_of_same_file() {
 fn stale_entry_removes_older_file_id() {
     for old_uid in ["90000", "90000_OldEntry"] {
         let mods = vec![zip_install_entry(old_uid, 56976, 90000)];
-        let stale = stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, 98276);
+        let stale =
+            stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276);
         assert_eq!(stale.map(|m| m.uid.as_str()), Some(old_uid));
     }
 }
@@ -2962,7 +3186,10 @@ fn stale_entry_removes_older_file_id() {
 #[test]
 fn stale_entry_none_when_uid_already_installed() {
     let mods = vec![zip_install_entry("98276_zDarkMatter_AG-9", 56976, 98276)];
-    assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, 98276).is_none());
+    assert!(
+        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276)
+            .is_none()
+    );
 }
 
 #[test]
@@ -2971,10 +3198,15 @@ fn stale_entry_none_for_multi_entry_mods_and_negative_ids() {
         zip_install_entry("90000", 56976, 90000),
         zip_install_entry("90001", 56976, 90001),
     ];
-    assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, 98276).is_none());
+    assert!(
+        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", 56976, "56976", 98276)
+            .is_none()
+    );
 
     let mods = vec![zip_install_entry("Foo", -42, 0)];
-    assert!(stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", -42, 98276).is_none());
+    assert!(
+        stale_entry_for_zip_install(&mods, "98276_zDarkMatter_AG-9", -42, "-42", 98276).is_none()
+    );
 }
 
 // ── Legacy version-sentinel migration ────────────────────────────────────────

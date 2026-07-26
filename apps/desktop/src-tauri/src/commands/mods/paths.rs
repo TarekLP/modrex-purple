@@ -19,9 +19,10 @@ pub fn resolve_host_mod_dir(
     folders: &[ModFolder],
     host_id: i64,
 ) -> Option<PathBuf> {
+    let host_id_str = host_id.to_string();
     if let Some(h) = mods
         .iter()
-        .find(|h| h.id == host_id && h.location.is_none())
+        .find(|h| h.remote_id.as_deref() == Some(host_id_str.as_str()) && h.location.is_none())
     {
         let rel = get_folder_path(folders, h.folder_id.as_deref());
         let active = active_mod_path(game_path, &h.filename, rel.as_deref(), cfg.primary());

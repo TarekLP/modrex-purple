@@ -21,6 +21,7 @@ interface Props {
     installed: InstalledMod[]
     onRefreshInstalled: () => Promise<void>
     onGoToSettings: () => void
+    onOpenDetail: (modId: number, initialMod?: ModSummary) => void
 }
 
 // Must match PAGE_SIZE in nexus.rs, which pages by offset rather than page number.
@@ -58,7 +59,8 @@ function buildPages(current: number, last: number): (number | '...')[] {
 
 // The files tab hosts "Mod Manager Download", which hands the download back to
 // Modrex via the nxm:// deep link, the sanctioned free-tier flow — there is no
-// in-app install trigger, so ModCard's onOpen/onInstall both route here.
+// in-app install trigger, so ModCard's onInstall routes here. onOpen instead goes
+// to the in-app detail page (ModDetailPage), matching modworkshop's ModCard.
 function openOnNexus(mod: ModSummary, domain: string) {
     api.openExternal(`https://www.nexusmods.com/${domain}/mods/${mod.id}?tab=files`)
 }
@@ -72,6 +74,7 @@ export function NexusBrowsePage({
     installed,
     onRefreshInstalled,
     onGoToSettings,
+    onOpenDetail,
 }: Props) {
     const domain = nativeIdFor(activeGame, 'nexus')
     const [page, setPage] = useState(1)
@@ -311,7 +314,7 @@ export function NexusBrowsePage({
                                         key={mod.id}
                                         mod={mod}
                                         installed={ins}
-                                        onOpen={() => openOnNexus(mod, domain)}
+                                        onOpen={() => onOpenDetail(mod.id, mod)}
                                         onInstall={() => openOnNexus(mod, domain)}
                                         onUninstall={() => ins && handleUninstall(ins)}
                                         onEnable={() => ins && handleEnable(ins)}

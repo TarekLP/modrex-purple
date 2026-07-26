@@ -15,6 +15,7 @@ import {
     resolveStaleDuplicates,
     groupInstalledByIdentity,
     computeHealthSummary,
+    detailNavArgs,
     type ChildEntry,
     type ChildGroup,
 } from './installedUtils'
@@ -35,6 +36,11 @@ function makeMod(
         installedAt: '2024-01-01T00:00:00Z',
         folderId: null,
         priority: 0,
+        // A positive id in these fixtures has always meant "modworkshop-identified".
+        // Identification is now signaled by remoteId, not id's sign (an opaque local
+        // key for every source, including modworkshop) — mirror the old convention
+        // here so existing call sites don't all need an explicit remoteId override.
+        ...(id >= 0 ? { remoteId: String(id) } : {}),
         ...overrides,
     }
 }
@@ -93,6 +99,23 @@ describe('displayFilename', () => {
 
     it('falls back to the raw name when stripping empties it', () => {
         expect(displayFilename('001_.pak')).toBe('001_.pak')
+    })
+})
+
+describe('detailNavArgs', () => {
+    it('returns the plain id and no source for a modworkshop mod', () => {
+        const mod = makeMod('u1', 42, 'Some Mod')
+        expect(detailNavArgs(mod)).toEqual([42, undefined])
+    })
+
+    it('resolves the real positive Nexus mod id and the nexus source', () => {
+        const mod = makeMod('u1', -216, 'Unmask Mod', { source: 'nexus', remoteId: '216' })
+        expect(detailNavArgs(mod)).toEqual([216, 'nexus'])
+    })
+
+    it('falls back to the installed id when remoteId is missing or unusable', () => {
+        const mod = makeMod('u1', -216, 'Unmask Mod', { source: 'nexus' })
+        expect(detailNavArgs(mod)).toEqual([-216, undefined])
     })
 })
 

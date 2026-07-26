@@ -3,13 +3,14 @@ import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
-import { computeHealthSummary } from '../hooks/installedUtils'
+import { computeHealthSummary, detailNavArgs, isIdentified } from '../hooks/installedUtils'
 import type { InstalledGroup } from '../hooks/installedUtils'
 import type { HealthItem, MissingDepRef } from '../hooks/healthCheck'
 import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { useThumbnail } from '../hooks/useThumbnail'
 import { api } from '../api'
 import { uninstallablePromptMessage } from '../installSentinels'
+import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 
 interface LocalHealthItem {
     id: number
@@ -28,7 +29,7 @@ interface Props {
     gameId: string
     loadingMod: string | null
     visible: boolean
-    onOpenDetail: (modId: number) => void
+    onOpenDetail: (modId: number, source?: 'nexus') => void
     onReinstall: (mods: InstalledMod[]) => void
     onDepInstalled: () => Promise<void>
     onReviewUpdates: () => void
@@ -76,7 +77,7 @@ function UpdateRow({
 }: {
     ins: InstalledMod
     apiMod: ModSummary
-    onOpenDetail: (id: number) => void
+    onOpenDetail: (id: number, source?: 'nexus') => void
 }) {
     const thumbSrc = useThumbnail(apiMod.thumbnail?.file)
     const hasVersion = !!ins.version
@@ -85,11 +86,15 @@ function UpdateRow({
         : `${apiMod.version} available`
     return (
         <button
-            onClick={() => onOpenDetail(ins.id)}
+            onClick={() => onOpenDetail(...detailNavArgs(ins))}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors text-left"
         >
-            <div className="w-9 h-9 rounded shrink-0 bg-surface-active overflow-hidden">
-                {thumbSrc && <img src={thumbSrc} alt="" className="w-full h-full object-cover" />}
+            <div className="w-9 h-9 rounded shrink-0 bg-surface-active overflow-hidden flex items-center justify-center">
+                {thumbSrc ? (
+                    <img src={thumbSrc} alt="" className="w-full h-full object-cover" />
+                ) : (
+                    ins.source === 'nexus' && <NexusIcon className="w-4 h-4 text-text-subtle" />
+                )}
             </div>
             <div className="min-w-0 flex-1">
                 <div className="text-sm truncate">{apiMod.name}</div>
@@ -321,12 +326,14 @@ export function HealthCheckModal({
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
                                         name={item.name}
                                         secondary={t('installed.health.missingFileHint')}
-                                        clickable={item.id >= 0}
+                                        clickable={isIdentified(item.mods[0])}
                                         onOpen={
-                                            item.id >= 0 ? () => onOpenDetail(item.id) : undefined
+                                            isIdentified(item.mods[0])
+                                                ? () => onOpenDetail(...detailNavArgs(item.mods[0]))
+                                                : undefined
                                         }
                                         action={
-                                            item.id >= 0 ? (
+                                            isIdentified(item.mods[0]) ? (
                                                 <button
                                                     onClick={() => onReinstall(item.mods)}
                                                     disabled={isLoading}
@@ -360,12 +367,14 @@ export function HealthCheckModal({
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
                                         name={item.name}
                                         secondary={t('installed.health.brokenArchiveHint')}
-                                        clickable={item.id >= 0}
+                                        clickable={isIdentified(item.mods[0])}
                                         onOpen={
-                                            item.id >= 0 ? () => onOpenDetail(item.id) : undefined
+                                            isIdentified(item.mods[0])
+                                                ? () => onOpenDetail(...detailNavArgs(item.mods[0]))
+                                                : undefined
                                         }
                                         action={
-                                            item.id >= 0 ? (
+                                            isIdentified(item.mods[0]) ? (
                                                 <button
                                                     onClick={() => onReinstall(item.mods)}
                                                     disabled={isLoading}
@@ -400,7 +409,7 @@ export function HealthCheckModal({
                                         name={item.name}
                                         secondary={t('installed.health.outdatedHint')}
                                         clickable
-                                        onOpen={() => onOpenDetail(item.id)}
+                                        onOpen={() => onOpenDetail(...detailNavArgs(item.mods[0]))}
                                         action={
                                             <button
                                                 onClick={() => onReinstall(item.mods)}
@@ -477,36 +486,38 @@ export function HealthCheckModal({
                             </Button>
                         </>
                     )}
-                {activeTab === 'missing' && missingItems.some((item) => item.id >= 0) && (
-                    <Button
-                        variant="accent"
-                        size="md"
-                        disabled={loadingMod !== null}
-                        onClick={() => {
-                            missingItems
-                                .filter((item) => item.id >= 0)
-                                .forEach((item) => onReinstall(item.mods))
-                            onClose()
-                        }}
-                    >
-                        {t('installed.health.reinstallAll')}
-                    </Button>
-                )}
-                {activeTab === 'broken' && brokenItems.some((item) => item.id >= 0) && (
-                    <Button
-                        variant="accent"
-                        size="md"
-                        disabled={loadingMod !== null}
-                        onClick={() => {
-                            brokenItems
-                                .filter((item) => item.id >= 0)
-                                .forEach((item) => onReinstall(item.mods))
-                            onClose()
-                        }}
-                    >
-                        {t('installed.health.reinstallAll')}
-                    </Button>
-                )}
+                {activeTab === 'missing' &&
+                    missingItems.some((item) => isIdentified(item.mods[0])) && (
+                        <Button
+                            variant="accent"
+                            size="md"
+                            disabled={loadingMod !== null}
+                            onClick={() => {
+                                missingItems
+                                    .filter((item) => isIdentified(item.mods[0]))
+                                    .forEach((item) => onReinstall(item.mods))
+                                onClose()
+                            }}
+                        >
+                            {t('installed.health.reinstallAll')}
+                        </Button>
+                    )}
+                {activeTab === 'broken' &&
+                    brokenItems.some((item) => isIdentified(item.mods[0])) && (
+                        <Button
+                            variant="accent"
+                            size="md"
+                            disabled={loadingMod !== null}
+                            onClick={() => {
+                                brokenItems
+                                    .filter((item) => isIdentified(item.mods[0]))
+                                    .forEach((item) => onReinstall(item.mods))
+                                onClose()
+                            }}
+                        >
+                            {t('installed.health.reinstallAll')}
+                        </Button>
+                    )}
                 {activeTab === 'outdated' && outdatedItems.length > 0 && (
                     <Button
                         variant="accent"

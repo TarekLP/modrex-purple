@@ -152,6 +152,39 @@ pub(crate) async fn nexus_get_mod(
     nexus_get(&app, &format!("/games/{domain}/mods/{mod_id}.json"), vec![]).await
 }
 
+// Renderer-facing detail fetch for the Nexus mod detail page. Reuses the same
+// pub(crate) nexus_get_mod the nxm flow already calls. Only the parse into the
+// neutral ModDetail shape is new.
+#[tauri::command]
+#[specta::specta]
+pub async fn nexus_get_mod_detail(
+    app: AppHandle,
+    game_id: String,
+    mod_id: u32,
+) -> Result<crate::commands::domain::ModDetail, String> {
+    let value = nexus_get_mod(app, game_id, mod_id).await?;
+    crate::commands::domain::parse_nexus_detail(value)
+}
+
+// Renderer-facing file list for the Nexus mod detail page's Downloads tab. Same
+// pub(crate) nexus_get the search/detail calls already use.
+#[tauri::command]
+#[specta::specta]
+pub async fn nexus_list_mod_files(
+    app: AppHandle,
+    game_id: String,
+    mod_id: u32,
+) -> Result<crate::commands::domain::FilePage, String> {
+    let domain = nexus_domain(&game_id)?;
+    let value = nexus_get(
+        &app,
+        &format!("/games/{domain}/mods/{mod_id}/files.json"),
+        vec![],
+    )
+    .await?;
+    crate::commands::domain::parse_nexus_files(value, domain, mod_id)
+}
+
 // Single-file details; carries file_name, which the nxm flow needs when the
 // download URI's path has no usable filename.
 pub(crate) async fn nexus_get_file(

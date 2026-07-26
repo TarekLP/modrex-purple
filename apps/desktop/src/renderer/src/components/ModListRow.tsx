@@ -7,6 +7,7 @@ import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import { useThumbnail } from '../hooks/useThumbnail'
+import { isIdentified } from '../hooks/installedUtils'
 import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 
 interface Props {
@@ -100,17 +101,18 @@ export function ModListRow({
                             <span className="text-xs text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded">
                                 {t('common.fileMissing')}
                             </span>
-                            {installed.id >= 0 && (
-                                <Tooltip content={t('common.reinstall')}>
-                                    <button
-                                        disabled={!canAct}
-                                        onClick={onReinstall}
-                                        className="p-2 rounded bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        <RotateCcw className="w-4 h-4" />
-                                    </button>
-                                </Tooltip>
-                            )}
+                            {isIdentified(installed) &&
+                                (!installed.source || installed.source === 'modworkshop') && (
+                                    <Tooltip content={t('common.reinstall')}>
+                                        <button
+                                            disabled={!canAct}
+                                            onClick={onReinstall}
+                                            className="p-2 rounded bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <RotateCcw className="w-4 h-4" />
+                                        </button>
+                                    </Tooltip>
+                                )}
                         </>
                     )}
                     {installed.archiveBroken && (

@@ -96,7 +96,9 @@ export default function App() {
     const [browseSource, setBrowseSource] = useState<string>(() =>
         readBrowseSource(localStorage.getItem('modrex:active-game') ?? '')
     )
-    const [detailStack, setDetailStack] = useState<{ modId: number; initialMod?: ModSummary }[]>([])
+    const [detailStack, setDetailStack] = useState<
+        { modId: number; initialMod?: ModSummary; source?: 'nexus' }[]
+    >([])
     const [gamePath, setGamePath] = useState<string | null>(null)
     // false while the active game's path is still being resolved this session —
     // consumers must not render "not found" states until this is true.
@@ -389,16 +391,21 @@ export default function App() {
     }
 
     const openDetail = useCallback(
-        (modId: number, from: 'browse' | 'installed', initialMod?: ModSummary) => {
+        (
+            modId: number,
+            from: 'browse' | 'installed',
+            initialMod?: ModSummary,
+            source?: 'nexus'
+        ) => {
             setPrevView(from)
-            setDetailStack([{ modId, initialMod }])
+            setDetailStack([{ modId, initialMod, source }])
             setView('detail')
         },
         []
     )
 
     const openDetailFromInstalled = useCallback(
-        (id: number) => openDetail(id, 'installed'),
+        (id: number, source?: 'nexus') => openDetail(id, 'installed', undefined, source),
         [openDetail]
     )
 
@@ -449,6 +456,12 @@ export default function App() {
 
     const openDetailFromBrowse = useCallback(
         (modId: number, initialMod?: ModSummary) => openDetail(modId, 'browse', initialMod),
+        [openDetail]
+    )
+
+    const openDetailFromNexus = useCallback(
+        (modId: number, initialMod?: ModSummary) =>
+            openDetail(modId, 'browse', initialMod, 'nexus'),
         [openDetail]
     )
 
@@ -612,6 +625,7 @@ export default function App() {
                                         installed={installed}
                                         onRefreshInstalled={refreshInstalled}
                                         onGoToSettings={goToNexusSettings}
+                                        onOpenDetail={openDetailFromNexus}
                                     />
                                 )}
                             </div>
@@ -651,14 +665,15 @@ export default function App() {
                                     globalOnly={settingsGlobalOnly}
                                 />
                             </div>
-                            {detailStack.map(({ modId, initialMod }, i) => (
+                            {detailStack.map(({ modId, initialMod, source }, i) => (
                                 <div
-                                    key={modId}
+                                    key={`${source ?? 'modworkshop'}:${modId}`}
                                     className={`absolute inset-0 ${view === 'detail' && i === detailStack.length - 1 ? '' : 'invisible pointer-events-none'}`}
                                 >
                                     <ModDetailPage
                                         modId={modId}
                                         initialMod={initialMod}
+                                        source={source}
                                         isActive={view === 'detail' && i === detailStack.length - 1}
                                         gamePath={gamePath}
                                         installed={installed}

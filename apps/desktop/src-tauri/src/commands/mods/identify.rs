@@ -186,31 +186,49 @@ pub(crate) fn upgrade_negative_ids(
     let Some(conn) = mod_index::open_index(app, game_id) else {
         return false;
     };
+    upgrade_negative_ids_with_conn(&conn, mods, game_name)
+}
+
+// Split from upgrade_negative_ids so the identification logic is testable against an
+// in-memory index, the same way mod_index.rs's own query helpers are.
+pub(crate) fn upgrade_negative_ids_with_conn(
+    conn: &rusqlite::Connection,
+    mods: &mut [InstalledMod],
+    game_name: &str,
+) -> bool {
     let mut any = false;
     for m in mods {
-        if m.id >= 0 {
+        // remote_id is the one signal for "already identified", regardless of source or of
+        // id's sign — id itself is always an opaque, source-scoped key (see
+        // sources::source_native_local_id) and never means "modworkshop" by being positive.
+        // An entry that already carries a remote_id (Nexus today) is not a failed
+        // identification; it already has one, from its own source, and neither the exact
+        // SHA256 match below nor the fuzzy name fallback further down may reassign it to a
+        // modworkshop id instead. A byte-identical cross-posted file is real (the same mod
+        // re-hosted on both platforms), but merging its identity into modworkshop's would
+        // desync it from the still-Nexus source field, which is exactly what a Nexus mod
+        // card's badge, and useModData's per-source refresh, key off of.
+        if m.remote_id.is_some() {
             continue;
         }
         if let Some(hit) = m
             .sha256
             .as_deref()
-            .and_then(|sha| mod_index::query_sha256(&conn, sha, game_name))
+            .and_then(|sha| mod_index::query_sha256(conn, sha, game_name))
         {
-            m.id = hit.mod_remote_id;
+            let remote_id = hit.mod_remote_id.to_string();
+            m.id = crate::commands::sources::source_native_local_id("modworkshop", &remote_id);
+            m.remote_id = Some(remote_id);
             m.name = hit.mod_name;
             m.version = hit.version;
             m.file_id = Some(hit.file_remote_id);
             any = true;
             continue;
         }
-        // An entry carrying source-native identity (remote_id) is not a failed
-        // identification; only the exact SHA256 match above may upgrade it (a
-        // cross-posted mod), never the fuzzy name fallback below.
-        if m.remote_id.is_some() {
-            continue;
-        }
-        if let Some(remote_id) = mod_index::query_by_name(&conn, &m.name, game_name) {
-            m.id = remote_id;
+        if let Some(remote_id) = mod_index::query_by_name(conn, &m.name, game_name) {
+            let remote_id_str = remote_id.to_string();
+            m.id = crate::commands::sources::source_native_local_id("modworkshop", &remote_id_str);
+            m.remote_id = Some(remote_id_str);
             // The SHA256 check above just failed against the index's current file for this
             // mod, so unlike the embedded-id "no declared version" fallback (which has zero
             // signal and deliberately reads as up-to-date to avoid an endless false nag),
@@ -232,11 +250,11 @@ pub(crate) fn upgrade_negative_ids(
 pub(crate) fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
     let name_to_id: HashMap<String, i64> = mods
         .iter()
-        .filter(|m| m.id > 0)
+        .filter(|m| m.remote_id.is_some())
         .map(|m| (m.name.to_lowercase(), m.id))
         .collect();
     for m in mods.iter_mut() {
-        if m.id >= 0 || m.remote_id.is_some() {
+        if m.remote_id.is_some() {
             continue;
         }
         if let Some(pos) = m.name.rfind(' ') {
@@ -643,9 +661,24 @@ pub(crate) fn identify_untracked(
             None => strip_priority_prefix(&filename).to_string(),
         };
 
+        // id here is still real modworkshop id (positive) or hash_filename's placeholder
+        // (always negative) — the sign check above is the one place it's still meaningful,
+        // since it's this match's own local result, not the stored InstalledMod.id. From
+        // here on id becomes the opaque, source-scoped key; remote_id carries the real one.
+        let (id, remote_id) = if id > 0 {
+            let remote_id = id.to_string();
+            (
+                crate::commands::sources::source_native_local_id("modworkshop", &remote_id),
+                Some(remote_id),
+            )
+        } else {
+            (id, None)
+        };
+
         by_uid.entry(uid.clone()).or_insert(InstalledMod {
             uid,
             id,
+            remote_id,
             name,
             version,
             filename: filename.clone(),

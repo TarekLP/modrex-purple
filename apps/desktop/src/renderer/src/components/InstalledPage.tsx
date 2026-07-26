@@ -37,7 +37,8 @@ import {
     normalizeModScopes,
     foldersEmptiedByNormalize,
     filterInstalled,
-    groupInstalledByIdentity,
+    modworkshopRemoteIds,
+    isIdentified,
 } from '../hooks/installedUtils'
 import { checkMissingDependencies, type HealthItem } from '../hooks/healthCheck'
 import { api } from '../api'
@@ -57,7 +58,7 @@ interface Props {
     installedReady: boolean
     isActive: boolean
     onRefreshInstalled: () => Promise<void>
-    onOpenDetail: (modId: number) => void
+    onOpenDetail: (modId: number, source?: 'nexus') => void
 }
 
 export function InstalledPage({
@@ -72,7 +73,11 @@ export function InstalledPage({
 }: Props) {
     const [viewMode, setViewMode] = useState<ViewMode>(getSavedViewMode)
     const [scanPhase, setScanPhase] = useState<{ phase: string; total: number } | null>(null)
-    const { modData, failedIds, updatable } = useModData(installed, GAMES[activeGame].workshopId)
+    const { modData, failedIds, updatable } = useModData(
+        installed,
+        GAMES[activeGame].workshopId,
+        activeGame
+    )
     const [showUpdates, setShowUpdates] = useState(false)
     const [showHealth, setShowHealth] = useState(false)
     const [checkingHealth, setCheckingHealth] = useState(false)
@@ -81,7 +86,7 @@ export function InstalledPage({
     )
     const [healthMissingDeps, setHealthMissingDeps] = useState<HealthItem[]>([])
     const cancelHealthRef = useRef(false)
-    const showDepsTab = !!gamePath && installed.some((m) => m.id >= 0)
+    const showDepsTab = !!gamePath && modworkshopRemoteIds(installed).length > 0
 
     useEffect(() => {
         return api.onInstallScan((info) => setScanPhase(info))
@@ -99,13 +104,7 @@ export function InstalledPage({
         if (checkingHealth) return
         cancelHealthRef.current = false
         setCheckingHealth(true)
-        const positiveIds = [
-            ...new Set(
-                groupInstalledByIdentity(installed)
-                    .filter((g) => g.id >= 0)
-                    .map((g) => g.id)
-            ),
-        ]
+        const positiveIds = modworkshopRemoteIds(installed)
         setHealthProgress(positiveIds.length > 0 ? { checked: 0, total: positiveIds.length } : null)
         try {
             const deps = gamePath
@@ -132,13 +131,7 @@ export function InstalledPage({
         if (!gamePath) return
         await onRefreshInstalled()
         const fresh = await api.getInstalled(activeGame)
-        const positiveIds = [
-            ...new Set(
-                groupInstalledByIdentity(fresh.mods)
-                    .filter((g) => g.id >= 0)
-                    .map((g) => g.id)
-            ),
-        ]
+        const positiveIds = modworkshopRemoteIds(fresh.mods)
         const deps = await checkMissingDependencies(fresh.mods, positiveIds, gamePath, activeGame)
         setHealthMissingDeps(deps)
     }
@@ -192,10 +185,10 @@ export function InstalledPage({
         : { mods: installed, visibleFolderIds: undefined }
 
     const totalUniqueMods = new Set(
-        installed.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
+        installed.map((m) => (isIdentified(m) ? `id:${m.id}` : `uid:${m.uid}`))
     ).size
     const filteredUniqueMods = new Set(
-        displayMods.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
+        displayMods.map((m) => (isIdentified(m) ? `id:${m.id}` : `uid:${m.uid}`))
     ).size
 
     function setView(mode: ViewMode) {

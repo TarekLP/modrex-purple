@@ -57,6 +57,33 @@ pub static SOURCE_REGISTRY: &[SourceSpec] = &[
     },
 ];
 
+/// A stable, source-scoped id for InstalledMod.id, keeping a source-native mod's local
+/// identity out of modworkshop's positive id space without colliding with any other
+/// source's. Deliberately not a bare negation of remote_id: two different non-modworkshop
+/// sources (Nexus today, anything added later) can trivially both assign the number 52
+/// to different mods, and negation alone folds them onto the same -52. Folding the source
+/// id into the hash keeps that collision astronomically unlikely instead of guaranteed.
+/// FNV-1a is a bucketing key here, not anything security-sensitive, so a simple
+/// dependency-free hash is enough.
+pub fn source_native_local_id(source_id: &str, remote_id: &str) -> i64 {
+    const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
+    let mut hash = FNV_OFFSET;
+    for byte in source_id
+        .bytes()
+        .chain(std::iter::once(b':'))
+        .chain(remote_id.bytes())
+    {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    // Clear the top bit before converting so the negation below can never overflow
+    // (i64::MIN has no positive counterpart), then floor at 1 so this is never the
+    // literal value 0.
+    let magnitude = ((hash >> 1) as i64).max(1);
+    -magnitude
+}
+
 pub fn source_spec(source_id: &str) -> Option<&'static SourceSpec> {
     SOURCE_REGISTRY.iter().find(|s| s.id == source_id)
 }
@@ -196,6 +223,34 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn source_native_local_id_is_deterministic() {
+        assert_eq!(
+            source_native_local_id("nexus", "52"),
+            source_native_local_id("nexus", "52")
+        );
+    }
+
+    #[test]
+    fn source_native_local_id_is_always_negative() {
+        for (source, remote) in [("nexus", "1"), ("nexus", "52"), ("modio", "52"), ("x", "")] {
+            assert!(
+                source_native_local_id(source, remote) < 0,
+                "{source}:{remote} produced a non-negative id"
+            );
+        }
+    }
+
+    #[test]
+    fn source_native_local_id_does_not_collide_across_sources_sharing_a_remote_id() {
+        // The whole point: two different sources both handing out the number 52 must not
+        // fold onto the same local id the way bare negation would.
+        assert_ne!(
+            source_native_local_id("nexus", "52"),
+            source_native_local_id("modio", "52")
+        );
     }
 
     #[test]

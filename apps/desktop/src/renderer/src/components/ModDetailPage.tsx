@@ -31,6 +31,7 @@ import type {
     ModSummary,
 } from '../../../shared/types'
 import { AVATAR_BASE_URL } from '../../../shared/types'
+import NexusIcon from '../../../../assets/icons/nexusmods.svg?react'
 import {
     getCachedMod,
     getCachedModFiles,
@@ -39,6 +40,14 @@ import {
     getFilesCacheEntry,
     getLinksCacheEntry,
 } from '../modCache'
+import {
+    getCachedNexusMod,
+    getNexusModCacheEntry,
+    getCachedNexusModFiles,
+    getNexusFilesCacheEntry,
+} from '../nexusModCache'
+import { nativeIdFor } from '../sources'
+import { NexusDescription } from './NexusDescription'
 import { DepsWarningModal } from './DepsWarningModal'
 import { FileSelectModal } from './FileSelectModal'
 import { NonPakConfirmModal } from './NonPakConfirmModal'
@@ -201,6 +210,11 @@ function creditLevelLabel(level: string): string {
 interface Props {
     modId: number
     initialMod?: ModSummary
+    // 'nexus' when this detail page was opened from the Nexus browse source. Absent
+    // means modworkshop. Nexus mod ids are only unique within a game and can collide
+    // numerically with a modworkshop id, so every cache lookup and installed-mod match
+    // below branches on this rather than assuming modworkshop.
+    source?: 'nexus'
     isActive?: boolean
     gamePath: string | null
     installed: InstalledMod[]
@@ -213,6 +227,7 @@ interface Props {
 export function ModDetailPage({
     modId,
     initialMod,
+    source,
     isActive = true,
     gamePath,
     installed,
@@ -221,20 +236,42 @@ export function ModDetailPage({
     onRefreshInstalled,
     onOpenDetail,
 }: Props) {
+    const isNexus = source === 'nexus'
+    const nexusDomain = isNexus ? nativeIdFor(activeGame, 'nexus') : null
+
     // Seed order: full cached entry > initialMod from browse list > null (shows spinner).
     // The browse list can only seed a SUMMARY, so the loaded detail is tracked separately
     // and mod is whichever is available for the header. Detail-only fields must read from
     // detail, which is what stops a half-loaded page claiming it has images or tags.
-    const [detail, setDetail] = useState<Mod | null>(() => getModCacheEntry(modId)?.mod ?? null)
+    const [detail, setDetail] = useState<Mod | null>(
+        () =>
+            (isNexus ? getNexusModCacheEntry(activeGame, modId) : getModCacheEntry(modId))?.mod ??
+            null
+    )
     const mod: ModSummary | null = detail ?? initialMod ?? null
-    const [files, setFiles] = useState<ModFile[]>(() => getFilesCacheEntry(modId)?.files ?? [])
+    const [files, setFiles] = useState<ModFile[]>(
+        () =>
+            (isNexus
+                ? getNexusFilesCacheEntry(activeGame, modId)?.files
+                : getFilesCacheEntry(modId)?.files) ?? []
+    )
     const [links, setLinks] = useState<ModLink[]>(() => getLinksCacheEntry(modId)?.links ?? [])
     // Skip full-page spinner when any mod data is available; skip files spinner when files are cached.
-    const [loading, setLoading] = useState(() => !getModCacheEntry(modId) && !initialMod)
-    const [detailsLoading, setDetailsLoading] = useState(
-        () => !getModCacheEntry(modId) && initialMod !== undefined
+    const [loading, setLoading] = useState(
+        () =>
+            !(isNexus ? getNexusModCacheEntry(activeGame, modId) : getModCacheEntry(modId)) &&
+            !initialMod
     )
-    const [filesLoading, setFilesLoading] = useState(() => !getFilesCacheEntry(modId))
+    const [detailsLoading, setDetailsLoading] = useState(
+        () =>
+            !(isNexus ? getNexusModCacheEntry(activeGame, modId) : getModCacheEntry(modId)) &&
+            initialMod !== undefined
+    )
+    // Nexus has no links concept, only files, so this spinner covers just the files
+    // fetch for a Nexus mod (links stays permanently empty there).
+    const [filesLoading, setFilesLoading] = useState(
+        () => !(isNexus ? getNexusFilesCacheEntry(activeGame, modId) : getFilesCacheEntry(modId))
+    )
     const [error, setError] = useState<string | null>(null)
     const [actionLoading, setActionLoading] = useState(false)
     const [installError, setInstallError] = useState<string | null>(null)
@@ -259,12 +296,20 @@ export function ModDetailPage({
         ReadonlyMap<string, { downloaded: number; total: number }>
     >(new Map())
 
-    const installedFiles = installed.filter((m) => m.id === modId)
+    // InstalledMod.id is an opaque local key regardless of source (see
+    // sources::source_native_local_id) — modId here is always a real id (Nexus or
+    // modworkshop), so both branches match against remoteId, never id.
+    const installedFiles = isNexus
+        ? installed.filter((m) => m.source === 'nexus' && m.remoteId === String(modId))
+        : installed.filter(
+              (m) => (!m.source || m.source === 'modworkshop') && m.remoteId === String(modId)
+          )
     const installedMod = installedFiles[0]
     // Not tracked in the installed list — DLL presence drives its button state.
     // The loader this very mod page publishes, if any. Its button reflects DLL presence
-    // rather than the installed-mods list.
-    const thisLoader = loaderForModId(activeGame, modId)
+    // rather than the installed-mods list. Loader mod pages are modworkshop-only. A
+    // Nexus mod id lives in a different id space and must never be looked up here.
+    const thisLoader = isNexus ? undefined : loaderForModId(activeGame, modId)
     const isLoaderMod = thisLoader !== undefined
     const loaderModInstalled = thisLoader ? (loaderState[thisLoader.id] ?? null) : null
 
@@ -278,7 +323,7 @@ export function ModDetailPage({
 
         // Mod and files/links fetch in parallel; each resolves independently so
         // the header renders as soon as mod data is available.
-        getCachedMod(modId)
+        ;(isNexus ? getCachedNexusMod(activeGame, modId) : getCachedMod(modId))
             .then((modData) => {
                 setDetail(modData)
                 setDetailsLoading(false)
@@ -289,6 +334,17 @@ export function ModDetailPage({
                 markForegroundActivity()
             })
 
+        // Nexus has no links concept, so only files are fetched there; links stays [].
+        if (isNexus) {
+            getCachedNexusModFiles(activeGame, modId)
+                .then(setFiles)
+                .catch(() => {})
+                .finally(() => {
+                    setFilesLoading(false)
+                    markForegroundActivity()
+                })
+            return
+        }
         Promise.all([getCachedModFiles(modId), getCachedModLinks(modId)])
             .then(([filesData, linksData]) => {
                 setFiles(filesData)
@@ -299,7 +355,7 @@ export function ModDetailPage({
                 setFilesLoading(false)
                 markForegroundActivity()
             })
-    }, [modId])
+    }, [modId, isNexus, activeGame])
 
     useEffect(() => {
         fetchData()
@@ -307,9 +363,50 @@ export function ModDetailPage({
 
     useEffect(() => {
         return api.onDownloadProgress(({ download_id, downloaded, total }) => {
-            setDownloadMap((prev) => new Map(prev).set(download_id, { downloaded, total }))
+            setDownloadMap((prev) => {
+                const next = new Map(prev).set(download_id, { downloaded, total })
+                // nxm downloads report under "nxm:{gameId}:{modId}:{fileId}", not the
+                // "file:{modId}:{fileId}" key DownloadsTab reads for a file's own
+                // progress, so a Nexus install mirrors into that key too once it's
+                // confirmed to belong to this page's mod.
+                if (isNexus) {
+                    const [prefix, gameId, evModId, fileId] = download_id.split(':')
+                    if (prefix === 'nxm' && gameId === activeGame && Number(evModId) === modId) {
+                        next.set(`file:${modId}:${fileId}`, { downloaded, total })
+                    }
+                }
+                return next
+            })
         })
-    }, [])
+    }, [isNexus, activeGame, modId])
+
+    // A Nexus file download arrives via the OS nxm:// deep link, resolved by a second
+    // app instance rather than anything this page triggered directly, so its progress
+    // is driven by these events rather than a promise. DownloadsTab owns the visible
+    // error banner for a failure, since it is scoped to one file's download.
+    useEffect(() => {
+        if (!isNexus) return
+        const offStarted = api.onNxmInstallStarted(({ gameId, modId: evModId, fileId }) => {
+            if (gameId !== activeGame || evModId !== modId) return
+            setDownloadMap((prev) =>
+                new Map(prev).set(`file:${modId}:${fileId}`, { downloaded: 0, total: 0 })
+            )
+        })
+        const offComplete = api.onNxmInstallComplete(({ gameId, modId: evModId, fileId }) => {
+            if (gameId !== activeGame || evModId !== modId) return
+            setDownloadMap((prev) => {
+                const next = new Map(prev)
+                next.delete(`file:${modId}:${fileId}`)
+                return next
+            })
+        })
+        const offFailed = api.onNxmInstallFailed(() => setDownloadMap(new Map()))
+        return () => {
+            offStarted()
+            offComplete()
+            offFailed()
+        }
+    }, [isNexus, activeGame, modId])
 
     const images = detail?.images ?? []
 
@@ -332,6 +429,17 @@ export function ModDetailPage({
 
     async function handleInstall() {
         if (!gamePath || !mod) return
+        // No in-app install trigger for Nexus. The free-tier flow is the site's own
+        // "Mod Manager Download" button, which hands back an nxm:// link Modrex
+        // registers and handles. Matches NexusBrowsePage's openOnNexus.
+        if (isNexus) {
+            if (nexusDomain) {
+                api.openExternal(
+                    `https://www.nexusmods.com/${nexusDomain}/mods/${mod.id}?tab=files`
+                )
+            }
+            return
+        }
         if (mod.download?.url && !mod.download.download_url) {
             api.openExternal(mod.download.url)
             return
@@ -501,14 +609,22 @@ export function ModDetailPage({
     const showDepsTab =
         !!(detail?.instructs_template?.instructions || detail?.instructions) || allDeps.length > 0
 
+    // Nexus's mod-detail response carries no image gallery at all, just the one
+    // thumbnail already shown as the banner. Unlike changelog, license and deps, this
+    // is never going to have data for a Nexus mod, so the tab shouldn't exist rather
+    // than permanently show "no images".
     const tabs: { id: Tab; label: string }[] = [
         { id: 'description', label: t('detail.tabs.description') },
-        {
-            id: 'images',
-            label: images.length
-                ? t('detail.tabs.imagesCount', { count: images.length })
-                : t('detail.tabs.images'),
-        },
+        ...(isNexus
+            ? []
+            : [
+                  {
+                      id: 'images' as Tab,
+                      label: images.length
+                          ? t('detail.tabs.imagesCount', { count: images.length })
+                          : t('detail.tabs.images'),
+                  },
+              ]),
         {
             id: 'downloads',
             label:
@@ -790,7 +906,11 @@ export function ModDetailPage({
                                     value="description"
                                     className="py-5 focus:outline-none"
                                 >
-                                    <DescriptionTab mod={mod} />
+                                    {isNexus ? (
+                                        <NexusDescription text={mod.desc} />
+                                    ) : (
+                                        <DescriptionTab mod={mod} />
+                                    )}
                                 </Tabs.Content>
                                 <Tabs.Content value="changelog" className="py-5 focus:outline-none">
                                     {detail && <ChangelogTab mod={detail} />}
@@ -818,6 +938,12 @@ export function ModDetailPage({
                                         downloadMap={downloadMap}
                                         activeGame={activeGame}
                                         onRefreshInstalled={onRefreshInstalled}
+                                        nexusUrl={
+                                            isNexus && nexusDomain
+                                                ? `https://www.nexusmods.com/${nexusDomain}/mods/${mod.id}?tab=files`
+                                                : null
+                                        }
+                                        isNexus={isNexus}
                                     />
                                 </Tabs.Content>
                                 <Tabs.Content value="deps" className="py-5 focus:outline-none">
@@ -839,7 +965,9 @@ export function ModDetailPage({
                         </div>
 
                         <aside className="w-1/3 min-w-64 max-w-md shrink-0 sticky top-5 my-5 rounded-lg bg-surface-hover border border-border p-4 flex flex-col gap-3">
-                            <div className="grid grid-cols-3">
+                            <div
+                                className={`grid ${mod.views > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}
+                            >
                                 <Stat
                                     value={mod.downloads.toLocaleString()}
                                     label={t('detail.stats.downloads')}
@@ -848,10 +976,12 @@ export function ModDetailPage({
                                     value={mod.likes.toLocaleString()}
                                     label={t('detail.stats.likes')}
                                 />
-                                <Stat
-                                    value={mod.views.toLocaleString()}
-                                    label={t('detail.stats.views')}
-                                />
+                                {mod.views > 0 && (
+                                    <Stat
+                                        value={mod.views.toLocaleString()}
+                                        label={t('detail.stats.views')}
+                                    />
+                                )}
                             </div>
                             <div className="h-px bg-border" />
                             <InfoRow
@@ -940,9 +1070,20 @@ export function ModDetailPage({
                             <MemberRow
                                 name={mod.user.name}
                                 role={t('detail.info.owner')}
-                                userId={mod.user.id ?? undefined}
+                                profileUrl={
+                                    mod.user.id == null
+                                        ? undefined
+                                        : isNexus
+                                          ? `https://www.nexusmods.com/users/${mod.user.id}`
+                                          : `https://modworkshop.net/user/${mod.user.id}`
+                                }
                                 avatar={mod.user.avatar ?? undefined}
                                 avatarHasThumb={mod.user.avatar_has_thumb ?? undefined}
+                                fallbackIcon={
+                                    isNexus ? (
+                                        <NexusIcon className="w-4 h-4 text-text-subtle" />
+                                    ) : undefined
+                                }
                                 donation={ownerDonation}
                             />
                             {credits.map((m) => (
@@ -950,23 +1091,25 @@ export function ModDetailPage({
                                     key={m.id}
                                     name={m.name}
                                     role={creditLevelLabel(m.level)}
-                                    userId={m.id}
+                                    profileUrl={`https://modworkshop.net/user/${m.id}`}
                                     avatar={m.avatar ?? undefined}
                                     avatarHasThumb={m.avatar_has_thumb ?? undefined}
                                     donation={donationInfo(m.donation_url)}
                                 />
                             ))}
                             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                                {mod.id > 0 && (
+                                {mod.id > 0 && (isNexus ? !!nexusDomain : true) && (
                                     <button
                                         onClick={() =>
                                             api.openExternal(
-                                                `https://modworkshop.net/mod/${mod.id}`
+                                                isNexus
+                                                    ? `https://www.nexusmods.com/${nexusDomain}/mods/${mod.id}`
+                                                    : `https://modworkshop.net/mod/${mod.id}`
                                             )
                                         }
                                         className="text-accent-bright hover:underline inline-flex items-center gap-0.5"
                                     >
-                                        {t('detail.viewOnSite')}
+                                        {isNexus ? t('detail.viewOnNexus') : t('detail.viewOnSite')}
                                         <ExternalLink className="w-3 h-3" />
                                     </button>
                                 )}
@@ -1044,16 +1187,18 @@ function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value
 function MemberRow({
     name,
     role,
-    userId,
+    profileUrl,
     avatar,
     avatarHasThumb,
+    fallbackIcon,
     donation,
 }: {
     name: string
     role: string
-    userId?: number
+    profileUrl?: string
     avatar?: string
     avatarHasThumb?: boolean
+    fallbackIcon?: ReactNode
     donation: { url: string; label: string } | null
 }) {
     const src = avatar ? `${AVATAR_BASE_URL}/${avatarHasThumb ? 'thumbnail_' : ''}${avatar}` : null
@@ -1066,6 +1211,10 @@ function MemberRow({
                     loading="lazy"
                     className="w-9 h-9 rounded-md object-cover shrink-0"
                 />
+            ) : fallbackIcon ? (
+                <div className="w-9 h-9 rounded-md bg-surface-active shrink-0 flex items-center justify-center">
+                    {fallbackIcon}
+                </div>
             ) : (
                 <div className="w-9 h-9 rounded-md bg-surface-active shrink-0" />
             )}
@@ -1079,10 +1228,10 @@ function MemberRow({
     )
     return (
         <div className="flex items-center gap-2.5">
-            {userId !== undefined ? (
+            {profileUrl ? (
                 <Tooltip content={t('detail.deps.openOnSite')}>
                     <button
-                        onClick={() => api.openExternal(`https://modworkshop.net/user/${userId}`)}
+                        onClick={() => api.openExternal(profileUrl)}
                         className="group flex items-center gap-2.5 min-w-0 text-left"
                     >
                         {person}

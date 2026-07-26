@@ -46,7 +46,10 @@ export function HostPackModal({
 }: Props) {
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const hostInstalled = installed.some((m) => m.id === payload.hostModId)
+    // Host packs are a modworkshop-only concept; InstalledMod.id is an opaque local
+    // key, so the real modworkshop id only ever lives in remoteId.
+    const hostModIdStr = String(payload.hostModId)
+    const hostInstalled = installed.some((m) => m.remoteId === hostModIdStr)
 
     async function handleInstallHost() {
         setBusy(true)

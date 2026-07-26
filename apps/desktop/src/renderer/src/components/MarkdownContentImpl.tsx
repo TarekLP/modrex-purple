@@ -16,9 +16,11 @@ const InsidePreContext = createContext(false)
 // Mod descriptions are attacker-controlled HTML (rehypeRaw), so they are sanitized
 // against the GitHub-style default schema. Must run AFTER rehypeRaw (there is no raw
 // HTML to sanitize before it) and BEFORE rehypeHighlight (so the hljs-* classes it
-// injects survive). Two deliberate carve-outs beyond the defaults:
+// injects survive). Three deliberate carve-outs beyond the defaults:
 // - span keeps the style attribute: parseColorTags compiles modworkshop's {#hex}(text)
 //   syntax to <span style="color:...">, and authors write the same tag raw.
+// - div keeps the style attribute too, for the same reason: a raw <div style> an
+//   author writes directly would otherwise silently lose it with no visible error.
 // - iframe keeps only src (http/https enforced by the schema's protocol map): the
 //   iframe component below renders nothing unless detectEmbed matches an allowlisted
 //   video host, so unknown iframes are dropped even after passing sanitization.
@@ -28,6 +30,7 @@ const sanitizeSchema = {
     attributes: {
         ...defaultSchema.attributes,
         span: [...(defaultSchema.attributes?.span ?? []), 'style'],
+        div: [...(defaultSchema.attributes?.div ?? []), 'style'],
         iframe: ['src'],
     },
 }
@@ -246,7 +249,12 @@ function makeMdComponents(defs: EmbedDef[]): Components {
                 </a>
             )
         },
-        strong: ({ children }) => <strong className="font-semibold text-text">{children}</strong>,
+        // No color class here, matching em below. A hardcoded text color on the
+        // element itself always beats an inherited color from an ancestor's inline
+        // style, which used to silently defeat any colored wrapper around bold text.
+        // Letting it inherit is also correct in the plain case, since the surrounding
+        // text already sets the base color.
+        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
         em: ({ children }) => <em className="italic">{children}</em>,
         code: Code,
         pre: ({ children }) => (
@@ -277,7 +285,11 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         td: ({ children }) => (
             <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
         ),
-        div: ({ children, className }) => <div className={className}>{children}</div>,
+        div: ({ children, style, className }) => (
+            <div style={style} className={className}>
+                {children}
+            </div>
+        ),
         span: ({ children, style, className }) => (
             <span style={style} className={className}>
                 {children}

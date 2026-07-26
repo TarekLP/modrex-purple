@@ -98,7 +98,11 @@ export function useModActions(
     }
 
     async function handleReinstall(mods: InstalledMod[]) {
-        if (!gamePath || mods[0].id < 0) return
+        // Reinstall goes through the modworkshop-only api.installMod, which needs a
+        // real modworkshop id — InstalledMod.id is an opaque local key, never that.
+        const isModworkshop = !mods[0].source || mods[0].source === 'modworkshop'
+        const remoteId = Number(mods[0].remoteId)
+        if (!gamePath || !isModworkshop || !Number.isFinite(remoteId) || remoteId <= 0) return
 
         const missingMods = mods.filter((m) => m.missing)
 
@@ -111,12 +115,12 @@ export function useModActions(
             await api.uninstallMod(m.uid, gamePath, activeGame)
         }
 
-        const targetId = `mod:${mods[0].id}`
+        const targetId = `mod:${remoteId}`
         const unsub = api.onDownloadProgress(({ download_id, downloaded, total }) => {
             if (download_id === targetId) setReinstallProgress({ downloaded, total })
         })
         try {
-            const outcome = await api.installMod(mods[0].id, gamePath, activeGame)
+            const outcome = await api.installMod(remoteId, gamePath, activeGame)
             if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
                 const zipPayload = outcome.needsPicker as unknown as ZipMultiPakPayload
                 // install_from_zip_entry's pre-removal only fires when exactly one other entry
@@ -151,7 +155,7 @@ export function useModActions(
                     onZipMultiPak: setZipPickerData, // unreachable: the needsPicker branch above
                     onHostModPack: setHostPackData,
                     onCbFlatArchive: setCbFlatArchiveData,
-                    onUnrecognizedArchive: () => setUnrecognizedModId(mods[0].id),
+                    onUnrecognizedArchive: () => setUnrecognizedModId(remoteId),
                 })
             }
         } catch (e) {

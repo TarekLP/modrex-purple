@@ -237,9 +237,12 @@ function DepRow({
     // (null = not yet checked). Falling through to the installed-list check would always read
     // "Missing" for an installed loader.
     const isHostedLoader = mod.id in loaderModIds
+    const depIdStr = String(mod.id)
     const isInstalled = isHostedLoader
         ? loaderModIds[mod.id] === true
-        : installed.some((m) => m.id === mod.id)
+        : installed.some(
+              (m) => (!m.source || m.source === 'modworkshop') && m.remoteId === depIdStr
+          )
 
     async function handleInstall(e: React.MouseEvent) {
         e.stopPropagation()

@@ -55,6 +55,9 @@ importers:
       '@tauri-apps/plugin-log':
         specifier: ^2.9.0
         version: 2.9.0
+      bbcode-to-react:
+        specifier: ^0.2.9
+        version: 0.2.9(react@19.2.8)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2407,6 +2410,11 @@ packages:
     resolution: {integrity: sha512-Asa2krT+XTPZINCS+2QcyS8WTkObE77RwkydwF7h6DmnKqbvlalz93m/dnphUyCa6SWSP51VgtEUf2FN+gelFQ==}
     engines: {node: '>=6.0.0'}
     hasBin: true
+
+  bbcode-to-react@0.2.9:
+    resolution: {integrity: sha512-ZuqVg44xi0nqMbZJMB/j1WxVvDnpfQYHLGFdZW8FQfW7uoCMyF48iEUVbYontcdrD5uZTcqMs3qbGeIa/bCi+g==}
+    peerDependencies:
+      react: ^0.14.0 || ^15.0.0 || ^16.0.0
 
   bcp-47-match@2.0.3:
     resolution: {integrity: sha512-JtTezzbAibu8G0R9op9zb3vcWZd9JF6M0xOYGPn0fNCd7wOpRB1mU2mH9T8gaBGbAAyIIVgB2G7xG0GP98zMAQ==}
@@ -6954,6 +6962,10 @@ snapshots:
   base64-js@1.5.1: {}
 
   baseline-browser-mapping@2.10.29: {}
+
+  bbcode-to-react@0.2.9(react@19.2.8):
+    dependencies:
+      react: 19.2.8
 
   bcp-47-match@2.0.3: {}
 

@@ -5,6 +5,7 @@ use super::paths::{
     mods_base,
 };
 use super::types::{InstalledMod, ModFolder, ModsState, UpdateStatus};
+use crate::commands::sources;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
@@ -220,6 +221,45 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         m.file_remote_id = Some(file_id.to_string());
         identity_migrated = true;
     }
+
+    // Backfill remote_id for modworkshop entries identified before remote_id existed for
+    // that source: their id already IS the real modworkshop id (the only meaning id ever
+    // had before InstalledMod.id became opaque for every source), so this is a plain
+    // fill-in, never a re-derivation. This has to run before upgrade_negative_ids
+    // (identify.rs), which otherwise can't tell "genuinely never identified" apart from
+    // "identified long ago, just missing this new field" — every pre-existing modworkshop
+    // install falls in the second bucket on the first launch after this change ships, and
+    // upgrade_negative_ids's fuzzy SHA256/name fallback is real re-identification: a name
+    // match specifically clears the stored version and marks the mod Outdated, which
+    // would otherwise fire for any mod whose installed bytes have since drifted from the
+    // index, en masse, as a side effect of a data migration rather than a real update.
+    for m in state.mods.iter_mut() {
+        if m.remote_id.is_some() || m.id < 0 || m.source != "modworkshop" {
+            continue;
+        }
+        m.remote_id = Some(m.id.to_string());
+        identity_migrated = true;
+    }
+
+    // Repair entries an older, unguarded build of upgrade_negative_ids (identify.rs)
+    // reassigned to a modworkshop id: a source-native entry's id must always be
+    // source_native_local_id(source, remote_id), since that's what a Nexus mod's card
+    // badge and its per-source update check both key off. A same-named modworkshop
+    // listing whose file happened to SHA256-match at some point could otherwise leave
+    // the id stuck pointing at the wrong record indefinitely — upgrade_negative_ids only
+    // ever looks at still-negative ids, so nothing else will ever notice or fix this on
+    // its own.
+    let mut identity_id_repaired = false;
+    for m in state.mods.iter_mut() {
+        let Some(remote_id) = m.remote_id.as_deref() else {
+            continue;
+        };
+        let expected = sources::source_native_local_id(&m.source, remote_id);
+        if m.id != expected {
+            m.id = expected;
+            identity_id_repaired = true;
+        }
+    }
     let state = state;
 
     // One-time cleanup: remove auto-discovered, never-installed entries whose directory has no
@@ -228,13 +268,13 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
     // into state when base.lua was first added as an entry_marker; the second purges UE4SS's
     // bundled framework sub-mods (e.g. ActorDumperMod) that ambient scans collected before
     // excluded_names existed — their marker file is still genuinely on disk, so the first check
-    // alone never catches them. Entries with a file_id (Modrex-installed) or non-negative id
-    // (index-identified) are kept.
+    // alone never catches them. Entries with a file_id (Modrex-installed) or a remote_id
+    // (identified, against any source) are kept.
     let cleanup_removed: HashSet<String> = state
         .mods
         .iter()
         .filter(|m| {
-            if m.file_id.is_some() || m.id >= 0 {
+            if m.file_id.is_some() || m.remote_id.is_some() {
                 return false;
             }
             let target = cfg.target_for(m.location.as_deref());
@@ -391,6 +431,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         || any_compacted
         || cleanup_changed
         || identity_migrated
+        || identity_id_repaired
     {
         save_state(
             state_path,

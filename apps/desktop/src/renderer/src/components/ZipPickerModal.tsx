@@ -117,7 +117,11 @@ export function computeAutoUpdateSelection(
     installedFiles: InstalledMod[]
 ): string[] | null {
     const installedEntries = computeInstalledEntries(payload, installedFiles)
-    const priorEntriesForMod = installedFiles.filter((m) => m.id === payload.modId && !m.missing)
+    // Archive picker prompts never reach the Nexus install flow (it can't forward them —
+    // see install_nexus_download), so payload.modId is always a real modworkshop id;
+    // InstalledMod.id is an opaque local key, so match against remoteId instead.
+    const modIdStr = String(payload.modId)
+    const priorEntriesForMod = installedFiles.filter((m) => m.remoteId === modIdStr && !m.missing)
     if (priorEntriesForMod.length === 0) return null
     const matched: string[] = []
     for (const entry of payload.entries) {

@@ -217,6 +217,7 @@
         "spoiler": "Spoiler!",
         "back": "Back",
         "viewOnSite": "ModWorkshop",
+        "viewOnNexus": "Nexus",
         "donate": "Donate",
         "creditsLevelCollaborator": "Collaborator",
         "creditsLevelMaintainer": "Maintainer",
@@ -254,8 +255,16 @@
         },
         "downloads": {
             "none": "No files available.",
+            "onNexus": "Files for this mod are on Nexus Mods.",
             "external": "Download",
-            "count": "{count} dl"
+            "count": "{count} dl",
+            "viaNexus": "Download via Nexus",
+            "awaitingNexus": "Waiting for browser…",
+            "categoryMain": "Main files",
+            "categoryUpdate": "Updates",
+            "categoryOptional": "Optional files",
+            "categoryOldVersion": "Old versions",
+            "categoryMiscellaneous": "Miscellaneous"
         },
         "deps": {
             "instructions": "Installation Instructions",

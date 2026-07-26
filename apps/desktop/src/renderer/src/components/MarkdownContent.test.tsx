@@ -89,12 +89,30 @@ describe('MarkdownContent sanitization', () => {
         expect(getByText('hot text').style.color).toBe('rgb(255, 0, 0)')
     })
 
+    // strong used to hardcode its own text color class, which as a declared property on
+    // the element itself always beats an inherited color from an ancestor's inline
+    // style, silently dropping the color on any bold plus colored combination. It must
+    // have no color of its own so it inherits whatever the surrounding text uses.
+    it('lets bold text inherit an ancestor color instead of overriding it', () => {
+        const { getByText } = render(
+            <MarkdownContent text={'<span style="color:green"><strong>bold</strong></span>'} />
+        )
+        expect(getByText('bold').className).toBe('font-semibold')
+    })
+
     it('handles nested color tags and parentheses', () => {
         const { getByText } = render(
             <MarkdownContent text={'{Red}(outer (text) {#00ff00}(inner))'} />
         )
         expect(getByText(/outer/).style.color).toBe('red')
         expect(getByText('inner').style.color).toBe('rgb(0, 255, 0)')
+    })
+
+    it('keeps a raw div style attribute (Nexus [center]/[right] compile to this)', () => {
+        const { getByText } = render(
+            <MarkdownContent text={'<div style="text-align:center">centered</div>'} />
+        )
+        expect(getByText('centered').style.textAlign).toBe('center')
     })
 
     it('handles long malformed color tags without backtracking', () => {

@@ -5,7 +5,12 @@ import { t } from '../i18n'
 import { Tooltip } from './Tooltip'
 import type { ModFolder } from '../../../shared/types'
 import { Toggle } from './Toggle'
-import { computeChildren, groupChildren, getAllModsInFolder } from '../hooks/installedUtils'
+import {
+    computeChildren,
+    groupChildren,
+    getAllModsInFolder,
+    isIdentified,
+} from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 
 interface Props {
@@ -88,7 +93,7 @@ export function FolderSection({ folder }: Props) {
     const isEmpty = children.length === 0
     const folderMods = getAllModsInFolder(renderMods, folders, folder.id)
     const normalizedCount = new Set(
-        folderMods.map((m) => (m.id >= 0 ? `id:${m.id}` : `uid:${m.uid}`))
+        folderMods.map((m) => (isIdentified(m) ? `id:${m.id}` : `uid:${m.uid}`))
     ).size
     const anyEnabled = folderMods.some((m) => m.enabled)
     const isFolderLoading = loadingFolderId === folder.id
