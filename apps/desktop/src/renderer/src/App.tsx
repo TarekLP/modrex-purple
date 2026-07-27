@@ -14,7 +14,7 @@ import type { InstalledMod, ModFolder, GameId, ModSummary } from '../../shared/t
 import { GAMES, isGameId } from '../../shared/types'
 import { loadLoaderRegistry } from './loaders'
 import { loadSourceRegistry, hasSource } from './sources'
-import { t } from './i18n'
+import { t, useLocale } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
 import { Sidebar } from './components/Sidebar'
 import { BrowsePage } from './components/BrowsePage'
@@ -82,6 +82,7 @@ function getInitialView(): View {
 }
 
 export default function App() {
+    const locale = useLocale()
     const [view, setView] = useState<View>(getInitialView)
     const [settingsGlobalOnly, setSettingsGlobalOnly] = useState(false)
     const inPicker = view === 'welcome' || (view === 'settings' && settingsGlobalOnly)
@@ -502,7 +503,7 @@ export default function App() {
 
     return (
         <TooltipProvider delayDuration={400}>
-            <div className="flex flex-col h-screen bg-surface text-text">
+            <div key={locale} className="flex flex-col h-screen bg-surface text-text">
                 <FileDropOverlay
                     active={fileDragging || fileInstalling}
                     installing={fileInstalling}

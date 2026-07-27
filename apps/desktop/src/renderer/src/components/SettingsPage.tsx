@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { BetaBadge } from './BetaBadge'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Button } from './ui/Button'
@@ -17,7 +17,8 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { siGithub, siDiscord } from 'simple-icons'
-import { t } from '../i18n'
+import { t, getLocale, setLocale } from '../i18n'
+import { LOCALE_IDS, localeLabel, type LocaleId } from '../locales'
 import { Select } from './Select'
 import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
@@ -48,14 +49,6 @@ const LAUNCHER_OPTIONS = [
     { value: 'xbox', label: 'Xbox', icon: <XboxIcon className={iconClass} /> },
 ]
 
-const FOLDER_LABELS: Record<string, string> = {
-    mods: t('settings.folders.mods'),
-    modkitMods: t('settings.folders.modkitMods'),
-    legacyPaks: t('settings.folders.legacyPaks'),
-    overrides: t('settings.folders.overrides'),
-    ue4ssMods: t('settings.folders.ue4ssMods'),
-}
-
 type SettingsTab = 'game' | 'application' | 'advanced' | 'about'
 
 const GAME_TAB_KEY = 'modrex:settings-tab'
@@ -78,13 +71,6 @@ function readSavedTab(globalOnly: boolean): SettingsTab {
         ? saved
         : 'game'
 }
-
-const NAV_ITEMS: { id: SettingsTab; label: string; icon: LucideIcon }[] = [
-    { id: 'game', label: t('settings.nav.game'), icon: Gamepad2 },
-    { id: 'application', label: t('settings.nav.application'), icon: AppWindow },
-    { id: 'advanced', label: t('settings.nav.advanced'), icon: Wrench },
-    { id: 'about', label: t('settings.nav.about'), icon: Info },
-]
 
 function SettingsSkeleton() {
     return (
@@ -187,6 +173,32 @@ export function SettingsPage({
     const [secretStoreAvailable, setSecretStoreAvailable] = useState<boolean | null>(null)
     const [confirmNexusSignOut, setConfirmNexusSignOut] = useState(false)
     const [modFolders, setModFolders] = useState<{ tag: string; labelKey: string }[]>([])
+
+    const folderLabels: Record<string, string> = useMemo(
+        () => ({
+            mods: t('settings.folders.mods'),
+            modkitMods: t('settings.folders.modkitMods'),
+            legacyPaks: t('settings.folders.legacyPaks'),
+            overrides: t('settings.folders.overrides'),
+            ue4ssMods: t('settings.folders.ue4ssMods'),
+        }),
+        []
+    )
+
+    const languageOptions = useMemo(
+        () => LOCALE_IDS.map((id) => ({ value: id, label: localeLabel(id) })),
+        []
+    )
+
+    const navItems: { id: SettingsTab; label: string; icon: LucideIcon }[] = useMemo(
+        () => [
+            { id: 'game', label: t('settings.nav.game'), icon: Gamepad2 },
+            { id: 'application', label: t('settings.nav.application'), icon: AppWindow },
+            { id: 'advanced', label: t('settings.nav.advanced'), icon: Wrench },
+            { id: 'about', label: t('settings.nav.about'), icon: Info },
+        ],
+        []
+    )
 
     // Re-read on activation, not just mount: the page stays mounted as a hidden
     // pane, and other pages can request a tab via saveSettingsTab before navigating.
@@ -338,7 +350,7 @@ export function SettingsPage({
         setNexusSignedIn(false)
     }
 
-    const visibleTabs = globalOnly ? NAV_ITEMS.filter((item) => item.id !== 'game') : NAV_ITEMS
+    const visibleTabs = globalOnly ? navItems.filter((item) => item.id !== 'game') : navItems
 
     return (
         <div className="h-full flex flex-col">
@@ -529,6 +541,22 @@ export function SettingsPage({
 
                                 {activeTab === 'application' && (
                                     <>
+                                        <Section
+                                            title={t('settings.language.title')}
+                                            description={t('settings.language.description')}
+                                        >
+                                            <div className="mt-1">
+                                                <Select
+                                                    value={getLocale()}
+                                                    onChange={(value) =>
+                                                        setLocale(value as LocaleId)
+                                                    }
+                                                    options={languageOptions}
+                                                    icon={<Globe className="w-3.5 h-3.5" />}
+                                                />
+                                            </div>
+                                        </Section>
+
                                         <Section title={t('settings.updates.title')}>
                                             <div className="flex items-center gap-3 mt-1">
                                                 <Button
@@ -814,7 +842,7 @@ export function SettingsPage({
                                                                 <FolderOpen className="w-3.5 h-3.5" />
                                                                 {t('settings.folders.open', {
                                                                     name:
-                                                                        FOLDER_LABELS[f.labelKey] ??
+                                                                        folderLabels[f.labelKey] ??
                                                                         f.labelKey,
                                                                 })}
                                                             </Button>

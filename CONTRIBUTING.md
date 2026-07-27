@@ -75,3 +75,25 @@ entry to the relevant registry rather than editing call sites:
 Neither side of a cross-language pair can see the other, so `pnpm check-games` and
 `pnpm check-sources` diff them in CI. See `CLAUDE.md` for how they fit together before
 starting.
+
+## Adding a language
+
+The desktop app's interface strings live in `apps/desktop/src/renderer/src/i18n/en.json`.
+Translating them into another language is **one new file — nothing else to register or wire up**:
+
+1. Copy `en.json` to a new file in the same folder, named after the language's code, e.g.
+   `uk.json`, `de.json`, `pt-BR.json`.
+2. Translate the values only — never change the keys, and never remove or reorder them.
+3. Leave every `{name}`, `{count}`, etc. token exactly as written; just place it wherever it reads
+   naturally in the sentence.
+4. There's no plural-forms system — a few strings come in manual pairs for singular/plural
+   (`modCount` / `modCountSingle`, `updatesAvailable` / `updatesAvailableSingle`, `installed` /
+   `installedSingle`). Translate both halves of each pair.
+5. Run `pnpm check-i18n` (from `apps/desktop/`, or `pnpm --dir apps/desktop check-i18n` from the
+   repo root). It fails on any key your file is missing, any extra key it shouldn't have, or a
+   `{var}` token that doesn't match `en.json` — fix everything it reports before opening the PR.
+   This also runs automatically in pre-commit and CI.
+
+When opening the pull request, use the "New language" template
+(`?template=new_language.md` on the compare/PR-create URL, or pick it from the template
+dropdown GitHub shows above the PR description box).

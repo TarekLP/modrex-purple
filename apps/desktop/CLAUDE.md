@@ -17,6 +17,7 @@ pnpm check-csp    # Verify csp and devCsp in tauri.conf.json agree on all extern
 pnpm check-games  # Verify the Rust GAME_REGISTRY and the TypeScript GAMES record list the same game ids (CI)
 pnpm check-sources # Verify the Rust SOURCE_REGISTRY and @modrex/games agree on each game's modworkshop id (CI)
 pnpm check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
+pnpm check-i18n   # Verify every locale JSON under i18n/ has the same keys and {var} interpolation as en.json (also runs in pre-commit and CI)
 pnpm checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
 pnpm format       # Format all files with prettier
 pnpm format:check # Check formatting without writing
@@ -134,6 +135,31 @@ Deep per-file architecture and invariants live in path-scoped rule files under
 Anonymous, opt-in GA4 usage analytics sent from Rust (`commands/analytics.rs`), proxied
 through `modrex.net`. Full design + local proxy-testing steps live in
 **`.claude/rules/analytics.md`** (loads when you open the analytics code).
+
+## Localization
+
+All user-visible renderer strings live in `src/renderer/src/i18n/en.json`, accessed through the
+typed `t()` helper (`src/renderer/src/i18n.ts`) — never hardcode a string in a component. The
+`i18n/` folder holds only locale JSON files (industry convention); the logic that reads them
+(`i18n.ts`, `locales.ts`) lives one level up, alongside the other renderer modules. `en.json` is
+the canonical key set; every other locale is a `DeepPartial` of it, and a key missing from a
+translation falls back to English at runtime rather than rendering blank or a raw key.
+`useLocale()` (a `useSyncExternalStore` hook) drives `App.tsx`'s `key={locale}` on the root
+element — switching language remounts the whole tree so every `t()` call re-evaluates, without
+re-detecting the game path or re-fetching the installed list (that state lives in `App`, above the
+returned JSX, and survives the remount). Module-scope `t()` calls are blocked by an ESLint rule
+(`eslint.config.js`) since they'd freeze at import time and never react to a switch — call `t()`
+inside a component, typically via `useMemo`.
+
+**No manual locale registry.** `locales.ts` discovers every file in `i18n/*.json` at build time
+via `import.meta.glob` — a locale exists the moment its JSON file exists, nothing else declares it.
+Its display name comes from `Intl.DisplayNames` (a language's name in its own language, e.g. `uk`
+→ "українська"), so there's no hand-maintained label either. This means adding a language is
+**exactly one new file** — see `CONTRIBUTING.md` for the contributor-facing steps.
+
+Run `pnpm check-i18n` after adding or editing a locale file — it fails on any missing key, extra
+key, or mismatched `{var}` interpolation set against `en.json`. This is the gate a translation PR
+must pass; it also runs in pre-commit and CI.
 
 ## Testing
 

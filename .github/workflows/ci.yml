@@ -72,6 +72,7 @@ jobs:
             - run: pnpm check-games
             - run: pnpm check-sources
             - run: pnpm check-updater
+            - run: pnpm check-i18n
             - run: pnpm typecheck
             - run: cargo clippy --all-targets -- -D warnings
               working-directory: apps/desktop/src-tauri

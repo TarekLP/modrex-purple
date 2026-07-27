@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Loader, Trash2, RotateCcw, TriangleAlert } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Dialog, DialogHeader } from './Dialog'
@@ -25,33 +25,6 @@ interface ConfirmSpec {
     run: () => Promise<void>
 }
 
-const ROWS: { id: CacheId; label: string; description: string; action: string }[] = [
-    {
-        id: 'thumbnails',
-        label: t('settings.storage.cachedImages'),
-        description: t('settings.storage.cachedImagesDescription'),
-        action: t('settings.storage.clearImages'),
-    },
-    {
-        id: 'modInfo',
-        label: t('settings.storage.cachedModInfo'),
-        description: t('settings.storage.cachedModInfoDescription'),
-        action: t('settings.storage.clearModInfo'),
-    },
-    {
-        id: 'indexDb',
-        label: t('settings.storage.modIndex'),
-        description: t('settings.storage.modIndexDescription'),
-        action: t('settings.storage.clearDatabase'),
-    },
-    {
-        id: 'news',
-        label: t('settings.storage.news'),
-        description: t('settings.storage.newsDescription'),
-        action: t('settings.storage.clearNews'),
-    },
-]
-
 // Returns the bytes freed. Thumbnails also drop the renderer's in-memory URL map;
 // mod info is a pure localStorage clear, the rest are on-disk deletions in Rust.
 async function clearCache(id: CacheId): Promise<number> {
@@ -70,6 +43,36 @@ export function StorageSettings() {
     const [freed, setFreed] = useState<{ id: CacheId | 'all'; bytes: number } | null>(null)
     const [confirm, setConfirm] = useState<ConfirmSpec | null>(null)
     const [confirmBusy, setConfirmBusy] = useState(false)
+
+    const rows: { id: CacheId; label: string; description: string; action: string }[] = useMemo(
+        () => [
+            {
+                id: 'thumbnails',
+                label: t('settings.storage.cachedImages'),
+                description: t('settings.storage.cachedImagesDescription'),
+                action: t('settings.storage.clearImages'),
+            },
+            {
+                id: 'modInfo',
+                label: t('settings.storage.cachedModInfo'),
+                description: t('settings.storage.cachedModInfoDescription'),
+                action: t('settings.storage.clearModInfo'),
+            },
+            {
+                id: 'indexDb',
+                label: t('settings.storage.modIndex'),
+                description: t('settings.storage.modIndexDescription'),
+                action: t('settings.storage.clearDatabase'),
+            },
+            {
+                id: 'news',
+                label: t('settings.storage.news'),
+                description: t('settings.storage.newsDescription'),
+                action: t('settings.storage.clearNews'),
+            },
+        ],
+        []
+    )
 
     const refreshUsage = useCallback(async () => {
         const disk = await api.getStorageUsage()
@@ -177,7 +180,7 @@ export function StorageSettings() {
                 </p>
 
                 <div className="flex flex-col divide-y divide-danger/10 px-4 py-1">
-                    {ROWS.map(({ id, label, description, action }) => (
+                    {rows.map(({ id, label, description, action }) => (
                         <div key={id} className="flex items-center gap-4 py-3">
                             <div className="min-w-0 flex-1">
                                 <div className="text-sm text-text">{label}</div>

@@ -46,6 +46,18 @@ export default tseslint.config(
                     message:
                         'Use a semantic color token from index.css (@theme), not a hardcoded Tailwind color class.',
                 },
+                {
+                    selector:
+                        "Program > VariableDeclaration > VariableDeclarator > ObjectExpression CallExpression[callee.name='t']",
+                    message:
+                        't() calls in a module-scope object literal are evaluated once at import and never react to a locale switch — call t() inside a component (e.g. via useMemo) instead.',
+                },
+                {
+                    selector:
+                        "Program > VariableDeclaration > VariableDeclarator > ArrayExpression CallExpression[callee.name='t']",
+                    message:
+                        't() calls in a module-scope array literal are evaluated once at import and never react to a locale switch — call t() inside a component (e.g. via useMemo) instead.',
+                },
             ],
         },
         languageOptions: {

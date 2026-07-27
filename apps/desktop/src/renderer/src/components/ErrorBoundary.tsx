@@ -3,6 +3,7 @@ import { error as logError } from '@tauri-apps/plugin-log'
 import { X } from 'lucide-react'
 import { api } from '../api'
 import { Button } from './ui/Button'
+import { t } from '../i18n'
 
 interface Props {
     children: ReactNode
@@ -37,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
                         <Button
                             variant="ghost"
                             size="icon"
-                            aria-label="Close"
+                            aria-label={t('errorBoundary.close')}
                             onClick={() => api.windowClose()}
                             className="h-10 w-11 rounded-none hover:bg-danger hover:text-text"
                         >
@@ -45,7 +46,7 @@ export class ErrorBoundary extends Component<Props, State> {
                         </Button>
                     </div>
                     <div className="flex flex-col items-center justify-center flex-1 gap-4">
-                        <p className="text-sm">Something went wrong.</p>
+                        <p className="text-sm">{t('errorBoundary.message')}</p>
                         <pre className="text-xs max-w-lg overflow-auto text-danger-text">
                             {this.state.error.message}
                         </pre>

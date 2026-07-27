@@ -34,6 +34,10 @@
         "updateViewOnGithub": "View on GitHub",
         "updateLater": "Later"
     },
+    "errorBoundary": {
+        "close": "Close",
+        "message": "Something went wrong."
+    },
     "topBar": {
         "title": "Modrex",
         "stopGame": "Stop game",
@@ -334,6 +338,10 @@
     },
     "settings": {
         "title": "Settings",
+        "language": {
+            "title": "Language",
+            "description": "Language used throughout the app."
+        },
         "gamePath": {
             "title": "Game Path",
             "description": "Path to your {game} installation. Detected automatically from your installed launchers if not set manually.",

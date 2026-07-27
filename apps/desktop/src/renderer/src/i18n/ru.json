@@ -1,0 +1,510 @@
+{
+    "common": {
+        "beta": "Бета",
+        "install": "Установить",
+        "nonPakWarning": "Неподдерживаемый формат",
+        "openLink": "Открыть ссылку",
+        "installing": "Установка…",
+        "downloading": "Загрузка…",
+        "installed": "Установлено",
+        "remove": "Удалить",
+        "fileMissing": "Файл отсутствует",
+        "zipArchiveBroken": "Повреждённый архив",
+        "modManagerDisabled": "Автор отключил загрузку через менеджер модов.",
+        "depNeedsManualInstall": "Для загрузки этой зависимости нужно сделать выбор. Откройте страницу мода, чтобы установить её.",
+        "fix": "Исправить",
+        "reinstall": "Переустановить",
+        "loading": "Загрузка…",
+        "cancel": "Отмена",
+        "close": "Закрыть",
+        "dontShowAgain": "Больше не показывать",
+        "by": "Автор: {name}",
+        "noImage": "Нет изображения",
+        "dismiss": "Скрыть",
+        "downloadAnyway": "Всё равно загрузить",
+        "nonPakConfirmBody": "Этот файл имеет неподдерживаемый формат. Modrex может установить его некорректно."
+    },
+    "app": {
+        "modsHidden": "Моды скрыты — игра была запущена без модов и, возможно, ещё работает.",
+        "restoreMods": "Восстановить моды",
+        "updateAction": "Обновить",
+        "updateInstall": "Перезапустить и установить",
+        "updateDownload": "Скачать",
+        "updateNotesTitle": "Что нового в v{version}",
+        "updateViewOnGithub": "Посмотреть на GitHub",
+        "updateLater": "Позже"
+    },
+    "errorBoundary": {
+        "close": "Закрыть",
+        "message": "Что-то пошло не так."
+    },
+    "topBar": {
+        "title": "Modrex",
+        "stopGame": "Остановить игру",
+        "launchWithoutMods": "Запустить без модов",
+        "launchModded": "Запустить с модами",
+        "launching": "Запуск...",
+        "minimize": "Свернуть",
+        "maximize": "Развернуть",
+        "restore": "Восстановить",
+        "close": "Закрыть",
+        "missingLaunchOption": {
+            "title": "Отсутствует параметр запуска",
+            "bodyPre": "рекомендуется для корректной работы большинства модов. Добавьте его в",
+            "location": "Настройки → Параметры запуска",
+            "launchAnyway": "Запустить всё равно"
+        }
+    },
+    "sidebar": {
+        "browse": "Просмотр модов",
+        "installed": "Установлено",
+        "news": "Новости",
+        "settings": "Настройки",
+        "back": "Назад",
+        "collapse": "Свернуть меню",
+        "expandTitle": "Развернуть панель",
+        "collapseTitle": "Свернуть панель",
+        "changeGame": "Сменить игру",
+        "docs": "Документация",
+        "docsTitle": "Открыть документацию",
+        "discord": "Discord",
+        "discordTitle": "Присоединиться к нашему Discord"
+    },
+    "gamePicker": {
+        "title": "Игры",
+        "installedOnly": "Только установленные",
+        "searchLabel": "Поиск игр",
+        "searchPlaceholder": "Поиск игр…",
+        "noMatches": "Игры не найдены"
+    },
+    "browse": {
+        "title": "Просмотр модов",
+        "gameNotFound": "Игра не найдена — установка отключена",
+        "goToSettings": "Настроить в настройках",
+        "searchPlaceholder": "Поиск модов…",
+        "allCategories": "Все категории",
+        "tags": "Теги",
+        "tagsCount": "Теги ({count})",
+        "tagFilterSearch": "Фильтр тегов…",
+        "tagFilterClear": "Очистить",
+        "tagFilterEmpty": "Теги не найдены",
+        "noMods": "Моды не найдены",
+        "loadFailed": "Не удалось загрузить моды",
+        "rateLimited": "ModWorkshop сейчас ограничивает количество запросов. Повторите попытку через некоторое время.",
+        "modCount": "{total} модов",
+        "sort": {
+            "lastUpdated": "Последнее обновление",
+            "mostDownloaded": "Больше всего загрузок",
+            "mostLiked": "Больше всего лайков",
+            "newest": "Новые",
+            "name": "Название"
+        }
+    },
+    "nexus": {
+        "searchPlaceholder": "Поиск модов…",
+        "noMods": "Моды не найдены",
+        "loadFailed": "Не удалось загрузить моды",
+        "modCount": "{total} модов",
+        "signInRequired": "Войдите через Nexus Mods, чтобы просматривать моды с Nexus.",
+        "goToSettings": "Настроить в настройках",
+        "sort": {
+            "lastUpdated": "Последнее обновление",
+            "mostDownloaded": "Больше всего загрузок",
+            "mostEndorsed": "Больше всего одобрений",
+            "relevance": "Релевантность"
+        }
+    },
+    "installed": {
+        "comingSoon": "Управление модами для этой игры скоро появится.",
+        "title": "Установленные моды",
+        "openFolder": "Открыть папку модов",
+        "refresh": "Обновить список установленных модов",
+        "modCount": "{count} модов",
+        "modCountSingle": "{count} мод",
+        "modCountFiltered": "{count} из {total} модов",
+        "empty": "Моды пока не установлены",
+        "identifyingNew": "Определение {count} новых модов…",
+        "filterPlaceholder": "Поиск модов…",
+        "filterEmpty": "Нет модов, соответствующих запросу «{query}»",
+        "reinstallFailed": "Не удалось переустановить: {error}",
+        "updatesAvailable": "Доступны обновления для {count} модов",
+        "updatesAvailableSingle": "Доступно обновление для {count} мода",
+        "reviewUpdates": "Просмотреть обновления",
+        "gridView": "Вид сеткой",
+        "listView": "Вид списком",
+        "newFolder": "Новая папка",
+        "folder": {
+            "modCount": "{count} модов",
+            "modCountSingle": "{count} мод",
+            "enable": "Включить все моды в папке",
+            "disable": "Отключить все моды в папке",
+            "rename": "Переименовать папку",
+            "renamePlaceholder": "Название папки",
+            "newSubfolder": "Новая подпапка",
+            "delete": "Удалить папку",
+            "deleteConfirm": "Удалить папку и переместить её содержимое в родительскую папку?",
+            "dropHere": "Перетащите моды сюда"
+        },
+        "fileCount": "{count} файлов",
+        "manageFiles": {
+            "searchPlaceholder": "Поиск файлов…",
+            "enableAll": "Включить все",
+            "disableAll": "Отключить все",
+            "noMatches": "Нет файлов, соответствующих запросу «{query}»",
+            "fileUnavailable": "Этот файл больше недоступен на ModWorkshop.",
+            "staleDuplicateBadge": "Устарело",
+            "staleDuplicateHint": "Это остаток от версии до того, как загрузка этого файла была переупакована — можно безопасно удалить."
+        },
+        "updatesModal": {
+            "title": "Доступные обновления ({count})",
+            "update": "Обновить",
+            "updating": "Обновление…",
+            "updatingProgress": "Обновление {done} / {total}",
+            "updateSelected": "Обновить выбранное ({count})",
+            "error": "Не удалось обновить. Проверьте подключение и повторите попытку."
+        },
+        "modMenu": {
+            "open": "Параметры",
+            "manageFiles": "Управление файлами"
+        },
+        "nexusBadge": "Nexus",
+        "crimeBossMove": {
+            "modkitBadge": "ModKit",
+            "legacyBadge": "Устаревший",
+            "toLegacy": "Переместить в устаревший формат",
+            "toModKit": "Переместить в ModKit",
+            "confirmTitleToLegacy": "Переместить в ~mods?",
+            "confirmBodyToLegacy": "«{name}» больше не будет объединяться с содержимым других модов. Делайте это, только если моду нужен старый формат pak-файлов.",
+            "confirmTitleToModkit": "Переместить в Mods/?",
+            "confirmBodyToModkit": "Перемещает «{name}» в Mods/, где он сможет объединяться с содержимым других модов.",
+            "confirm": "Переместить",
+            "moving": "Перемещение…",
+            "error": "Не удалось переместить: {error}"
+        },
+        "health": {
+            "title": "Проверка состояния",
+            "cancel": "Отменить сканирование",
+            "missingFilesCount": "Отсутствующие файлы ({count})",
+            "brokenArchivesCount": "Повреждённые архивы ({count})",
+            "outdatedCount": "Устаревшие ({count})",
+            "unidentifiedCount": "Неопознанные ({count})",
+            "unidentifiedHint": "Не распознано на ModWorkshop — может быть определено позже после обновления индекса модов.",
+            "updatesCount": "Обновления ({count})",
+            "dependenciesCount": "Зависимости ({count})",
+            "noMissingFiles": "Отсутствующих файлов нет.",
+            "noBrokenArchives": "Повреждённых архивов нет.",
+            "noOutdated": "Устаревших модов нет.",
+            "noUnidentified": "Все установленные моды распознаны.",
+            "noUpdates": "Всё актуально.",
+            "noMissingDeps": "У всех установленных модов есть все необходимые зависимости.",
+            "missingFileHint": "Файл отсутствует на диске",
+            "brokenArchiveHint": "Архив не удалось проверить",
+            "outdatedHint": "Рекомендуется переустановка",
+            "unidentifiedRowHint": "Не найдено на ModWorkshop",
+            "missingDepsHint": "Отсутствуют: {deps}",
+            "installDep": "Установить",
+            "installAllDeps": "Установить все зависимости",
+            "installDepFailed": "Не удалось установить некоторые зависимости автоматически.",
+            "reinstallAll": "Переустановить всё"
+        }
+    },
+    "news": {
+        "title": "Новости",
+        "subtitlePrefix": "Официальные заголовки, сводки и изображения с",
+        "readArticle": "Читать статью",
+        "refresh": "Обновить",
+        "empty": "Новостей нет",
+        "loadFailed": "Не удалось загрузить новости",
+        "source": "paydaythegame.com"
+    },
+    "detail": {
+        "spoiler": "Спойлер!",
+        "back": "Назад",
+        "viewOnSite": "ModWorkshop",
+        "viewOnNexus": "Nexus",
+        "donate": "Пожертвовать",
+        "creditsLevelCollaborator": "Соавтор",
+        "creditsLevelMaintainer": "Мейнтейнер",
+        "creditsLevelContributor": "Участник",
+        "tabs": {
+            "description": "Описание",
+            "images": "Изображения",
+            "imagesCount": "Изображения ({count})",
+            "downloads": "Загрузки",
+            "downloadsCount": "Загрузки ({count})",
+            "changelog": "Журнал изменений",
+            "license": "Лицензия",
+            "deps": "Зависимости и инструкции"
+        },
+        "stats": {
+            "downloads": "Загрузки",
+            "likes": "Лайки",
+            "views": "Просмотры"
+        },
+        "info": {
+            "version": "Версия",
+            "published": "Опубликовано",
+            "updated": "Обновлено",
+            "repository": "Репозиторий",
+            "link": "Ссылка",
+            "tags": "Теги",
+            "members": "Участники",
+            "owner": "Владелец"
+        },
+        "description": {
+            "noDescription": "Описание не указано."
+        },
+        "images": {
+            "none": "Для этого мода не загружены изображения."
+        },
+        "downloads": {
+            "none": "Нет доступных файлов.",
+            "onNexus": "Файлы этого мода находятся на Nexus Mods.",
+            "external": "Скачать",
+            "count": "{count} загр.",
+            "viaNexus": "Скачать через Nexus",
+            "awaitingNexus": "Ожидание браузера…",
+            "categoryMain": "Основные файлы",
+            "categoryUpdate": "Обновления",
+            "categoryOptional": "Дополнительные файлы",
+            "categoryOldVersion": "Старые версии",
+            "categoryMiscellaneous": "Разное"
+        },
+        "deps": {
+            "instructions": "Инструкции по установке",
+            "dependencies": "Зависимости",
+            "statusInstalled": "Установлено",
+            "statusMissing": "Отсутствует",
+            "statusNotInstalled": "Не установлено",
+            "badgeRequired": "Обязательно",
+            "badgeOptional": "Необязательно",
+            "openOnSite": "Открыть на modworkshop.net"
+        }
+    },
+    "embed": {
+        "videoThumbnail": "Превью видео",
+        "play": "Воспроизвести видео",
+        "openInBrowser": "Открыть в браузере"
+    },
+    "fileSelect": {
+        "title": "Установка файлов",
+        "subtitle": "{modName} — выберите файлы для установки.",
+        "installSelected": "Установить выбранное ({count})"
+    },
+    "zipPicker": {
+        "title": "Установка из архива",
+        "subtitle": "{modName} — выберите файлы для установки.",
+        "installSelected": "Установить выбранное ({count})",
+        "selectAll": "Выбрать всё ({count})",
+        "deselectAll": "Снять выделение",
+        "targetMods": "Моды",
+        "targetOverrides": "Замена ассетов"
+    },
+    "hostPack": {
+        "title": "Установка дополнения",
+        "intoHost": "Это дополнение для {hostName}. Установить {count} в него?",
+        "requiresHost": "Это дополнение устанавливается в {hostName}, который ещё не установлен. Сначала установите его, затем это дополнение.",
+        "installHost": "Установить {hostName}",
+        "install": "Установить ({count})",
+        "installing": "Установка…"
+    },
+    "unrecognized": {
+        "title": "Не удалось определить расположение мода",
+        "body": "Modrex не смог определить, куда устанавливается этот мод — вероятно, он должен быть внутри другого мода. Следуйте инструкциям автора:",
+        "noInstructions": "Автор не приложил инструкции по установке. Проверьте страницу мода на ModWorkshop."
+    },
+    "cbFlatArchive": {
+        "title": "Установить как папку мода?",
+        "body": "У этого архива нет собственной вложенной папки, поэтому Modrex не может автоматически определить название мода. Установить всё его содержимое как «{name}» в CrimeBoss/Mods?",
+        "install": "Установить",
+        "installing": "Установка…"
+    },
+    "depsWarning": {
+        "title": "Отсутствуют обязательные зависимости",
+        "body": "Этому моду требуются следующие моды:",
+        "gotIt": "Понятно",
+        "installAll": "Установить всё",
+        "installFailed": "Установка не удалась",
+        "bltDiesel3Note": "Официальный SuperBLT пока не поддерживает Diesel 3.0.",
+        "bltDiesel3GitHub": "Получить с GitHub"
+    },
+    "crimeBossInstallChoice": {
+        "title": "Куда установить «{name}»?",
+        "body": "Mods/ объединяется с содержимым других модов. ~mods — старый формат без объединения.",
+        "auto": "Mods/ (ModKit)",
+        "legacy": "~mods (устаревший pak)",
+        "installing": "Установка…",
+        "error": "Установка не удалась: {error}"
+    },
+    "settings": {
+        "title": "Настройки",
+        "language": {
+            "title": "Язык",
+            "description": "Язык, используемый во всём приложении."
+        },
+        "gamePath": {
+            "title": "Путь к игре",
+            "description": "Путь к установленной {game}. Определяется автоматически по установленным лаунчерам, если не задан вручную.",
+            "notFound": "Не найдено",
+            "detecting": "Определение…",
+            "reset": "Сбросить",
+            "browse": "Обзор",
+            "picking": "Выбор…",
+            "autoDetected": "Определено автоматически",
+            "notDetected": "Не удалось определить установку {game} — задайте путь вручную.",
+            "invalid": "Выбранная папка не является корректной установкой {game}."
+        },
+        "launcher": {
+            "title": "Лаунчер",
+            "description": "Как запускать {game}. Определяется автоматически при указании пути к игре.",
+            "detecting": "Определение…",
+            "steam": "Steam",
+            "epic": "Epic Games",
+            "xbox": "Xbox",
+            "manual": "Вручную (запуск исполняемого файла напрямую)"
+        },
+        "launchOptions": {
+            "title": "Параметры запуска",
+            "descriptionPre": "Дополнительные аргументы, передаваемые PAYDAY 3 при запуске.",
+            "descriptionPost": "рекомендуется для корректной работы большинства модов.",
+            "xboxNotePre": "Параметры запуска не поддерживаются в Microsoft Store. Чтобы включить логирование модов, добавьте",
+            "xboxNotePost": "в приложении Xbox в разделе PAYDAY 3 > Управление > Параметры запуска."
+        },
+        "crashReporter": {
+            "title": "Очистка окна сбоев",
+            "description": "Устраняет проблему с пустым окном отчёта о сбое для игр с нестабильным механизмом отчётов, удаляя его файлы перед запуском. По умолчанию отключено и может не требоваться для каждой игры."
+        },
+        "updates": {
+            "title": "Обновления",
+            "check": "Проверить обновления",
+            "checking": "Проверка…",
+            "upToDate": "У вас последняя версия"
+        },
+        "logs": {
+            "title": "Логи",
+            "description": "Если что-то пошло не так, откройте файл лога и приложите его к отчёту об ошибке.",
+            "open": "Открыть файл лога"
+        },
+        "nexusAccount": {
+            "title": "Аккаунт Nexus Mods",
+            "description": "Войдите в свой аккаунт Nexus Mods через браузер. Токены хранятся локально и никогда не покидают это устройство.",
+            "signIn": "Войти через Nexus Mods",
+            "signOut": "Выйти",
+            "signedIn": "Вы вошли в Nexus Mods.",
+            "failed": "Не удалось войти: {error}",
+            "signOutConfirmTitle": "Выйти из Nexus Mods?",
+            "signOutConfirmBody": "Чтобы снова просматривать и устанавливать моды с Nexus, потребуется войти заново через браузер.",
+            "signOutConfirm": "Выйти",
+            "insecureStorage": "Вход в Nexus Mods хранится менее безопасно, так как хранилище учётных данных ОС недоступно. В Linux установите и включите провайдер Secret Service, например gnome-keyring или KWallet, затем перезапустите Modrex, чтобы исправить это."
+        },
+        "folders": {
+            "title": "Папки",
+            "description": "Открыть эти расположения в проводнике.",
+            "gameFolder": "Открыть папку игры",
+            "dataFolder": "Открыть папку данных",
+            "appFolder": "Открыть папку приложения",
+            "open": "Открыть {name}",
+            "mods": "Моды",
+            "modkitMods": "Моды ModKit",
+            "legacyPaks": "Устаревшие паки",
+            "overrides": "Замена ассетов",
+            "ue4ssMods": "Моды UE4SS"
+        },
+        "storage": {
+            "title": "Хранилище",
+            "dangerZone": "Опасная зона",
+            "dangerZoneDescription": "Эти действия удаляют локально хранящиеся данные. Кэши освобождают место на диске и восстанавливаются автоматически при использовании приложения; сброс возвращает настройки по умолчанию. Ни одно из этих действий не затрагивает установленные моды или файлы игры.",
+            "clearing": "Очистка…",
+            "clearImages": "Очистить изображения",
+            "clearModInfo": "Очистить сведения о модах",
+            "clearDatabase": "Очистить базу данных",
+            "clearNews": "Очистить новости",
+            "clearAll": "Очистить все кэши",
+            "clearAllLabel": "Все кэши",
+            "clearAllDescription": "Очищает кэшированные изображения, сведения о модах, базу данных идентификации и новости одновременно.",
+            "clearConfirmTitle": "Очистить «{name}»?",
+            "clearConfirmBody": "Это удалит кэшированные данные прямо сейчас. Modrex восстановит их автоматически при использовании приложения.",
+            "clearAllConfirmTitle": "Очистить все кэши?",
+            "clearAllConfirmBody": "Это удалит все кэшированные изображения, сведения о модах, базу данных идентификации и новости. Modrex восстановит их автоматически при использовании приложения.",
+            "freed": "Освобождено {size}",
+            "cachedImages": "Кэшированные изображения",
+            "cachedImagesDescription": "Миниатюры и баннеры модов с ModWorkshop.",
+            "cachedModInfo": "Кэшированные сведения о модах",
+            "cachedModInfoDescription": "Сохранённые названия, версии и сведения о модах.",
+            "modIndex": "База данных идентификации модов",
+            "modIndexDescription": "Хеш-индекс, используемый для распознавания установленных модов.",
+            "news": "Кэшированные новости",
+            "newsDescription": "Сохранённые копии страниц новостей приложения.",
+            "reset": "Сбросить настройки",
+            "resetDescription": "Восстановить все настройки приложения по умолчанию.",
+            "resetConfirmTitle": "Сбросить настройки?",
+            "resetConfirmBody": "Это очистит сохранённые пути к играм, выбор лаунчера, настройки и выбор в отношении аналитики, вернув Modrex к состоянию первого запуска. Установленные моды и файлы игры не пострадают.",
+            "resetConfirm": "Сбросить настройки",
+            "resetting": "Сброс…"
+        },
+        "crimeBossInstallMode": {
+            "title": "Установка новых модов",
+            "description": "Куда по умолчанию устанавливаются новые моды для Crime Boss. Уже установленный мод можно позже переместить из списка «Установлено».",
+            "auto": "Автоматически",
+            "ask": "Спрашивать всегда"
+        },
+        "about": {
+            "tagline": "Бесплатный менеджер модов с открытым исходным кодом.",
+            "supportTitle": "Поддержать проект",
+            "supportBody": "Modrex — бесплатный проект, созданный в свободное время. Если он экономит вам время, звезда на GitHub или спонсорство помогут ему развиваться.",
+            "star": "Звезда на GitHub",
+            "sponsor": "Спонсировать",
+            "communityTitle": "Сообщество",
+            "discord": "Присоединиться к Discord",
+            "website": "modrex.net",
+            "disclaimer": "Modrex — проект сообщества и не связан с разработчиками или издателями поддерживаемых игр."
+        },
+        "nav": {
+            "game": "Игра",
+            "application": "Приложение",
+            "advanced": "Дополнительно",
+            "about": "О программе"
+        }
+    },
+    "supportPrompt": {
+        "body": "Нравится Modrex? Звезда на GitHub помогает другим игрокам найти его.",
+        "star": "Звезда на GitHub",
+        "dismiss": "Нет, спасибо"
+    },
+    "diesel3Notice": {
+        "title": "PAYDAY 2 Diesel 3.0 Beta",
+        "body": "SuperBLT с официального сайта не совместим с Diesel 3.0. Если вы используете BLT-моды, установите вместо него порт от сообщества с GitHub.",
+        "github": "Получить с GitHub",
+        "gotIt": "Понятно"
+    },
+    "telemetry": {
+        "title": "Помогите улучшить Modrex",
+        "intro": "Modrex может отправлять анонимные данные об использовании, чтобы мы видели, какие моды ломаются, каким играм нужно больше внимания и что разрабатывать дальше. Это необязательно, и вы можете изменить это в любой момент в настройках.",
+        "collectTitle": "Что мы собираем",
+        "collect1": "Анонимные данные об использовании — какие функции используются, какие моды установлены и насколько хорошо они распознаются",
+        "collect2": "Версию приложения и операционную систему",
+        "dontCollectTitle": "Что мы никогда не собираем",
+        "dontCollect1": "Никаких имён, email-адресов, аккаунтов и другой информации, по которой можно вас узнать",
+        "dontCollect2": "Никаких путей к файлам, текста поиска модов и других личных данных",
+        "enable": "Включить",
+        "decline": "Нет, спасибо",
+        "detailsToggle": "Какие данные собираются?",
+        "privacyPrefix": "Данные об использовании обрабатываются Google Analytics. См.",
+        "privacyLink": "Политику конфиденциальности Google",
+        "settingsTitle": "Аналитика использования",
+        "settingsDescription": "Делитесь анонимными данными об использовании, чтобы помочь улучшить Modrex.",
+        "discordPresenceTitle": "Discord Rich Presence",
+        "discordPresenceDescription": "Показывать активность Modrex в вашем профиле Discord со ссылкой на приложение."
+    },
+    "drop": {
+        "overlayTitle": "Отпустите, чтобы установить",
+        "overlaySubtitle": "Отпустите, чтобы установить в {game}",
+        "installing": "Установка…",
+        "installingCount": "Установка {current} из {total}…",
+        "installed": "Установлено модов: {count}",
+        "installedSingle": "Установлен 1 мод",
+        "needsPicker": "Некоторые архивы пока можно установить только со страницы мода",
+        "failed": "Не удалось установить: {names}",
+        "noGame": "Перед перетаскиванием модов укажите папку игры"
+    }
+}

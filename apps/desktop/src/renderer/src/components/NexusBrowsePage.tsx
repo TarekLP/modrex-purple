@@ -28,16 +28,11 @@ interface Props {
 // Only the offset calculation needs it now; last_page comes back in the response meta.
 const PAGE_SIZE = 24
 
-const SORT_OPTIONS = [
-    { value: 'updatedAt', label: t('nexus.sort.lastUpdated') },
-    { value: 'downloads', label: t('nexus.sort.mostDownloaded') },
-    { value: 'endorsements', label: t('nexus.sort.mostEndorsed') },
-    { value: 'relevance', label: t('nexus.sort.relevance') },
-]
+const SORT_VALUES = ['updatedAt', 'downloads', 'endorsements', 'relevance']
 
 function getSavedSort(game: GameId): string {
     const saved = localStorage.getItem(`modrex:${GAMES[game].storageKey}:nexus-sort`)
-    return SORT_OPTIONS.some((o) => o.value === saved) ? (saved as string) : 'updatedAt'
+    return SORT_VALUES.includes(saved as string) ? (saved as string) : 'updatedAt'
 }
 
 function buildPages(current: number, last: number): (number | '...')[] {
@@ -92,6 +87,16 @@ export function NexusBrowsePage({
     const fetchIdRef = useRef(0)
     const lastFetchedRef = useRef('')
     const scrollRef = useRef<HTMLDivElement>(null)
+
+    const sortOptions = useMemo(
+        () => [
+            { value: 'updatedAt', label: t('nexus.sort.lastUpdated') },
+            { value: 'downloads', label: t('nexus.sort.mostDownloaded') },
+            { value: 'endorsements', label: t('nexus.sort.mostEndorsed') },
+            { value: 'relevance', label: t('nexus.sort.relevance') },
+        ],
+        []
+    )
 
     // Nexus installs carry their nexus mod id in remoteId.
     const installedByNexusId = useMemo(() => {
@@ -267,7 +272,7 @@ export function NexusBrowsePage({
                     <Select
                         value={sort}
                         onChange={handleSortChange}
-                        options={SORT_OPTIONS}
+                        options={sortOptions}
                         icon={<ArrowDownUp className="w-3.5 h-3.5 text-text-subtle" />}
                     />
                 </div>

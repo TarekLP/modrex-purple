@@ -90,13 +90,7 @@ function isRateLimitError(error: string): boolean {
     return error.includes('API 429')
 }
 
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-    { value: 'bumped_at', label: t('browse.sort.lastUpdated') },
-    { value: 'downloads', label: t('browse.sort.mostDownloaded') },
-    { value: 'likes', label: t('browse.sort.mostLiked') },
-    { value: 'published_at', label: t('browse.sort.newest') },
-    { value: 'name', label: t('browse.sort.name') },
-]
+const SORT_VALUES: SortOption[] = ['bumped_at', 'downloads', 'likes', 'published_at', 'name']
 
 // Memo boundary for the card grid. The grid is the expensive part of BrowsePage
 // (24 cards × tooltips/toggles/images), so it must only re-render when its data
@@ -208,7 +202,7 @@ const ModGrid = memo(function ModGrid({
 
 function getSavedSort(game: GameId): SortOption {
     const saved = localStorage.getItem(`modrex:${GAMES[game].storageKey}:browse-sort`)
-    return SORT_OPTIONS.some((o) => o.value === saved) ? (saved as SortOption) : 'bumped_at'
+    return SORT_VALUES.includes(saved as SortOption) ? (saved as SortOption) : 'bumped_at'
 }
 
 export function BrowsePage({
@@ -251,6 +245,16 @@ export function BrowsePage({
     const [fileSelect, setFileSelect] = useState<{ mod: Mod; files: ModFile[] } | null>(null)
     const [formatWarning, setFormatWarning] = useState<{ modId: number; mod: ModSummary } | null>(
         null
+    )
+    const sortOptions: { value: SortOption; label: string }[] = useMemo(
+        () => [
+            { value: 'bumped_at', label: t('browse.sort.lastUpdated') },
+            { value: 'downloads', label: t('browse.sort.mostDownloaded') },
+            { value: 'likes', label: t('browse.sort.mostLiked') },
+            { value: 'published_at', label: t('browse.sort.newest') },
+            { value: 'name', label: t('browse.sort.name') },
+        ],
+        []
     )
     const [zipPickerData, setZipPickerData] = useState<ZipMultiPakPayload | null>(null)
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
@@ -830,7 +834,7 @@ export function BrowsePage({
                         value={sort}
                         onChange={handleSortChange}
                         icon={<ArrowDownUp className="w-3.5 h-3.5 text-text-subtle" />}
-                        options={SORT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                        options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
                     />
                 </div>
             </div>
