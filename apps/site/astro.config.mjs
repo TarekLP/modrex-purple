@@ -76,6 +76,7 @@ export default defineConfig({
             sidebar: [
                 {
                     label: 'Start here',
+                    collapsed: true,
                     items: [
                         { label: 'Documentation', link: '/docs/' },
                         { slug: 'docs/getting-started' },
@@ -83,14 +84,17 @@ export default defineConfig({
                 },
                 {
                     label: 'Games',
+                    collapsed: true,
                     items: [{ autogenerate: { directory: 'docs/games' } }],
                 },
                 {
                     label: 'Concepts',
+                    collapsed: true,
                     items: [{ autogenerate: { directory: 'docs/concepts' } }],
                 },
                 {
                     label: 'Using Modrex',
+                    collapsed: true,
                     items: [
                         { slug: 'docs/installing-mods' },
                         { slug: 'docs/organizing' },
@@ -99,6 +103,7 @@ export default defineConfig({
                 },
                 {
                     label: 'Reference',
+                    collapsed: true,
                     items: [{ slug: 'docs/settings' }, { slug: 'docs/troubleshooting' }],
                 },
             ],

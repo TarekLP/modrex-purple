@@ -1,0 +1,28 @@
+---
+title: 'RAID: World War II'
+description: 'Setup notes for RAID: World War II launcher support, RAID-SuperBLT, legacy RaidBLT, and asset override packs.'
+sidebar:
+    order: 50
+---
+
+import GameFacts from '../../../../components/docs/GameFacts.astro'
+
+RAID: World War II support covers RAID-SuperBLT script mods, legacy RaidBLT mods, and asset override packs.
+
+<GameFacts game="raid" />
+
+## Mod source
+
+RAID uses the ModWorkshop catalog. Nexus Mods is not available for RAID in Modrex.
+
+## Loader
+
+RAID-SuperBLT is the current loader. When a mod declares it as a dependency, Modrex can install the loader for you. Modrex also recognizes an existing legacy RaidBLT hook, so older installs remain manageable.
+
+## Install target
+
+RAID uses one managed `mods` folder. Script mods and asset override packs are both installed there. Modrex keeps the loader’s own runtime folders out of the Installed list.
+
+## Priority
+
+RAID directory mods are not renamed for priority. Follow the loader’s and mod author’s conflict guidance when two mods change the same content.

@@ -1,66 +1,91 @@
 ---
+import PagefindSearch from '@astrojs/starlight/components/Search.astro'
+
 const label = 'Search docs'
+const isDevelopment = import.meta.env.DEV
 ---
 
-<site-search class={Astro.props.class}>
-    <label class="docs-filter-field" data-docs-filter-field>
-        <svg
-            aria-hidden="true"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-        >
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.35-4.35"></path>
-        </svg>
-        <input
-            data-docs-filter-input
-            type="search"
-            placeholder={label}
-            aria-label={label}
-            autocomplete="off"
-        />
-        <kbd class="docs-filter-shortcut" aria-hidden="true">
-            <kbd>{Astro.locals.t('search.ctrlKey')}</kbd><kbd>K</kbd>
-        </kbd>
-    </label>
-    <p data-docs-filter-empty class="docs-filter-empty" hidden>No matching docs</p>
-</site-search>
+<div class="docs-search">
+    {
+        isDevelopment ? (
+            <label class="docs-filter-field" data-docs-filter-field>
+                <svg
+                    aria-hidden="true"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                </svg>
+                <input
+                    data-docs-filter-input
+                    type="search"
+                    placeholder={label}
+                    aria-label={label}
+                    autocomplete="off"
+                />
+                <kbd class="docs-filter-shortcut" aria-hidden="true">
+                    <>
+                        <kbd>{Astro.locals.t('search.ctrlKey')}</kbd>
+                        <kbd>K</kbd>
+                    </>
+                </kbd>
+            </label>
+        ) : (
+            <button type="button" class="docs-filter-field" data-docs-search-trigger>
+                <svg
+                    aria-hidden="true"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                </svg>
+                <span>{label}</span>
+                <kbd class="docs-filter-shortcut" aria-hidden="true">
+                    <>
+                        <kbd>{Astro.locals.t('search.ctrlKey')}</kbd>
+                        <kbd>K</kbd>
+                    </>
+                </kbd>
+            </button>
+        )
+    }
+    {!isDevelopment && <PagefindSearch class="docs-pagefind-search" />}
+    {
+        isDevelopment && (
+            <p data-docs-filter-empty class="docs-filter-empty" hidden>
+                No matching docs
+            </p>
+        )
+    }
+</div>
 
 <script>
-    class SiteSearch extends HTMLElement {
-        connectedCallback() {
-            if (this.dataset.ready === 'true') return
+    const input = document.querySelector<HTMLInputElement>('[data-docs-filter-input]')
 
-            const init = () => {
-                if (this.init()) {
-                    this.dataset.ready = 'true'
-                    return
-                }
+    if (input) {
+        const sidebar =
+            input.closest('#starlight__sidebar') ?? document.getElementById('starlight__sidebar')
+        const navigation = sidebar?.querySelector<HTMLElement>('ul.top-level')
+        const field = document.querySelector<HTMLElement>('[data-docs-filter-field]')
+        const shortcut = document.querySelector<HTMLElement>('.docs-filter-shortcut')
+        const platformKey = shortcut?.querySelector('kbd')
+        const empty = document.querySelector<HTMLElement>('[data-docs-filter-empty]')
 
-                requestAnimationFrame(init)
-            }
-
-            init()
-        }
-
-        private init() {
-            const input = this.querySelector<HTMLInputElement>('[data-docs-filter-input]')
-            const shortcut = this.querySelector<HTMLElement>('.docs-filter-shortcut')
-            const platformKey = shortcut?.querySelector('kbd')
-            const sidebar =
-                this.closest('#starlight__sidebar') ?? document.getElementById('starlight__sidebar')
-            const navigation = sidebar?.querySelector<HTMLElement>('ul.top-level')
-            const empty = this.querySelector<HTMLElement>('[data-docs-filter-empty]')
-
-            if (!input || !navigation) return false
-
-            const field = this.querySelector<HTMLElement>('[data-docs-filter-field]')
+        if (navigation) {
             if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
                 platformKey.textContent = '⌘'
             }
@@ -73,12 +98,6 @@ const label = 'Search docs'
             const matches = (text: string, terms: string[]) => {
                 const value = normalize(text)
                 return terms.every((term) => value.includes(term))
-            }
-
-            const setDescendantsHidden = (item: HTMLLIElement, hidden: boolean) => {
-                for (const child of item.querySelectorAll<HTMLLIElement>('li')) {
-                    child.hidden = hidden
-                }
             }
 
             const restoreNavigation = () => {
@@ -103,23 +122,22 @@ const label = 'Search docs'
                     if (directLink) item.hidden = !matches(directLink.textContent ?? '', terms)
                 }
 
-                const groupedItems = Array.from(navigation.querySelectorAll('details'))
+                const groups = Array.from(navigation.querySelectorAll('details'))
                     .map((detail) => detail.closest<HTMLLIElement>('li'))
                     .filter((item): item is HTMLLIElement => item !== null)
                     .reverse()
 
-                for (const item of groupedItems) {
+                for (const item of groups) {
                     const summary = item.querySelector<HTMLElement>(':scope > details > summary')
                     const detail = item.querySelector<HTMLDetailsElement>(':scope > details')
                     const groupMatches = matches(summary?.textContent ?? '', terms)
+                    const children = Array.from(item.querySelectorAll<HTMLLIElement>('li'))
 
                     if (groupMatches) {
                         item.hidden = false
-                        setDescendantsHidden(item, false)
+                        for (const child of children) child.hidden = false
                     } else {
-                        item.hidden = !Array.from(item.querySelectorAll<HTMLLIElement>('li')).some(
-                            (child) => child.hidden === false
-                        )
+                        item.hidden = !children.some((child) => child.hidden === false)
                     }
 
                     if (detail) detail.open = !item.hidden
@@ -145,7 +163,6 @@ const label = 'Search docs'
                     event.preventDefault()
                 }
             })
-
             window.addEventListener('keydown', (event) => {
                 if (
                     (event.metaKey === true || event.ctrlKey === true) &&
@@ -156,10 +173,13 @@ const label = 'Search docs'
                     event.preventDefault()
                 }
             })
-
-            return true
         }
-    }
+    } else {
+        const trigger = document.querySelector<HTMLButtonElement>('[data-docs-search-trigger]')
+        const searchButton = document.querySelector<HTMLButtonElement>(
+            '.docs-pagefind-search button[data-open-modal]'
+        )
 
-    if (!customElements.get('site-search')) customElements.define('site-search', SiteSearch)
+        trigger?.addEventListener('click', () => searchButton?.click())
+    }
 </script>

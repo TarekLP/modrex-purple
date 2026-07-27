@@ -7,8 +7,15 @@ interface Props {
 }
 
 const game = getDocsGame(Astro.props.game)
-const targetPath = (targetId: ModTargetId) =>
-    GAMES[game.id].modTargets.find((target) => target.id === targetId)!.path
+const targetPath = (targetId: ModTargetId) => {
+    const target = GAMES[game.id].modTargets.find((candidate) => candidate.id === targetId)
+
+    if (!target) {
+        throw new Error(`Unknown ${game.id} mod target in documentation: ${targetId}`)
+    }
+
+    return target.path
+}
 ---
 
 <table class="docs-data-table">
@@ -25,12 +32,12 @@ const targetPath = (targetId: ModTargetId) =>
                 <tr>
                     <td>{target.label}</td>
                     <td>
-                        {target.pathIsCode === false ? (
-                            target.path
-                        ) : (
+                        {'targetId' in target || target.pathIsCode !== false ? (
                             <code>
-                                {target.targetId ? targetPath(target.targetId) : target.path}
+                                {'targetId' in target ? targetPath(target.targetId) : target.path}
                             </code>
+                        ) : (
+                            target.path
                         )}
                     </td>
                     <td>{target.notes}</td>

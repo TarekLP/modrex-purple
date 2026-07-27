@@ -1,37 +1,37 @@
-import { type GameId, type ModTargetId } from '@modrex/games'
+import { GAME_IDS, type GameId, type ModTargetId } from '@modrex/games'
 
-export type DocsGameId = GameId & ('pd3' | 'pd2' | 'pdth' | 'cb')
-
-export interface OverviewTarget {
+export interface CanonicalDocsTarget {
     label: string
-    code?: string
-    path?: string
-    note?: string
+    targetId: ModTargetId
+    notes: string
 }
 
-export interface ModTarget {
+export interface SupplementalDocsTarget {
     label: string
-    targetId?: ModTargetId
-    path?: string
+    path: string
     pathIsCode?: boolean
     notes: string
 }
 
-export interface DocsGame {
-    id: DocsGameId
+export type DocsTarget = CanonicalDocsTarget | SupplementalDocsTarget
+
+interface PublishedDocsGameRegistration {
+    status: 'published'
     slug: string
-    overviewTargets: readonly OverviewTarget[]
-    targets: readonly ModTarget[]
+    targets: readonly DocsTarget[]
 }
 
-export const docsGames: readonly DocsGame[] = [
-    {
-        id: 'pd3',
+interface UnreleasedDocsGameRegistration {
+    status: 'unreleased'
+    reason: string
+}
+
+export type DocsGameRegistration = PublishedDocsGameRegistration | UnreleasedDocsGameRegistration
+
+export const docsGameRegistry = {
+    pd3: {
+        status: 'published',
         slug: 'payday-3',
-        overviewTargets: [
-            { code: '.pak', label: 'files', path: '~mods' },
-            { label: 'UE4SS Lua mods', note: 'when the loader is installed' },
-        ],
         targets: [
             {
                 label: 'Pak mods',
@@ -45,13 +45,9 @@ export const docsGames: readonly DocsGame[] = [
             },
         ],
     },
-    {
-        id: 'pd2',
+    pd2: {
+        status: 'published',
         slug: 'payday-2',
-        overviewTargets: [
-            { label: 'BLT/BeardLib folders', path: 'mods' },
-            { label: 'asset replacements', path: 'assets/mod_overrides' },
-        ],
         targets: [
             {
                 label: 'BLT and BeardLib mods',
@@ -71,13 +67,9 @@ export const docsGames: readonly DocsGame[] = [
             },
         ],
     },
-    {
-        id: 'pdth',
+    pdth: {
+        status: 'published',
         slug: 'payday-the-heist',
-        overviewTargets: [
-            { label: 'BLT/DAHM folders', path: 'mods' },
-            { label: 'asset replacements', path: 'assets/mod_overrides' },
-        ],
         targets: [
             {
                 label: 'BLT and DAHM mods',
@@ -91,14 +83,9 @@ export const docsGames: readonly DocsGame[] = [
             },
         ],
     },
-    {
-        id: 'cb',
+    cb: {
+        status: 'published',
         slug: 'crime-boss',
-        overviewTargets: [
-            { label: 'Official ModKit folders', path: 'CrimeBoss/Mods' },
-            { label: 'legacy pak files' },
-            { label: 'UE4SS Lua mods' },
-        ],
         targets: [
             {
                 label: 'Official ModKit mods',
@@ -117,7 +104,39 @@ export const docsGames: readonly DocsGame[] = [
             },
         ],
     },
-] as const
+    raid: {
+        status: 'published',
+        slug: 'raid-world-war-ii',
+        targets: [
+            {
+                label: 'RAID mods',
+                targetId: 'mods',
+                notes: 'RAID-SuperBLT, legacy RaidBLT script mods, and asset override packs share the game’s mods folder.',
+            },
+        ],
+    },
+} as const satisfies Record<GameId, DocsGameRegistration>
+
+type DocsGameRegistry = typeof docsGameRegistry
+
+export type DocsGameId = {
+    [Id in GameId]: DocsGameRegistry[Id] extends PublishedDocsGameRegistration ? Id : never
+}[GameId]
+
+export interface DocsGame extends PublishedDocsGameRegistration {
+    id: DocsGameId
+}
+
+export const docsGames = GAME_IDS.reduce<DocsGame[]>((publishedGames, id) => {
+    const registration = docsGameRegistry[id]
+
+    if (registration.status === 'unreleased') {
+        return publishedGames
+    }
+
+    publishedGames.push({ id: id as DocsGameId, ...registration })
+    return publishedGames
+}, [])
 
 export function getDocsGame(id: DocsGameId): DocsGame {
     const game = docsGames.find((candidate) => candidate.id === id)

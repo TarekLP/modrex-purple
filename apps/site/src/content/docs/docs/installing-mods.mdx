@@ -1,19 +1,26 @@
 ---
 title: Installing mods
-description: Install mods from modworkshop with one click, or drop in local archives from your filesystem.
+description: Install mods from ModWorkshop or Nexus Mods, or drop local archives into Modrex.
 ---
 
 import Callout from '../../../components/docs/Callout.astro'
 
 ## From Browse
 
-The **Browse** tab shows the modworkshop catalog for the active game. Click any mod to open its
-detail page, then click **Install**. Modrex downloads the file, extracts it if needed, and places
-it in the correct location automatically. The Install button shows a live download percentage and
-progress bar while the file is transferring.
+The **Browse** tab shows the catalog for the active game. ModWorkshop is available for every
+supported game. PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss also have a source selector
+for **Nexus Mods**.
 
-Use the search box to filter by name, the category dropdown to narrow the catalog, and the sort
-control to order results by last updated, most downloaded, most liked, newest, or name.
+For ModWorkshop, click any mod to open its detail page, then click **Install**. Modrex downloads
+the file, extracts it if needed, and places it in the correct location automatically. The Install
+button shows a live download percentage and progress bar while the file is transferring.
+
+To browse Nexus Mods, sign in from **Settings > Advanced > Nexus Mods**, then select Nexus at the
+top of Browse. Open the mod’s **Files** tab on Nexus and choose **Mod Manager Download**. Nexus
+hands the download back to Modrex, which shows its progress and installs it into the active game.
+
+Use search, category, and sort controls to narrow a catalog. ModWorkshop also supports tag filters:
+select a tag once to include it, again to exclude it, and once more to clear that filter.
 
 Supported local file formats: `.pak`, `.zip`, `.7z`, `.rar`, `.tar.gz`, `.tar.xz`.
 
@@ -46,12 +53,12 @@ for how host-mod content is handled.
 
 ### External links
 
-If a mod's download is hosted outside modworkshop (external link), Modrex shows a warning and opens
+If a ModWorkshop mod's download is hosted outside ModWorkshop (external link), Modrex shows a warning and opens
 the link in your browser. Download the file manually, then install it from a local file.
 
 ## From a local file
 
-Drag a supported file onto the **Installed** tab, or click **Install from file** in the top bar.
+Drag a supported file from your file explorer into the Modrex window, or click **Install from file** in the top bar.
 Modrex handles extraction and placement the same way as a Browse install.
 
 ## Enable and disable

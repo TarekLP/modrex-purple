@@ -21,21 +21,10 @@ import { docsGames } from '../../data/docsGames'
                         </td>
                         <td>{GAMES[game.id].launchers.join(', ')}</td>
                         <td>
-                            <ul>
-                                {game.overviewTargets.map((target) => (
-                                    <li>
-                                        {target.code && <code>{target.code}</code>}
-                                        {target.code ? ` ${target.label}` : target.label}
-                                        {target.path && (
-                                            <>
-                                                {' '}
-                                                in <code>{target.path}</code>
-                                            </>
-                                        )}
-                                        {target.note && ` ${target.note}`}
-                                    </li>
-                                ))}
-                            </ul>
+                            {game.targets
+                                .filter((target) => 'targetId' in target)
+                                .map((target) => target.label)
+                                .join(', ')}
                         </td>
                     </tr>
                 ))
@@ -47,15 +36,6 @@ import { docsGames } from '../../data/docsGames'
 <style>
     .game-support-table {
         overflow-x: auto;
-    }
-
-    .game-support-table ul {
-        margin: 0;
-        padding-left: 1.1rem;
-    }
-
-    .game-support-table li + li {
-        margin-top: 0.25rem;
     }
 
     .game-support-table td:first-child {
