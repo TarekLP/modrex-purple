@@ -551,7 +551,7 @@ export default function App() {
                                 : null
                         }
                         onDismissUpdate={() => setUpdate(null)}
-                        hideGameActions={view === 'welcome'}
+                        hideGameActions={inPicker}
                     />
                     {view !== 'welcome' && modsHidden && (
                         <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
