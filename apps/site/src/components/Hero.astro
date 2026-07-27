@@ -425,7 +425,7 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
 
     .shot-card {
         flex: 0 0 74%;
-        border-radius: 10px 10px 10px 10px;
+        border-radius: var(--radius-xl);
         overflow: hidden;
         border: 2px solid transparent;
         background: var(--color-surface-raised);
@@ -535,7 +535,7 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
         flex: 0 0 82%;
         overflow: hidden;
         border: 2px solid transparent;
-        border-radius: 10px;
+        border-radius: var(--radius-xl);
         background: var(--color-surface-raised);
         opacity: 0.35;
         transform: scale(0.97);

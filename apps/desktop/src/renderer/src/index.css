@@ -12,6 +12,8 @@
     --modrex-text-muted: #928c87;
     --modrex-text-subtle: #756f6b;
     --modrex-accent: #e36300;
+    --modrex-accent-fill: #c45500;
+    --modrex-accent-fill-hover: #b84d00;
     --modrex-accent-bright: #f87d36;
     --modrex-danger: #5a2204;
     --modrex-danger-hover: #7a3508;
@@ -30,6 +32,8 @@
     --color-text-muted: var(--modrex-text-muted);
     --color-text-subtle: var(--modrex-text-subtle);
     --color-accent: var(--modrex-accent);
+    --color-accent-fill: var(--modrex-accent-fill);
+    --color-accent-fill-hover: var(--modrex-accent-fill-hover);
     --color-accent-bright: var(--modrex-accent-bright);
     --color-danger: var(--modrex-danger);
     --color-danger-hover: var(--modrex-danger-hover);
@@ -50,6 +54,8 @@
     --color-text-muted: var(--modrex-text-muted);
     --color-text-subtle: var(--modrex-text-subtle);
     --color-accent: var(--modrex-accent);
+    --color-accent-fill: var(--modrex-accent-fill);
+    --color-accent-fill-hover: var(--modrex-accent-fill-hover);
     --color-accent-bright: var(--modrex-accent-bright);
     --color-danger: var(--modrex-danger);
     --color-danger-hover: var(--modrex-danger-hover);

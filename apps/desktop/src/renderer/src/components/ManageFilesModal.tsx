@@ -552,7 +552,7 @@ function GhostRow({
                         <button
                             onClick={onInstall}
                             disabled={disabled}
-                            className="p-1.5 rounded bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="p-1.5 rounded bg-accent-fill hover:bg-accent-fill-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                             <Download className="w-3.5 h-3.5" />
                         </button>

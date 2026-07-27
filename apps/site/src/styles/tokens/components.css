@@ -29,7 +29,7 @@
     padding: 8px 16px;
 }
 .mdx-btn--primary {
-    background: var(--color-accent);
+    background: var(--color-accent-fill);
     color: var(--on-accent);
 }
 .mdx-btn--primary:hover:not(:disabled) {
@@ -298,11 +298,11 @@
     background: var(--color-surface-hover);
 }
 .mdx-select__option--selected {
-    background: var(--color-accent);
+    background: var(--color-accent-fill);
     color: var(--on-accent);
 }
 .mdx-select__option--selected:hover {
-    background: var(--color-accent);
+    background: var(--color-accent-fill);
 }
 
 /* --------------------------------- Card --------------------------------- */

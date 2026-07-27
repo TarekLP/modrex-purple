@@ -341,7 +341,7 @@ export function DownloadsTab({
                                 className={`text-xs px-4 py-2 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-1.5 ${
                                     isInstalled
                                         ? 'bg-success/20 border border-success/40 text-success-text'
-                                        : 'bg-accent hover:bg-accent-bright disabled:opacity-40'
+                                        : 'bg-accent-fill hover:bg-accent-fill-hover disabled:opacity-40'
                                 }`}
                             >
                                 {!isInstalling && !isInstalled && (

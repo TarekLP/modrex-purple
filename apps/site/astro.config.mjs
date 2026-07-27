@@ -8,11 +8,11 @@ const modrexCodeTheme = {
     name: 'modrex',
     type: 'dark',
     colors: {
-        'editor.background': '#1c1c1c', // --color-surface-raised
+        'editor.background': '#1e1b1a', // --color-surface-raised
         'editor.foreground': '#f4f4f3', // --color-text
     },
     tokenColors: [
-        { scope: ['comment'], settings: { foreground: '#71717a' } }, // --color-text-subtle
+        { scope: ['comment'], settings: { foreground: '#756f6b' } }, // --color-text-subtle
         {
             scope: [
                 'keyword',
@@ -26,7 +26,7 @@ const modrexCodeTheme = {
         },
         {
             scope: ['keyword.operator', 'punctuation'],
-            settings: { foreground: '#8e8e96' }, // --color-text-muted
+            settings: { foreground: '#928c87' }, // --color-text-muted
         },
         {
             scope: ['string', 'variable', 'constant', 'entity.name.type', 'support'],

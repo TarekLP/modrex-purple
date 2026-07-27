@@ -47,7 +47,7 @@ export function TelemetryConsentDialog({ open, onChoice, dismissable = false, on
                     </button>
                     <button
                         onClick={() => onChoice(true)}
-                        className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-bright text-sm font-medium transition-colors"
+                        className="px-4 py-2 rounded-lg bg-accent-fill hover:bg-accent-fill-hover text-sm font-medium transition-colors"
                     >
                         {t('telemetry.enable')}
                     </button>

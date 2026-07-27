@@ -898,7 +898,7 @@ export function BrowsePage({
                                         onClick={() => setPage(p as number)}
                                         className={`text-xs px-3 py-1 rounded transition-colors ${
                                             p === page
-                                                ? 'bg-accent text-white'
+                                                ? 'bg-accent-fill text-white'
                                                 : 'bg-surface-hover hover:bg-surface-active'
                                         }`}
                                     >

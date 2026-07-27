@@ -59,7 +59,7 @@ export function Select({ value, onChange, options, placeholder, disabled, icon }
                             <RadixSelect.Item
                                 key={o.value}
                                 value={toRadix(o.value)}
-                                className="text-sm px-3 py-2 flex items-center gap-1.5 cursor-pointer select-none outline-none text-text data-[state=checked]:bg-accent data-[state=checked]:text-white data-[highlighted]:bg-surface-hover transition-colors"
+                                className="text-sm px-3 py-2 flex items-center gap-1.5 cursor-pointer select-none outline-none text-text data-[state=checked]:bg-accent-fill data-[state=checked]:text-white data-[highlighted]:bg-surface-hover transition-colors"
                             >
                                 {o.icon}
                                 <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>

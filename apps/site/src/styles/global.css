@@ -67,7 +67,7 @@ h2.sec-title {
 }
 
 .btn-lg.primary {
-    background: var(--color-accent);
+    background: var(--color-accent-fill);
     color: #fff;
 }
 

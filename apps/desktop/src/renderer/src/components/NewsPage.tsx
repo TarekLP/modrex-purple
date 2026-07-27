@@ -65,7 +65,7 @@ function NewsCard({ item }: { item: NewsItem }) {
                 <Tooltip content={t('news.readArticle')}>
                     <button
                         onClick={() => api.openExternal(item.url)}
-                        className="p-1.5 rounded bg-accent hover:bg-accent-bright transition-colors"
+                        className="p-1.5 rounded bg-accent-fill hover:bg-accent-fill-hover transition-colors"
                     >
                         <ExternalLink className="w-3.5 h-3.5" />
                     </button>
@@ -231,7 +231,7 @@ function NewsPageImpl({ isActive, activeGame }: Props) {
                                     onClick={() => handlePageChange(p as number)}
                                     className={`text-xs px-3 py-1 rounded transition-colors ${
                                         p === page
-                                            ? 'bg-accent text-white'
+                                            ? 'bg-accent-fill text-white'
                                             : 'bg-surface-hover hover:bg-surface-active'
                                     }`}
                                 >
