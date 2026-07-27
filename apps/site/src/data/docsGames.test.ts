@@ -29,11 +29,6 @@ describe('documentation game registry', () => {
     it('uses canonical mod target IDs from each game specification', () => {
         for (const id of GAME_IDS) {
             const registration = docsGameRegistry[id]
-            if (registration.status === 'unreleased') {
-                expect(registration.reason.trim()).not.toBe('')
-                continue
-            }
-
             const canonicalTargetIds = GAMES[id].modTargets.map((target) => target.id)
             for (const target of registration.targets) {
                 if ('targetId' in target) {

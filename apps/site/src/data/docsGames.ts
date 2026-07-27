@@ -15,22 +15,13 @@ export interface SupplementalDocsTarget {
 
 export type DocsTarget = CanonicalDocsTarget | SupplementalDocsTarget
 
-interface PublishedDocsGameRegistration {
-    status: 'published'
+export interface DocsGameRegistration {
     slug: string
     targets: readonly DocsTarget[]
 }
 
-interface UnreleasedDocsGameRegistration {
-    status: 'unreleased'
-    reason: string
-}
-
-export type DocsGameRegistration = PublishedDocsGameRegistration | UnreleasedDocsGameRegistration
-
 export const docsGameRegistry = {
     pd3: {
-        status: 'published',
         slug: 'payday-3',
         targets: [
             {
@@ -46,7 +37,6 @@ export const docsGameRegistry = {
         ],
     },
     pd2: {
-        status: 'published',
         slug: 'payday-2',
         targets: [
             {
@@ -68,7 +58,6 @@ export const docsGameRegistry = {
         ],
     },
     pdth: {
-        status: 'published',
         slug: 'payday-the-heist',
         targets: [
             {
@@ -84,7 +73,6 @@ export const docsGameRegistry = {
         ],
     },
     cb: {
-        status: 'published',
         slug: 'crime-boss',
         targets: [
             {
@@ -105,7 +93,6 @@ export const docsGameRegistry = {
         ],
     },
     raid: {
-        status: 'published',
         slug: 'raid-world-war-ii',
         targets: [
             {
@@ -117,26 +104,13 @@ export const docsGameRegistry = {
     },
 } as const satisfies Record<GameId, DocsGameRegistration>
 
-type DocsGameRegistry = typeof docsGameRegistry
+export type DocsGameId = GameId
 
-export type DocsGameId = {
-    [Id in GameId]: DocsGameRegistry[Id] extends PublishedDocsGameRegistration ? Id : never
-}[GameId]
-
-export interface DocsGame extends PublishedDocsGameRegistration {
+export interface DocsGame extends DocsGameRegistration {
     id: DocsGameId
 }
 
-export const docsGames = GAME_IDS.reduce<DocsGame[]>((publishedGames, id) => {
-    const registration = docsGameRegistry[id]
-
-    if (registration.status === 'unreleased') {
-        return publishedGames
-    }
-
-    publishedGames.push({ id: id as DocsGameId, ...registration })
-    return publishedGames
-}, [])
+export const docsGames = GAME_IDS.map((id) => ({ id, ...docsGameRegistry[id] }))
 
 export function getDocsGame(id: DocsGameId): DocsGame {
     const game = docsGames.find((candidate) => candidate.id === id)
