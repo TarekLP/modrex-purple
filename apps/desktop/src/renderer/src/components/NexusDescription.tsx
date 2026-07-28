@@ -107,6 +107,7 @@ class ImageTag extends Tag {
     toReact() {
         const src = decodeContentEscape(this.getContent(true))
         if (!src.length) return null
+        if (!/^https?:/i.test(src)) return null
         return <img src={src} alt="" loading="lazy" className="max-w-full rounded my-2" />
     }
 }
