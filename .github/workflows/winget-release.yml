@@ -1,0 +1,16 @@
+name: Publish to WinGet
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    publish:
+        runs-on: windows-latest
+        environment: release-delay
+        steps:
+            - uses: vedantmgoyal2009/winget-releaser@v2
+              with:
+                  identifier: Modrexio.Modrex
+                  installers-regex: 'modrex_x86_64\.exe$'
+                  token: ${{ secrets.WINGET_TOKEN }}
