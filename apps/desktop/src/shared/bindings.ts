@@ -25,10 +25,10 @@ export const commands = {
 	nexusGetModDetail: (gameId: string, modId: number) => __TAURI_INVOKE<ModDetail>("nexus_get_mod_detail", { gameId, modId }),
 	nexusListModFiles: (gameId: string, modId: number) => __TAURI_INVOKE<FilePage>("nexus_list_mod_files", { gameId, modId }),
 	/**
-	 *  Identifies a dropped archive against Nexus before it is installed as an
-	 *  unidentified entry. The renderer calls this ahead of install_dropped_file; a
-	 *  NotFound or Ambiguous result still falls through to the existing unidentified
-	 *  install path, this only ever adds an identity, never blocks one.
+	 *  Renderer-facing wrapper for a dropped file the user is about to install manually
+	 *  (e.g. from a picker UI) rather than through install_dropped_file's own automatic
+	 *  attempt. A NotFound or Ambiguous result is not an error — the caller falls through
+	 *  to the existing unidentified install path either way.
 	 */
 	identifyDroppedArchive: (gameId: string, path: string) => __TAURI_INVOKE<NexusArchiveIdentity>("identify_dropped_archive", { gameId, path }),
 	nexusOauthStart: () => __TAURI_INVOKE<void>("nexus_oauth_start"),
