@@ -24,6 +24,13 @@ export const commands = {
 	nexusSearchMods: (gameId: string, query: string, sort: string, offset: number | null) => __TAURI_INVOKE<ModPage>("nexus_search_mods", { gameId, query, sort, offset }),
 	nexusGetModDetail: (gameId: string, modId: number) => __TAURI_INVOKE<ModDetail>("nexus_get_mod_detail", { gameId, modId }),
 	nexusListModFiles: (gameId: string, modId: number) => __TAURI_INVOKE<FilePage>("nexus_list_mod_files", { gameId, modId }),
+	/**
+	 *  Identifies a dropped archive against Nexus before it is installed as an
+	 *  unidentified entry. The renderer calls this ahead of install_dropped_file; a
+	 *  NotFound or Ambiguous result still falls through to the existing unidentified
+	 *  install path, this only ever adds an identity, never blocks one.
+	 */
+	identifyDroppedArchive: (gameId: string, path: string) => __TAURI_INVOKE<NexusArchiveIdentity>("identify_dropped_archive", { gameId, path }),
 	nexusOauthStart: () => __TAURI_INVOKE<void>("nexus_oauth_start"),
 	nexusOauthSignedIn: () => __TAURI_INVOKE<boolean>("nexus_oauth_signed_in"),
 	nexusOauthSignOut: () => __TAURI_INVOKE<void>("nexus_oauth_sign_out"),
@@ -77,6 +84,14 @@ export const commands = {
 	 *  temp first so resolution/cleanup never touches the user's original.
 	 */
 	installDroppedFile: (path: string, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_dropped_file", { path, gamePath, folderId, gameId }),
+	/**
+	 *  User-initiated Tier 3 identification (see nexus_content.rs): looks up one already-
+	 *  installed, unidentified mod against Nexus's content index. Never called from
+	 *  get_installed — the renderer calls this per-mod from an explicit "Identify" action,
+	 *  same shape as the ModWorkshop identification pipeline being automatic (SHA256) while
+	 *  this one, lacking a hash to key on, cannot safely be.
+	 */
+	identifyModViaNexusContent: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<NexusContentIdentifyOutcome>("identify_mod_via_nexus_content", { gamePath, uid, gameId }),
 	installFromZipEntry: (args: InstallFromZipEntryArgs) => __TAURI_INVOKE<null>("install_from_zip_entry", { args }),
 	/**
 	 *  Installs a Crime Boss archive whose content has no enclosing folder (every entry sits at the
@@ -322,6 +337,7 @@ export type InstalledMod_Deserialize = {
 	archiveBroken?: boolean | null,
 	location?: string | null,
 	updateStatus?: UpdateStatus,
+	nexusContentMissed?: boolean | null,
 };
 
 export type InstalledMod_Serialize = {
@@ -346,6 +362,7 @@ export type InstalledMod_Serialize = {
 	archiveBroken?: boolean | null,
 	location?: string | null,
 	updateStatus?: UpdateStatus,
+	nexusContentMissed?: boolean | null,
 };
 
 export type InstalledResponse = InstalledResponse_Serialize | InstalledResponse_Deserialize;
@@ -592,6 +609,37 @@ export type NewsItem = {
 export type NewsResult = {
 	items: NewsItem[],
 	totalPages: number,
+};
+
+/**
+ *  What identifying a dropped archive against Nexus produced. Returned in the Ok
+ *  channel, mirroring InstallOutcome (mods/mod.rs), so the renderer handles every
+ *  case explicitly instead of guessing from an empty list.
+ */
+export type NexusArchiveIdentity = "notFound" | ({ identified: NexusHashMatch }) & { ambiguous?: never } | 
+/**
+ *  The same archive bytes are published under more than one Nexus mod (a real,
+ *  observed shape — cross-posted content) and fileSize could not tell them apart
+ *  because they are, by definition, the same size. The caller must ask the user.
+ */
+({ ambiguous: NexusHashMatch[] }) & { identified?: never };
+
+/**  What attempting Nexus content identification for one installed mod produced. */
+export type NexusContentIdentifyOutcome = 
+/**
+ *  Already identified, already carrying a permanent miss, or nothing queryable
+ *  could be derived (no folder segment, or the file could not be found on disk) —
+ *  nothing was attempted, so nothing was recorded.
+ */
+"skipped" | "notFound" | "ambiguous" | "identified";
+
+export type NexusHashMatch = {
+	modId: number,
+	fileId: number,
+	name: string,
+	version: string,
+	fileName: string,
+	fileSize: number,
 };
 
 export type PageMeta = {

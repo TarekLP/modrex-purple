@@ -40,6 +40,181 @@ fn is_zip_rejects_empty_file() {
     assert_eq!(detect_archive(f.path()), None);
 }
 
+// ── compute_md5 ─────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn compute_md5_matches_known_digest() {
+    let mut f = NamedTempFile::new().unwrap();
+    f.write_all(b"hello world").unwrap();
+    let digest = compute_md5(f.path()).await.unwrap();
+    assert_eq!(digest, "5eb63bbbe01eeed093cb22bb8f5acdc3");
+}
+
+// ── recover_dropped_mod_stem ───────────────────────────────────────────────
+
+#[test]
+fn recover_dropped_mod_stem_pulls_the_real_pak_name_out_of_a_zip_wrapper() {
+    // Mirrors a real Nexus website download: the outer zip is named after Nexus's own
+    // download-manager scheme, but the single pak entry inside carries the real name.
+    let zip = make_zip(&[("abkarino_RinoHud_P.pak", b"pak bytes")]);
+    let cfg = engine_for_game("pd3").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        false,
+        Path::new("irrelevant-for-this-branch"),
+        Some(zip.path()),
+        "abkarino_RinoHud_P 52 1.8 2026-07-02T19-49Z 9QzrVe4KC",
+    );
+    assert_eq!(stem, "abkarino_RinoHud_P");
+}
+
+#[test]
+fn recover_dropped_mod_stem_uses_the_directory_unit_tmp_name() {
+    let cfg = engine_for_game("pd2").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        false,
+        Path::new("/tmp/modrex-mod-abc123/Welrod"),
+        None,
+        "fallback should not be used",
+    );
+    assert_eq!(stem, "Welrod");
+}
+
+#[test]
+fn recover_dropped_mod_stem_falls_back_for_a_bare_loose_pak() {
+    // No zip wrapper: the dropped file's own OS filename already is the real pak name.
+    let cfg = engine_for_game("pd3").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        false,
+        Path::new("irrelevant-for-this-branch"),
+        None,
+        "Foo",
+    );
+    assert_eq!(stem, "Foo");
+}
+
+#[test]
+fn recover_dropped_mod_stem_falls_back_when_the_archive_has_more_than_one_pak() {
+    let zip = make_zip(&[("A.pak", b"a"), ("B.pak", b"b")]);
+    let cfg = engine_for_game("pd3").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        false,
+        Path::new("irrelevant-for-this-branch"),
+        Some(zip.path()),
+        "fallback",
+    );
+    assert_eq!(stem, "fallback");
+}
+
+#[test]
+fn recover_dropped_mod_stem_reads_the_zip_entry_for_crime_boss_despite_being_directory_unit() {
+    // Crime Boss is Directory-unit but its tmp is an opaque synthesized skeleton root with
+    // no usable name of its own - it must take the same zip-entry path as File-unit games,
+    // not the plain Directory-unit tmp.file_name() shortcut.
+    let zip = make_zip(&[("SomeMod-WindowsNoEditor.pak", b"pak bytes")]);
+    let cfg = engine_for_game("cb").unwrap();
+    let stem = recover_dropped_mod_stem(
+        &cfg.primary().unit,
+        true,
+        Path::new("/tmp/modrex-cb-mod-abc123"),
+        Some(zip.path()),
+        "fallback should not be used",
+    );
+    assert_eq!(stem, "SomeMod-WindowsNoEditor");
+}
+
+// ── apply_nexus_archive_identity ────────────────────────────────────────────
+
+fn sample_nexus_match() -> crate::commands::nexus::NexusHashMatch {
+    crate::commands::nexus::NexusHashMatch {
+        mod_id: 52,
+        file_id: 222,
+        name: "wire name Modrex never uses here".to_string(),
+        version: "wire version Modrex never uses here".to_string(),
+        file_name: "abkarino_RinoHud_P.pak".to_string(),
+        file_size: 1363148,
+    }
+}
+
+fn sample_nexus_detail() -> crate::commands::domain::ModDetail {
+    crate::commands::domain::ModDetail {
+        id: 52,
+        name: "RinoHud".to_string(),
+        desc: String::new(),
+        short_desc: String::new(),
+        version: "1.8".to_string(),
+        downloads: 0,
+        likes: 0,
+        views: 0,
+        published_at: String::new(),
+        bumped_at: String::new(),
+        category_id: 0,
+        has_download: true,
+        disable_mod_managers: None,
+        thumbnail: Some(crate::commands::domain::ModThumbnail {
+            file: "https://example.com/thumb.png".to_string(),
+            has_thumb: None,
+        }),
+        download: None,
+        user: crate::commands::domain::ModUser {
+            id: None,
+            name: "abkarino".to_string(),
+            donation_url: None,
+            avatar: None,
+            avatar_has_thumb: None,
+        },
+        changelog: None,
+        instructions: None,
+        license: None,
+        repo_url: None,
+        donation: None,
+        banner: None,
+        images: vec![],
+        dependencies: vec![],
+        instructs_template: None,
+        tags: vec![],
+        members: vec![],
+    }
+}
+
+#[test]
+fn apply_nexus_archive_identity_overwrites_the_generic_identity() {
+    let mut entry = InstalledMod {
+        uid: "RinoHud".to_string(),
+        id: -12345,
+        name: "abkarino_RinoHud_P 52 1.8 2026-07-02T19-49Z 9QzrVe4KC".to_string(),
+        version: String::new(),
+        update_status: UpdateStatus::Unknown,
+        filename: "003_abkarino_RinoHud_P.pak".to_string(),
+        enabled: true,
+        installed_at: "2024-01-01T00:00:00Z".to_string(),
+        sha256: Some("deadbeef".to_string()),
+        ..InstalledMod::default()
+    };
+
+    apply_nexus_archive_identity(&mut entry, &sample_nexus_match(), &sample_nexus_detail());
+
+    assert_eq!(entry.uid, "nexus:52:222");
+    assert_eq!(entry.name, "RinoHud");
+    assert_eq!(entry.version, "1.8");
+    assert_eq!(entry.update_status, UpdateStatus::Known);
+    assert_eq!(entry.source, "nexus");
+    assert_eq!(entry.remote_id.as_deref(), Some("52"));
+    assert_eq!(entry.file_remote_id.as_deref(), Some("222"));
+    assert_eq!(entry.author.as_deref(), Some("abkarino"));
+    assert_eq!(
+        entry.thumbnail_url.as_deref(),
+        Some("https://example.com/thumb.png")
+    );
+    assert_eq!(entry.file_id, Some(222));
+    // filename and sha256 are install-path decisions, not identity - untouched.
+    assert_eq!(entry.filename, "003_abkarino_RinoHud_P.pak");
+    assert_eq!(entry.sha256.as_deref(), Some("deadbeef"));
+}
+
 // ── list_pak_entries (zip path) ───────────────────────────────────────────────
 
 #[test]
@@ -333,6 +508,61 @@ fn apply_prefix_already_prefixed() {
     assert_eq!(apply_priority_prefix("012_foo.pak", 3), "003_foo.pak");
 }
 
+// ── recover_published_filename ────────────────────────────────────────────
+
+#[test]
+fn recover_published_filename_strips_priority_prefix() {
+    assert_eq!(
+        recover_published_filename("003_Foo.pak", ".disabled"),
+        "Foo.pak"
+    );
+}
+
+#[test]
+fn recover_published_filename_strips_disabled_suffix() {
+    assert_eq!(
+        recover_published_filename("Foo.pak.disabled", ".disabled"),
+        "Foo.pak"
+    );
+}
+
+#[test]
+fn recover_published_filename_strips_both() {
+    assert_eq!(
+        recover_published_filename("003_Foo.pak.disabled", ".disabled"),
+        "Foo.pak"
+    );
+}
+
+#[test]
+fn recover_published_filename_leaves_a_plain_name_alone() {
+    assert_eq!(
+        recover_published_filename("Foo.pak", ".disabled"),
+        "Foo.pak"
+    );
+}
+
+// ── derive_content_segment ────────────────────────────────────────────────
+
+#[test]
+fn derive_content_segment_passes_through_a_bare_folder_name() {
+    assert_eq!(derive_content_segment("Welrod"), Some("Welrod"));
+}
+
+#[test]
+fn derive_content_segment_strips_mod_overrides_prefix() {
+    assert_eq!(
+        derive_content_segment("assets/mod_overrides/Welrod"),
+        Some("Welrod")
+    );
+}
+
+#[test]
+fn derive_content_segment_is_none_for_no_usable_segment() {
+    assert_eq!(derive_content_segment(""), None);
+    assert_eq!(derive_content_segment("assets/mod_overrides/"), None);
+}
+
 #[test]
 fn apply_prefix_zero() {
     assert_eq!(apply_priority_prefix("foo.pak", 0), "000_foo.pak");
@@ -608,6 +838,53 @@ fn read_state_missing_location_is_none() {
     write!(f, "{}", json).unwrap();
     let state = read_state(f.path());
     assert_eq!(state.mods[0].location, None);
+}
+
+// ── InstalledMod.nexus_content_missed field ───────────────────────────────
+
+#[test]
+fn read_state_without_nexus_content_missed_still_deserializes() {
+    let json = r#"{
+        "folders": [],
+        "mods": [{
+            "uid": "42",
+            "id": 100,
+            "name": "Test Mod",
+            "version": "1.0",
+            "filename": "001_Test_Mod.pak",
+            "enabled": true,
+            "installedAt": "2024-01-01T00:00:00Z"
+        }]
+    }"#;
+    let mut f = NamedTempFile::new().unwrap();
+    write!(f, "{}", json).unwrap();
+    let state = read_state(f.path());
+    assert_eq!(state.mods[0].nexus_content_missed, None);
+}
+
+#[test]
+fn nexus_content_missed_survives_a_save_and_read_round_trip() {
+    let temp = TempDir::new().unwrap();
+    let state_path = temp.path().join(".modrex.json");
+    let mods = vec![InstalledMod {
+        uid: "1".to_string(),
+        id: -1,
+        name: "Unidentified".to_string(),
+        filename: "Unidentified".to_string(),
+        installed_at: "2024-01-01T00:00:00Z".to_string(),
+        nexus_content_missed: Some(true),
+        ..InstalledMod::default()
+    }];
+    save_state(
+        &state_path,
+        &ModsState {
+            mods,
+            folders: vec![],
+        },
+    );
+
+    let state = read_state(&state_path);
+    assert_eq!(state.mods[0].nexus_content_missed, Some(true));
 }
 
 #[test]

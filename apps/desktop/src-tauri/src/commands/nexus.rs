@@ -51,6 +51,15 @@ pub(crate) fn game_id_for_domain(domain: &str) -> Result<&'static str, String> {
         .ok_or_else(|| format!("nexus: no game id mapping for domain '{domain}'"))
 }
 
+// The GraphQL content API filters on Nexus's numeric game id, a different id than
+// the domain slug nexus_domain returns. Both name the same game.
+pub(crate) fn nexus_numeric_game_id(game_id: &str) -> Result<u32, String> {
+    sources::source_spec("nexus")
+        .and_then(|s| s.games.iter().find(|g| g.game_id == game_id))
+        .and_then(|g| g.numeric_id)
+        .ok_or_else(|| format!("nexus: no numeric game id for '{game_id}'"))
+}
+
 async fn nexus_headers(app: &AppHandle) -> Result<Vec<(&'static str, String)>, String> {
     let token = nexus_oauth::access_token(app).await?;
     Ok(vec![
@@ -313,6 +322,308 @@ pub async fn nexus_search_mods(
         .ok_or_else(|| "nexus: malformed graphql response".to_string())?;
     let page = offset.unwrap_or(0) / PAGE_SIZE + 1;
     crate::commands::domain::parse_nexus_page(mods, page as i64, PAGE_SIZE as i64)
+}
+
+// fileHash is the archive-level lookup: the MD5 of the whole published archive as
+// uploaded, not the extracted-content SHA256 Modrex already tracks. modFile.version
+// is a real, populated version here (unlike SEARCH_QUERY's mods, which carries none —
+// see the empty-version note in domain.rs), so a hit from this path may set version.
+const FILE_HASHES_QUERY: &str = r#"
+query ModrexFileHashes($md5s: [String]!) {
+    fileHashes(md5s: $md5s) {
+        md5 fileName fileSize gameId modFileId
+        modFile { modId fileId name version }
+    }
+}
+"#;
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NexusHashMatch {
+    pub mod_id: u32,
+    pub file_id: u32,
+    pub name: String,
+    pub version: String,
+    pub file_name: String,
+    pub file_size: i64,
+}
+
+// BigInt scalars (fileSize here) are not guaranteed to arrive as a JSON number —
+// some GraphQL servers serialize them as a string to avoid JS float-precision loss
+// on large values, matching the quoted-string convention the input filter already
+// uses for the same field (see the modFileContents fileSize filter note).
+fn parse_big_int(value: &Value) -> Option<i64> {
+    value.as_i64().or_else(|| value.as_str()?.parse().ok())
+}
+
+fn parse_hash_matches(value: &Value, want_game_id: u32) -> Result<Vec<NexusHashMatch>, String> {
+    if let Some(errors) = value.get("errors") {
+        return Err(format!("nexus graphql error: {errors}"));
+    }
+
+    let hashes = value
+        .get("data")
+        .and_then(|d| d.get("fileHashes"))
+        .and_then(|h| h.as_array())
+        .ok_or_else(|| "nexus: malformed graphql response".to_string())?;
+
+    // A hash Nexus has seen but never associated with a mod file carries no
+    // modFile; that is a real "not identifiable this way" outcome, not a
+    // parse failure, so it is dropped rather than erroring the whole lookup.
+    Ok(hashes
+        .iter()
+        .filter(|h| h.get("gameId").and_then(Value::as_u64) == Some(want_game_id as u64))
+        .filter_map(|h| {
+            let mod_file = h.get("modFile")?;
+            Some(NexusHashMatch {
+                mod_id: mod_file.get("modId")?.as_u64()? as u32,
+                file_id: mod_file.get("fileId")?.as_u64()? as u32,
+                name: mod_file.get("name")?.as_str()?.to_string(),
+                version: mod_file.get("version")?.as_str()?.to_string(),
+                file_name: h.get("fileName")?.as_str()?.to_string(),
+                file_size: parse_big_int(h.get("fileSize")?)?,
+            })
+        })
+        .collect())
+}
+
+// Per-archive identification: given the whole downloaded archive's MD5, find the
+// Nexus mod(s) it belongs to. Only ever the current game's matches are returned —
+// discarding a cross-game gameId is the same isolation mod_index.rs enforces via
+// games.name, and it matters here because Nexus's md5 index is global.
+pub(crate) async fn nexus_lookup_by_md5(
+    app: AppHandle,
+    game_id: String,
+    md5s: Vec<String>,
+) -> Result<Vec<NexusHashMatch>, String> {
+    let want = nexus_numeric_game_id(&game_id)?;
+    let headers = nexus_headers(&app).await?;
+
+    let body = serde_json::json!({
+        "query": FILE_HASHES_QUERY,
+        "variables": { "md5s": md5s },
+    });
+
+    let value = send_with_retry("fileHashes", || {
+        let mut req = http_client().post(GRAPHQL_BASE).json(&body);
+        for (k, v) in &headers {
+            req = req.header(*k, v);
+        }
+        req
+    })
+    .await?;
+
+    parse_hash_matches(&value, want)
+}
+
+/// What identifying a dropped archive against Nexus produced. Returned in the Ok
+/// channel, mirroring InstallOutcome (mods/mod.rs), so the renderer handles every
+/// case explicitly instead of guessing from an empty list.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum NexusArchiveIdentity {
+    NotFound,
+    Identified(NexusHashMatch),
+    /// The same archive bytes are published under more than one Nexus mod (a real,
+    /// observed shape — cross-posted content) and fileSize could not tell them apart
+    /// because they are, by definition, the same size. The caller must ask the user.
+    Ambiguous(Vec<NexusHashMatch>),
+}
+
+// Never picks a match on its own beyond what the data actually disambiguates: exactly
+// one candidate is the only case that resolves silently. fileSize matching the local
+// archive is a genuine discriminator when fileHashes ever returns candidates of
+// different sizes; when every candidate is the same size (typical, since they are
+// duplicates of the same bytes) this correctly falls through to Ambiguous.
+fn resolve_archive_identity(matches: Vec<NexusHashMatch>, local_size: i64) -> NexusArchiveIdentity {
+    match matches.len() {
+        0 => NexusArchiveIdentity::NotFound,
+        1 => {
+            NexusArchiveIdentity::Identified(matches.into_iter().next().expect("len checked above"))
+        }
+        _ => {
+            let mut by_size: Vec<NexusHashMatch> = matches
+                .iter()
+                .filter(|m| m.file_size == local_size)
+                .cloned()
+                .collect();
+            if by_size.len() == 1 {
+                NexusArchiveIdentity::Identified(by_size.remove(0))
+            } else {
+                NexusArchiveIdentity::Ambiguous(matches)
+            }
+        }
+    }
+}
+
+/// Identifies a whole archive file against Nexus's fileHash index by MD5. Shared by
+/// the renderer-facing identify_dropped_archive command and install_dropped_file's own
+/// best-effort identification at install time (mods/mod.rs), so both go through the
+/// same disambiguation rule instead of duplicating it.
+pub(crate) async fn identify_archive_by_md5(
+    app: AppHandle,
+    game_id: String,
+    file: &std::path::Path,
+) -> Result<NexusArchiveIdentity, String> {
+    let local_size = tokio::fs::metadata(file)
+        .await
+        .map_err(|e| e.to_string())?
+        .len() as i64;
+    let md5 = crate::commands::mods::compute_md5(file).await?;
+
+    let matches = nexus_lookup_by_md5(app, game_id, vec![md5]).await?;
+    Ok(resolve_archive_identity(matches, local_size))
+}
+
+/// Renderer-facing wrapper for a dropped file the user is about to install manually
+/// (e.g. from a picker UI) rather than through install_dropped_file's own automatic
+/// attempt. A NotFound or Ambiguous result is not an error — the caller falls through
+/// to the existing unidentified install path either way.
+#[tauri::command]
+#[specta::specta]
+pub async fn identify_dropped_archive(
+    app: AppHandle,
+    game_id: String,
+    path: String,
+) -> Result<NexusArchiveIdentity, String> {
+    identify_archive_by_md5(app, game_id, std::path::Path::new(&path)).await
+}
+
+// modFileContents carries no hash, unlike fileHash(es) above — this is the closest
+// legal equivalent to a SHA256 lookup Nexus permits, matching on the file(s) Modrex
+// already has extracted on disk instead of an archive it may no longer hold. Which
+// variant applies is a ModUnit decision, made by the caller in mods/, not here: this
+// module only knows how to ask Nexus each shape of question, not which one a given
+// game's mods need.
+const CONTENT_QUERY: &str = r#"
+query ModrexFileContents($filter: ModFileContentSearchFilter, $count: Int) {
+    modFileContents(filter: $filter, count: $count) {
+        totalCount
+        nodes { modId fileSize }
+    }
+}
+"#;
+
+const CONTENT_PAGE_SIZE: u32 = 50;
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum NexusContentQuery {
+    /// File-unit games (PD3, Crime Boss): the .pak's published name. fileSize is not
+    /// sent as a filter (see content_filter_json) — it is only used client-side, and
+    /// only when the name alone is ambiguous.
+    FileNameAndSize { file_name: String, file_size: i64 },
+    /// Directory-unit games (PD2, PDTH, RAID): the mod's folder name as a path segment.
+    FolderSegment { segment: String },
+}
+
+// fileSize is deliberately never sent as a Nexus-side filter for FileNameAndSize: a
+// mod's currently-published file is often a newer upload than what's installed
+// locally, so an exact byte-size match against the live index silently rejects a
+// fileName match that is otherwise unique (confirmed live: a real installed archive's
+// byte size no longer matched Nexus's current index for that same mod, even though
+// its fileName alone resolved to exactly one mod). fileSize is still requested in the
+// response and used to disambiguate client-side, only when fileName alone returns
+// more than one candidate — see parse_content_mod_ids.
+fn content_filter_json(want_game_id: u32, query: &NexusContentQuery) -> Value {
+    let mut filter = serde_json::json!({
+        "gameId": [{ "value": want_game_id, "op": "EQUALS" }],
+    });
+    match query {
+        NexusContentQuery::FileNameAndSize { file_name, .. } => {
+            filter["fileNameWildcard"] =
+                serde_json::json!([{ "value": file_name, "op": "EQUALS" }]);
+        }
+        NexusContentQuery::FolderSegment { segment } => {
+            filter["filePathPartsExact"] =
+                serde_json::json!([{ "value": segment, "op": "EQUALS" }]);
+        }
+    }
+    filter
+}
+
+fn content_node_ids(nodes: &[Value]) -> Vec<u32> {
+    let mut ids: Vec<u32> = nodes
+        .iter()
+        .filter_map(|n| n.get("modId").and_then(Value::as_u64))
+        .map(|id| id as u32)
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+/// `disambiguate_by_size` is the local file's byte size for a FileNameAndSize query,
+/// None for FolderSegment (which has no analogous per-node signal to fall back on).
+/// Only consulted when fileName alone returns more than one distinct mod — see
+/// content_filter_json for why fileSize is never sent as a request filter.
+fn parse_content_mod_ids(
+    value: &Value,
+    disambiguate_by_size: Option<i64>,
+) -> Result<Vec<u32>, String> {
+    if let Some(errors) = value.get("errors") {
+        return Err(format!("nexus graphql error: {errors}"));
+    }
+
+    let nodes = value
+        .get("data")
+        .and_then(|d| d.get("modFileContents"))
+        .and_then(|c| c.get("nodes"))
+        .and_then(|n| n.as_array())
+        .ok_or_else(|| "nexus: malformed graphql response".to_string())?;
+
+    let ids = content_node_ids(nodes);
+    let (Some(target_size), true) = (disambiguate_by_size, ids.len() > 1) else {
+        return Ok(ids);
+    };
+
+    let size_matched_nodes: Vec<Value> = nodes
+        .iter()
+        .filter(|n| {
+            n.get("fileSize")
+                .and_then(parse_big_int)
+                .is_some_and(|s| s == target_size)
+        })
+        .cloned()
+        .collect();
+    let by_size = content_node_ids(&size_matched_nodes);
+    // A miss here just means the fileSize signal did not narrow it down further
+    // (e.g. none of the candidates' currently-indexed size matches) — fall back to
+    // the full name-matched set rather than manufacturing a false empty result.
+    Ok(if by_size.len() == 1 { by_size } else { ids })
+}
+
+/// Distinct Nexus mod ids whose published content matches query. Zero is a normal,
+/// expected outcome (roughly a quarter of mods are never indexed) — never treat an
+/// empty result as an error. More than one means the match was not unique; the caller
+/// must not guess which mod it is.
+pub(crate) async fn nexus_lookup_content_mod_ids(
+    app: AppHandle,
+    game_id: String,
+    query: NexusContentQuery,
+) -> Result<Vec<u32>, String> {
+    let want = nexus_numeric_game_id(&game_id)?;
+    let headers = nexus_headers(&app).await?;
+    let filter = content_filter_json(want, &query);
+    let disambiguate_by_size = match &query {
+        NexusContentQuery::FileNameAndSize { file_size, .. } => Some(*file_size),
+        NexusContentQuery::FolderSegment { .. } => None,
+    };
+
+    let body = serde_json::json!({
+        "query": CONTENT_QUERY,
+        "variables": { "filter": filter, "count": CONTENT_PAGE_SIZE },
+    });
+
+    let value = send_with_retry("modFileContents", || {
+        let mut req = http_client().post(GRAPHQL_BASE).json(&body);
+        for (k, v) in &headers {
+            req = req.header(*k, v);
+        }
+        req
+    })
+    .await?;
+
+    parse_content_mod_ids(&value, disambiguate_by_size)
 }
 
 #[cfg(test)]

@@ -5,6 +5,7 @@ mod host_mods;
 mod identify;
 mod install;
 mod naming;
+mod nexus_content;
 mod paths;
 mod pdmod;
 mod reorder;
@@ -24,7 +25,7 @@ pub use self::state::{get_folder_path, read_state, reconcile_state};
 pub use self::types::{
     InstalledMod, InstalledResponse, ModFolder, ModsState, TopLevelItem, UpdateStatus,
 };
-pub use self::zip::compute_sha256;
+pub use self::zip::{compute_md5, compute_sha256};
 
 // Mod-identification helpers (get_installed pipeline) — see identify.rs
 #[cfg(test)]
@@ -50,8 +51,8 @@ pub(crate) use self::reorder::{
 pub(crate) use self::state::save_state;
 pub(crate) use self::zip::{
     extract_archive_flat, extract_dir_entry, extract_entry, extract_entry_into_crimeboss_skeleton,
-    extract_entry_with_sidecars, mark_archive_files, resolve_archive_download, InstallPrompt,
-    ModContext, ResolveError,
+    extract_entry_with_sidecars, list_pak_entries, mark_archive_files, resolve_archive_download,
+    InstallPrompt, ModContext, ResolveError,
 };
 
 // Re-exports needed only in test builds (suppressed in release to avoid unused-import warnings)
@@ -62,7 +63,10 @@ pub(crate) use self::crimeboss_settings::{
 #[cfg(test)]
 pub(crate) use self::engine::{disabled_dir, mods_dir};
 #[cfg(test)]
-pub(crate) use self::naming::{apply_priority_prefix, make_uid, mod_folder_name};
+pub(crate) use self::naming::{
+    apply_priority_prefix, derive_content_segment, make_uid, mod_folder_name,
+    recover_published_filename,
+};
 #[cfg(test)]
 pub(crate) use self::ue4ss_modstxt::{
     entry_name, read_enabled_from_mods_txt, set_enabled_in_mods_txt,
@@ -70,7 +74,7 @@ pub(crate) use self::ue4ss_modstxt::{
 #[cfg(test)]
 pub(crate) use self::zip::{
     classify_archive_dirs, detect_archive, has_ue4ss_loader_signature, is_unplaceable_pack, is_zip,
-    list_pak_entries, safe_dest, ArchiveFormat,
+    safe_dest, ArchiveFormat,
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};
@@ -937,6 +941,66 @@ pub(crate) async fn install_nexus_download(
     result
 }
 
+/// Recovers a dropped mod's real name, for both display and the on-disk filename. The
+/// dropped archive's own OS filename is often a download manager's naming scheme (Nexus's
+/// website downloads are "{Name} {id} {version} {timestamp} {hash}.zip"), not the mod's
+/// real name — `fallback` (the dropped file's own stem) is only correct when nothing
+/// better is available, which is exactly the case for a bare loose .pak dropped with no
+/// zip wrapper around it.
+///
+/// Directory-unit's `tmp` already carries the real folder name (resolve_archive_download's
+/// two-level temp makes `tmp.file_name()` the mod's own directory name), but File-unit's
+/// `tmp` is a random-uuid path and Crime Boss's is an opaque skeleton root with no readable
+/// name of its own (see extract_entry_into_crimeboss_skeleton) — both need the real name
+/// pulled back out of the original archive's single pak entry instead.
+fn recover_dropped_mod_stem(
+    unit: &engine::ModUnit,
+    is_crimeboss: bool,
+    tmp: &std::path::Path,
+    zip_orig: Option<&std::path::Path>,
+    fallback: &str,
+) -> String {
+    if matches!(unit, engine::ModUnit::Directory { .. }) && !is_crimeboss {
+        return tmp
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(String::from)
+            .unwrap_or_else(|| fallback.to_string());
+    }
+    zip_orig
+        .and_then(|orig| list_pak_entries(orig).ok())
+        .and_then(|entries| match entries.as_slice() {
+            [entry] => std::path::Path::new(entry)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(String::from),
+            _ => None,
+        })
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+/// Overwrites the generic unidentified fields on a freshly built InstalledMod with a
+/// confirmed Nexus identity. uid switches to Tier 1's own "nexus:{mod_id}:{file_id}"
+/// scheme so a later nxm:// install of the same file reconciles onto this entry
+/// instead of creating a duplicate.
+fn apply_nexus_archive_identity(
+    entry: &mut InstalledMod,
+    m: &crate::commands::nexus::NexusHashMatch,
+    detail: &crate::commands::domain::ModDetail,
+) {
+    entry.uid = format!("nexus:{}:{}", m.mod_id, m.file_id);
+    entry.id = sources::source_native_local_id("nexus", &m.mod_id.to_string());
+    entry.name = detail.name.clone();
+    entry.version = detail.version.clone();
+    entry.update_status = UpdateStatus::Known;
+    entry.source = "nexus".to_string();
+    entry.remote_id = Some(m.mod_id.to_string());
+    entry.file_remote_id = Some(m.file_id.to_string());
+    entry.author = Some(detail.user.name.clone());
+    entry.thumbnail_url = detail.thumbnail.as_ref().map(|t| t.file.clone());
+    entry.file_id = Some(m.file_id as i64);
+}
+
 /// Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 /// The file carries no modworkshop identity, so it is installed as an unidentified entry
 /// (negative id, "unknown" version) exactly like an ambiently-discovered pak; get_installed's
@@ -1010,6 +1074,62 @@ pub async fn install_dropped_file(
     };
     let _state_guard = lock_game_state(&app, game_id.as_str()).await;
     let target = cfg.target_for(location_tag.as_deref());
+    let display_stem = recover_dropped_mod_stem(
+        &target.unit,
+        cfg.game_id == "cb",
+        &tmp,
+        zip_orig.as_deref(),
+        &file_stem,
+    );
+
+    // Best-effort Nexus identification: only possible when the whole downloaded
+    // archive is still available (zip_orig - a bare loose .pak drop has nothing
+    // Nexus's archive-MD5 index could ever match) and the game has a Nexus presence.
+    // A miss, an ambiguous result, or a lookup failure all fall through to the
+    // ordinary unidentified install below - this only ever adds an identity on top
+    // of it, never blocks or fails the install itself.
+    let nexus_match = match &zip_orig {
+        Some(archive) if sources::native_id("nexus", &game_id).is_some() => {
+            match crate::commands::nexus::identify_archive_by_md5(
+                app.clone(),
+                game_id.clone(),
+                archive,
+            )
+            .await
+            {
+                Ok(crate::commands::nexus::NexusArchiveIdentity::Identified(m)) => Some(m),
+                Ok(_) => None,
+                Err(e) => {
+                    log::warn!("install_dropped_file: nexus identification failed: {e}");
+                    None
+                }
+            }
+        }
+        _ => None,
+    };
+    // A hash match without its enrichment detail is not installed as identified -
+    // apply_nexus_archive_identity only runs when both are present - but the failure
+    // is still worth a log line, same as the identification lookup above.
+    let nexus_detail = match &nexus_match {
+        Some(m) => {
+            match crate::commands::nexus::nexus_get_mod(app.clone(), game_id.clone(), m.mod_id)
+                .await
+            {
+                Ok(value) => match crate::commands::domain::parse_nexus_detail(value) {
+                    Ok(detail) => Some(detail),
+                    Err(e) => {
+                        log::warn!("install_dropped_file: nexus detail parse failed: {e}");
+                        None
+                    }
+                },
+                Err(e) => {
+                    log::warn!("install_dropped_file: nexus detail fetch failed: {e}");
+                    None
+                }
+            }
+        }
+        None => None,
+    };
 
     let result = async {
         let sha256 = match &target.unit {
@@ -1031,40 +1151,31 @@ pub async fn install_dropped_file(
         // Discovery-matching identity: filename drives the uid/id the untracked-scan would assign,
         // so a later manual refresh reconciles this entry instead of duplicating it.
         let filename = match &target.unit {
-            engine::ModUnit::File { .. } => pak_filename(&file_stem),
+            engine::ModUnit::File { .. } => pak_filename(&display_stem),
             engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
-                naming::mod_folder_name(&file_stem)
+                naming::mod_folder_name(&display_stem)
             }
-            engine::ModUnit::Directory { .. } => tmp
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or(&file_stem)
-                .to_string(),
+            engine::ModUnit::Directory { .. } => display_stem.clone(),
         };
-        let uid = strip_priority_prefix(&filename).to_string();
-        let id = hash_filename(&filename);
         let sp = get_state_path(&game_path, cfg);
 
-        install_mod_from_path(
-            &game_path,
-            &sp,
-            InstalledMod {
-                uid,
-                id,
-                name: file_stem.clone(),
-                version: String::new(),
-                update_status: UpdateStatus::Unknown,
-                filename,
-                enabled: true,
-                installed_at: Utc::now().to_rfc3339(),
-                sha256: Some(sha256),
-                ..InstalledMod::default()
-            },
-            &tmp,
-            folder_id,
-            cfg,
-            target,
-        )?;
+        let mut mod_entry = InstalledMod {
+            uid: strip_priority_prefix(&filename).to_string(),
+            id: hash_filename(&filename),
+            name: display_stem.clone(),
+            version: String::new(),
+            update_status: UpdateStatus::Unknown,
+            filename,
+            enabled: true,
+            installed_at: Utc::now().to_rfc3339(),
+            sha256: Some(sha256),
+            ..InstalledMod::default()
+        };
+        if let (Some(m), Some(detail)) = (&nexus_match, &nexus_detail) {
+            apply_nexus_archive_identity(&mut mod_entry, m, detail);
+        }
+
+        install_mod_from_path(&game_path, &sp, mod_entry, &tmp, folder_id, cfg, target)?;
         Ok::<(), String>(())
     }
     .await;
@@ -1584,6 +1695,47 @@ pub async fn disable_mod(
         serde_json::json!({ "game": game_id.as_str() }),
     );
     Ok(())
+}
+
+/// User-initiated Tier 3 identification (see nexus_content.rs): looks up one already-
+/// installed, unidentified mod against Nexus's content index. Never called from
+/// get_installed — the renderer calls this per-mod from an explicit "Identify" action,
+/// same shape as the ModWorkshop identification pipeline being automatic (SHA256) while
+/// this one, lacking a hash to key on, cannot safely be.
+#[tauri::command]
+#[specta::specta]
+pub async fn identify_mod_via_nexus_content(
+    app: AppHandle,
+    game_path: String,
+    uid: String,
+    game_id: String,
+) -> Result<nexus_content::NexusContentIdentifyOutcome, String> {
+    let _state_guard = lock_game_state(&app, game_id.as_str()).await;
+    let cfg = engine_for_game(game_id.as_str())?;
+    let state_path = get_state_path(&game_path, cfg);
+    let mut state = read_state(&state_path);
+
+    let Some(m) = state.mods.iter_mut().find(|m| m.uid == uid) else {
+        return Err(format!(
+            "identify_mod_via_nexus_content: no mod with uid '{uid}'"
+        ));
+    };
+    let target = cfg.target_for(m.location.as_deref());
+
+    let outcome = nexus_content::identify_via_nexus_content_op(
+        &app,
+        game_id.as_str(),
+        &game_path,
+        &state.folders,
+        target,
+        m,
+    )
+    .await?;
+
+    if outcome != nexus_content::NexusContentIdentifyOutcome::Skipped {
+        save_state(&state_path, &state);
+    }
+    Ok(outcome)
 }
 
 #[tauri::command]
