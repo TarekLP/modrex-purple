@@ -375,6 +375,80 @@ fn list_pak_entries_handles_nested_paths() {
     assert_eq!(entries, vec!["Real Weapon Names/weapons_default.pak"]);
 }
 
+// ── extraction budget (decompression bomb guard) ──────────────────────────────
+//
+// The enforcement (copy_capped) and the policy (extract_budget) are tested separately
+// rather than through a real bomb fixture: tripping the live budget needs a 2 GiB write,
+// which is not something a unit test can build.
+
+#[test]
+fn copy_capped_passes_content_that_fits() {
+    let content = b"a normal pak file";
+    let mut budget = 1024u64;
+    let mut out = Vec::new();
+    copy_capped(&mut &content[..], &mut out, &mut budget).unwrap();
+    assert_eq!(out, content);
+    assert_eq!(budget, 1024 - content.len() as u64);
+}
+
+#[test]
+fn copy_capped_spends_budget_across_entries() {
+    let mut budget = 10u64;
+    let mut out = Vec::new();
+    copy_capped(&mut &b"12345"[..], &mut out, &mut budget).unwrap();
+    copy_capped(&mut &b"12345"[..], &mut out, &mut budget).unwrap();
+    assert_eq!(budget, 0);
+    // The third entry has nothing left to spend, so the archive is refused here rather
+    // than after the disk has filled.
+    assert!(copy_capped(&mut &b"1"[..], &mut out, &mut budget).is_err());
+}
+
+#[test]
+fn copy_capped_rejects_entry_larger_than_budget() {
+    let mut budget = 4u64;
+    let mut out = Vec::new();
+    let err = copy_capped(&mut &b"far too long"[..], &mut out, &mut budget).unwrap_err();
+    assert!(err.contains("refusing to extract"), "{err}");
+    // Bounded: the write stops one byte past the budget instead of running to completion.
+    assert_eq!(out.len(), 5);
+}
+
+#[test]
+fn copy_capped_accepts_entry_exactly_at_budget() {
+    let mut budget = 5u64;
+    let mut out = Vec::new();
+    copy_capped(&mut &b"12345"[..], &mut out, &mut budget).unwrap();
+    assert_eq!(budget, 0);
+}
+
+#[test]
+fn extract_budget_never_drops_below_the_floor() {
+    // A tiny archive of very compressible content must still be allowed to expand.
+    let zip = make_zip(&[("mod.pak", b"x")]);
+    assert_eq!(extract_budget(zip.path()), MIN_EXTRACT_BUDGET);
+}
+
+#[test]
+fn extract_budget_scales_past_the_floor_for_large_archives() {
+    // 200x a 100 MB download is 20 GB, well above the floor: a big real mod is not
+    // squeezed into the same allowance as a small one.
+    let big = 100 * 1024 * 1024u64;
+    let f = NamedTempFile::new().unwrap();
+    f.as_file().set_len(big).unwrap();
+    let budget = extract_budget(f.path());
+    assert!(budget > MIN_EXTRACT_BUDGET);
+    assert_eq!(budget, big * 200);
+}
+
+#[test]
+fn extract_budget_survives_a_missing_archive() {
+    // metadata() fails rather than returning 0; the floor is what must come back.
+    assert_eq!(
+        extract_budget(Path::new("no-such-archive.zip")),
+        MIN_EXTRACT_BUDGET
+    );
+}
+
 // ── extract_entry (zip path) ──────────────────────────────────────────────────
 
 #[test]

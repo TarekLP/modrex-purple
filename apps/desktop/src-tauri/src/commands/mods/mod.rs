@@ -73,8 +73,8 @@ pub(crate) use self::ue4ss_modstxt::{
 };
 #[cfg(test)]
 pub(crate) use self::zip::{
-    classify_archive_dirs, detect_archive, has_ue4ss_loader_signature, is_unplaceable_pack, is_zip,
-    safe_dest, ArchiveFormat,
+    classify_archive_dirs, copy_capped, detect_archive, extract_budget, has_ue4ss_loader_signature,
+    is_unplaceable_pack, is_zip, safe_dest, ArchiveFormat, MIN_EXTRACT_BUDGET,
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};

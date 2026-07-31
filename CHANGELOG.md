@@ -66,6 +66,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Hardened thumbnail caching to reject unsafe image filenames.
 - Mod descriptions are now sanitized before rendering: scripts, event handlers, and unsafe HTML from mod pages are stripped, while formatting, images, colored text, and video embeds keep working.
 - Prevented maliciously crafted color tags in mod descriptions from stalling the app.
+- Archive extraction now stops once an archive expands far past its own size, so a malformed or malicious mod archive cannot fill the drive.
 
 ## 0.12.2
 

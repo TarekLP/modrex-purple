@@ -138,26 +138,102 @@ pub fn list_pak_entries(path: &Path) -> Result<Vec<String>, String> {
         .collect())
 }
 
+/// Smallest amount any extraction is always allowed to write, whatever the archive's own
+/// size says. Keeps the ratio rule below from rejecting a tiny archive of highly
+/// compressible content (XML, Lua, uncompressed textures all pack extremely well).
+pub(crate) const MIN_EXTRACT_BUDGET: u64 = 2 * 1024 * 1024 * 1024;
+
+/// How far past its own compressed size an archive may expand. Real mods land in the low
+/// single digits; a decompression bomb is six orders of magnitude past this.
+const MAX_EXPANSION_RATIO: u64 = 200;
+
+/// Total bytes one extraction of `archive_path` may write. Bounded relative to the archive's
+/// own size rather than by a flat ceiling: there is no size a legitimate mod is known to stay
+/// under, so a fixed cap would eventually reject a real mod, whereas nothing legitimate is
+/// both larger than MIN_EXTRACT_BUDGET and MAX_EXPANSION_RATIO times its own download.
+pub(crate) fn extract_budget(archive_path: &Path) -> u64 {
+    std::fs::metadata(archive_path)
+        .map(|m| m.len().saturating_mul(MAX_EXPANSION_RATIO))
+        .unwrap_or(0)
+        .max(MIN_EXTRACT_BUDGET)
+}
+
+/// Copies one entry, charging its bytes against the extraction's remaining budget and
+/// stopping at the limit instead of writing until the disk fills. Archive entries are
+/// attacker-controlled and declare their own uncompressed size, so nothing upstream of this
+/// bounds how much a mod archive expands to (decompression bomb).
+pub(crate) fn copy_capped<R: Read + ?Sized, W: std::io::Write + ?Sized>(
+    reader: &mut R,
+    writer: &mut W,
+    budget: &mut u64,
+) -> Result<(), String> {
+    // Reading one byte past the budget is what distinguishes "exactly fits" from "overruns".
+    let written = std::io::copy(&mut reader.take(*budget + 1), writer).map_err(|e| e.to_string())?;
+    if written > *budget {
+        return Err(format!(
+            "archive expands to more than {} GiB, or over {}x its own size; refusing to extract",
+            MIN_EXTRACT_BUDGET / (1024 * 1024 * 1024),
+            MAX_EXPANSION_RATIO
+        ));
+    }
+    *budget -= written;
+    Ok(())
+}
+
 pub fn extract_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
+    let budget = &mut extract_budget(archive_path);
     match detect_archive(archive_path) {
-        Some(ArchiveFormat::Zip) => extract_zip_entry(archive_path, entry_name, dest),
-        Some(ArchiveFormat::SevenZip) => extract_7z_entry(archive_path, entry_name, dest),
+        Some(ArchiveFormat::Zip) => extract_zip_entry(archive_path, entry_name, dest, budget),
+        Some(ArchiveFormat::SevenZip) => extract_7z_entry(archive_path, entry_name, dest, budget),
         Some(ArchiveFormat::TarGz) => extract_tar_entry(
             flate2::read::GzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
             entry_name,
             dest,
+            budget,
         ),
         Some(ArchiveFormat::TarXz) => extract_tar_entry(
             xz2::read::XzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
             entry_name,
             dest,
+            budget,
         ),
-        Some(ArchiveFormat::Rar) => extract_rar_entry(archive_path, entry_name, dest),
+        Some(ArchiveFormat::Rar) => {
+            check_rar_budget(archive_path, *budget)?;
+            extract_rar_entry(archive_path, entry_name, dest)
+        }
         None => Err("Not a supported archive format".to_string()),
     }
 }
 
-pub fn extract_zip_entry(zip_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
+/// unrar can only extract to a directory and exposes no per-entry reader, so its output can't
+/// be metered through `copy_capped` the way the other four formats are. The header's declared
+/// unpacked size is the equivalent signal: unrar writes what the header says, so a bomb has to
+/// declare itself here.
+fn check_rar_budget(archive_path: &Path, budget: u64) -> Result<(), String> {
+    let archive = unrar::Archive::new(archive_path)
+        .open_for_listing()
+        .map_err(|e| e.to_string())?;
+    let mut total: u64 = 0;
+    for entry in archive {
+        let entry = entry.map_err(|e| e.to_string())?;
+        total = total.saturating_add(entry.unpacked_size);
+        if total > budget {
+            return Err(format!(
+                "archive expands to more than {} GiB, or over {}x its own size; refusing to extract",
+                MIN_EXTRACT_BUDGET / (1024 * 1024 * 1024),
+                MAX_EXPANSION_RATIO
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn extract_zip_entry(
+    zip_path: &Path,
+    entry_name: &str,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
     let file = File::open(zip_path).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
     // Some Windows ZIPs store paths with backslashes; try both separators.
@@ -167,11 +243,15 @@ pub fn extract_zip_entry(zip_path: &Path, entry_name: &str, dest: &Path) -> Resu
         .ok_or_else(|| format!("entry '{}' not found in archive", entry_name))?;
     let mut entry = archive.by_index(index).map_err(|e| e.to_string())?;
     let mut dest_file = File::create(dest).map_err(|e| e.to_string())?;
-    std::io::copy(&mut entry, &mut dest_file).map_err(|e| e.to_string())?;
-    Ok(())
+    copy_capped(&mut entry, &mut dest_file, budget)
 }
 
-fn extract_7z_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Result<(), String> {
+fn extract_7z_entry(
+    archive_path: &Path,
+    entry_name: &str,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
     use std::cell::RefCell;
     // Write directly from the callback reader; avoids depending on sevenz-rust's
     // directory-creation behavior. Normalize separators for cross-platform archives.
@@ -179,11 +259,12 @@ fn extract_7z_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resul
     let write_result: RefCell<Option<Result<(), String>>> = RefCell::new(None);
 
     let file = File::open(archive_path).map_err(|e| e.to_string())?;
+    let budget = RefCell::new(budget);
     sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dest| {
         if !entry.is_directory() && entry.name().replace('\\', "/") == normalized {
             let r = File::create(dest)
-                .and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ()))
-                .map_err(|e| e.to_string());
+                .map_err(|e| e.to_string())
+                .and_then(|mut f| copy_capped(reader, &mut f, &mut budget.borrow_mut()));
             *write_result.borrow_mut() = Some(r);
             Ok(false)
         } else {
@@ -199,7 +280,12 @@ fn extract_7z_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resul
         .unwrap_or_else(|| Err(format!("entry '{}' not found in archive", entry_name)))
 }
 
-fn extract_tar_entry<R: Read>(reader: R, entry_name: &str, dest: &Path) -> Result<(), String> {
+fn extract_tar_entry<R: Read>(
+    reader: R,
+    entry_name: &str,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
     let mut archive = tar::Archive::new(reader);
     for entry in archive.entries().map_err(|e| e.to_string())? {
         let mut entry = entry.map_err(|e| e.to_string())?;
@@ -209,8 +295,7 @@ fn extract_tar_entry<R: Read>(reader: R, entry_name: &str, dest: &Path) -> Resul
         let path = entry.path().map_err(|e| e.to_string())?;
         if path.to_string_lossy().replace('\\', "/") == entry_name {
             let mut dest_file = File::create(dest).map_err(|e| e.to_string())?;
-            std::io::copy(&mut entry, &mut dest_file).map_err(|e| e.to_string())?;
-            return Ok(());
+            return copy_capped(&mut entry, &mut dest_file, budget);
         }
     }
     Err(format!("entry '{}' not found in archive", entry_name))
@@ -528,25 +613,36 @@ pub(crate) fn safe_dest(dest: &Path, relative: &str) -> Option<PathBuf> {
 
 /// Extracts all entries under `dir_prefix/` from the archive into `dest/`.
 pub fn extract_dir_entry(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+    let budget = &mut extract_budget(archive_path);
     match detect_archive(archive_path) {
-        Some(ArchiveFormat::Zip) => extract_dir_zip(archive_path, dir_prefix, dest),
-        Some(ArchiveFormat::SevenZip) => extract_dir_7z(archive_path, dir_prefix, dest),
+        Some(ArchiveFormat::Zip) => extract_dir_zip(archive_path, dir_prefix, dest, budget),
+        Some(ArchiveFormat::SevenZip) => extract_dir_7z(archive_path, dir_prefix, dest, budget),
         Some(ArchiveFormat::TarGz) => extract_dir_tar(
             flate2::read::GzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
             dir_prefix,
             dest,
+            budget,
         ),
         Some(ArchiveFormat::TarXz) => extract_dir_tar(
             xz2::read::XzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
             dir_prefix,
             dest,
+            budget,
         ),
-        Some(ArchiveFormat::Rar) => extract_dir_rar(archive_path, dir_prefix, dest),
+        Some(ArchiveFormat::Rar) => {
+            check_rar_budget(archive_path, *budget)?;
+            extract_dir_rar(archive_path, dir_prefix, dest)
+        }
         None => Err("Not a supported archive format".to_string()),
     }
 }
 
-fn extract_dir_zip(zip_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+fn extract_dir_zip(
+    zip_path: &Path,
+    dir_prefix: &str,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
     let file = File::open(zip_path).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
     let prefix = format!("{}/", dir_prefix);
@@ -569,18 +665,24 @@ fn extract_dir_zip(zip_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(),
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
         let mut out = File::create(&dest_path).map_err(|e| e.to_string())?;
-        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+        copy_capped(&mut entry, &mut out, budget)?;
     }
     Ok(())
 }
 
-fn extract_dir_7z(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+fn extract_dir_7z(
+    archive_path: &Path,
+    dir_prefix: &str,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
     use std::cell::RefCell;
     let file = File::open(archive_path).map_err(|e| e.to_string())?;
     let prefix = format!("{}/", dir_prefix);
     std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     let dest = dest.to_path_buf();
     let write_err: RefCell<Option<String>> = RefCell::new(None);
+    let budget = RefCell::new(budget);
     sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dst| {
         let name = entry.name().replace('\\', "/");
         let relative = match name.strip_prefix(&prefix) {
@@ -606,10 +708,11 @@ fn extract_dir_7z(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<
                 return Ok(true);
             }
         }
-        if let Err(e) =
-            File::create(&dest_path).and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ()))
-        {
-            *write_err.borrow_mut() = Some(e.to_string());
+        let write = File::create(&dest_path)
+            .map_err(|e| e.to_string())
+            .and_then(|mut f| copy_capped(reader, &mut f, &mut budget.borrow_mut()));
+        if let Err(e) = write {
+            *write_err.borrow_mut() = Some(e);
         }
         Ok(true)
     })
@@ -620,7 +723,12 @@ fn extract_dir_7z(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<
     Ok(())
 }
 
-fn extract_dir_tar<R: Read>(reader: R, dir_prefix: &str, dest: &Path) -> Result<(), String> {
+fn extract_dir_tar<R: Read>(
+    reader: R,
+    dir_prefix: &str,
+    dest: &Path,
+    budget: &mut u64,
+) -> Result<(), String> {
     let mut archive = tar::Archive::new(reader);
     let prefix = format!("{}/", dir_prefix);
     std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
@@ -646,7 +754,7 @@ fn extract_dir_tar<R: Read>(reader: R, dir_prefix: &str, dest: &Path) -> Result<
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
         let mut out = File::create(&dest_path).map_err(|e| e.to_string())?;
-        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+        copy_capped(&mut entry, &mut out, budget)?;
     }
     Ok(())
 }
@@ -669,23 +777,29 @@ pub(crate) fn has_ue4ss_loader_signature(path: &Path) -> bool {
 /// internal structure (used for the UE4SS loader package, which must land as a flat dump in
 /// `Binaries/<platform>/` rather than under any scan-target skeleton).
 pub fn extract_archive_flat(archive_path: &Path, dest: &Path) -> Result<(), String> {
+    let budget = &mut extract_budget(archive_path);
     match detect_archive(archive_path) {
-        Some(ArchiveFormat::Zip) => extract_flat_zip(archive_path, dest),
-        Some(ArchiveFormat::SevenZip) => extract_flat_7z(archive_path, dest),
+        Some(ArchiveFormat::Zip) => extract_flat_zip(archive_path, dest, budget),
+        Some(ArchiveFormat::SevenZip) => extract_flat_7z(archive_path, dest, budget),
         Some(ArchiveFormat::TarGz) => extract_flat_tar(
             flate2::read::GzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
             dest,
+            budget,
         ),
         Some(ArchiveFormat::TarXz) => extract_flat_tar(
             xz2::read::XzDecoder::new(File::open(archive_path).map_err(|e| e.to_string())?),
             dest,
+            budget,
         ),
-        Some(ArchiveFormat::Rar) => extract_flat_rar(archive_path, dest),
+        Some(ArchiveFormat::Rar) => {
+            check_rar_budget(archive_path, *budget)?;
+            extract_flat_rar(archive_path, dest)
+        }
         None => Err("Not a supported archive format".to_string()),
     }
 }
 
-fn extract_flat_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
+fn extract_flat_zip(zip_path: &Path, dest: &Path, budget: &mut u64) -> Result<(), String> {
     let file = File::open(zip_path).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
     std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
@@ -703,17 +817,18 @@ fn extract_flat_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
         let mut out = File::create(&dest_path).map_err(|e| e.to_string())?;
-        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+        copy_capped(&mut entry, &mut out, budget)?;
     }
     Ok(())
 }
 
-fn extract_flat_7z(archive_path: &Path, dest: &Path) -> Result<(), String> {
+fn extract_flat_7z(archive_path: &Path, dest: &Path, budget: &mut u64) -> Result<(), String> {
     use std::cell::RefCell;
     let file = File::open(archive_path).map_err(|e| e.to_string())?;
     std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     let dest = dest.to_path_buf();
     let write_err: RefCell<Option<String>> = RefCell::new(None);
+    let budget = RefCell::new(budget);
     sevenz_rust::decompress_with_extract_fn(file, Path::new("."), |entry, reader, _dst| {
         let name = entry.name().replace('\\', "/");
         let Some(dest_path) = safe_dest(&dest, &name) else {
@@ -732,10 +847,11 @@ fn extract_flat_7z(archive_path: &Path, dest: &Path) -> Result<(), String> {
                 return Ok(true);
             }
         }
-        if let Err(e) =
-            File::create(&dest_path).and_then(|mut f| std::io::copy(reader, &mut f).map(|_| ()))
-        {
-            *write_err.borrow_mut() = Some(e.to_string());
+        let write = File::create(&dest_path)
+            .map_err(|e| e.to_string())
+            .and_then(|mut f| copy_capped(reader, &mut f, &mut budget.borrow_mut()));
+        if let Err(e) = write {
+            *write_err.borrow_mut() = Some(e);
         }
         Ok(true)
     })
@@ -746,7 +862,7 @@ fn extract_flat_7z(archive_path: &Path, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn extract_flat_tar<R: Read>(reader: R, dest: &Path) -> Result<(), String> {
+fn extract_flat_tar<R: Read>(reader: R, dest: &Path, budget: &mut u64) -> Result<(), String> {
     let mut archive = tar::Archive::new(reader);
     std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
     for entry in archive.entries().map_err(|e| e.to_string())? {
@@ -767,7 +883,7 @@ fn extract_flat_tar<R: Read>(reader: R, dest: &Path) -> Result<(), String> {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
         let mut out = File::create(&dest_path).map_err(|e| e.to_string())?;
-        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+        copy_capped(&mut entry, &mut out, budget)?;
     }
     Ok(())
 }
