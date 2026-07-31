@@ -10,7 +10,7 @@
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/modrexio/modrex/releases/latest)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/tenzpx8JRM)
 
-A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/), and [Crime Boss: Rockay City](https://store.steampowered.com/app/2933080/Crime_Boss_Rockay_City/) powered by [modworkshop](https://modworkshop.net).
+A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/), [Crime Boss: Rockay City](https://store.steampowered.com/app/2933080/Crime_Boss_Rockay_City/), and [RAID: World War II](https://store.steampowered.com/app/414740/RAID_World_War_II/) powered by [modworkshop](https://modworkshop.net) and [Nexus Mods](https://www.nexusmods.com).
 
 <img src="assets/example.png" width="900" alt="Modrex app screenshot" />
 
@@ -35,8 +35,8 @@ Or grab a specific package:
 
 ## Features
 
-- Supports PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City, with a searchable game picker
-- Browse and search mods from modworkshop
+- Supports PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, Crime Boss: Rockay City, and RAID: World War II, with a searchable game picker
+- Browse and search mods from modworkshop, or from Nexus Mods after signing in (every game except RAID)
 - In-app News tab with the latest posts for each game
 - Full mod detail page: description, images, downloads, changelog, dependencies, and install instructions
 - Rich description rendering: formatted text, tables, collapsible sections, colored text, and inline video embeds (YouTube, Streamable)
@@ -47,7 +47,7 @@ Or grab a specific package:
 - Update detection with selective per-mod updates
 - Launch modded or vanilla directly from the app
 - Automatically detects your game installation (Steam, Epic Games Store, Xbox App)
-- One-click install for mod loaders: SuperBLT (PD2), DAHM and PDTHModOverrides (PDTH), UE4SS (PD3, Crime Boss)
+- One-click install for mod loaders: SuperBLT (PD2), DAHM and PDTHModOverrides (PDTH), UE4SS (PD3, Crime Boss), RAID-SuperBLT (RAID)
 - Identifies manually placed mod files via SHA256 lookup against a live mod index
 - Discord Rich Presence shows the active game on your profile
 - Automatic update checks with one-click in-app updates
@@ -62,6 +62,7 @@ Steam works on Windows and Linux for every supported game. Epic Games Store and 
 | PAYDAY 2                |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                   ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                   |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
 | PAYDAY: The Heist       |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                        ![no](https://img.shields.io/badge/No-red)                                                        |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
 | Crime Boss: Rockay City |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                   ![yes](https://img.shields.io/badge/Yes-brightgreen)                                                   |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
+| RAID: World War II      |                                            ![yes](https://img.shields.io/badge/Yes-brightgreen)                                             |                                                        ![no](https://img.shields.io/badge/No-red)                                                        |                                                  ![no](https://img.shields.io/badge/No-red)                                                  |
 
 ## Troubleshooting
 
