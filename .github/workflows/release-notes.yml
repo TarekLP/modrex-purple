@@ -19,12 +19,14 @@ jobs:
                     --repo "${{ github.repository }}" \
                     --pattern "latest.json"
 
+            # The body reaches the script as an environment variable, never as inline
+            # ${{ }} text: the runner substitutes expressions before bash parses the
+            # script, so a body line reading exactly BODY would close the heredoc early
+            # and run everything after it as shell.
             - name: Inject release body into notes field
+              env:
+                  NOTES: ${{ github.event.release.body }}
               run: |
-                  NOTES=$(cat <<'BODY'
-                  ${{ github.event.release.body }}
-                  BODY
-                  )
                   jq --arg notes "$NOTES" '.notes = $notes' latest.json > latest.patched.json
                   mv latest.patched.json latest.json
 
