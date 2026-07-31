@@ -31,7 +31,11 @@ jobs:
     site:
         runs-on: ubuntu-latest
         steps:
+            # Full history: check-legal-dates compares each legal page against the commit
+            # that last touched it, which a shallow clone cannot answer.
             - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
 
             - uses: pnpm/action-setup@v6
             - uses: actions/setup-node@v7
@@ -41,6 +45,7 @@ jobs:
             - run: pnpm install --frozen-lockfile
             - run: pnpm site:typecheck
             - run: pnpm site:typecheck:functions
+            - run: pnpm site:check-legal-dates
             - run: pnpm site:lint
             - run: pnpm site:format:check
             - run: pnpm site:test
