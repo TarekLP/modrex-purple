@@ -2,6 +2,11 @@
 import BaseLayout from '../layouts/BaseLayout.astro'
 import Nav from '../components/Nav.astro'
 import SiteFooter from '../components/SiteFooter.astro'
+import { formatLastUpdated } from '../lib/legal'
+
+// Bump when the wording below changes in substance. `pnpm check-legal-dates` fails the
+// build if this page is committed with a date older than the commit touching it.
+const LAST_UPDATED = '2026-07-31'
 ---
 
 <BaseLayout
@@ -13,6 +18,7 @@ import SiteFooter from '../components/SiteFooter.astro'
         <div class="wrap">
             <div class="prose">
                 <h1>Terms of Service</h1>
+                <p class="updated">Last updated: {formatLastUpdated(LAST_UPDATED)}</p>
 
                 <p>
                     Modrex is a free, open-source desktop application for managing game mods. By
@@ -31,12 +37,30 @@ import SiteFooter from '../components/SiteFooter.astro'
                     Modrex does not host, distribute, or endorse any mods. All mod files are
                     downloaded from <a href="https://modworkshop.net" target="_blank" rel="noopener"
                         >modworkshop.net</a
-                    > or other third-party sources at your direction. You are responsible for ensuring
-                    that the mods you install comply with the terms of service of the relevant game publisher
-                    and the original mod author's license.
+                    >, <a href="https://www.nexusmods.com" target="_blank" rel="noopener"
+                        >Nexus Mods</a
+                    >, or other third-party sources at your direction. You are responsible for
+                    ensuring that the mods you install comply with the terms of service of the
+                    relevant game publisher and the original mod author's license.
                 </p>
 
-                <h2>3. Open source</h2>
+                <h2>3. Third-party accounts</h2>
+                <p>
+                    Installing from Nexus Mods requires signing in to your own Nexus Mods account.
+                    That sign-in happens in your browser, and your use of Nexus Mods is governed by
+                    their <a
+                        href="https://help.nexusmods.com/article/18-terms-of-service"
+                        target="_blank"
+                        rel="noopener">Terms of Service</a
+                    > in addition to these terms. Modrex stores the resulting sign-in tokens on your own
+                    device and never transmits them to us; see the <a href="/privacy"
+                        >Privacy Policy</a
+                    > for how they are stored and how to remove them. You are responsible for keeping
+                    your account credentials secure and for respecting any download or rate limits that
+                    Nexus Mods applies to your account.
+                </p>
+
+                <h2>4. Open source</h2>
                 <p>
                     Modrex is released under the <a
                         href="https://opensource.org/licenses/MIT"
@@ -49,26 +73,26 @@ import SiteFooter from '../components/SiteFooter.astro'
                     >. You may use, modify, and distribute it in accordance with that license.
                 </p>
 
-                <h2>4. No affiliation</h2>
+                <h2>5. No affiliation</h2>
                 <p>
                     Modrex is an independent project and is not affiliated with, endorsed by, or
                     sponsored by any game studio, publisher, or platform.
                 </p>
 
-                <h2>5. Availability</h2>
+                <h2>6. Availability</h2>
                 <p>
                     We make no guarantees about the availability or continuity of Modrex or any
                     associated services. We may update, suspend, or discontinue any part of the
                     project at any time.
                 </p>
 
-                <h2>6. Changes</h2>
+                <h2>7. Changes</h2>
                 <p>
                     We may update these terms at any time. Continued use of Modrex after changes are
                     posted constitutes acceptance of the new terms.
                 </p>
 
-                <h2>7. Contact</h2>
+                <h2>8. Contact</h2>
                 <p>
                     Questions or concerns? Open an issue on <a
                         href="https://github.com/modrexio/modrex/issues"
@@ -101,6 +125,12 @@ import SiteFooter from '../components/SiteFooter.astro'
         font-size: clamp(36px, 5vw, 56px);
         line-height: 1;
         letter-spacing: var(--tracking-display);
+    }
+
+    .updated {
+        margin: -12px 0 24px;
+        font-size: 13px;
+        color: var(--text-secondary);
     }
 
     h2 {

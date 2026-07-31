@@ -2,6 +2,11 @@
 import BaseLayout from '../layouts/BaseLayout.astro'
 import Nav from '../components/Nav.astro'
 import SiteFooter from '../components/SiteFooter.astro'
+import { formatLastUpdated } from '../lib/legal'
+
+// Bump when the wording below changes in substance. `pnpm check-legal-dates` fails the
+// build if this page is committed with a date older than the commit touching it.
+const LAST_UPDATED = '2026-07-31'
 ---
 
 <BaseLayout
@@ -13,6 +18,7 @@ import SiteFooter from '../components/SiteFooter.astro'
         <div class="wrap">
             <div class="prose">
                 <h1>Privacy Policy</h1>
+                <p class="updated">Last updated: {formatLastUpdated(LAST_UPDATED)}</p>
 
                 <p>
                     Modrex is built to respect your privacy. This policy covers both the Modrex
@@ -35,19 +41,73 @@ import SiteFooter from '../components/SiteFooter.astro'
                         is generated locally — it is never linked to your name, email, or any account.
                     </li>
                     <li>
-                        <strong>What is never collected:</strong> file paths, mod search text, game save
-                        data, account credentials, or any personally identifying information.
+                        <strong>What is never collected:</strong> file paths, the text you type into mod
+                        search (only its length), game save data, your account credentials, or your name
+                        or email address.
                     </li>
                     <li>
-                        <strong>Processor:</strong> analytics data is sent to Google Analytics 4 via a
-                        proxy at modrex.net. See <a
+                        <strong>Processor, and your IP address:</strong> analytics events are sent to
+                        Google Analytics 4 through a proxy at modrex.net, running on Cloudflare Pages.
+                        The proxy reads the IP address your connection arrives from and forwards it to
+                        Google in the same request, so that country-level statistics reflect where you
+                        are rather than where the proxy is. The proxy does not store it and Modrex keeps
+                        no database of it. An IP address can count as personal data in some jurisdictions,
+                        so it is disclosed here even though it is used only for approximate location.
+                        See <a
                             href="https://policies.google.com/privacy"
                             target="_blank"
                             rel="noopener">Google's Privacy Policy</a
                         >.
                     </li>
                 </ul>
-                <p>If you opt out (or never opt in), no data leaves your device from the app.</p>
+                <p>
+                    If you opt out (or never opt in), the app sends no analytics at all, and no IP
+                    address reaches modrex.net or Google from it.
+                </p>
+
+                <h2>Nexus Mods sign-in (optional)</h2>
+                <p>
+                    Modrex can browse and install mods from Nexus Mods. That requires signing in to
+                    your Nexus Mods account, which happens in your own browser using Nexus's OAuth
+                    flow. Modrex never sees or handles your Nexus Mods password.
+                </p>
+                <ul>
+                    <li>
+                        <strong>What is stored:</strong> the access token and refresh token that Nexus
+                        issues, plus the time the access token expires. No password and no profile information
+                        is stored.
+                    </li>
+                    <li>
+                        <strong>Where it is stored:</strong> in your operating system's credential store
+                        (Windows Credential Manager, or a Secret Service provider such as gnome-keyring
+                        or KWallet on Linux). Only the expiry time is written to Modrex's own settings
+                        file.
+                    </li>
+                    <li>
+                        <strong>Where it is sent:</strong> only to Nexus Mods, to authorize your own requests
+                        to their API. These tokens are never transmitted to modrex.net or to any other
+                        server operated by Modrex.
+                    </li>
+                    <li>
+                        <strong>On Linux with no credential store:</strong> if no Secret Service provider
+                        is running, Modrex falls back to storing both tokens in plain text in its configuration
+                        file (<code>~/.config/modrex/settings.json</code>), where other users of the
+                        same computer may be able to read them. Modrex shows a warning in Settings
+                        whenever this is the case. Installing and enabling gnome-keyring or KWallet
+                        and restarting Modrex moves the tokens into the credential store.
+                    </li>
+                    <li>
+                        <strong>Removing it:</strong> signing out in Settings deletes both tokens from
+                        the credential store and from the settings file.
+                    </li>
+                </ul>
+                <p>
+                    Your use of Nexus Mods is also governed by their own <a
+                        href="https://help.nexusmods.com/article/20-privacy-policy"
+                        target="_blank"
+                        rel="noopener">Privacy Policy</a
+                    >.
+                </p>
 
                 <h2>Website (modrex.net)</h2>
                 <p>
@@ -59,7 +119,9 @@ import SiteFooter from '../components/SiteFooter.astro'
                 <h2>Data sharing</h2>
                 <p>
                     We do not sell, rent, or trade any data. We do not share data with third parties
-                    except as required by the analytics processor described above or by law.
+                    except as required by the analytics processor described above or by law. Nexus
+                    Mods sign-in tokens are never shared with anyone: they stay on your device and
+                    go only to Nexus Mods itself.
                 </p>
 
                 <h2>Data retention</h2>
@@ -71,8 +133,10 @@ import SiteFooter from '../components/SiteFooter.astro'
                 <h2>Your rights</h2>
                 <p>
                     You can opt out of analytics at any time in the app's Settings or by declining
-                    the cookie banner on this website. Since we collect no personal data, there is
-                    nothing to access, correct, or export beyond what you already control locally.
+                    the cookie banner on this website, and you can sign out of Nexus Mods in
+                    Settings to delete its tokens from your device. We hold no account for you and
+                    no profile that could be accessed, corrected, or exported: everything the app
+                    keeps about you lives on your own computer, under your control.
                 </p>
 
                 <h2>Changes</h2>
@@ -116,11 +180,24 @@ import SiteFooter from '../components/SiteFooter.astro'
         letter-spacing: var(--tracking-display);
     }
 
+    .updated {
+        margin: -12px 0 24px;
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+
     h2 {
         margin: 40px 0 10px;
         font-size: 16px;
         font-weight: 600;
         color: var(--color-text);
+    }
+
+    code {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--color-text);
+        overflow-wrap: anywhere;
     }
 
     p {
