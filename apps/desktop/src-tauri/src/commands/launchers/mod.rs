@@ -219,6 +219,17 @@ fn resolve_and_save_game_path(
     // services), so resolve first and only take the settings lock to apply the
     // result — sync commands on the main thread must never wait behind a probe.
     let (resolved_path, resolved_launcher) = if let Some(path) = game_path {
+        // A hand-picked folder is checked here rather than accepted outright: the
+        // auto-detect branch below re-validates every saved path on each refresh, so
+        // an unvalidated wrong pick was silently dropped a moment later with nothing
+        // telling the user why. Rejecting up front is what surfaces the error.
+        if game_def.resolve_executable(&path).is_none() {
+            return Err(format!(
+                "'{path}' is not a {} installation (no {} in it)",
+                game_def.name,
+                game_def.executables.join(" or ")
+            ));
+        }
         let launcher = identify_launcher_for_path(&path);
         (Some(path), Some(launcher))
     } else {
@@ -259,26 +270,36 @@ fn resolve_and_save_game_path(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn configure_game_path(app: AppHandle, game_id: String, game_path: Option<String>) {
+pub async fn configure_game_path(
+    app: AppHandle,
+    game_id: String,
+    game_path: Option<String>,
+) -> Result<(), String> {
     let index_app = app.clone();
-    let _ = tauri::async_runtime::spawn_blocking(move || {
+    tauri::async_runtime::spawn_blocking(move || {
         resolve_and_save_game_path(&app, game_id, game_path)
     })
-    .await;
+    .await
+    .map_err(|e| format!("game path resolution failed to run: {e}"))??;
     tauri::async_runtime::spawn(async move {
         crate::commands::mod_index::ensure_index(index_app).await;
     });
+    Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn pick_folder(app: AppHandle, default_path: Option<String>) -> Option<String> {
+// `title` comes from the renderer already localized and already naming the active game:
+// building it here would hardcode English and, before this took a parameter, named
+// PAYDAY 3 no matter which of the five games was being configured.
+pub async fn pick_folder(
+    app: AppHandle,
+    title: String,
+    default_path: Option<String>,
+) -> Option<String> {
     use tauri_plugin_dialog::DialogExt;
     tauri::async_runtime::spawn_blocking(move || {
-        let mut builder = app
-            .dialog()
-            .file()
-            .set_title(format!("Select {} installation folder", PD3.name));
+        let mut builder = app.dialog().file().set_title(title);
         if let Some(ref path) = default_path {
             builder = builder.set_directory(path);
         }

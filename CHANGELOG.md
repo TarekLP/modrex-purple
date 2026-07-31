@@ -57,6 +57,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed several dialogs missing a close button in the top corner, so every dialog can now be closed with an X.
 - Fixed the Linux app not having a proper icon in the taskbar, application menu, and window switcher.
 - Fixed dragged-in downloaded archives being named after the download's filename instead of the mod's real name.
+- Fixed selecting a folder that is not a valid game installation being accepted without warning and then silently cleared on the next refresh; the folder is now rejected with an explanation.
+- Fixed the game folder picker always naming PAYDAY 3 in its title regardless of which game was being configured.
 
 ### Security
 

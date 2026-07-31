@@ -156,8 +156,8 @@ export const api = {
         const gs = await commands.getGameSettings(gameId)
         return gs.gamePath ?? null
     },
-    setGamePath(gamePath: string | null, gameId: string): Promise<void> {
-        return commands.configureGamePath(gameId, gamePath)
+    async setGamePath(gamePath: string | null, gameId: string): Promise<void> {
+        await commands.configureGamePath(gameId, gamePath)
     },
     setLauncher(launcher: string, gameId: string): Promise<void> {
         return commands.setLauncher(gameId, launcher)
@@ -177,8 +177,8 @@ export const api = {
     dismissDepsWarning(modId: number): Promise<void> {
         return commands.dismissDepsWarning(modId)
     },
-    pickFolder(defaultPath?: string): Promise<string | null> {
-        return commands.pickFolder(defaultPath ?? null)
+    pickFolder(title: string, defaultPath?: string): Promise<string | null> {
+        return commands.pickFolder(title, defaultPath ?? null)
     },
     openLog(): Promise<void> {
         return commands.openLogFile()

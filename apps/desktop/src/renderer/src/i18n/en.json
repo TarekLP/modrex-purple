@@ -358,6 +358,7 @@
             "detecting": "Detecting…",
             "reset": "Reset",
             "browse": "Browse",
+            "pickTitle": "Select {game} installation folder",
             "picking": "Picking…",
             "autoDetected": "Auto-detected",
             "notDetected": "Could not detect {game} installation — set the path manually.",

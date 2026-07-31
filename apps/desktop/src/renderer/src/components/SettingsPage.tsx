@@ -295,7 +295,9 @@ export function SettingsPage({
         setPicking(true)
         setPathError(null)
         try {
-            const picked = await api.pickFolder()
+            const picked = await api.pickFolder(
+                t('settings.gamePath.pickTitle', { game: GAMES[activeGame].name })
+            )
             if (!picked) return
             try {
                 await api.setGamePath(picked, activeGame)
