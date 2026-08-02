@@ -5,6 +5,8 @@ declare namespace BBCodeToReact {
     export class Tag {
         name: string
         params: Record<string, string>
+        SELF_CLOSE: boolean
+        STRIP_OUTER: boolean
         renderer: {
             escape: (value: string) => string
             strip: (value: string) => string

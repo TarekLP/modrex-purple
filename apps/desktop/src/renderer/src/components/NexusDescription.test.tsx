@@ -40,6 +40,28 @@ describe('NexusDescription', () => {
         const img = container.querySelector('img')
         const centered = container.querySelector('div[style*="center"]')
         expect(centered?.contains(img)).toBe(true)
+        expect(img?.classList.contains('inline-block')).toBe(true)
+    })
+
+    it('supports a self-closing image URL with dimensions and alignment', () => {
+        const { container, getByText } = render(
+            <NexusDescription text="[img=https://x.test/a.png width=640 height=360 align=center]after" />
+        )
+        const img = container.querySelector('img')
+        expect(img?.getAttribute('src')).toBe('https://x.test/a.png')
+        expect(img?.getAttribute('width')).toBe('640')
+        expect(img?.getAttribute('height')).toBe('360')
+        expect(img?.classList.contains('mx-auto')).toBe(true)
+        expect(getByText('after')).toBeDefined()
+    })
+
+    it('ignores invalid image dimensions', () => {
+        const { container } = render(
+            <NexusDescription text="[img width=-1 height=99999]https://x.test/a.png[/img]" />
+        )
+        const img = container.querySelector('img')
+        expect(img?.hasAttribute('width')).toBe(false)
+        expect(img?.hasAttribute('height')).toBe(false)
     })
 
     it('renders a list with no cross-item contamination', () => {
@@ -50,6 +72,15 @@ describe('NexusDescription', () => {
         expect(getByText('one').tagName).toBe('LI')
         expect(getByText('two').tagName).toBe('LI')
         expect(getByText('three').tagName).toBe('LI')
+    })
+
+    it('removes Nexus line terminators from list item boundaries', () => {
+        const { container } = render(
+            <NexusDescription text={'[list]\n<br />[*]Joy\n<br />[*]Pearl\n<br />[/list]'} />
+        )
+        expect(container.querySelectorAll('li')).toHaveLength(2)
+        expect(container.querySelectorAll('li br')).toHaveLength(0)
+        expect(container.querySelectorAll('ul > br')).toHaveLength(0)
     })
 
     // The bug this catches: the old regex converter matched a list item up to the next
@@ -107,5 +138,45 @@ describe('NexusDescription', () => {
     it('keeps a <br/> between two pieces of inline content', () => {
         const { container } = render(<NexusDescription text={'one\n<br />two'} />)
         expect(container.querySelectorAll('br')).toHaveLength(1)
+    })
+
+    it('treats consecutive [line] tags as sibling horizontal rules', () => {
+        const { container } = render(<NexusDescription text="[line]first[line]second" />)
+        expect(container.querySelectorAll('.nexus-description > hr')).toHaveLength(2)
+        expect(container.textContent).toBe('firstsecond')
+    })
+
+    it('renders Nexus heading and font tags', () => {
+        const { getByText } = render(
+            <NexusDescription text="[heading]Title[/heading][font=Impact]Body[/font]" />
+        )
+        expect(getByText('Title').tagName).toBe('H3')
+        expect(getByText('Body').style.fontFamily).toBe('Impact')
+    })
+
+    it('renders a Nexus spoiler as an expandable details element', () => {
+        const { getByText } = render(
+            <NexusDescription text="[spoiler label=Details]Hidden[/spoiler]" />
+        )
+        expect(getByText('Details').tagName).toBe('SUMMARY')
+        expect(getByText('Hidden').closest('details')).not.toBeNull()
+    })
+
+    it('renders a Nexus YouTube tag through the shared embed player', () => {
+        const { container } = render(<NexusDescription text="[youtube]dQw4w9WgXcQ[/youtube]" />)
+        expect(
+            container.querySelector(
+                'img[src="https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg"]'
+            )
+        ).not.toBeNull()
+        expect(container.querySelector('iframe')).toBeNull()
+    })
+
+    it('preserves semantic table markup for scoped description styling', () => {
+        const { getByText } = render(
+            <NexusDescription text="[table][tr][th]Name[/th][td]Value[/td][/tr][/table]" />
+        )
+        expect(getByText('Name').tagName).toBe('TH')
+        expect(getByText('Value').tagName).toBe('TD')
     })
 })

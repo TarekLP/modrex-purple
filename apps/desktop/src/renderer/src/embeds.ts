@@ -13,7 +13,7 @@ export interface Embed {
     id: string
 }
 
-const youtube: EmbedDef = {
+export const YOUTUBE_EMBED: EmbedDef = {
     type: 'youtube',
     detect(url) {
         const patterns = [
@@ -43,7 +43,7 @@ const streamable: EmbedDef = {
     watchUrl: (id) => `https://streamable.com/${id}`,
 }
 
-export const EMBEDS: EmbedDef[] = [youtube, streamable]
+export const EMBEDS: EmbedDef[] = [YOUTUBE_EMBED, streamable]
 
 export function detectEmbed(src: string, defs = EMBEDS): Embed | null {
     // Normalize double-protocol bug: "https://https://youtu.be/..." becomes "https://youtu.be/..."

@@ -1,6 +1,9 @@
-import { Children, isValidElement, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, type ReactNode } from 'react'
 import * as bbcode from 'bbcode-to-react'
 import { api } from '../api'
+import { YOUTUBE_EMBED } from '../embeds'
+import { t } from '../i18n'
+import { EmbedPlayer } from './EmbedPlayer'
 
 // Nexus mod descriptions are BBCode. Parsed here with the actual bbcode-to-react
 // library, the same one Nexus's own mod manager Vortex uses (Nexus-Mods/Vortex,
@@ -57,14 +60,55 @@ class SizeTag extends Tag {
     }
 }
 
-// Vortex's own line tag, a horizontal divider used unclosed in real descriptions.
 class LineTag extends Tag {
+    constructor(renderer: unknown, settings: unknown) {
+        super(renderer, settings)
+        // Nexus emits line without a closing tag. It must not adopt the rest of the
+        // description as children and progressively nest every later divider.
+        this.SELF_CLOSE = true
+        this.STRIP_OUTER = true
+    }
+
+    toReact() {
+        return <hr />
+    }
+}
+
+class HeadingTag extends Tag {
+    toReact() {
+        return <h3>{Children.toArray(this.getComponents())}</h3>
+    }
+}
+
+class FontTag extends Tag {
     toReact() {
         return (
-            <div>
-                <hr className="border-t border-border my-3" />
+            <span style={{ fontFamily: this.params.font }}>
                 {Children.toArray(this.getComponents())}
-            </div>
+            </span>
+        )
+    }
+}
+
+class YoutubeTag extends Tag {
+    toReact() {
+        const value = decodeContentEscape(this.renderer.strip(this.getContent(true)))
+        const id =
+            YOUTUBE_EMBED.detect(value) ?? (/^[A-Za-z0-9_-]{6,20}$/.test(value) ? value : null)
+        if (!id) return Children.toArray(this.getComponents())
+        return <EmbedPlayer embed={{ def: YOUTUBE_EMBED, id }} />
+    }
+}
+
+class SpoilerTag extends Tag {
+    toReact() {
+        return (
+            <details className="my-2 border border-border rounded-lg overflow-hidden">
+                <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
+                    {this.params.label || t('detail.spoiler')}
+                </summary>
+                <div className="px-3 py-2">{Children.toArray(this.getComponents())}</div>
+            </details>
         )
     }
 }
@@ -101,14 +145,51 @@ class LinkTag extends Tag {
     }
 }
 
-// Matches MarkdownContentImpl's image handling instead of the base library's bare,
-// unstyled img.
+function imageDimension(value: string | undefined): number | undefined {
+    if (!value) return undefined
+    const dimension = Number(value)
+    if (!Number.isInteger(dimension) || dimension <= 0 || dimension > 4096) return undefined
+    return dimension
+}
+
 class ImageTag extends Tag {
+    constructor(renderer: unknown, settings: unknown) {
+        super(renderer, settings)
+        // The img=URL form is self-closing, while img with URL content needs its
+        // closing tag so the parser can collect that content.
+        this.SELF_CLOSE = Boolean(this.params.img)
+    }
+
     toReact() {
-        const src = decodeContentEscape(this.getContent(true))
+        const src = decodeContentEscape(
+            this.renderer.strip(this.params.img || this.getContent(true))
+        )
         if (!src.length) return null
         if (!/^https?:/i.test(src)) return null
-        return <img src={src} alt="" loading="lazy" className="max-w-full rounded my-2" />
+
+        let layoutClass = 'inline-block'
+        switch (this.params.align?.toLowerCase()) {
+            case 'center':
+                layoutClass = 'block mx-auto'
+                break
+            case 'right':
+                layoutClass = 'block ml-auto'
+                break
+            case 'left':
+                layoutClass = 'block mr-auto'
+                break
+        }
+
+        return (
+            <img
+                src={src}
+                alt=""
+                loading="lazy"
+                width={imageDimension(this.params.width)}
+                height={imageDimension(this.params.height)}
+                className={[layoutClass, 'max-w-full h-auto rounded my-2'].join(' ')}
+            />
+        )
     }
 }
 
@@ -116,6 +197,10 @@ const parser = new Parser()
 parser.registerTag('br', BrTag)
 parser.registerTag('size', SizeTag)
 parser.registerTag('line', LineTag)
+parser.registerTag('heading', HeadingTag)
+parser.registerTag('font', FontTag)
+parser.registerTag('youtube', YoutubeTag)
+parser.registerTag('spoiler', SpoilerTag)
 parser.registerTag('url', LinkTag)
 parser.registerTag('link', LinkTag)
 parser.registerTag('email', LinkTag)
@@ -127,8 +212,11 @@ parser.registerTag('img', ImageTag)
 const BLOCK_TYPES = new Set([
     'div',
     'blockquote',
+    'details',
+    'figure',
     'ul',
     'ol',
+    'li',
     'hr',
     'h1',
     'h2',
@@ -136,6 +224,8 @@ const BLOCK_TYPES = new Set([
     'h4',
     'h5',
     'h6',
+    'pre',
+    'table',
 ])
 
 function isBr(node: ReactNode): boolean {
@@ -152,20 +242,26 @@ function stripRedundantBreaks(nodes: ReactNode[]): ReactNode[] {
     )
 }
 
-// No color class on strong or h1 through h3 here, deliberately. A hardcoded text color
-// on these would beat an inherited color from an ancestor color tag's span style, so bold
-// colored headings would render in the default text color instead.
-const WRAPPER_CLASS =
-    'text-sm text-text-muted leading-relaxed ' +
-    '[&_strong]:font-semibold ' +
-    '[&_h1]:font-semibold [&_h1]:text-base [&_h1]:mt-4 [&_h1]:mb-1 ' +
-    '[&_h2]:font-semibold [&_h2]:text-base [&_h2]:mt-4 [&_h2]:mb-1 ' +
-    '[&_h3]:font-semibold [&_h3]:text-sm [&_h3]:mt-4 [&_h3]:mb-1 ' +
-    '[&_ul]:list-disc [&_ul]:ml-5 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:ml-5 [&_ol]:mb-2 [&_li]:mb-0.5 ' +
-    '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:my-2 ' +
-    '[&_hr]:border-border [&_hr]:my-3'
+function stripTrailingBreaks(nodes: ReactNode[]): ReactNode[] {
+    const result = [...nodes]
+    while (isBr(result.at(-1))) result.pop()
+    return result
+}
+
+function normalizeNode(node: ReactNode): ReactNode {
+    if (!isValidElement<{ children?: ReactNode }>(node)) return node
+    if (node.props.children === undefined) return node
+
+    let children = normalizeNodes(Children.toArray(node.props.children))
+    if (node.type === 'li') children = stripTrailingBreaks(children)
+    return cloneElement(node, undefined, children)
+}
+
+function normalizeNodes(nodes: ReactNode[]): ReactNode[] {
+    return stripRedundantBreaks(nodes.map(normalizeNode))
+}
 
 export function NexusDescription({ text }: { text: string }) {
     const nodes = Children.toArray(parser.toReact(preprocess(text)))
-    return <div className={WRAPPER_CLASS}>{stripRedundantBreaks(nodes)}</div>
+    return <div className="nexus-description">{normalizeNodes(nodes)}</div>
 }
