@@ -7,6 +7,16 @@ deferred tasks that require human judgement on timing. Treat this file as read-o
 Desktop paths written as src/, src-tauri/, assets/, scripts/, CHANGELOG.md, or
 THIRD_PARTY_LICENSES.md are relative to apps/desktop after the monorepo migration.
 
+Index work happens in apps/index/, never in the standalone modrex-index repository at
+C:\local\modrexio\modrex-index. That checkout is the frozen legacy producer for desktop
+versions through 0.12.2 and must not gain new features.
+
+Two index paths coexist inside apps/index/, and entries below name which one they mean:
+- The PRODUCTION path: postgres/*.ts, with Neon as the source of truth, per-game SQLite
+  snapshots exported by postgres/export-sqlite.ts and published to R2 at index.modrex.net.
+- The LEGACY builder: build-index.ts, which still writes a single monolithic index.db for
+  the frozen release. Do not extend it.
+
 ---
 
 ## TODO: remove-diesel3-notice
@@ -80,10 +90,13 @@ waiting until the Tauri build has been stable for several releases), remove the 
 
 ## TODO: pak-analyzer
 
-Phase 1 of the pak content manifest feature. The work happens in the modrex-index repo
-(C:\local\modrexio\modrex-index), but is tracked here like all deferred work. Phases must
+Phase 1 of the pak content manifest feature. The work happens in apps/index/. Phases must
 land in order: pak-analyzer -> pak-entries-schema -> manifest-backfill-and-size ->
-pak-conflict-detection (the last one is the only modrex-main change).
+pak-conflict-detection (the last one is the only apps/desktop change).
+
+REWRITTEN 2026-08-01: this entry was written when the indexer was the standalone
+modrex-index repo producing one index.db. The parser itself is unaffected (it reads bytes),
+but every path and plumbing reference was retargeted at the Postgres/R2 pipeline.
 
 ### Context and reasoning (read before implementing)
 
@@ -91,21 +104,27 @@ The goal of the whole feature: know which asset paths each indexed .pak mounts, 
 app can detect conflicts between installed mods (two mods overriding the same asset),
 identify repackaged mods, and verify integrity. A Merkle tree was considered and
 rejected: Merkle trees pay off when a consumer needs to verify a subset without having
-all the data, but the app downloads the whole index.db anyway, so a flat per-pak entry
-manifest gives every benefit with none of the complexity.
+all the data, but the app downloads a game's whole snapshot anyway, so a flat per-pak
+entry manifest gives every benefit with none of the complexity.
 
 Engine fact that shapes everything: BOTH PAYDAY 3 and Crime Boss are Unreal Engine
-4.27.2. (modrex-main's CLAUDE.md says "PD3 on UE5" - that attribution is wrong, per the
-project owner; the pak-mounting behavior it describes still holds.) This means the
-parser needs exactly one format generation: the UE 4.27 pak index layout and the UE 4.27
-IoStore layout. No UE5 variants, no version matrix.
+4.27.2. This means the parser needs exactly one format generation: the UE 4.27 pak index
+layout and the UE 4.27 IoStore layout. No UE5 variants, no version matrix.
+
+(This entry used to carry a warning that apps/desktop/CLAUDE.md misattributed PD3 to UE5.
+That has since been corrected in the docs - they now say UE 4.27 explicitly - so the
+warning is dropped as of 2026-08-01.)
 
 Why the parser lands alone, before any schema work: binary-format parsing against real
 files is the only risky part of the feature. Everything else is plumbing that already
-has proven patterns in build-index.ts. Isolating the risk makes it cheap to verify and
-cheap to throw away if an assumption is wrong.
+has proven patterns in postgres/process-content.ts. Isolating the risk makes it cheap to
+verify and cheap to throw away if an assumption is wrong.
 
-### What to build (in modrex-index)
+### What to build (in apps/index/)
+
+The parser is a new module beside content-archive.ts, which is where archive bytes are
+already turned into ContentEntry rows. It stays pure (Buffer in, parse result out) so it
+is testable without Postgres or the network, the same way content-archive.ts is.
 
 - parsePakIndex(buf: Buffer): read the FPakInfo footer at the end of the file (magic
   0x5A6F12E1), which carries the pak version and the index offset/size. Follow it to
@@ -133,9 +152,15 @@ cheap to throw away if an assumption is wrong.
 
 Test against real installed mods on this machine, not spec assumptions: Crime Boss
 skeletons under {gamePath}/CrimeBoss/Mods/<name>/Content/Paks/WindowsNoEditor/ (pak +
-ucas/utoc triplets) and PD3 paks under {gamePath}/PAYDAY3/Content/Paks/~mods/. The
-installed-app DB at C:/Users/oleh/AppData/Roaming/io.github.shulhaoleh.pd3modmanager/
-mod-index.db (see the APP_DB constant in the dev utils) can cross-check identities.
+ucas/utoc triplets) and PD3 paks under {gamePath}/PAYDAY3/Content/Paks/~mods/.
+
+To cross-check identities, read the app's own downloaded snapshots at
+C:/Users/oleh/AppData/Roaming/Modrex/indexes/<game_id>.db. Note the dev utils
+(check-index.mjs, lookup-mod.mjs, check-pak.mjs) still point their APP_DB constant at the
+legacy single-file C:/Users/oleh/AppData/Roaming/Modrex/mod-index.db, which the current app
+no longer writes. Repointing them at the per-game snapshots is a small prerequisite worth
+doing first, since analyze-pak.mjs will want the same lookup.
+
 Every parsed path list should be spot-checked against what the mod's modworkshop page
 says it changes.
 
@@ -143,54 +168,82 @@ says it changes.
 
 ## TODO: pak-entries-schema
 
-Phase 2, only after pak-analyzer is verified. Work happens in modrex-index.
+Phase 2, only after pak-analyzer is verified. Work happens in apps/index/, on the
+PRODUCTION Postgres path. The legacy build-index.ts gets nothing.
 
-- New table in index.db:
+REWRITTEN 2026-08-01: the original text targeted a single index.db written by
+build-index.ts. The schema now lives in Postgres and reaches users as per-game SQLite
+snapshots, so this is two schema changes (source of truth, then export), not one.
+
+- Postgres table in postgres/schema.ts, added as a new idempotent migration:
   pak_entries(sha256 REFERENCES file_contents, entry_path, entry_hash, entry_size)
   plus a per-sha256 manifest status (ok / encrypted / no-directory-index), keyed on
   CONTENT hash so identical paks shipped by multiple mods store one manifest.
-- Safety constraint that drove the design (verified against modrex-main's reader): all
-  five queries in src-tauri/src/commands/mod_index.rs name their columns explicitly and
-  open read-only, so NEW tables and columns are invisible to shipped apps - safe. What
-  is NOT safe is adding rows to the mods table for mods without indexed files:
-  query_by_name identifies a mod only when exactly one LIKE match exists, so bloating
-  mods would silently break name identification. pak_entries must not touch existing
-  tables.
-- Wire the parser into extractContentEntries in build-index.ts: the pak bytes are
-  already in memory there when the SHA256 is computed, so new mods get manifests with
-  zero extra downloads or API calls.
-- Backfill for the ~7,500 already-indexed PD3/Crime Boss pak files (they need one
-  re-download to parse their indexes): mirror the existing entry_name refill mechanism,
-  i.e. a getFileIdsMissingManifests set (like getFileIdsMissingNames) that --backfill
-  honors and that checkIsCurrent treats like its missing-set parameter, so builder-state
-  check skips do not suppress the refill. Do NOT use --recheck-all for this: that would
-  re-examine all ~29k mods including PD2/PDTH, whose marker files are not paks and are
-  excluded from manifests entirely.
+- Export side, postgres/export-sqlite.ts: the snapshot is built by explicit SELECTs into
+  an explicit SQLite schema, so pak_entries does NOT reach the app until the exporter is
+  taught to carry it. This is the step the old single-DB plan did not have, and it is
+  also the natural size lever (see manifest-backfill-and-size): the exporter can carry
+  manifests for some games and not others.
+- Safety constraint that drove the design, re-verified 2026-08-01 against
+  src-tauri/src/commands/mod_index.rs: all five queries name their columns explicitly and
+  open read-only, so NEW tables and columns are invisible to shipped apps - safe. What is
+  NOT safe is adding rows to the mods table for mods without indexed files: query_by_name
+  identifies a mod only when exactly one LIKE match exists, so bloating mods would
+  silently break name identification. pak_entries must not touch existing tables.
+  The frozen legacy index.db is a separate producer and is unaffected either way.
+- Wire the parser into postgres/process-content.ts, at the point where it already calls
+  extractContentEntries from content-archive.ts: the pak bytes are in memory there when
+  the SHA256 is computed, so new mods get manifests with zero extra downloads or API
+  calls. Manifests attach to file_contents rows, so the INSERT sits alongside the
+  existing jsonb_to_recordset insert rather than replacing it.
+- Backfill for the already-indexed PD3/Crime Boss pak files (they need one re-download to
+  parse their indexes): drive it off a "file_contents rows with no manifest status" query
+  rather than the legacy builder's getFileIdsMissingNames/--backfill mechanism, which
+  belongs to build-index.ts and does not exist on the Postgres path. Restrict the set to
+  PD3 and Crime Boss: PD2/PDTH/RAID marker files are not paks and are excluded from
+  manifests entirely.
+- Re-measure the affected file count before running anything. The old estimate of ~7,500
+  pak files out of ~29k mods predates RAID support and months of indexing, so treat it as
+  a stale number, not a plan input.
 
 ---
 
 ## TODO: manifest-backfill-and-size
 
-Phase 3, after pak-entries-schema ships. Trigger the manifest backfill run in GitHub
-Actions (plain backfill - the missing-manifest set drives it), then measure the real
-index.db size increase. Estimate is +8-12 MB over the current ~17.6 MB, paid by every
-app user on the 1-hour TTL download. Decision was deliberately deferred until the
-number is real. Options, in order of preference if it is too heavy:
+Phase 3, after pak-entries-schema ships. Trigger the manifest backfill, then measure the
+real per-game snapshot size increase, then decide. The decision was deliberately deferred
+until the number is real, and that still holds.
+
+REWRITTEN 2026-08-01: the old estimate (+8-12 MB on a ~17.6 MB index.db, "paid by every
+app user on the 1-hour TTL download") described the retired single-file delivery. The cost
+model is now materially better and the old numbers must not be reused:
+
+- Snapshots are per game, so only PD3 and Crime Boss users pay anything at all. PD2, PDTH
+  and RAID snapshots gain nothing and grow by nothing.
+- mod_index.rs caches each snapshot by sha256 and re-downloads only when the catalog
+  manifest advertises a new hash, so the cost is per publish, not hourly per user.
+- Because export-sqlite.ts decides what enters a snapshot, "ship manifests for one game
+  only" is now a real option that the single-DB design could not express.
+
+Measure the delta per game, not in aggregate. Options if it is too heavy, in order of
+preference:
 
 1. Keep as is (if the real number is modest)
 2. Dedupe entry paths into a separate paths table with a junction (popular assets are
    overridden by many mods, so paths repeat heavily and this compresses well)
-3. Move manifests to a third release asset the app fetches lazily (only when a UE-game
-   conflict check actually needs it)
+3. Publish manifests as a separate per-game R2 object the app fetches lazily, only when a
+   conflict check actually needs it. This is the old "third release asset" idea, restated
+   for R2, and it fits the catalog manifest cleanly since that already lists per-game
+   objects with hashes.
 
 ---
 
 ## TODO: pak-conflict-detection
 
-Phase 4, the only modrex-main change of the pak manifest feature. Blocked until the
-three TODOs above (pak-analyzer, pak-entries-schema, manifest-backfill-and-size) are
-done and index.db actually carries pak_entries. Applies to PD3 and Crime Boss only;
-both are UE 4.27.2, so one format generation.
+Phase 4, the only apps/desktop change of the pak manifest feature. Blocked until the
+three TODOs above (pak-analyzer, pak-entries-schema, manifest-backfill-and-size) are done
+and the published per-game snapshots actually carry pak_entries. Applies to PD3 and Crime
+Boss only; both are UE 4.27.2, so one format generation.
 
 ### src-tauri/src/commands/mod_index.rs
 - Query: entries (paths) for a given content sha256
@@ -214,103 +267,39 @@ both are UE 4.27.2, so one format generation.
 
 ---
 
-## TODO: source-remote-ids-as-strings
-
-What is left of the multi-source domain model. Phases 1 (nexus-prototype-merge) and 2
-(source-identity-refactor) are done; phase 3 landed over 2026-07-20 as nine commits and
-is described below only where it did NOT finish.
-
-### Done, do not redo
-
-The neutral domain types, the Rust-owned translation, and the single Browse page all
-shipped. Rust now parses ModWorkshop listings, files, links and mod details into typed
-structs (commands/domain.rs, wire structs deserialize leniently, public types are
-required-field), Nexus search maps onto the same ModSummary, ModSummary is no longer
-assignable to Mod so a list entry cannot be used as a full one, update status is an
-explicit enum rather than magic version strings, and one Browse page carries a source
-switcher (SourceSelect) with per-source mod counts.
-
-### Dropped: source-qualified cache keys
-
-This was going to key the renderer caches by source once both shared them. It is
-OBSOLETE, not deferred: the owner chose a two-subwindow Browse page, so each source keeps
-its own content component and local state. Verified 2026-07-20 that NexusBrowsePage
-touches none of modCache, browseCache, thumbnailCache or installedMetaCache, so there is
-no collision to key against. The one cache that does hold both sources (SourceSelect's
-count cache) is already keyed by game AND source. Only revisit if the two pages are ever
-merged into a single data path.
-
-### What actually remains
-
-Remote ids become strings across the renderer, and install_nexus_download stops writing
-the legacy `id = -(nexus_mod_id)` / `file_id = nexus_file_id` values.
-
-Blocked, and NOT merely by time:
-- The reason for strings is Steam Workshop's PublishedFileId overflowing the JS safe
-  integer range. Steam is not a source, so today this solves nothing.
-- The negative id is load-bearing right now: it is what makes useModData skip a Nexus mod
-  instead of looking it up on ModWorkshop, and what computeHealthSummary keys
-  "unidentified" off (4 call sites as of 2026-07-20). Removing it needs a replacement
-  signal first.
-- Those ids are already written into users' .modrex.json files, so changing the scheme
-  needs a state migration or real installs lose their identity.
-
-Do this when a source with oversized ids actually lands, not before.
-
----
-
 ## TODO: nexus-feature-parity
 
 Nexus works but is narrower than ModWorkshop. This is the FUNCTIONAL gap list, separate
 from the architecture work (which is done): the domain model, typed IPC and the shared
-Browse page all landed 2026-07-20. Nothing here is blocked on plumbing.
+Browse page all landed 2026-07-20.
 
-Current Nexus surface exposed to the renderer is FOUR commands: `nexus_search_mods` plus
-the three OAuth ones. `nexus_get_mod` and `nexus_get_file` already exist in nexus.rs as
-`pub(crate)` helpers for the nxm install flow, so some of this is exposure, not new work.
+REDUCED 2026-08-01. Three of the original four gaps shipped in the unreleased 0.13.0 work
+and were verified gone before this entry was trimmed:
 
-Ordered by how much it hurts a user.
+- Update detection for installed Nexus mods: nexusModCache plus the Nexus branch of
+  useModData now pre-populate from cache and refresh per mod, keyed off the mod's own
+  positive remoteId. The old "useModData skips id < 0" cause no longer exists at all;
+  routing is on m.source now (see the deleted source-remote-ids-as-strings entry).
+- Mod detail page: nexus_get_mod_detail is registered in lib.rs and ModDetailPage renders
+  Nexus mods.
+- File list: nexus_list_mod_files is registered and DownloadsTab serves both sources.
 
-### 1. Installed Nexus mods never report updates (silent)
+Only the dependency gap remains.
 
-The worst of these because nothing in the UI admits it: a user installs a Nexus mod and
-Modrex will never say a newer version exists.
-
-Two separate causes, both need addressing:
-- The GraphQL search selection carries no version at all, so `parse_nexus_page` writes an
-  empty version deliberately (an empty version is what suppresses a permanent false
-  update prompt; see the comment on `nexus_node_to_summary`). Getting a real version needs
-  a per-mod detail call, not the search endpoint.
-- `useModData` skips `id < 0` entirely, and Nexus installs carry the legacy negative id,
-  so those mods are never even considered for an update check.
-
-The design constraint, and the reason this is not just "call get_mod in a loop": Nexus has
-NO batch metadata endpoint (ModWorkshop's `ids[]` filter has no equivalent) and enforces a
-daily quota. Refreshing 300 installed mods on window focus, which is what the ModWorkshop
-path does, would burn the budget immediately. The strategy has to be lazy or trickled, and
-`waitForForegroundClear()` already exists for exactly this kind of background work.
-
-Worth asking the Nexus contact about batch metadata and quota headroom for a mod manager
-BEFORE designing this. It is the one question that changes the answer.
-
-### 2. No mod detail page
-
-Clicking a Nexus mod cannot open a detail view: `nexus_get_mod` is not a registered
-command, and there is no UI. ModDetailPage is currently ModWorkshop-shaped (it renders
-`Mod`, the typed detail). Either Nexus maps onto `ModDetail` the way search maps onto
-`ModSummary`, or the page learns to render a partial detail.
-
-### 3. No file list
-
-`nexus_get_file` exists internally but is not exposed, so there is no equivalent of
-DownloadsTab: a user cannot see or choose between a mod's files. Today the nxm handoff
-picks for them via the website.
-
-### 4. No dependency handling
+### No dependency handling
 
 `ModDependency` is ModWorkshop-shaped (`mod_id` plus a nested summary, or an offsite url).
 Nexus has its own dependency model. DepsTab, the deps warning modal and the health check
-all assume the ModWorkshop shape, so this is not a small addition.
+all assume the ModWorkshop shape, so this is not a small addition. DepsTab still matches
+dependencies with `(!m.source || m.source === 'modworkshop')`, which is the honest current
+behavior: a Nexus mod's dependencies are simply not resolved rather than mis-resolved.
+
+The quota constraint that shaped the update-detection design applies here too and is worth
+re-reading before starting: Nexus has NO batch metadata endpoint (ModWorkshop's `ids[]`
+filter has no equivalent) and enforces a daily quota, so resolving a dependency tree cannot
+be a loop of detail calls. `waitForForegroundClear()` exists for this kind of background
+work. Asking the Nexus contact about batch metadata and quota headroom for a mod manager is
+still the one question that changes the answer.
 
 ### Explicitly NOT doing: category and tag filtering
 
@@ -352,11 +341,13 @@ one file per implementation).
   rate limiter instances instead of the global statics (keep the HTTP_CLIENT
   invariant: one shared reqwest client for everything).
 - requestPriority.ts foreground/background arbitration currently assumes one
-  shared rate-limited pipe; make it per-source.
-- Credential storage: settings.json is plaintext. Introduce a secrets story for
-  API keys/tokens (candidates: OS keychain via a Tauri plugin, or documented
-  plaintext with explicit user consent). Nexus API key moves there; mod.io and
-  Steam Web API keys will follow.
+  shared rate-limited pipe; make it per-source. Still true as of 2026-08-01: the
+  file's own header comment says "rate-limited connection to modworkshop" and it
+  has no notion of a source.
+- Credential storage: DONE, do not redo. `commands/secrets.rs` wraps the OS
+  credential store (Windows Credential Manager, Linux Secret Service over D-Bus)
+  and the Nexus token lives there, not in settings.json. mod.io and Steam Web API
+  keys should reuse it rather than inventing a second mechanism.
 - Thumbnails: `thumbnails.rs` hardcodes storage.modworkshop.net and keys the disk
   cache by CDN filename (unique only within that CDN). Key by full-URL hash
   instead; every new source's image CDN origin must be added to BOTH `csp` and
@@ -379,8 +370,10 @@ on disk" is source-agnostic and stays untouched.
 - Split acquisition from installation: an acquisition step per source produces
   "an archive/folder on disk" and hands it to the existing install engine.
   Strategies: plain HTTP GET (modworkshop, mod.io), nxm:// deep-link handoff
-  (Nexus free tier - already built on the branch), steamcmd / manage-in-place
-  (Steam Workshop, future), browser handoff (last resort).
+  (Nexus free tier - shipped, see nxm.rs and install_nexus_download), steamcmd /
+  manage-in-place (Steam Workshop, future), browser handoff (last resort). The nxm
+  path is the existence proof that the split is needed: it already bypasses
+  download.rs entirely rather than fitting through it.
 - Steam Workshop note for whenever it lands: content is NOT archives over HTTP.
   Metadata via IPublishedFileService web API (needs a Steam Web API key);
   delivery via the Steam client (subscribe + ISteamUGC) or
@@ -402,26 +395,33 @@ on disk" is source-agnostic and stays untouched.
 
 ## TODO: index-multi-source
 
-Phase 6 of the multi-source expansion. Work spans modrex-index and modrex-main.
+Phase 6 of the multi-source expansion. Work spans apps/index and apps/desktop.
 
 ### Context
 
-index.db already has a `sources` table (schema: games -> sources -> mods ->
-files), but modrex-main's queries (mod_index.rs) filter by game name only and
-return a bare remote id the app assumes is a modworkshop id. Cross-posting is
-common (authors publish the same file to Nexus + mod.io + modworkshop), so one
-SHA256 will match multiple identities.
+The Postgres schema already has a `sources` table (games -> sources -> mods ->
+files), and export-sqlite.ts already carries source columns into each snapshot,
+but apps/desktop's queries (mod_index.rs) filter by game name only and return a
+bare remote id the app assumes is a modworkshop id. Cross-posting is common
+(authors publish the same file to Nexus + mod.io + modworkshop), so one SHA256
+will match multiple identities.
+
+Note this is now the last remaining place where the app assumes modworkshop from
+a bare id. The INSTALLED side was fixed separately: InstalledMod carries an
+explicit `source` plus a string `remoteId`, and its numeric `id` is an opaque
+source-scoped key. The index reader is the holdout.
 
 ### What to do
 
 - mod_index.rs lookups return `(source, remote_id)`; callers stop assuming
   modworkshop. Precedence policy for multi-source SHA256 hits: prefer the source
-  the mod was installed from, else a fixed priority order.
-- modrex-index gains per-source fetchers. Constraint: the "download everything
+  the mod was installed from (InstalledMod.source now makes this answerable),
+  else a fixed priority order.
+- apps/index gains per-source fetchers. Constraint: the "download everything
   and hash SHA256" strategy is modworkshop-shaped. Nexus ToS will not tolerate
   mass-downloading, but Nexus offers an MD5 lookup API - identification there
   wants MD5, which means per-source identification strategies and possibly
-  dual-hashing (SHA256 + MD5) installed files in modrex-main going forward.
+  dual-hashing (SHA256 + MD5) installed files in apps/desktop going forward.
   Steam Workshop hashing would require steamcmd-driven downloads.
 - Keep the hard rule from builder-state: zero-yield mods never become `mods` rows
   (query_by_name uniqueness depends on it), per source.
@@ -441,7 +441,10 @@ own table instead. This is the remaining stage.
 The registries fixed game IDENTITY, so adding a family-conforming game no longer touches
 ~15 wiring files. They did not fix the novel 20%: game-specific BEHAVIOR still lives as
 `game_id == "x"` branches inside big shared files, which grow with every game added.
-zip.rs is already ~1176 lines and every Crime Boss special case lands there.
+
+The trend is measurable and going the wrong way: zip.rs was ~1176 lines when this entry was
+written and is ~1474 as of 2026-08-01, with 21 `game_id ==` branches across the Rust tree.
+Every Crime Boss special case still lands in zip.rs.
 
 ### The fix
 
@@ -522,9 +525,8 @@ tier that demand actually requires.
   the most likely community contribution (a new family-conforming game or a loader),
   executes NO third-party code, minimal security surface. Direct continuation of
   game-registry/loader-registry: once those are data-driven, "shippable as a manifest
-  between releases" is a small step. This also relieves cross-repo game-definition
-  duplication (a game today must be added to modrex-main AND modrex-index's game list AND
-  modrex-site's docsGames.ts - a shared manifest all three consume is the endgame).
+  between releases" is a small step. The cross-repo duplication this used to relieve is
+  already gone: packages/games is that shared manifest, and all three apps consume it.
 - Tier 2 - sandboxed logic hooks (only if real ones are demanded): for behavior a manifest
   cannot express (a novel archive_resolver / enabled_sync / embedded_id_parser). Use WASM
   (wasmtime or extism), NOT webview-JS (UI access = weak isolation) and NOT native dylibs
@@ -534,13 +536,20 @@ tier that demand actually requires.
 - The public plugin-api surface (cf. Refract_MC's packages/plugin-api) should be EXTRACTED
   from a working core when Tier 2 is real, never declared up front.
 
-### If ecosystem-monorepo lands first (2026-07-20)
+### The monorepo landed, so Tier 1 is now cheaper (resolved 2026-08-01)
 
-Tier 1 gets substantially cheaper. That entry's `packages/games` is the SAME manifest this
-tier would load: a neutral game shape, single source of truth, already proven sufficient
-by three consumers (the app, the indexer, the site's docs). If the monorepo happens first,
-design packages/games as data that COULD be read from disk at runtime rather than as a
-compile-time-only import, and Tier 1 becomes mostly a loader plus validation.
+This section used to be conditional on the ecosystem-monorepo entry. That migration was
+delivered 2026-07-23, so the condition is now a fact.
+
+`packages/games` IS the manifest this tier would load: a neutral game shape, single source
+of truth, proven sufficient by three consumers (the app, the indexer, the site's docs).
+What remains for Tier 1 is making that data readable from disk at runtime rather than only
+as a compile-time import, plus validation. That is mostly a loader.
+
+Caveat that survived the migration: packages/games carries game IDENTITY, not game
+BEHAVIOR. A community game that needs a novel archive_resolver still cannot be expressed as
+Tier 1 data until game-registry-behavior-hooks defines those hook fields, so that entry is a
+soft prerequisite for Tier 1 covering anything beyond family-conforming games.
 
 This does not change the trigger. Tier 1 still waits on real ecosystem demand, and Tier 2
 still waits on modrex-core-crate, whose own trigger (a concrete second consumer of the mod
