@@ -126,9 +126,9 @@ Deep per-file architecture and invariants live in path-scoped rule files under
 - Tauri `identifier` is `modrex` (changed from `io.github.shulhaoleh.pd3modmanager` in v0.10.0). `productName` is `Modrex` — Tauri uses this for `userData` path on Windows. The full upgrade chain (Electron → old Tauri identifier → current) is handled by `nsis/installer-hooks.nsi` (removes the old install via its registry uninstall key) and `migrate_from_old_identifier()` / `migrate_from_electron()` in `settings.rs` (migrates app data on first launch).
 - **`install.config.json`** (repo root) is live install infrastructure, not local config: the modrex-site Pages Function behind `modrex.net/install.sh` fetches it from this repo's **`main` branch on every request** and prepends it (flattened to `CFG_*` shell exports) to the pinned mget install engine — a push to `main` that touches it changes the live Linux installer immediately, with no release or site deploy involved. Field meanings are defined by mget's config schema (`mget/README.md`).
 
-### Companion repo: modrex-index
+### Mod-identification index
 
-`https://github.com/modrexio/modrex-index` — builds and hosts `index.db`. A GitHub Actions workflow (manually/externally triggered via `workflow_dispatch`, no built-in schedule) streams SHA256 of every `.pak` on modworkshop, writes `(sha256, modRemoteId, modName, fileRemoteId, version)` rows. Schema: `games → sources → mods → files`.
+The live pipeline is `apps/index` in this monorepo (see its CLAUDE.md): Neon Postgres is the source of truth, exported as per-game SQLite snapshots and published to R2 at `index.modrex.net`, with the catalog manifest at `catalog/latest.json`. The desktop app downloads each configured game's snapshot to `app_data_dir()/indexes/<game_id>.db`, verified by sha256 against the manifest (`mod_index.rs`, detailed in the backend rules). Snapshots keep the schema `games`, `sources`, `mods`, `files`, so identification queries are unchanged. The standalone `modrexio/modrex-index` repo only maintains the frozen `latest-index` release (monolithic `index.db`) for desktop versions through 0.12.2. This monorepo never publishes legacy index assets.
 
 ## Usage analytics (opt-in telemetry)
 

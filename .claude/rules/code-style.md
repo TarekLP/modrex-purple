@@ -43,16 +43,41 @@ Extract helpers only for real duplication, real domain names, or real boundaries
 
 ## Comments
 
-Delete comments that repeat the code. Comments must explain WHY, not WHAT.
+A comment states a constraint the code cannot show. Default shape: one to four
+lines saying the constraint and what breaks without it. Delete comments that
+repeat the code.
 
-Keep structural comments and section headers that explain:
+Write comments as plain prose: full sentences, commas and periods, plain ASCII.
+No backticks around identifiers, no semicolons chaining clauses, no arrows, no
+dashes as separators, no em dashes. Write save_state, not `save_state`. Markup
+reads as noise to contributors viewing raw source.
 
-- file formats, archive structure, algorithm provenance
-- reference implementations (e.g. `pdmod.rs`'s Bob Jenkins hash port, `.pdmod` format header)
+No history. A comment describes the present code, never the change that
+produced it. Words like "previously", "used to", "no longer", "renamed from"
+mark commit-message content sitting in the wrong place.
+
+Every durable fact gets exactly one home:
+
+- enforceable: a check script or test, with a one-line comment naming it
+- needed when editing this exact code: an inline comment at the site. This is
+  the canonical home and the only layer GitHub contributors ever see.
+- module map or cross-file wiring: CLAUDE.md and the rules files, which point
+  to site comments and never restate them
+- rationale for a change: the commit message only
+
+Longer blocks stay reserved for:
+
+- file formats, archive structure, wire protocols
+- algorithm provenance and reference implementations (pdmod.rs's Bob Jenkins
+  hash port, the .pdmod format header)
 - security-sensitive assumptions or path-traversal guards
 - major sections in complex files
 
-Do not "clean up" structural comments just because they are comments.
+Doc comments on pub items: one sentence on what, one more for the non-obvious
+part when there is one. Not every item needs one.
+
+Do not "clean up" the reserved kinds just because they are comments. Reviewing
+existing code against this section is the comment-audit skill's job.
 
 ## Final pass
 

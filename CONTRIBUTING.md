@@ -54,6 +54,28 @@ If you add, rename, or change the signature of a `#[tauri::command]`:
 `pnpm check-commands` enforces all of that: a command registered but never called, called
 but never registered, stale bindings, or an `invoke` outside `api.ts` each fail the check.
 
+## Code style
+
+Formatting and lint are automated: `pnpm format` and `pnpm lint:fix` fix most issues.
+The rules below are the ones tooling cannot check for you.
+
+Code: keep the happy path flat, use guard clauses for invalid cases, validate at
+boundaries, and skip speculative abstractions. The full policy lives in
+`.claude/rules/code-style.md`, a plain markdown file that doubles as the instruction
+set the repo's AI tooling loads, so human and AI contributions are reviewed against
+the same rules.
+
+Comments:
+
+- Explain why, not what. Delete anything that repeats the code.
+- Default shape is one to four lines: the constraint, and what breaks without it.
+- Plain sentences, plain ASCII. No backticks around identifiers, no em dashes, no
+  semicolons or arrows chaining clauses. Write save_state, not `save_state`.
+- No history. A comment describes the present code. Words like "previously" and
+  "no longer" belong in the commit message.
+- Longer blocks are reserved for file formats, algorithm provenance, reference
+  implementations, and security assumptions. Those are load-bearing, leave them intact.
+
 ## Commit style
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): subject`.
