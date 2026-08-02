@@ -27,7 +27,7 @@ pub use self::types::{
 };
 pub use self::zip::{compute_md5, compute_sha256};
 
-// Mod-identification helpers (get_installed pipeline) — see identify.rs
+// Mod-identification helpers for the get_installed pipeline, see identify.rs
 #[cfg(test)]
 pub(crate) use self::identify::embedded_modworkshop_id;
 pub(crate) use self::identify::{
@@ -172,8 +172,8 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
         upgrade_negative_ids(&app, &mut state.mods, cfg.game_id, cfg.index_game_name);
     regroup_negative_ids_by_name_suffix(&mut state.mods);
 
-    // The player can also toggle mods from Crime Boss's own Options > Mods screen — pull that
-    // back in so Modrex's tracked flag doesn't silently disagree with the game.
+    // The player can also toggle mods from Crime Boss's own Options > Mods screen, so pull
+    // that state back in and stop Modrex's tracked flag silently disagreeing with the game.
     let cb_resynced = if cfg.game_id == "cb" {
         let launcher = game_settings(&settings, game_id).and_then(|gs| gs.launcher.clone());
         resync_crimeboss_enabled_flags(
@@ -427,8 +427,8 @@ pub async fn install_mod(
             }
         };
         let uid = file_id.to_string();
-        // The real modworkshop id, kept as a string for remote_id and identity
-        // comparisons — InstalledMod.id itself is an opaque, source-scoped key (see
+        // The real modworkshop id, kept as a string for remote_id and identity comparisons.
+        // InstalledMod.id is an opaque, source-scoped key (see
         // sources::source_native_local_id) and is never compared against this directly.
         let remote_id_str = remote_id.to_string();
         let local_id = sources::source_native_local_id("modworkshop", &remote_id_str);
@@ -546,8 +546,8 @@ pub async fn install_mod(
                 let _ = tokio::fs::remove_file(tmp.with_extension(ext)).await;
             }
         }
-        // Crime Boss's synthesized skeleton is `tmp` itself (one level under the OS temp dir),
-        // not `{uuid_dir}/{dir_name}` like PD2/PDTH — `tmp.parent()` there would be the OS temp
+        // Crime Boss's synthesized skeleton is tmp itself, one level under the OS temp dir,
+        // not {uuid_dir}/{dir_name} as on PD2 and PDTH. tmp.parent() here would be the OS temp
         // dir itself, which must never be passed to remove_dir_all.
         engine::ModUnit::Directory { .. } if cfg.game_id == "cb" => {
             let _ = tokio::fs::remove_dir_all(&tmp).await;
@@ -944,15 +944,14 @@ pub(crate) async fn install_nexus_download(
 /// Recovers a dropped mod's real name, for both display and the on-disk filename. The
 /// dropped archive's own OS filename is often a download manager's naming scheme (Nexus's
 /// website downloads are "{Name} {id} {version} {timestamp} {hash}.zip"), not the mod's
-/// real name — `fallback` (the dropped file's own stem) is only correct when nothing
-/// better is available, which is exactly the case for a bare loose .pak dropped with no
-/// zip wrapper around it.
+/// real name. fallback, the dropped file's own stem, is only correct when nothing better is
+/// available, which is exactly the case for a bare loose .pak dropped with no zip wrapper.
 ///
-/// Directory-unit's `tmp` already carries the real folder name (resolve_archive_download's
-/// two-level temp makes `tmp.file_name()` the mod's own directory name), but File-unit's
-/// `tmp` is a random-uuid path and Crime Boss's is an opaque skeleton root with no readable
-/// name of its own (see extract_entry_into_crimeboss_skeleton) — both need the real name
-/// pulled back out of the original archive's single pak entry instead.
+/// Directory-unit's tmp already carries the real folder name (resolve_archive_download's
+/// two-level temp makes tmp.file_name() the mod's own directory name), but File-unit's tmp is
+/// a random-uuid path and Crime Boss's is an opaque skeleton root with no readable name of its
+/// own (see extract_entry_into_crimeboss_skeleton). Both need the real name pulled back out of
+/// the original archive's single pak entry instead.
 fn recover_dropped_mod_stem(
     unit: &engine::ModUnit,
     is_crimeboss: bool,
@@ -1219,8 +1218,8 @@ pub async fn install_dropped_file(
 /// The single same-mod entry to uninstall before an archive-entry install lands under a new uid:
 /// an older version under a different file id, or this file's previous bare-pak packaging
 /// (uid == "{file_id}"). An archive-scheme sibling of the same file (uid "{file_id}_...") is
-/// another entry of the archive being installed right now — removing it would make a multi-entry
-/// batch install delete each predecessor, leaving only the last selected entry.
+/// another entry of the archive being installed right now, and removing it would make a
+/// multi-entry batch install delete each predecessor, leaving only the last selected entry.
 fn stale_entry_for_zip_install<'a>(
     mods: &'a [InstalledMod],
     uid: &str,
@@ -1285,8 +1284,8 @@ pub async fn install_from_zip_entry(
     let zip = PathBuf::from(&zip_path);
     let install_format = file_type.clone(); // file_type is moved before the success emit below
 
-    // Set only by classify_archive_dirs's ZIP_MULTI_PAK payload (a ue4ss_mods sub-mod folder, or
-    // a candidate mod folder) — see the (ext, tmp_parent) branch below.
+    // Set only by classify_archive_dirs's ZIP_MULTI_PAK payload (a ue4ss_mods sub-mod folder
+    // or a candidate mod folder). See the (ext, tmp_parent) branch below.
     let cb_dir_entry = cfg.game_id == "cb" && entry_kind.as_deref() == Some("dir");
 
     // entry_stem / entry_filename are the last path component of entry_name.
@@ -1303,7 +1302,7 @@ pub async fn install_from_zip_entry(
     // For File mods: ext is a temp .pak file.
     // For Directory mods: ext is {tmp_parent}/{dir_name} (two-level, consistent with resolve_archive_download).
     // Crime Boss pak entries are neither: the chosen .pak entry (plus its .ucas/.utoc siblings) is
-    // wrapped in a synthesized Content/Paks/WindowsNoEditor skeleton — see
+    // wrapped in a synthesized Content/Paks/WindowsNoEditor skeleton, see
     // extract_entry_into_crimeboss_skeleton. Crime Boss directory entries (cb_dir_entry) use the
     // same two-level scheme as every other Directory-unit game.
     let (ext, tmp_parent) = if cfg.game_id == "cb" && !cb_dir_entry {
@@ -1699,7 +1698,7 @@ pub async fn disable_mod(
 
 /// User-initiated Tier 3 identification (see nexus_content.rs): looks up one already-
 /// installed, unidentified mod against Nexus's content index. Never called from
-/// get_installed — the renderer calls this per-mod from an explicit "Identify" action,
+/// get_installed. The renderer calls this per-mod from an explicit "Identify" action,
 /// same shape as the ModWorkshop identification pipeline being automatic (SHA256) while
 /// this one, lacking a hash to key on, cannot safely be.
 #[tauri::command]

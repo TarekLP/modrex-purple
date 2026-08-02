@@ -6,9 +6,9 @@
  * Run:   pnpm build-index
  * Output: index.db
  *
- * Resumable — already-indexed fileIds are skipped on re-run.
+ * Resumable: already-indexed fileIds are skipped on re-run.
  * PD3 / Crime Boss: streams each download directly into SHA256, extracting .pak/.ucas/.utoc
- *      (UE5 IoStore content) and .lua (UE4SS Lua sub-mods) — no temp files needed for ZIP.
+ *      (UE5 IoStore content) and .lua (UE4SS Lua sub-mods). No temp files needed for ZIP.
  * PD2 / PDTH / RAID: uses HTTP Range requests on ZIP archives to fetch only the marker file
  *      (mod.txt / main.xml / supermod.xml / mod.xml / first alphabetical file) without
  *      downloading the full archive.
@@ -44,10 +44,10 @@ const STATE_DB_PATH = join(OUTPUT_DIR, 'builder-state.db')
 const STATS_PATH = join(OUTPUT_DIR, 'index-stats.json')
 // Faster than full_rebuild when adding a new format: only unindexed files are downloaded.
 const BACKFILL = process.argv.includes('--backfill')
-// Patches only the version column on existing rows from the listings — no downloads, no
+// Patches only the version column on existing rows from the listings, with no downloads and no
 // extraction. Lets a stale-version index be corrected in minutes instead of a full backfill.
 const REPAIR_VERSIONS = process.argv.includes('--repair-versions')
-// Ignores recorded per-mod check state — every listed mod is re-examined (the pre-check-state
+// Ignores recorded per-mod check state, so every listed mod is re-examined (the pre-check-state
 // backfill cost). Escape hatch for the cases a check can wrongly suppress: a corrupt download
 // recorded as zero-yield, or a mod change that didn't touch its updated_at.
 const RECHECK_ALL = process.argv.includes('--recheck-all')
@@ -79,7 +79,7 @@ const PD2_MAX_FULL_DOWNLOAD_BYTES = 50 * 1_024 * 1_024
 
 // Runtime is dominated by throttled API calls (~706 ms each, serialized across all
 // workers), so the call count is the number that explains a slow run. Storage
-// requests are unmetered and parallel — tracked to show where download time went.
+// requests are unmetered and parallel, tracked to show where download time went.
 const metrics = {
     apiCalls: 0,
     storageRequests: 0,
@@ -130,10 +130,10 @@ interface Mod {
     version: string
     has_download: boolean
     bumped_at: string
-    // Touched by any edit to the mod (more sensitive than bumped_at — verified live);
+    // Touched by any edit to the mod, and more sensitive than bumped_at (verified live).
     // what a mod_checks row is keyed against to decide "nothing changed, skip".
     updated_at: string
-    // The listing carries the primary download inline — no per-mod /files call needed.
+    // The listing carries the primary download inline, so no per-mod /files call is needed.
     // download_type is 'file' (hosted), 'link' (external), or null (none).
     download_id: number | null
     download_type: string | null
@@ -233,7 +233,7 @@ function openDb(): {
     const db = new Database(DB_PATH)
     db.exec(SCHEMA)
 
-    // CI builds are incremental over the previous release's db — CREATE TABLE IF
+    // CI builds are incremental over the previous release's db, so CREATE TABLE IF
     // NOT EXISTS won't add columns to it, so migrate explicitly.
     const fileColumns = db.prepare('PRAGMA table_info(files)').all() as { name: string }[]
     if (!fileColumns.some((c) => c.name === 'entry_name')) {
@@ -262,7 +262,7 @@ function openDb(): {
     upsertSource.run(pdthGame.id, 'modworkshop', BASE, String(GAMES.pdth.workshopId))
     const pdthSource = getSource.get(pdthGame.id, 'modworkshop') as { id: number }
 
-    // Slug/name match modrex-main's CRIMEBOSS_ENGINE.index_game_name exactly — modrex-main
+    // Slug and name match CRIMEBOSS_ENGINE.index_game_name exactly. The desktop app
     // joins files -> mods -> sources -> games filtered by games.name, so this string is load-
     // bearing, not cosmetic.
     upsertGame.run(GAMES.cb.name, 'cb')
@@ -270,7 +270,7 @@ function openDb(): {
     upsertSource.run(cbGame.id, 'modworkshop', BASE, String(GAMES.cb.workshopId))
     const cbSource = getSource.get(cbGame.id, 'modworkshop') as { id: number }
 
-    // Name matches modrex-main's RAID_ENGINE.index_game_name — load-bearing, see above.
+    // Name matches RAID_ENGINE.index_game_name, which is load-bearing. See above.
     upsertGame.run(GAMES.raid.name, 'raid')
     const raidGame = getGame.get('raid') as { id: number }
     upsertSource.run(raidGame.id, 'modworkshop', BASE, String(GAMES.raid.workshopId))
@@ -326,7 +326,7 @@ function loadModChecks(stateDb: DB, sourceId: number): Map<number, ModCheck> {
 
 // A check only suppresses re-processing while index.db still contains everything it yielded.
 // If index.db was restored from an older copy than the state db (release CDN staleness), the
-// yielded ids won't all be present and the mod is re-processed — index.db stays authoritative.
+// yielded ids will not all be present and the mod is re-processed. index.db stays authoritative.
 function checkIsCurrent(
     check: ModCheck | undefined,
     mod: Mod,
@@ -536,7 +536,7 @@ interface ContentEntry {
 }
 
 // .pak/.ucas/.utoc are UE5 IoStore's three pieces of a mod's cooked content (PD3, Crime
-// Boss); .lua is a UE4SS Lua sub-mod's script entry point — see modrex-main's CLAUDE.md
+// Boss). .lua is a UE4SS Lua sub-mod's script entry point, see the desktop app's CLAUDE.md
 // "UE4SS" section for why this is needed for sub-mod identification, and the known
 // caveat (first_file_in_dir's alphabetical pick doesn't always agree with which .lua this
 // hashes when a sub-mod has other root-level files).
@@ -674,7 +674,7 @@ function findEocd(buf: Buffer): { cdOffset: number; cdSize: number } | null {
         if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x05 && buf[i + 3] === 0x06) {
             const cdSize = buf.readUInt32LE(i + 12)
             const cdOffset = buf.readUInt32LE(i + 16)
-            // 0xFFFFFFFF means ZIP64 — we don't support that
+            // 0xFFFFFFFF means ZIP64, which is not supported here.
             if (cdOffset === 0xffffffff || cdSize === 0xffffffff) return null
             return { cdOffset, cdSize }
         }
@@ -725,7 +725,7 @@ function selectMarkerPath(paths: string[]): string | null {
     })
     if (mainXml) return mainXml
 
-    // RAID BLT markers: supermod.xml (RAID-SuperBLT) or mod.xml (legacy RaidBLT) — the RAID
+    // RAID BLT markers: supermod.xml (RAID-SuperBLT) or mod.xml (legacy RaidBLT). The RAID
     // fork has no mod.txt. Checked after the PD2/PDTH markers so archives shipping both keep
     // their existing pick; the same order is mirrored in modrex-main's
     // hashable_file_for_mod_dir so both sides hash the same representative file.
@@ -741,7 +741,7 @@ function selectMarkerPath(paths: string[]): string | null {
     })
     if (modXml) return modXml
 
-    // single top-level folder means wrapper — sort relative to it to match first_file_in_dir
+    // A single top-level folder means a wrapper, so sort relative to it to match
     const sorted = [...files].sort((a, b) => a.localeCompare(b))
     const roots = [...new Set(files.map((p) => p.split('/')[0]))]
     if (roots.length === 1 && roots[0] !== '') {
@@ -826,7 +826,7 @@ async function extractPd2FromFull(url: string, type: string): Promise<ContentEnt
         }
 
         // readdirSync(recursive) lists directories too, and they carry no trailing
-        // slash — stat each so selectMarkerPath never picks a dir (readFileSync EISDIR).
+        // slash, so stat each one and selectMarkerPath never picks a dir (readFileSync EISDIR).
         const allFiles = (readdirSync(outDir, { recursive: true }) as string[])
             .filter((f) => {
                 try {
@@ -855,7 +855,7 @@ async function extractPd2FromFull(url: string, type: string): Promise<ContentEnt
 const PDMOD_PASSWORD = `0$45'5))66S2ixF51a<6}L2UK`
 const PDMOD_HASHLIST_PATH = join(import.meta.dirname, 'pdmod_hashlist.txt')
 
-// Bob Jenkins lookup8 — port of hash.cpp from HW12Dev/PDModExtractor (MIT).
+// Bob Jenkins lookup8, port of hash.cpp from HW12Dev/PDModExtractor (MIT).
 function mix64(a: bigint, b: bigint, c: bigint): [bigint, bigint, bigint] {
     const M = 0xffffffffffffffffn
     a = ((a - b - c) ^ (c >> 43n)) & M
@@ -966,7 +966,7 @@ async function extractPdmodEntry(url: string): Promise<ContentEntry | null> {
         const manifestPath = join(outDir, 'pdmod.json')
         if (!existsSync(manifestPath)) return null
 
-        // BundlePath/BundleExtension are uint64 — quote them before JSON.parse to avoid
+        // BundlePath and BundleExtension are uint64, so quote them before JSON.parse to avoid
         // float64 truncation (values exceed Number.MAX_SAFE_INTEGER = 2^53 − 1).
         const raw = readFileSync(manifestPath, 'utf-8').replace(
             /("BundlePath"|"BundleExtension"):\s*(\d+)/g,
@@ -983,7 +983,7 @@ async function extractPdmodEntry(url: string): Promise<ContentEntry | null> {
         }
         if (resolved.length === 0) return null
 
-        // Sort alphabetically — matches modrex-main's first_file_in_dir representative-file pick.
+        // Sort alphabetically, matching first_file_in_dir's representative-file pick.
         resolved.sort((a, b) => a.path.localeCompare(b.path))
 
         const first = resolved[0]
@@ -1030,7 +1030,7 @@ async function extractPd2Entries(url: string, size: number | null): Promise<Cont
         return entry ? [entry] : []
     }
 
-    // zip — also the fallback for unknown extensions (findEocd returns null on non-zip)
+    // zip, also the fallback for unknown extensions (findEocd returns null on non-zip)
     const entry = await extractPd2FromZip(url, size)
     return entry ? [entry] : []
 }
@@ -1204,7 +1204,7 @@ async function main(): Promise<void> {
         { value: string } | undefined
     const dbLastRunAt = lastRunRow ? new Date(lastRunRow.value) : null
     // The stats copy is newer whenever the previous run exited 2 (its index.db upload was
-    // skipped, so the DB's metadata is stale) — take whichever timestamp is later.
+    // skipped, so the DB's metadata is stale). Take whichever timestamp is later.
     const statsLastRunAt = readPreviousLastRunAt()
     const lastRunAt =
         dbLastRunAt && statsLastRunAt
@@ -1263,7 +1263,7 @@ async function main(): Promise<void> {
     )
 
     // Version-only repair: rewrite the version column on already-indexed files from the
-    // listing's mod.version, then exit. No downloads — turns a 3-hour backfill into minutes.
+    // listing's mod.version, then exit. No downloads, which turns a 3-hour backfill into minutes.
     if (REPAIR_VERSIONS) {
         const updateVer = db.prepare(
             'UPDATE files SET version = ? WHERE mod_id = ? AND version != ?'
@@ -1326,9 +1326,9 @@ async function main(): Promise<void> {
                 progress[label]++
                 return
             }
-            // Mods whose listing carries no download_id (most of them) used to pay a
-            // throttled /files call every backfill even when fully indexed or known
-            // zero-yield, the recorded check is what makes them cost zero API calls.
+            // Mods whose listing carries no download_id (most of them) would otherwise pay
+            // a throttled /files call every backfill even when fully indexed or known
+            // zero-yield. The recorded check is what makes them cost zero API calls.
             if (
                 !RECHECK_ALL &&
                 checkIsCurrent(checks.get(mod.id), mod, indexedFileIds, missingNameFileIds)
@@ -1419,7 +1419,7 @@ async function main(): Promise<void> {
                     failed = true
                 }
             }
-            // Errors keep the mod retryable on the next run — its check is not advanced.
+            // Errors keep the mod retryable on the next run, since its check is not advanced.
             if (!failed) putCheck(sourceId, mod.id, mod.updated_at, yieldedIds)
 
             progress[label]++
@@ -1473,8 +1473,8 @@ async function main(): Promise<void> {
             progress.pd2++
             return
         }
-        // Zero-yield mods (link-only, >50 MB archives, no marker) used to be re-listed and
-        // re-downloaded every backfill, the recorded check is what memoizes that outcome.
+        // Zero-yield mods (link-only, >50 MB archives, no marker) would otherwise be
+        // re-listed and re-downloaded every backfill. The recorded check memoizes that.
         if (
             !RECHECK_ALL &&
             checkIsCurrent(pd2Checks.get(mod.id), mod, indexedPd2FileIds, missingNamePd2FileIds)

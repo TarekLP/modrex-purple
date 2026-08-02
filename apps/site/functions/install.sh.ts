@@ -1,23 +1,22 @@
 // Serves curl -fsSL https://modrex.net/install.sh | sh: fetches a pinned
 // release of the shared mget engine (github.com/modrexio/mget) plus modrex's
 // own install.config.json, flattens the config into CFG_* shell exports, and
-// concatenates them into one script. See mget's README for the full design —
-// this function only implements the "Worker integration" section documented
-// there.
+// concatenates them into one script. See mget's README for the full design. This
+// function only implements the "Worker integration" section documented there.
 //
 // The engine tag is pinned deliberately, never the main branch: a bad push to
 // mget would otherwise break every project's install simultaneously the
 // moment this function re-fetches it. ENGINE_PIN accepts three forms:
 //   - an exact tag ("v1.1.0"): fully deterministic, no extra API call.
 //   - a bare major ("v1"): auto-resolves to the latest v1.x.x tag on every
-//     request — picks up patches/minors automatically, never a breaking
+//     request, picking up patches and minors automatically but never a breaking
 //     major, the same convention as GitHub Actions' @v4-style tags. Only
 //     safe if mget's SemVer discipline (major = breaking) actually holds.
 //   - "latest": resolves to the single highest-semver tag across all majors.
-//     No safety net at all — not used for modrex itself, but available for a
+//     No safety net at all. Not used for modrex itself, but available for a
 //     project that wants full auto-update over caution.
 // mget is a script fetched directly from a tag, not a binary distribution, so
-// there's no GitHub Release to query — resolution reads tags directly for
+// there is no GitHub Release to query, so resolution reads tags directly for
 // both "latest" and bare-major forms, never the Releases API.
 const ENGINE_PIN = 'v1'
 const CONFIG_URL = 'https://raw.githubusercontent.com/modrexio/modrex/main/install.config.json'
@@ -82,9 +81,8 @@ export interface InstallConfig {
 // Single-quoted shell literal, the only form mget's engine ever needs to
 // parse: embedded single quotes are the one character that has to be escaped
 // (close the quote, emit an escaped quote, reopen). Getting this wrong is
-// exactly how a config value turns into unintended shell code — see mget's
-// README, "Worker integration" — so this is the one thing here that must not
-// be simplified away.
+// exactly how a config value turns into unintended shell code (see mget's README,
+// "Worker integration"), so this is the one thing here that must not be simplified away.
 export function shellQuote(value: unknown): string {
     return `'${String(value ?? '').replaceAll("'", `'"'"'`)}'`
 }

@@ -83,7 +83,7 @@ function buildPages(current: number, last: number): (number | '...')[] {
 }
 
 // api.rs's api_get formats a rate-limit failure as "modworkshop API 429: <path>"
-// after exhausting its own retries — matches "API 429" specifically (not just
+// after exhausting its own retries. Matches "API 429" specifically (not just
 // "429") so a 429 appearing inside a path segment in some other error doesn't
 // false-positive.
 function isRateLimitError(error: string): boolean {
@@ -93,8 +93,8 @@ function isRateLimitError(error: string): boolean {
 const SORT_VALUES: SortOption[] = ['bumped_at', 'downloads', 'likes', 'published_at', 'name']
 
 // Memo boundary for the card grid. The grid is the expensive part of BrowsePage
-// (24 cards × tooltips/toggles/images), so it must only re-render when its data
-// actually changes — not on isActive flips, search keystrokes, or modal/error
+// (24 cards, each with tooltips, toggles and images), so it must only re-render when its data
+// actually changes, not on isActive flips, search keystrokes, or modal and error
 // state. All handler props must stay useCallback-stable in BrowsePage or the
 // boundary is defeated. GridCard keeps the per-card closures inside its own memo
 // so a grid re-render (e.g. download progress) only re-renders the affected card.
@@ -166,7 +166,7 @@ const ModGrid = memo(function ModGrid({
         )
     }
     if (!result) {
-        // Cold start with nothing cached and the fetch failed — without this,
+        // Cold start with nothing cached and the fetch failed. Without this,
         // loadingMods=false + result=null fell through to the skeleton branch
         // above and rendered placeholder cards forever.
         return (
@@ -281,7 +281,7 @@ export function BrowsePage({
     }, [])
 
     // UpdatesModal installs emit download:progress events that populate downloadMap here,
-    // but never call removeInstalling — purge stale entries on each installed refresh.
+    // but never call removeInstalling, so stale entries are purged on each refresh.
     useEffect(() => {
         setDownloadMap((prev) => {
             if (prev.size === 0) return prev
@@ -356,7 +356,7 @@ export function BrowsePage({
                 markForegroundActivity()
             }
         },
-        [workshopId, activeGame] // both stable per mount — BrowsePage remounts on game change via key={activeGame}
+        [workshopId, activeGame] // both stable per mount, BrowsePage remounts via key={activeGame}
     )
 
     useEffect(() => {
@@ -369,7 +369,7 @@ export function BrowsePage({
             setCategoriesCache(workshopId, r.data)
             setCategories(r.data)
         })
-    }, [workshopId]) // stable per mount — BrowsePage remounts on game change via key={activeGame}
+    }, [workshopId]) // stable per mount, BrowsePage remounts via key={activeGame}
 
     useEffect(() => {
         const cached = getTagsCache(workshopId)
@@ -383,10 +383,10 @@ export function BrowsePage({
                 setTags(r.data)
             })
             .catch(() => {})
-    }, [workshopId]) // stable per mount — BrowsePage remounts on game change via key={activeGame}
+    }, [workshopId]) // stable per mount, BrowsePage remounts via key={activeGame}
 
     // Fetches only while the page is visible. Re-runs on activation (isActive
-    // false → true) so stale cache entries get a background refresh — fresh ones
+    // false to true) so stale cache entries get a background refresh, while fresh ones
     // early-return inside fetchMods. Scroll resets only on a filter change, not
     // on activation, so the position survives tab switches.
     //
@@ -518,7 +518,7 @@ export function BrowsePage({
                     api.openExternal(fullMod.download.url)
                     return
                 }
-                // Dep check runs here — before FileSelectModal — because multi-file mods
+                // Dep check runs here, before FileSelectModal, because multi-file mods
                 // go through FileSelectModal which has no dep check of its own.
                 const depResult = await resolveDepCheck(
                     modId,
@@ -643,7 +643,7 @@ export function BrowsePage({
         const map = new Map<number, InstalledMod[]>()
         for (const m of installed) {
             // Keyed by real modworkshop id (what ModCard/handlers look this up by), not
-            // InstalledMod.id — an opaque local key that never means "modworkshop id".
+            // InstalledMod.id, an opaque local key that never means "modworkshop id".
             // Source-gated too: a Nexus mod's remoteId is a real Nexus id, which can
             // coincidentally equal some unrelated modworkshop mod's id.
             if (m.source && m.source !== 'modworkshop') continue

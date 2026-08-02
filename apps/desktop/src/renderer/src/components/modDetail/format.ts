@@ -20,7 +20,7 @@ export function formatCount(n: number): string {
 }
 
 // 'short' style, not 'narrow': narrow has no dedicated Russian relative-time pattern in
-// ICU and falls back to a bare signed number ("-4 ч") with no "ago"/"назад" at all.
+// ICU and falls back to a bare signed number and unit, with no "ago" wording at all.
 const relativeTimeFormatters = new Map<string, Intl.RelativeTimeFormat>()
 
 function relativeTimeFormatter(): Intl.RelativeTimeFormat {

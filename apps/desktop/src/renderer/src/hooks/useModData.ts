@@ -36,7 +36,7 @@ export function useModData(
             return
         }
 
-        // Bail early when the set of mod ids hasn't changed — avoids redundant
+        // Bail early when the set of mod ids has not changed, which avoids redundant
         // sync pre-populate on every focus refresh that produces a new array reference.
         const nextKey = installed
             .map((m) => m.id)
@@ -52,7 +52,7 @@ export function useModData(
             const remoteId = Number(m.remoteId)
             if (!Number.isFinite(remoteId) || remoteId <= 0) continue
             // getInstalledMetaEntry/fetchInstalledModsMeta are keyed by the real
-            // modworkshop id (they call modworkshop's own ids[] API) — m.id is an opaque
+            // modworkshop id (they call modworkshop's own ids[] API), whereas m.id is opaque
             // local key (see sources::source_native_local_id) and never sent anywhere.
             const entry = getInstalledMetaEntry(remoteId)
             if (!entry) continue
@@ -76,7 +76,7 @@ export function useModData(
             }
         }
         for (const [, mod] of fromCache) {
-            // Pre-warm the full-size variant — that's what ModCard renders.
+            // Pre-warm the full-size variant, which is what ModCard renders.
             if (mod.thumbnail?.file) getLocalImage(mod.thumbnail.file, true).catch(() => {})
         }
         if (fromCache.length > 0) {
@@ -115,7 +115,7 @@ export function useModData(
                         const mod = mods.get(remoteId)
                         if (!mod) continue
                         updated.push([insId, mod])
-                        // Pre-warm the full-size variant — that's what ModCard renders.
+                        // Pre-warm the full-size variant, which is what ModCard renders.
                         if (mod.thumbnail?.file) {
                             getLocalImage(mod.thumbnail.file, true).catch(() => {})
                         }

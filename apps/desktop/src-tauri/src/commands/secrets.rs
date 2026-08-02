@@ -1,5 +1,5 @@
 // OS credential store access: Windows Credential Manager (windows-native-keyring-store)
-// and the Linux Secret Service over D-Bus (zbus-secret-service-keyring-store) — the two
+// and the Linux Secret Service over D-Bus (zbus-secret-service-keyring-store), the two
 // backends keyring's default features already select, matched to the two platforms this
 // app ships. Every entry lives under one service namespace so callers only pick a key
 // name; nothing here is Nexus-specific, so a future OAuth source reuses it as-is.
@@ -18,8 +18,8 @@ pub enum SecretStoreStatus {
 
 static STORE_STATUS: OnceLock<SecretStoreStatus> = OnceLock::new();
 
-// Entry::new can succeed even when the Linux Secret Service has no running provider —
-// zbus only fails on the first real D-Bus call — so availability is only known by
+// Entry::new can succeed even when the Linux Secret Service has no running provider,
+// since zbus only fails on the first real D-Bus call. Availability is only known by
 // round-tripping a throwaway entry, not by constructing one.
 fn probe_store() -> SecretStoreStatus {
     let entry = match Entry::new(SERVICE, PROBE_KEY) {
@@ -33,8 +33,8 @@ fn probe_store() -> SecretStoreStatus {
         log::warn!("secrets: credential store unavailable: {e}");
         return SecretStoreStatus::Unavailable;
     }
-    // Cleanup failure doesn't change the availability verdict — the store already
-    // proved writable — but leaves a harmless stray probe entry, worth a log line.
+    // Cleanup failure does not change the availability verdict, since the store already
+    // proved writable, but it leaves a harmless stray probe entry worth a log line.
     if let Err(e) = entry.delete_credential() {
         log::warn!("secrets: probe cleanup failed (non-fatal): {e}");
     }

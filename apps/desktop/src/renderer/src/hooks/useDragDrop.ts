@@ -87,7 +87,7 @@ export function useDragDrop({
         setDropTargetState(v)
     }
 
-    // ── Drag image (follows the pointer; replaces dataTransfer.setDragImage) ─────
+    // ── Drag image (follows the pointer, replacing dataTransfer.setDragImage) ────
     function buildModDragImage(mod: ModSummary): HTMLElement {
         const el = document.createElement('div')
         el.style.cssText =
@@ -168,7 +168,7 @@ export function useDragDrop({
         dragScrollFrame.current = requestAnimationFrame(loop)
     }
 
-    // ── Drop-target computation (pure; ported from the old dragOver handlers) ────
+    // ── Drop-target computation (pure) ─────────────────────────────────
     function computeModDragOver(clientY: number, rect: DOMRect, uid: string): DropTarget {
         const item = dragItemRef.current
         if (!item || item.kind === 'folder') return null
@@ -297,7 +297,7 @@ export function useDragDrop({
         setDrop(null)
     }
 
-    // ── Drop application (ported from the old drop handlers) ─────────────────────
+    // ── Drop application ───────────────────────────────────────────
     async function applyModReorder(srcRepUid: string, targetRepUid: string, isBefore: boolean) {
         if (!gamePath || targetRepUid === srcRepUid) return
         const srcMod = installed.find((m) => m.uid === srcRepUid)
@@ -500,7 +500,7 @@ export function useDragDrop({
             resetDrag()
             return
         }
-        // A real drag just ended — swallow the click the browser fires next (only when
+        // A real drag just ended, so swallow the click the browser fires next (only when
         // pointer up/down share an element, e.g. a drop back onto the origin) so it
         // doesn't open the mod detail page. Remove on the next tick so that, when no
         // click fires, the guard doesn't eat the user's following real click.

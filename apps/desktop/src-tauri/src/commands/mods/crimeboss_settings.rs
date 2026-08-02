@@ -2,19 +2,18 @@ use super::naming::strip_priority_prefix;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Suffix every Crime Boss ModKit-cooked `.pak` carries (`<PackageName>CrimeBoss-WindowsNoEditor.pak`).
-/// The part before it is the mod's internal UGC package name, which — lowercased — is also the
-/// filename the game uses for its `Saved/ModSettings/<id>.json` record. Reverse-engineered by
-/// comparing installed mods' pak filenames against their actual ModSettings filenames; see the
-/// Crime Boss section of CLAUDE.md for the full writeup.
+/// Suffix every Crime Boss ModKit-cooked pak carries, as in
+/// <PackageName>CrimeBoss-WindowsNoEditor.pak. The part before it is the mod's internal UGC
+/// package name, which lowercased is also the filename the game uses for its
+/// Saved/ModSettings/<id>.json record. Reverse-engineered by comparing installed mods' pak
+/// filenames against their actual ModSettings filenames.
 const PAK_SUFFIX: &str = "CrimeBoss-WindowsNoEditor";
 
-/// Derives the ModSettings JSON id from a Crime Boss mod's `.pak` filename. Returns `None` for
-/// paks that don't follow the ModKit's standard cook-output naming (e.g. mods authored outside
-/// the official ModKit, like loose pre-ModKit-era paks) — such mods have no UGC object and thus
-/// no in-game `Enabled` toggle to sync. Strips the legacy `~mods` target's load-order prefix
-/// (`NNN_`) first — the in-game id is derived from the ModKit's own package name and has no
-/// awareness of Modrex's filename ordering scheme.
+/// Derives the ModSettings JSON id from a Crime Boss mod's pak filename. None means the pak
+/// does not follow the ModKit's standard cook-output naming (mods authored outside the
+/// official ModKit, such as loose paks), which have no UGC object and so no in-game Enabled
+/// toggle to sync. The legacy ~mods load-order prefix (NNN_) is stripped first, since the
+/// in-game id comes from the ModKit's package name and knows nothing of Modrex's ordering.
 pub(crate) fn settings_id_from_pak_filename(pak_filename: &str) -> Option<String> {
     let pak_filename = strip_priority_prefix(pak_filename);
     let stem = pak_filename.strip_suffix(".pak")?;
@@ -25,9 +24,9 @@ pub(crate) fn settings_id_from_pak_filename(pak_filename: &str) -> Option<String
     Some(id.to_ascii_lowercase())
 }
 
-/// Finds the single `.pak` directly inside `dir` (a mod's `Content/Paks/WindowsNoEditor` folder).
-/// Crime Boss Directory-unit installs always have exactly one (see engine.rs's CRIMEBOSS_ENGINE
-/// comment), but this tolerates zero without panicking.
+/// Finds the single pak directly inside dir, a mod's Content/Paks/WindowsNoEditor folder.
+/// Crime Boss Directory-unit installs always have exactly one (see engine.rs's
+/// CRIMEBOSS_ENGINE comment), but this tolerates zero without panicking.
 pub(crate) fn find_pak_in_dir(dir: &Path) -> Option<PathBuf> {
     fs::read_dir(dir).ok()?.flatten().find_map(|entry| {
         let path = entry.path();
@@ -36,8 +35,8 @@ pub(crate) fn find_pak_in_dir(dir: &Path) -> Option<PathBuf> {
 }
 
 /// Maps a Modrex launcher id to the platform subfolder the game uses under
-/// `Saved Games/CrimeBoss/<platform>/Saved/`. Only Steam is verified against a real install;
-/// anything else returns `None` so callers no-op rather than guess at an unverified path.
+/// Saved Games/CrimeBoss/<platform>/Saved/. Only Steam is verified against a real install,
+/// and anything else returns None so callers no-op rather than guess at an unverified path.
 fn platform_folder(launcher: &str) -> Option<&'static str> {
     match launcher {
         "steam" => Some("Steam"),
@@ -45,11 +44,10 @@ fn platform_folder(launcher: &str) -> Option<&'static str> {
     }
 }
 
-/// `%USERPROFILE%\Saved Games\CrimeBoss\<platform>\Saved\ModSettings` — outside the game install
-/// dir entirely (the game redirects its UE `Saved/` folder there). Resolved via the `USERPROFILE`
-/// env var rather than the Windows known-folder API, matching this codebase's existing pattern
-/// for other OS-specific paths (e.g. `epic.rs`'s `PROGRAMDATA` lookup) rather than adding a new
-/// dependency for the rare case of a user who's redirected "Saved Games" elsewhere.
+/// %USERPROFILE%\Saved Games\CrimeBoss\<platform>\Saved\ModSettings, outside the game install
+/// dir entirely because the game redirects its UE Saved/ folder there. Resolved via the
+/// USERPROFILE env var rather than the Windows known-folder API, matching how epic.rs reads
+/// PROGRAMDATA, rather than adding a dependency for users who relocated "Saved Games".
 fn mod_settings_dir(launcher: &str) -> Option<PathBuf> {
     let platform = platform_folder(launcher)?;
     let profile = std::env::var("USERPROFILE").ok()?;
@@ -63,9 +61,9 @@ fn mod_settings_dir(launcher: &str) -> Option<PathBuf> {
     )
 }
 
-/// Locates the `.pak` belonging to a mod installed at `mod_path` — for a Directory-unit install
-/// (`Mods/<name>/`) it's nested under `Content/Paks/WindowsNoEditor/`; for the legacy File-unit
-/// install (`~mods/<name>.pak`) `mod_path` already *is* the pak.
+/// Locates the pak belonging to a mod installed at mod_path. For a Directory-unit install
+/// (Mods/<name>/) it is nested under Content/Paks/WindowsNoEditor/. For the legacy File-unit
+/// install (~mods/<name>.pak) mod_path already is the pak.
 fn pak_path_for_mod(mod_path: &Path, is_directory_unit: bool) -> Option<PathBuf> {
     if is_directory_unit {
         find_pak_in_dir(
@@ -79,11 +77,11 @@ fn pak_path_for_mod(mod_path: &Path, is_directory_unit: bool) -> Option<PathBuf>
     }
 }
 
-/// Sets the `enabled` entry's value in an existing ModSettings JSON file, preserving every other
+/// Sets the enabled entry's value in an existing ModSettings JSON file, leaving every other
 /// entry in the array untouched (mods with custom settings have more entries the game owns and
-/// populates itself). No-ops if the file doesn't exist yet — the game creates it lazily on first
-/// launch with the mod present; synthesizing a guessed schema risks the game never filling in
-/// entries it would otherwise have added on that first real scan.
+/// populates itself). No-ops when the file does not exist yet: the game creates it lazily on
+/// the first launch with the mod present, and synthesizing a guessed schema risks the game
+/// never filling in entries it would have added on that first real scan.
 pub(crate) fn set_enabled_in_file(path: &Path, enabled: bool) -> Result<(), String> {
     if !path.exists() {
         return Ok(());
@@ -103,9 +101,9 @@ pub(crate) fn set_enabled_in_file(path: &Path, enabled: bool) -> Result<(), Stri
     fs::write(path, serialized).map_err(|e| e.to_string())
 }
 
-/// Resolves the `Saved/ModSettings/<id>.json` path for the mod installed at `mod_path`, or
-/// `None` if any step is unresolvable (unverified launcher platform, pak not found, filename
-/// doesn't follow the ModKit's standard naming).
+/// Resolves the Saved/ModSettings/<id>.json path for the mod installed at mod_path. None if
+/// any step is unresolvable: unverified launcher platform, pak not found, or a filename that
+/// does not follow the ModKit's standard naming.
 fn settings_path_for_mod(
     mod_path: &Path,
     is_directory_unit: bool,
@@ -118,14 +116,13 @@ fn settings_path_for_mod(
     Some(dir.join(format!("{id}.json")))
 }
 
-/// Syncs the in-game `Enabled` mod setting to match a Modrex enable/disable action. The game's
-/// own UGC mod-loader reads and writes this file directly via its in-game Options > Mods screen
-/// — moving mod files around inside `Mods/`/`~mods` has no effect on it (confirmed against a
-/// real install: a mod moved to a `disabled` subfolder kept its settings file at
-/// `"enabled": "true"` and was unaffected), so this is the only thing that actually changes
-/// whether the game treats a Crime Boss mod as active. Silently no-ops on any unresolvable step
-/// (unverified launcher platform, pak not found, settings file not created yet) rather than
-/// guessing — `enable_mod_op`/`disable_mod_op`'s file move is what users observe in Modrex either way.
+/// Syncs the in-game Enabled mod setting to match a Modrex enable or disable action. The
+/// game's own UGC mod-loader reads and writes this file directly through its Options > Mods
+/// screen, and moving mod files inside Mods/ or ~mods has no effect on it. Confirmed against a
+/// real install: a mod moved into a disabled subfolder kept its settings file reading
+/// "enabled": "true". So this is the only thing that changes whether the game treats a Crime
+/// Boss mod as active. Silently no-ops on any unresolvable step rather than guessing, since
+/// the file move in enable_mod_op and disable_mod_op is what users observe either way.
 pub fn sync_enabled(
     mod_path: &Path,
     is_directory_unit: bool,
@@ -139,9 +136,9 @@ pub fn sync_enabled(
     let _ = set_enabled_in_file(&path, enabled);
 }
 
-/// Reads the `enabled` entry's value out of an existing ModSettings JSON file. `None` covers
-/// both "file doesn't exist" and "malformed/missing entry" — callers must treat either as
-/// "unknown, leave Modrex's own tracked value alone", not "disabled".
+/// Reads the enabled entry's value out of an existing ModSettings JSON file. None covers both
+/// a missing file and a malformed or missing entry, and callers must treat either as unknown,
+/// leaving Modrex's own tracked value alone rather than reading it as disabled.
 pub(crate) fn read_enabled_from_file(path: &Path) -> Option<bool> {
     let content = fs::read_to_string(path).ok()?;
     let entries: Vec<serde_json::Value> = serde_json::from_str(&content).ok()?;
@@ -153,12 +150,10 @@ pub(crate) fn read_enabled_from_file(path: &Path) -> Option<bool> {
         .and_then(|v| v.parse::<bool>().ok())
 }
 
-/// Reads the real `Enabled` value back from the mod's settings file — the player can toggle
-/// mods from the game's own Options > Mods screen too, and Modrex's tracked `enabled` flag
-/// (driven by which folder the mod's files happen to sit in) has no way to learn about that on
-/// its own. Returns `None` if anything is unresolvable (unverified launcher platform, pak not
-/// found, settings file not created yet) — see `read_enabled_from_file` for why that's the
-/// right default.
+/// Reads the real Enabled value back from the mod's settings file. The player can toggle mods
+/// from the game's own Options > Mods screen, and Modrex's tracked enabled flag, driven by
+/// which folder the files sit in, has no way to learn about that. None if anything is
+/// unresolvable, for the reason given on read_enabled_from_file.
 pub fn read_enabled(
     mod_path: &Path,
     is_directory_unit: bool,

@@ -17,11 +17,11 @@ export interface ZipMultiPakPayload {
     fileType: string
     modVersion: string
     targetTag?: string
-    // Per-entry destination tag, parallel to `entries`. Sent by the backend only for archives
+    // Per-entry destination tag, parallel to entries. Sent by the backend only for archives
     // that span more than one scan target (e.g. a modpack with both mods/ and mod_overrides/
-    // content). `null` = primary target. Absent for single-target archives.
+    // content). null = primary target. Absent for single-target archives.
     entryTags?: (string | null)[]
-    // Set to 'dir' when `entries` are directory paths rather than .pak files — only emitted by
+    // Set to 'dir' when entries are directory paths rather than .pak files, emitted only by
     // classify_archive_dirs's fallback (e.g. Crime Boss ue4ss_mods sub-mods or candidate mod
     // folders). Forwarded to install_from_zip_entry so Crime Boss doesn't wrap a directory entry
     // in its pak-only skeleton extractor.
@@ -87,7 +87,7 @@ function targetLabel(tag: string | null): string {
 }
 
 // Entries already installed from this archive (uid is {fileId}_{stem}; the prefix-stripped
-// filename match covers entries whose uid was reassigned by SHA256 reconciliation — installed
+// filename match covers entries whose uid was reassigned by SHA256 reconciliation, where
 // filenames carry the NNN_ disk prefix).
 function computeInstalledEntries(
     payload: ZipMultiPakPayload,
@@ -110,14 +110,14 @@ function computeInstalledEntries(
 
 // Matches this archive's entries against an existing install's filenames (the new file's id
 // never matches the old install) so an update can silently re-apply the prior selection.
-// Returns null when there's no prior install or nothing matched — caller should show the
+// Returns null when there is no prior install or nothing matched, and the caller shows the
 // picker in that case.
 export function computeAutoUpdateSelection(
     payload: ZipMultiPakPayload,
     installedFiles: InstalledMod[]
 ): string[] | null {
     const installedEntries = computeInstalledEntries(payload, installedFiles)
-    // Archive picker prompts never reach the Nexus install flow (it can't forward them —
+    // Archive picker prompts never reach the Nexus install flow (it cannot forward them,
     // see install_nexus_download), so payload.modId is always a real modworkshop id;
     // InstalledMod.id is an opaque local key, so match against remoteId instead.
     const modIdStr = String(payload.modId)
@@ -281,7 +281,7 @@ export function ZipPickerModal({
 
     // Crime Boss pak entries are always re-wrapped in a fresh Content/Paks/WindowsNoEditor
     // skeleton by extract_entry_into_crimeboss_skeleton regardless of their path inside the zip
-    // (see install_from_zip_entry) — so any wrapper folder the zip ships (typically the official
+    // (see install_from_zip_entry), so any wrapper folder the zip ships (typically the
     // ModKit's own <name>/Content/Paks/WindowsNoEditor/ packaging shape) is never real structure
     // worth recreating as app folders. Treating it as structured double-wraps the skeleton.
     const isCrimeBossPakArchive = gameId === 'cb' && payload.entryKind !== 'dir'

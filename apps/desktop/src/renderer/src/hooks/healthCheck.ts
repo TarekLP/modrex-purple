@@ -24,7 +24,7 @@ export interface HealthItem {
  * offsite name heuristic instead of a dependency id. It applies to PD2 only: the check
  * looks for WSOCK32/IPHLPAPI/libsuperblt_loader.so, which a PDTH install never has (its
  * loaders are PDTHModOverrides' DINPUT8.dll and DAHM's lightfx.dll), so running it there
- * returned a definitive false for every user and flagged every blt-named offsite dep as
+ * would return a definitive false for every user and flag every blt-named offsite dep as
  * missing. Left null for other games, which leaves those deps unreported.
  */
 async function checkLoaders(
@@ -43,7 +43,8 @@ async function checkLoaders(
 }
 
 // Same per-mod dependency check ModDetailPage runs at install time, run retroactively
-// across the whole pack. Each id costs a getCachedMod fetch — call explicitly, never ambiently.
+// across the whole pack. Each id costs a getCachedMod fetch, so call it explicitly,
+// never ambiently.
 export async function checkMissingDependencies(
     installed: InstalledMod[],
     positiveIds: number[],

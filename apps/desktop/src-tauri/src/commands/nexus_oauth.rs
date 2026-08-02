@@ -20,7 +20,7 @@ use crate::commands::settings::{read_settings, update_settings, NexusOAuthTokens
 
 const OAUTH_BASE: &str = "https://users.nexusmods.com/oauth";
 
-// Credential-store keys for the two tokens; see commands::secrets.
+// Credential-store keys for the two tokens. See commands::secrets.
 const ACCESS_TOKEN_KEY: &str = "nexus_access_token";
 const REFRESH_TOKEN_KEY: &str = "nexus_refresh_token";
 
@@ -29,8 +29,8 @@ pub(crate) const CLIENT_ID: &str = "modrex";
 pub(crate) const REDIRECT_URI: &str = "modrex://oauth/callback";
 
 // The three scopes Nexus's registration offers (confirmed by support):
-// public covers API access, openid the sign-in itself, profile the user's
-// display name/avatar for the settings page.
+// public covers API access, openid the sign-in itself, and profile the user's
+// display name and avatar for the settings page.
 const SCOPE: &str = "public openid profile";
 
 pub(crate) struct Pkce {
@@ -127,7 +127,7 @@ struct PendingLogin {
     state: String,
 }
 
-// One login attempt at a time; a new "sign in" click replaces any stale
+// One login attempt at a time. A new "sign in" click replaces any stale
 // attempt whose browser tab the user abandoned.
 static PENDING_LOGIN: Mutex<Option<PendingLogin>> = Mutex::new(None);
 
@@ -224,9 +224,9 @@ struct LoadedTokens {
     expires_at: i64,
 }
 
-// settings.json's nexus_oauth record is the sign-in marker either way; the two token
-// values themselves live either inline (credential store was unavailable at write
-// time) or in the OS credential store (the normal path) — see store_tokens.
+// settings.json's nexus_oauth record is the sign-in marker either way. The two token
+// values live either inline (the credential store was unavailable at write time) or in
+// the OS credential store on the normal path. See store_tokens.
 async fn load_tokens(app: &AppHandle) -> Result<Option<LoadedTokens>, String> {
     let Some(saved) = read_settings(app).nexus_oauth else {
         return Ok(None);
@@ -275,9 +275,9 @@ pub(crate) async fn access_token(app: &AppHandle) -> Result<String, String> {
     let fresh = refresh_tokens(app, &tokens.refresh_token)
         .await
         .map_err(|e| format!("nexus oauth: token refresh failed ({e}), sign in again"))?;
-    // The fresh token is still returned below even if persisting it fails: it's valid
-    // for this call regardless, and the only consequence of a failed persist is the
-    // user needing to sign in again next launch, not a broken current request.
+    // The fresh token is still returned below even if persisting it fails: it is valid
+    // for this call regardless, and the only consequence of a failed persist is the user
+    // signing in again next launch, not a broken current request.
     if let Err(e) = store_tokens(app, &fresh).await {
         log::warn!("nexus oauth: token refreshed but failed to persist ({e})");
     }

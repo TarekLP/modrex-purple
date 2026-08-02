@@ -53,8 +53,8 @@ fn pd3_epic_detects_proxy_dll() {
 #[test]
 fn pd3_detects_the_older_dxgi_proxy_variant() {
     // The older "PD3 UE4SS / Allow Pak Mods" release (modworkshop id 44048) uses dxgi.dll
-    // instead of xinput1_3.dll — a different, independently-maintained mod page that real
-    // mods (e.g. DebugMenuMod) actually depend on. Both must be recognized as installed.
+    // instead of xinput1_3.dll. It is a separate, independently maintained mod page that
+    // real mods such as DebugMenuMod depend on, so both must be recognized as installed.
     let tmp = TempDir::new().unwrap();
     let dir = tmp.path().join("PAYDAY3").join("Binaries").join("Win64");
     fs::create_dir_all(&dir).unwrap();

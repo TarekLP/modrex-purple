@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 // A game is registered twice by necessity: GAME_REGISTRY in Rust (engine config +
 // storefront def) and @modrex/games (shared UI/index metadata). Neither side can see the
 // other, so adding a game to one and forgetting the other compiles fine and fails at
-// runtime — the renderer sends a game id the backend rejects as unknown, or the picker
+// runtime: the renderer sends a game id the backend rejects as unknown, or the picker
 // silently omits a supported game. This check diffs the two id lists.
 
 const rust = readFileSync('src-tauri/src/commands/games.rs', 'utf8')

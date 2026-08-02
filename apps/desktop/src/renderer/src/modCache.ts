@@ -20,9 +20,8 @@ const CACHE_STORAGE_KEYS = [
 // Freshness window for bulk installed-mod metadata (see fetchInstalledModsMeta).
 // Exported so useModData's own staleness check stays in lockstep with what
 // this cache actually serves. Longer than the 5-min mod/files/links TTL above
-// on purpose: name/version/thumbnail rarely change minute-to-minute, and a
-// short window was re-triggering a full batch refresh on every game switch
-// once it lapsed.
+// on purpose: name, version and thumbnail rarely change minute to minute, and a short
+// window re-triggers a full batch refresh on every game switch once it lapses.
 export const INSTALLED_META_TTL_MS = 30 * 60 * 1000
 
 interface ModCacheEntry {
@@ -41,7 +40,7 @@ interface LinksCacheEntry {
 }
 
 // Deliberately separate from ModCacheEntry: entries here come from the
-// `ids[]` listing filter, which lacks images/dependencies/changelog/full
+// ids[] listing filter, which lacks images/dependencies/changelog/full
 // banner. ModDetailPage seeds from getModCacheEntry and treats a hit as
 // complete, so a thin entry must never be visible through that lookup.
 interface InstalledMetaCacheEntry {
@@ -67,7 +66,7 @@ function loadFromStorage(): void {
             }
         }
     } catch {
-        // Corrupted storage or unavailable — start fresh
+        // Corrupted storage or unavailable, so start fresh.
     }
     try {
         const raw = localStorage.getItem(FILES_STORAGE_KEY)
@@ -80,7 +79,7 @@ function loadFromStorage(): void {
             }
         }
     } catch {
-        // Corrupted storage or unavailable — start fresh
+        // Corrupted storage or unavailable, so start fresh.
     }
     try {
         const raw = localStorage.getItem(LINKS_STORAGE_KEY)
@@ -93,7 +92,7 @@ function loadFromStorage(): void {
             }
         }
     } catch {
-        // Corrupted storage or unavailable — start fresh
+        // Corrupted storage or unavailable, so start fresh.
     }
     try {
         const raw = localStorage.getItem(INSTALLED_META_STORAGE_KEY)
@@ -106,7 +105,7 @@ function loadFromStorage(): void {
             }
         }
     } catch {
-        // Corrupted storage or unavailable — start fresh
+        // Corrupted storage or unavailable, so start fresh.
     }
 }
 
@@ -120,28 +119,28 @@ function scheduleStorage(): void {
             for (const [id, entry] of modCache) mods[String(id)] = entry
             localStorage.setItem(MOD_STORAGE_KEY, JSON.stringify(mods))
         } catch {
-            // Quota exceeded or unavailable — ignore
+            // Quota exceeded or unavailable, so ignore.
         }
         try {
             const files: Record<string, FilesCacheEntry> = {}
             for (const [id, entry] of filesCache) files[String(id)] = entry
             localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(files))
         } catch {
-            // Quota exceeded or unavailable — ignore
+            // Quota exceeded or unavailable, so ignore.
         }
         try {
             const links: Record<string, LinksCacheEntry> = {}
             for (const [id, entry] of linksCache) links[String(id)] = entry
             localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(links))
         } catch {
-            // Quota exceeded or unavailable — ignore
+            // Quota exceeded or unavailable, so ignore.
         }
         try {
             const installedMeta: Record<string, InstalledMetaCacheEntry> = {}
             for (const [id, entry] of installedMetaCache) installedMeta[String(id)] = entry
             localStorage.setItem(INSTALLED_META_STORAGE_KEY, JSON.stringify(installedMeta))
         } catch {
-            // Quota exceeded or unavailable — ignore
+            // Quota exceeded or unavailable, so ignore.
         }
     }, 2000)
 }
@@ -220,8 +219,8 @@ export async function getCachedModLinks(id: number): Promise<ModLink[]> {
     return data
 }
 
-// Bulk-refreshes installed-mod metadata via the `ids[]` listing filter instead
-// of one `get_mod` call per id — turns an N-request refresh into one request
+// Bulk-refreshes installed-mod metadata via the ids[] listing filter instead
+// of one get_mod call per id, which turns an N-request refresh into one request
 // per ~50 ids. Unconditionally fetches and caches every id passed in (callers
 // decide what's stale); ids missing from the response (deleted mods) are
 // reported in failedIds. Writes only to installedMetaCache, never modCache.

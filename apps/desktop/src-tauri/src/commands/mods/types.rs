@@ -25,11 +25,11 @@ fn default_source() -> String {
 
 /// Whether a mod's installed version can be compared against the remote one.
 ///
-/// This used to live in the version STRING, with "unknown" and "outdated" standing in for
-/// a real value. That worked only because neither is a plausible modworkshop version, and
-/// it forced every reader to know both sentinels. Per-source version semantics do not fit
-/// one overloaded string either: Nexus search returns no version at all, and Steam
-/// Workshop has update timestamps rather than versions.
+/// Kept out of the version string deliberately. Sentinel values like "unknown" and
+/// "outdated" only work while no source publishes them as a real version, and they force
+/// every reader to know the full sentinel set. Per-source semantics do not fit one
+/// overloaded string either: Nexus search returns no version at all, and Steam Workshop
+/// has update timestamps rather than versions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum UpdateStatus {
@@ -63,9 +63,9 @@ pub struct InstalledMod {
     pub installed_at: String,
     #[serde(default = "default_source")]
     pub source: String,
-    // Source-native mod/file ids for non-modworkshop sources; modworkshop identity
-    // stays in id/file_id. Strings because future sources (Steam Workshop) use ids
-    // beyond the JS safe-integer range. A mod with neither is unidentified.
+    // Source-native mod and file ids for non-modworkshop sources, where modworkshop
+    // identity stays in id/file_id. Strings because other sources (Steam Workshop) use
+    // ids beyond the JS safe-integer range. A mod with neither is unidentified.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

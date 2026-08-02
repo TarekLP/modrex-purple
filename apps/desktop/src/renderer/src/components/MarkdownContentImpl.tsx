@@ -251,7 +251,7 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         },
         // No color class here, matching em below. A hardcoded text color on the
         // element itself always beats an inherited color from an ancestor's inline
-        // style, which used to silently defeat any colored wrapper around bold text.
+        // style, which silently defeats any colored wrapper around bold text.
         // Letting it inherit is also correct in the plain case, since the surrounding
         // text already sets the base color.
         strong: ({ children }) => <strong className="font-semibold">{children}</strong>,

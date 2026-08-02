@@ -45,8 +45,8 @@ pub fn is_zip(path: &Path) -> bool {
     detect_archive(path) == Some(ArchiveFormat::Zip)
 }
 
-/// One archive member: `name` is normalized to forward slashes; `is_dir` flags directory
-/// entries. The pak/dir listing operations are pure functions over a `Vec` of these.
+/// One archive member: name is normalized to forward slashes; is_dir flags directory
+/// entries. The pak/dir listing operations are pure functions over a Vec of these.
 struct ArchiveEntry {
     name: String,
     is_dir: bool,
@@ -147,7 +147,7 @@ pub(crate) const MIN_EXTRACT_BUDGET: u64 = 2 * 1024 * 1024 * 1024;
 /// single digits; a decompression bomb is six orders of magnitude past this.
 const MAX_EXPANSION_RATIO: u64 = 200;
 
-/// Total bytes one extraction of `archive_path` may write. Bounded relative to the archive's
+/// Total bytes one extraction of archive_path may write. Bounded relative to the archive's
 /// own size rather than by a flat ceiling: there is no size a legitimate mod is known to stay
 /// under, so a fixed cap would eventually reject a real mod, whereas nothing legitimate is
 /// both larger than MIN_EXTRACT_BUDGET and MAX_EXPANSION_RATIO times its own download.
@@ -206,7 +206,7 @@ pub fn extract_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resu
 }
 
 /// unrar can only extract to a directory and exposes no per-entry reader, so its output can't
-/// be metered through `copy_capped` the way the other four formats are. The header's declared
+/// be metered through copy_capped the way the other four formats are. The header's declared
 /// unpacked size is the equivalent signal: unrar writes what the header says, so a bomb has to
 /// declare itself here.
 fn check_rar_budget(archive_path: &Path, budget: u64) -> Result<(), String> {
@@ -301,7 +301,7 @@ fn extract_tar_entry<R: Read>(
     Err(format!("entry '{}' not found in archive", entry_name))
 }
 
-/// The archive-entry key used to match a `.pak` to its IoStore siblings: directory plus stem,
+/// The archive-entry key used to match a .pak to its IoStore siblings: directory plus stem,
 /// lowercased so Windows-authored archives with inconsistent casing still match.
 fn entry_key(name: &str) -> String {
     let path = Path::new(name);
@@ -313,9 +313,9 @@ fn entry_key(name: &str) -> String {
     format!("{dir}/{stem}").to_ascii_lowercase()
 }
 
-/// Like `extract_entry`, but also extracts any `.ucas`/`.utoc` siblings of `entry_name` found in
-/// the same archive (matched by directory + stem) to `dest.with_extension(...)`. A missing
-/// sidecar is not an error — most mods don't ship IoStore triplets, only some games' do.
+/// Like extract_entry, but also extracts any .ucas/.utoc siblings of entry_name found in
+/// the same archive (matched by directory + stem) to dest.with_extension(...). A missing
+/// sidecar is not an error, since most mods ship no IoStore triplet at all.
 pub fn extract_entry_with_sidecars(
     archive_path: &Path,
     entry_name: &str,
@@ -380,8 +380,8 @@ pub async fn compute_md5(path: &Path) -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
-/// Every directory path present in `names` (inferred from each entry's path components, so it
-/// works whether or not the archive stores explicit directory entries). Names ending in `/`
+/// Every directory path present in names (inferred from each entry's path components, so it
+/// works whether or not the archive stores explicit directory entries). Names ending in /
 /// are treated as directory entries.
 fn collect_all_dirs(names: &[String]) -> std::collections::BTreeSet<String> {
     let mut set = std::collections::BTreeSet::new();
@@ -408,10 +408,10 @@ fn collect_all_dirs(names: &[String]) -> std::collections::BTreeSet<String> {
     set
 }
 
-/// If `name` routes through a literal destination segment `seg` (e.g. `assets/mod_overrides/`),
-/// returns `(mod_dir, wrapper)` where `mod_dir` is the directory immediately inside the segment
-/// (the real override mod, even when the packager nested it in extra folders) and `wrapper` is
-/// the path preceding the segment. Returns `None` when the segment is absent.
+/// If name routes through a literal destination segment seg (e.g. assets/mod_overrides/),
+/// returns (mod_dir, wrapper) where mod_dir is the directory immediately inside the segment
+/// (the real override mod, even when the packager nested it in extra folders) and wrapper is
+/// the path preceding the segment. Returns None when the segment is absent.
 fn override_dir_from_segment(name: &str, seg: &str) -> Option<(String, String)> {
     let pos = if name.starts_with(seg) {
         0
@@ -428,13 +428,13 @@ fn override_dir_from_segment(name: &str, seg: &str) -> Option<(String, String)> 
     Some((mod_dir, wrapper))
 }
 
-/// True when an archive carries no loader marker and no nested asset structure — a flat folder of
+/// True when an archive carries no loader marker and no nested asset structure: a flat folder of
 /// loose files (e.g. a menu-background set for an unknown host). A real asset-override mod nests
-/// its files under category dirs (`ModDir/category/file` → 2+ slashes), so the absence of any
+/// its files under category dirs (ModDir/category/file, so two or more slashes), and the lack of
 /// such nesting means the pack belongs inside some other mod that Modrex can't infer.
-/// `extra_markers` is the union of all `entry_markers` from the active engine config so that
-/// game-specific markers (e.g. `base.lua` for DAHM sub-mods) are recognised alongside the
-/// universal `mod.txt` / `main.xml`.
+/// extra_markers is the union of all entry_markers from the active engine config so that
+/// game-specific markers (e.g. base.lua for DAHM sub-mods) are recognised alongside the
+/// universal mod.txt / main.xml.
 pub(crate) fn is_unplaceable_pack(names: &[String], extra_markers: &[&str]) -> bool {
     let has_marker = names.iter().any(|n| {
         n.ends_with("/mod.txt")
@@ -455,18 +455,18 @@ pub(crate) fn is_unplaceable_pack(names: &[String], extra_markers: &[&str]) -> b
 }
 
 /// Classifies an archive's mod directories by which scan target they install into. Each result
-/// is `(dir_path, location_tag)` where `location_tag` is `None` for the primary target and
-/// `Some(tag)` for a secondary target (e.g. `"mod_overrides"`).
+/// is (dir_path, location_tag) where location_tag is None for the primary target and
+/// Some(tag) for a secondary target (e.g. "mod_overrides").
 ///
-/// - **Marker-bearing targets** (e.g. `mods` with `mod.txt`/`main.xml`) claim any dir that
-///   contains one of their markers, at any depth — so BeardLib/BLT mods route to `mods/`
-///   regardless of which folder the packager dropped them in.
-/// - The **marker-less (override) target** claims marker-less directories that sit at the same
-///   depth as the marker dirs (the asset-replacement mods packaged alongside the BLT mods).
-///   When the archive has no markers at all, it falls back to the top-level directories —
-///   preserving the single asset-override mod case.
+/// - Marker-bearing targets (e.g. mods with mod.txt or main.xml) claim any dir containing one
+///   of their markers, at any depth, so BeardLib and BLT mods route to mods/ regardless of
+///   which folder the packager dropped them in.
+/// - The marker-less override target claims marker-less directories sitting at the same depth
+///   as the marker dirs (the asset-replacement mods packaged alongside the BLT mods). When the
+///   archive has no markers at all it falls back to the top-level directories, preserving the
+///   single asset-override mod case.
 ///
-/// A dir is never double-claimed; the first (lowest-index) target wins.
+/// A dir is never double-claimed. The first, lowest-index target wins.
 pub(crate) fn classify_archive_dirs(
     names: &[String],
     cfg: &ModEngineConfig,
@@ -520,10 +520,10 @@ pub(crate) fn classify_archive_dirs(
         let seg = format!("{}/", target.mods_subpath.join("/"));
         let mut chosen: Vec<String> = Vec::new();
 
-        // Pass A — explicit destination segment. Some packers nest the real mod inside its own
-        // `assets/mod_overrides/<name>/` (or wrap it in extra folders); the dir immediately inside
+        // Pass A, explicit destination segment. Some packers nest the real mod inside its own
+        // assets/mod_overrides/<name>/ (or wrap it in extra folders); the dir immediately inside
         // the segment is the authoritative override mod. Skip segments that live inside a marker
-        // mod (a BeardLib mod loads its own internal overrides — they don't go in the game dir).
+        // mod, since a BeardLib mod loads its own internal overrides rather than the game dir.
         for name in names {
             if let Some((mod_dir, wrapper)) = override_dir_from_segment(name, &seg) {
                 let inside_marker = marker_dirs
@@ -554,7 +554,7 @@ pub(crate) fn classify_archive_dirs(
             // bare alongside the BLT/BeardLib mods. Exclude marker dirs, the internals of marker
             // mods, wrappers (ancestors of a marker), dirs already covered by a chosen override
             // (either direction), and dirs that themselves wrap a destination segment (pass A).
-            // `collect_all_dirs` yields parents before children.
+            // collect_all_dirs yields parents before children.
             let marker_depths: HashSet<usize> =
                 marker_dirs.iter().map(|d| d.split('/').count()).collect();
             for d in collect_all_dirs(names) {
@@ -583,7 +583,7 @@ pub(crate) fn classify_archive_dirs(
                     .iter()
                     .any(|n| n.starts_with(&d_prefix) && n[d_prefix.len()..].contains(&seg))
                 {
-                    continue; // d wraps a destination segment — handled by pass A
+                    continue; // d wraps a destination segment, handled by pass A
                 }
                 chosen.push(d);
             }
@@ -597,8 +597,8 @@ pub(crate) fn classify_archive_dirs(
     out.into_iter().collect()
 }
 
-/// Joins an archive-internal (`/`-separated) path onto `dest`, returning `None` if it would
-/// escape `dest` via an absolute path, drive/UNC prefix, or `..` component. Archive entries
+/// Joins an archive-internal (/-separated) path onto dest, returning None if it would
+/// escape dest via an absolute path, drive/UNC prefix, or .. component. Archive entries
 /// are attacker-controlled, so directory extractors must route writes through this (Zip-Slip).
 pub(crate) fn safe_dest(dest: &Path, relative: &str) -> Option<PathBuf> {
     use std::path::Component;
@@ -611,7 +611,7 @@ pub(crate) fn safe_dest(dest: &Path, relative: &str) -> Option<PathBuf> {
     Some(dest.join(relative))
 }
 
-/// Extracts all entries under `dir_prefix/` from the archive into `dest/`.
+/// Extracts all entries under dir_prefix/ from the archive into dest/.
 pub fn extract_dir_entry(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result<(), String> {
     let budget = &mut extract_budget(archive_path);
     match detect_archive(archive_path) {
@@ -759,9 +759,9 @@ fn extract_dir_tar<R: Read>(
     Ok(())
 }
 
-/// `UE4SS-settings.ini` sits at the zip's top level only in the full loader package — verified
+/// UE4SS-settings.ini sits at the zip's top level only in the full loader package, verified
 /// against the real UE4SS-CB and PD3-UE4SS releases, both of which also ship many
-/// `Scripts/main.lua` paths for their own bundled framework sub-mods, so that marker alone can't
+/// Scripts/main.lua paths for their own bundled framework sub-mods, so that marker alone can't
 /// tell a full loader install apart from a single standalone Lua sub-mod.
 pub(crate) fn has_ue4ss_loader_signature(path: &Path) -> bool {
     list_entries(path)
@@ -773,9 +773,9 @@ pub(crate) fn has_ue4ss_loader_signature(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Extracts every entry in the archive directly into `dest`, preserving the archive's own
+/// Extracts every entry in the archive directly into dest, preserving the archive's own
 /// internal structure (used for the UE4SS loader package, which must land as a flat dump in
-/// `Binaries/<platform>/` rather than under any scan-target skeleton).
+/// Binaries/<platform>/ rather than under any scan-target skeleton).
 pub fn extract_archive_flat(archive_path: &Path, dest: &Path) -> Result<(), String> {
     let budget = &mut extract_budget(archive_path);
     match detect_archive(archive_path) {
@@ -902,7 +902,7 @@ fn extract_flat_rar(archive_path: &Path, dest: &Path) -> Result<(), String> {
                 Some(header) => {
                     let name = header.entry().filename.to_string_lossy().replace('\\', "/");
                     // extract_with_base writes to tmp_dir joined with the internal name; skip
-                    // any entry whose path would escape tmp_dir (Zip-Slip via `..`).
+                    // any entry whose path would escape tmp_dir (Zip-Slip via ..).
                     if safe_dest(&tmp_dir, &name).is_some() {
                         archive = header
                             .extract_with_base(&tmp_dir)
@@ -1058,16 +1058,16 @@ impl From<String> for ResolveError {
     }
 }
 
-/// Same shape `resolve_archive_download` resolves to: the extracted path, the original archive
-/// (for cleanup once installed), and the target's location tag (`None` for primary).
+/// Same shape resolve_archive_download resolves to: the extracted path, the original archive
+/// (for cleanup once installed), and the target's location tag (None for primary).
 type ResolvedArchive = Result<(PathBuf, Option<PathBuf>, Option<String>), ResolveError>;
 
-/// Checks whether a zero-`.pak` archive instead contains directory-shaped content matching one
-/// of `cfg`'s Directory-unit targets — currently only `ue4ss_mods` ever matches here (a
-/// standalone UE4SS Lua sub-mod, e.g. `Mods/<name>/Scripts/main.lua`), since it's the only
+/// Checks whether a zero-.pak archive instead contains directory-shaped content matching one
+/// of cfg's Directory-unit targets. Currently only ue4ss_mods ever matches here (a
+/// standalone UE4SS Lua sub-mod, e.g. Mods/<name>/Scripts/main.lua), since it's the only
 /// Directory target a File-unit-primary game (PD3) or CB's pak-specific resolver wouldn't
-/// otherwise consult. Reuses `classify_archive_dirs` as-is — it already iterates every target in
-/// `cfg.targets` regardless of which one is primary. Returns `None` when nothing matches, so the
+/// otherwise consult. Reuses classify_archive_dirs as-is, since it iterates every target in
+/// cfg.targets regardless of which one is primary. Returns None when nothing matches, so the
 /// caller falls through to its own "no .pak files" error.
 fn try_classify_as_directory_target(
     downloaded: &Path,
@@ -1095,7 +1095,7 @@ fn try_classify_as_directory_target(
             .and_then(|s| s.to_str())
             .unwrap_or("mod")
             .to_string();
-        // Two-level temp: {uuid_dir}/{dir_name} so tmp.file_name() == dir_name — matches the
+        // Two-level temp: {uuid_dir}/{dir_name} so tmp.file_name() == dir_name, matching the
         // generic Directory-unit single-dir branch below.
         let tmp_parent = std::env::temp_dir().join(format!("modrex-mod-{}", Uuid::new_v4()));
         let tmp = tmp_parent.join(&dir_name);
@@ -1108,7 +1108,7 @@ fn try_classify_as_directory_target(
     let zip_path = downloaded.to_string_lossy().to_string();
     let entry_names: Vec<String> = dirs.iter().map(|(d, _)| d.clone()).collect();
     let distinct_tags: HashSet<&Option<String>> = dirs.iter().map(|(_, t)| t).collect();
-    // These entries are directory paths (from classify_archive_dirs), not .pak files — load-bearing
+    // These entries are directory paths (from classify_archive_dirs), not .pak files, which is
     // for Crime Boss, whose install_from_zip_entry otherwise assumes every entry is a single pak
     // file to wrap in its synthesized skeleton.
     let payload = multi_pak_payload(
@@ -1126,8 +1126,8 @@ fn try_classify_as_directory_target(
 }
 
 /// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
-/// Returns `(extracted_path, original_archive, location_tag)` where `location_tag` is `None`
-/// for the primary target and `Some(tag)` for any secondary target (e.g. `"mod_overrides"`).
+/// Returns (extracted_path, original_archive, location_tag) where location_tag is None
+/// for the primary target and Some(tag) for any secondary target (e.g. "mod_overrides").
 pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
     // Must run before detect_archive: .pdmod is a ZIP by magic bytes and would fall through to
     // the Directory-unit path without this early check.
@@ -1219,7 +1219,7 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
                 }
             }
             // A flat folder of loose files (no marker, no nested asset structure) can't be a real
-            // override mod and isn't a known host pack — it installs inside some other mod we can't
+            // override mod and is not a known host pack: it installs inside some other mod no
             // infer. Surface the mod's instructions rather than silently dropping it in mod_overrides.
             let engine_markers: Vec<&str> = cfg
                 .targets
@@ -1288,16 +1288,16 @@ pub fn resolve_archive_download(downloaded: PathBuf, cfg: &ModEngineConfig) -> R
     }
 }
 
-/// Crime Boss's two real archive shapes — a loose `.pak`/`.ucas`/`.utoc` triplet at any depth,
-/// or the official ModKit's "Package Mod" folder output — both reduce to "find the .pak,
+/// Crime Boss's two real archive shapes, a loose .pak/.ucas/.utoc triplet at any depth and
+/// the official ModKit's "Package Mod" folder output, both reduce to "find the .pak,
 /// wherever it is, plus its siblings." Unlike PD2/PDTH's Directory targets, the result isn't an
 /// author-supplied folder copied as-is: Modrex always synthesizes the canonical
-/// `Content/Paks/WindowsNoEditor/` skeleton the game's UGC mod-loader expects under
-/// `CrimeBoss/Mods/<name>/`, regardless of how the source archive nested things.
+/// Content/Paks/WindowsNoEditor/ skeleton the game's UGC mod-loader expects under
+/// CrimeBoss/Mods/<name>/, regardless of how the source archive nested things.
 fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> ResolvedArchive {
     if detect_archive(&downloaded).is_none() {
         // No known real mod ships a bare .pak with no archive (sidecars require a zip to carry
-        // them), but if one shows up, fall back to the legacy flat `paks` target rather than
+        // them), but if one shows up, fall back to the legacy flat paks target rather than
         // guessing at a skeleton with no .ucas/.utoc to find.
         let legacy_tag = cfg.targets.iter().find(|t| t.tag == "paks").map(|t| t.tag);
         return Ok((downloaded, None, legacy_tag.map(str::to_string)));
@@ -1312,9 +1312,9 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
                 return result;
             }
             // Nothing classified: classify_archive_dirs found no enclosing folder at all (a
-            // genuinely flat archive — every entry sits at the zip root), so there's no folder
+            // genuinely flat archive, every entry sitting at the zip root), so there is no
             // name to adopt automatically. Surface a confirm dialog rather than deleting the
-            // download — the renderer can still install the whole archive as one mods/<name>
+            // download. The renderer can still install the whole archive as one mods/<name>
             // folder if the user confirms it's the right content.
             let zip_path = downloaded.to_string_lossy().to_string();
             Err(prompt_err(InstallPrompt::CbFlatArchive(CbFlatPayload {
@@ -1338,9 +1338,9 @@ fn resolve_crimeboss_archive(downloaded: PathBuf, cfg: &ModEngineConfig) -> Reso
     }
 }
 
-/// Extracts `entry_name` (a `.pak` archive entry) plus its `.ucas`/`.utoc` siblings into a fresh
-/// temp directory shaped `Content/Paks/WindowsNoEditor/<filename>`, ready to be copied wholesale
-/// into `CrimeBoss/Mods/<name>/` as a Directory-unit install.
+/// Extracts entry_name (a .pak archive entry) plus its .ucas/.utoc siblings into a fresh
+/// temp directory shaped Content/Paks/WindowsNoEditor/<filename>, ready to be copied wholesale
+/// into CrimeBoss/Mods/<name>/ as a Directory-unit install.
 pub fn extract_entry_into_crimeboss_skeleton(
     archive_path: &Path,
     entry_name: &str,
@@ -1373,7 +1373,7 @@ fn extract_rar_entry(archive_path: &Path, entry_name: &str, dest: &Path) -> Resu
                 Some(header) => {
                     let name = header.entry().filename.to_string_lossy().replace('\\', "/");
                     if name == normalized {
-                        // extract_with_base writes to tmp_dir joined with the internal name —
+                        // extract_with_base writes to tmp_dir joined with the internal name,
                         // reject traversal so it can't escape tmp_dir.
                         if safe_dest(&tmp_dir, &name).is_none() {
                             return Err("archive entry escapes extraction directory".to_string());
@@ -1426,7 +1426,7 @@ fn extract_dir_rar(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result
                 Some(header) => {
                     let name = header.entry().filename.to_string_lossy().replace('\\', "/");
                     // extract_with_base writes to tmp_dir joined with the internal name; skip
-                    // any entry whose path would escape tmp_dir (Zip-Slip via `..`).
+                    // any entry whose path would escape tmp_dir (Zip-Slip via ..).
                     if !header.entry().is_directory()
                         && name.starts_with(&prefix)
                         && safe_dest(&tmp_dir, &name).is_some()
@@ -1447,8 +1447,8 @@ fn extract_dir_rar(archive_path: &Path, dir_prefix: &str, dest: &Path) -> Result
     result
 }
 
-/// Returns the updated mod list and whether any `archive_broken` value was newly determined.
-/// Skips mods where `archive_broken` is already `Some` — the result was cached in the state file.
+/// Returns the updated mod list and whether any archive_broken value was newly determined.
+/// Skips mods where archive_broken is already Some, the result being cached in the state file.
 pub fn mark_archive_files(
     game_path: &str,
     folders: &[ModFolder],

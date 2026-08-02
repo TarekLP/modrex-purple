@@ -124,7 +124,7 @@ export function useModActions(
 
     // Tier 3 identification (see nexus_content.rs): a miss or an ambiguous result is
     // expected for roughly a quarter of mods, so both surface as an info toast, not an
-    // error — only a genuine request failure does.
+    // error. Only a genuine request failure does.
     async function handleIdentifyViaNexus(mod: InstalledMod) {
         if (!gamePath) return
         setLoadingMod(mod.uid)
@@ -168,7 +168,7 @@ export function useModActions(
 
     async function handleReinstall(mods: InstalledMod[]) {
         // Reinstall goes through the modworkshop-only api.installMod, which needs a
-        // real modworkshop id — InstalledMod.id is an opaque local key, never that.
+        // real modworkshop id. InstalledMod.id is an opaque local key, never that.
         const isModworkshop = !mods[0].source || mods[0].source === 'modworkshop'
         const remoteId = Number(mods[0].remoteId)
         if (!gamePath || !isModworkshop || !Number.isFinite(remoteId) || remoteId <= 0) return
@@ -179,7 +179,8 @@ export function useModActions(
         setReinstallProgress(null)
         setReinstallError(null)
 
-        // ZIP-installed paks use {file_id}_{stem} uids; install_mod creates {file_id} — old entries stay missing without this.
+        // ZIP-installed paks use {file_id}_{stem} uids and install_mod creates {file_id}.
+        // Older entries stay missing without this.
         for (const m of missingMods) {
             await api.uninstallMod(m.uid, gamePath, activeGame)
         }
@@ -237,7 +238,7 @@ export function useModActions(
         await onRefreshInstalled()
     }
 
-    // Both directions ask for confirmation before moving — Mods/ (ModKit) -> ~mods drops Data
+    // Both directions ask for confirmation before moving. Mods/ (ModKit) to ~mods drops Data
     // Table merge behavior, ~mods -> Mods/ only gains it, but either way the move is silent
     // otherwise, so the dialog is also the only feedback that anything happened.
     function requestMoveCrimeBossTarget(mod: InstalledMod) {

@@ -1,4 +1,4 @@
-// Handles nxm:// links, the free-tier download handoff — see the comment on
+// Handles nxm:// links, the free-tier download handoff. See the comment on
 // nexus.rs's nexus_get_download_link for why this path exists at all.
 // Shape: nxm://<domain>/mods/<mod_id>/files/<file_id>?key=...&expires=...
 
@@ -117,7 +117,7 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
         .and_then(|gs| gs.game_path.clone())
         .ok_or_else(|| format!("nxm: no game path configured for '{}'", link.game_id))?;
 
-    // Independent requests; the rate limiter's burst covers both at once.
+    // Independent requests, and the rate limiter's burst covers both at once.
     let (mod_info, resolved) = futures::join!(
         nexus_get_mod(app.clone(), link.game_id.clone(), link.mod_id),
         nexus_get_download_link(
@@ -147,8 +147,8 @@ pub async fn handle_nxm_url(app: &AppHandle, url: &str) -> Result<(), String> {
         .ok_or("nxm: no download URI in resolved link")?;
     let ext = resolve_extension(app, &link, uri).await?;
 
-    // nxm-prefixed so it never collides with the app's other download-id
-    // conventions; carries the game so the renderer can scope progress to it.
+    // nxm-prefixed so it never collides with the app's other download-id conventions.
+    // Carries the game so the renderer can scope progress to it.
     let download_id = format!("nxm:{}:{}:{}", link.game_id, link.mod_id, link.file_id);
     let dest = download_file(app, uri, &ext, &download_id).await?;
 

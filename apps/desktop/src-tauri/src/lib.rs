@@ -18,8 +18,8 @@ fn route_deep_link(app: &tauri::AppHandle, url: &tauri::Url) {
 fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
         .error_handling(tauri_specta::ErrorHandlingMode::Throw)
-        // i64 ids already cross the IPC as JS numbers today; source-identity-refactor
-        // moves remote ids to strings before any 64-bit id source (Steam) lands.
+        // i64 ids cross the IPC as JS numbers. Every source's real id lives in
+        // InstalledMod.remote_id as a string, so it never depends on this cast.
         .dangerously_cast_bigints_to_number()
         .commands(tauri_specta::collect_commands![
             // startup
@@ -264,11 +264,10 @@ pub fn run() {
     app.run(|_, _| {});
 }
 
-/// Regenerates src/shared/bindings.ts from the command registry; CI asserts the
-/// regenerated file matches the committed one. Driven by tests/export_bindings.rs,
-/// deliberately an integration test: referencing ipc_builder() links the whole command
-/// surface, including rfd's comctl32 v6 dialog imports, which need the common-controls
-/// manifest that build.rs embeds only into test targets.
+/// Regenerates src/shared/bindings.ts from the command registry. CI asserts the result
+/// matches the committed file. Driven by tests/export_bindings.rs, deliberately an
+/// integration test: referencing ipc_builder() links the whole command surface, including
+/// rfd's comctl32 v6 dialog imports, which need the manifest build.rs embeds only in tests.
 #[doc(hidden)]
 pub fn export_typescript_bindings() {
     ipc_builder()

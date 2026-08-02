@@ -1,5 +1,5 @@
 // Locale ids are discovered from the files in i18n/ rather than declared in a manual
-// registry, so adding a language is exactly one new JSON file — no list to edit and
+// registry, so adding a language is exactly one new JSON file, with no list to edit and
 // forget. Native display names come from Intl.DisplayNames (built into every modern
 // webview) instead of a hand-maintained label, so there is nothing to keep in sync there
 // either.
@@ -40,7 +40,7 @@ export function localeNativeName(id: LocaleId): string {
     }
     // Some languages (e.g. Russian) don't capitalize their own name in running text, but
     // every language picker (Windows, Android, this app's own reference points) shows each
-    // entry capitalized as a label — that's a UI convention, not a grammar rule.
+    // entry capitalized as a label, which is a UI convention, not a grammar rule.
     return name.charAt(0).toLocaleUpperCase(id) + name.slice(1)
 }
 

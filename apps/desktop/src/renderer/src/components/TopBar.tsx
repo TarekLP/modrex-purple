@@ -43,7 +43,7 @@ export function TopBar({
 
     // Kept in sync with activeGame so in-flight poll results from a switched-away
     // game can be discarded. All running/launching state belongs to the previous
-    // game after a switch — reset before paint so it never bleeds through.
+    // game after a switch, so reset before paint and it never bleeds through.
     const activeGameRef = useRef(activeGame)
     useLayoutEffect(() => {
         activeGameRef.current = activeGame
@@ -89,7 +89,7 @@ export function TopBar({
                     launchTimeoutRef.current = null
                 }
             } else if (launchTimeoutRef.current !== null) {
-                // 3 × 3 s = 9 s max before concluding the game crashed at startup
+                // 3 attempts at 3 s, so 9 s max before concluding the game crashed at startup
                 if (++missedWhileLaunching.current >= 3) {
                     setLaunching(null)
                     clearTimeout(launchTimeoutRef.current)

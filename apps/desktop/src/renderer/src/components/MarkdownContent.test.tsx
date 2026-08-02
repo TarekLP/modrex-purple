@@ -89,10 +89,10 @@ describe('MarkdownContent sanitization', () => {
         expect(getByText('hot text').style.color).toBe('rgb(255, 0, 0)')
     })
 
-    // strong used to hardcode its own text color class, which as a declared property on
-    // the element itself always beats an inherited color from an ancestor's inline
-    // style, silently dropping the color on any bold plus colored combination. It must
-    // have no color of its own so it inherits whatever the surrounding text uses.
+    // A text color class on strong is a declared property on the element itself, so it
+    // always beats an inherited color from an ancestor's inline style and silently drops
+    // the color on any bold plus colored combination. strong must carry no color of its
+    // own, so it inherits whatever the surrounding text uses.
     it('lets bold text inherit an ancestor color instead of overriding it', () => {
         const { getByText } = render(
             <MarkdownContent text={'<span style="color:green"><strong>bold</strong></span>'} />

@@ -45,7 +45,7 @@ fn sha256_unknown_hash_returns_none() {
 #[test]
 fn sha256_wrong_game_returns_none() {
     let conn = setup_db();
-    // "aabbcc" is a PD3 file — must not match when querying PD2
+    // "aabbcc" is a PD3 file, so it must not match when querying PD2.
     assert!(query_sha256(&conn, "aabbcc", "PAYDAY 2").is_none());
 }
 
@@ -82,14 +82,14 @@ fn by_name_no_match_returns_none() {
 #[test]
 fn by_name_ambiguous_two_matches_returns_none() {
     let conn = setup_db();
-    // both PD3 mod names contain "a" — ambiguous within PAYDAY 3
+    // Both PD3 mod names contain "a", so the match is ambiguous within PAYDAY 3.
     assert!(query_by_name(&conn, "a", "PAYDAY 3").is_none());
 }
 
 #[test]
 fn by_name_wrong_game_returns_none() {
     let conn = setup_db();
-    // "Better Crosshair" exists only in PD2 — must not match when querying PD3
+    // "Better Crosshair" exists only in PD2, so it must not match when querying PD3.
     assert!(query_by_name(&conn, "Better Crosshair", "PAYDAY 3").is_none());
 }
 
@@ -202,7 +202,7 @@ fn mod_by_id_returns_name_and_current_file() {
 #[test]
 fn mod_by_id_is_scoped_by_game() {
     let conn = setup_db();
-    // remote_id 100 is a PD3 mod — must miss under PD2.
+    // remote_id 100 is a PD3 mod, so it must miss under PD2.
     assert!(query_mod_by_id(&conn, 100, "PAYDAY 2").is_none());
     assert_eq!(
         query_mod_by_id(&conn, 300, "PAYDAY 2")

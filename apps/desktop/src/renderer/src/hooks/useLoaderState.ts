@@ -5,9 +5,9 @@ import { buildLoaderModIds, loaderForModId, type LoaderState } from '../loaders'
 
 /**
  * Per-loader presence state plus the install dispatch, shared by BrowsePage and
- * ModDetailPage. Both need the same three things and had near-identical copies:
- * a keyed state map, a re-check after installing, and the registry-driven choice
- * between a direct loader install and the normal mod flow.
+ * ModDetailPage. Both need the same three things: a keyed state map, a re-check after
+ * installing, and the registry-driven choice between a direct loader install and the
+ * normal mod flow.
  *
  * The presence-check effects stay in the components: BrowsePage checks every loader
  * with a mod page when browse becomes active, while ModDetailPage checks only the
@@ -24,7 +24,7 @@ export function useLoaderState(activeGame: GameId, gamePath: string | null) {
     /**
      * Re-reads presence rather than assuming an install succeeded: a loader can be on
      * disk and still unusable (SuperBLT on PD2's Diesel 3.0 branch), and an optimistic
-     * true made the UI claim Installed while the install flow reported it missing.
+     * true would make the UI claim Installed while the install flow reports it missing.
      */
     const refreshLoader = useCallback(
         async (id: string): Promise<boolean | null> => {

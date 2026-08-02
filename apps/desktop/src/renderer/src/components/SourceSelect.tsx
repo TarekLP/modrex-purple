@@ -102,18 +102,14 @@ function cachedCounts(gameId: GameId): Record<string, number | null> {
 }
 
 /**
- * Picks which source Browse is showing. Both sources stay on screen as visible choices
- * rather than collapsing into a dropdown, so a user who never opens a menu still learns
- * the second one exists. Uses the mod detail page's underlined-tab treatment, sitting on
- * the title line so it reads as where you are browsing rather than as another filter.
+ * Picks which source Browse is showing. Both stay on screen rather than collapsing into a
+ * dropdown, so a user who never opens a menu still learns the second one exists. Renders
+ * nothing when the game has only one source, as with RAID, which has no Nexus presence.
  *
- * Renders nothing when the game has only one source, which is the case for RAID (no
- * Nexus presence): a switcher offering a single choice is noise.
- *
- * Results are deliberately NOT merged across sources. The two have separate search
- * engines, so their sort options differ, their relevance scores are not comparable, and
- * their page cursors are independent. One source is active at a time and each keeps its
- * own query, sort and page.
+ * Results are deliberately NOT merged across sources. The two have separate search engines,
+ * so their sort options differ, their relevance scores are not comparable, and their page
+ * cursors are independent. One source is active at a time and each keeps its own query,
+ * sort and page.
  */
 export function SourceSelect({
     activeGame,

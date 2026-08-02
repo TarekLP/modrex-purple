@@ -7,9 +7,7 @@ import type { CbFlatArchivePayload } from './components/CrimeBossFlatArchiveModa
 /**
  * An install command resolves to a typed InstallOutcome: 'installed', or one of four
  * "needs a UI decision" prompts (multi-pak picker, host-pack choice, Crime Boss flat
- * archive confirm, unrecognized archive). Every install entry point must handle all
- * four - missing one used to leak a raw "*:{...}" string to the user back when these
- * rode the error channel as sentinel strings.
+ * archive confirm, unrecognized archive). Every install entry point must handle all four.
  *
  * This is the single dispatcher every caller routes through. The handlers object is
  * required in full, so forgetting a prompt is a compile error, and a new outcome
@@ -23,7 +21,7 @@ export interface InstallSentinelHandlers {
 }
 
 /**
- * Returns `true` if the outcome was a prompt and the matching handler ran; `false`
+ * Returns true if the outcome was a prompt and the matching handler ran; false
  * means the install completed. The command enriches every prompt payload with the
  * mod context (modId, modName, ...) before it reaches the renderer, so the cast to
  * the modal-facing payload types is sound.

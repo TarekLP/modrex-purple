@@ -25,8 +25,8 @@ fn is_host_pack(m: &InstalledMod) -> bool {
 }
 
 /// Installs a host-mod content pack (e.g. a Menu Backgrounds set) into the host mod's folder
-/// (`<host dir>/<subpath>/<set name>/`) and records it in state so it can be managed. Returns a
-/// `HOST_MOD_MISSING:` error when the host mod isn't installed.
+/// at <host dir>/<subpath>/<set name>/ and records it in state so it can be managed. Returns
+/// a HOST_MOD_MISSING: error when the host mod is not installed.
 pub fn install_host_pack_op(
     game_path: &str,
     state_path: &Path,
@@ -97,7 +97,7 @@ pub fn install_mod_from_path(
     cfg: &ModEngineConfig,
     target: &ScanTarget,
 ) -> Result<(), String> {
-    // BeardLib (mod_overrides) scans one level deep — nested dirs are never loaded.
+    // BeardLib (mod_overrides) scans one level deep, so nested dirs are never loaded.
     let folder_id = if std::ptr::eq(target, cfg.primary()) {
         folder_id
     } else {
@@ -208,13 +208,12 @@ pub fn install_mod_from_path(
     Ok(())
 }
 
-/// Toggles a Crime Boss mod between the primary `mods/<name>/` ModKit skeleton and the legacy
-/// `~mods` flat-pak target. There's no way to tell from file content alone whether a `.pak` was
-/// built by the official ModKit (safe for `Mods/`, gets Data Table additive merge) or is a
-/// pre-ModKit-era loose pak (needs `~mods`, no merge semantics) — see the Crime Boss section of
-/// CLAUDE.md — so this is a user-initiated override rather than something Modrex infers. CB-only:
-/// the other games' secondary targets (`mod_overrides`, `ue4ss_mods`) aren't alternate shapes of
-/// the same content, so there's nothing to toggle there.
+/// Toggles a Crime Boss mod between the primary mods/<name>/ ModKit skeleton and the legacy
+/// ~mods flat-pak target. No file content tells Modrex whether a .pak was built by the
+/// official ModKit (safe for Mods/, gets the Data Table additive merge) or is a loose pak
+/// needing ~mods with no merge semantics, so this is a user-initiated override rather than
+/// something inferred. Crime Boss only: other games' secondary targets are not alternate
+/// shapes of the same content, so there is nothing to toggle there.
 pub fn move_crimeboss_mod_target_op(
     game_path: &str,
     state_path: &Path,
@@ -250,8 +249,8 @@ pub fn move_crimeboss_mod_target_op(
         return Err("mod files not found on disk".to_string());
     }
 
-    // Builds the new target's on-disk shape in a temp location first — unwrapping the skeleton
-    // to a flat pak, or wrapping a flat pak into a fresh skeleton — so install_mod_from_path can
+    // Builds the new target's on-disk shape in a temp location first, either unwrapping the
+    // skeleton to a flat pak or wrapping a flat pak into one, so install_mod_from_path can
     // write it exactly like a normal install.
     let (source, new_filename, tmp_root) = match (&old_target.unit, &new_target.unit) {
         (ModUnit::Directory { .. }, ModUnit::File { .. }) => {
@@ -302,14 +301,14 @@ pub fn move_crimeboss_mod_target_op(
     let _ = fs::remove_dir_all(&tmp_root);
     result?;
 
-    // install_mod_from_path always installs as enabled/active (it's written for fresh installs) —
+    // install_mod_from_path always installs as enabled, being written for fresh installs, so
     // restore the disabled state here if the mod wasn't active before the move.
     if !m.enabled {
         disable_mod_op(game_path, state_path, uid, cfg, launcher);
     }
 
-    // install_mod_from_path's own "existing" cleanup computes the old path inside the *new*
-    // target's directory using the old filename, which never matches on a cross-target move — the
+    // install_mod_from_path's own "existing" cleanup computes the old path inside the new
+    // target's directory using the old filename, which never matches a cross-target move. The
     // real old location, under the old target's directory, is removed here instead.
     match &old_target.unit {
         ModUnit::File { extension, .. } => {
@@ -329,7 +328,7 @@ pub fn uninstall_mod_op(game_path: &str, state_path: &Path, uid: &str, cfg: &Mod
         return;
     };
     log::info!("uninstall: {} ({})", m.name, m.uid);
-    // Host packs live inside another mod's folder (or our disabled area); remove either.
+    // Host packs live inside another mod's folder or in the disabled area. Remove either.
     if is_host_pack(&m) {
         for p in [
             host_pack_dir(game_path, cfg, &state.mods, &state.folders, &m),
@@ -396,7 +395,7 @@ pub fn enable_mod_op(
         return;
     }
     let target = cfg.target_for(m.location.as_deref());
-    // UE4SS reads a central mods.txt to decide which Mods/ folders actually load — moving the
+    // UE4SS reads a central mods.txt to decide which Mods/ folders load, and moving the
     // folder itself has no effect (confirmed against the real format: see ue4ss_modstxt.rs), so
     // enabling here only edits that file, leaving the sub-mod's files exactly where they are.
     if target.tag == "ue4ss_mods" {
@@ -419,9 +418,9 @@ pub fn enable_mod_op(
     let from = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let to = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     // The game's own UGC mod-loader, not this file move, is what actually controls whether a
-    // Crime Boss mod is active — see crimeboss_settings.rs.
-    // resync_crimeboss_enabled_flags flips m.enabled without moving files, so `from` may not
-    // exist — fall back to `to` to find the pak for settings-path derivation.
+    // Crime Boss mod is active. See crimeboss_settings.rs.
+    // resync_crimeboss_enabled_flags flips m.enabled without moving files, so from may not
+    // exist. Fall back to to when deriving the settings path from the pak.
     if cfg.game_id == "cb" {
         let cb_path = if from.exists() { &from } else { &to };
         crimeboss_settings::sync_enabled(cb_path, target.is_directory_unit(), launcher, true);
@@ -444,7 +443,7 @@ pub fn enable_mod_op(
 }
 
 /// Moves a host pack between the host mod's folder and Modrex's disabled area, then flips its
-/// `enabled` flag and persists. `enable = true` restores it into the host; `false` disables it.
+/// enabled flag and persists. enable = true restores it into the host, false disables it.
 fn move_host_pack(
     game_path: &str,
     state_path: &Path,
@@ -544,8 +543,8 @@ pub fn disable_mod_op(
     save_state(state_path, &state);
 }
 
-/// Copies `src` to `dest`, plus any `.ucas`/`.utoc` siblings of `src` (same stem) to the
-/// matching siblings of `dest`. A missing sidecar is not an error.
+/// Copies src to dest, plus any .ucas and .utoc siblings sharing src's stem, to the matching
+/// siblings of dest. A missing sidecar is not an error.
 fn copy_file_with_sidecars(src: &Path, dest: &Path, main_ext: &str) -> Result<(), String> {
     fs::copy(src, dest).map_err(|e| e.to_string())?;
     for ext in PAK_SIDECAR_EXTENSIONS {
@@ -561,8 +560,8 @@ fn copy_file_with_sidecars(src: &Path, dest: &Path, main_ext: &str) -> Result<()
     Ok(())
 }
 
-/// Renames `from` to `to`, plus any `.ucas`/`.utoc` siblings of `from` to the matching siblings
-/// of `to`. Used for enable/disable, which move a mod between active and disabled directories.
+/// Renames from to to, plus any .ucas and .utoc siblings of from to the matching siblings of
+/// to. Used for enable and disable, which move a mod between active and disabled directories.
 fn rename_with_sidecars(from: &Path, to: &Path, main_ext: &str) -> std::io::Result<()> {
     fs::rename(from, to)?;
     for ext in PAK_SIDECAR_EXTENSIONS {
@@ -578,7 +577,7 @@ fn rename_with_sidecars(from: &Path, to: &Path, main_ext: &str) -> std::io::Resu
     Ok(())
 }
 
-/// Removes `path`, plus any `.ucas`/`.utoc` siblings of `path` (same stem).
+/// Removes path, plus any .ucas and .utoc siblings sharing its stem.
 fn remove_file_with_sidecars(path: &Path, main_ext: &str) -> std::io::Result<()> {
     fs::remove_file(path)?;
     for ext in PAK_SIDECAR_EXTENSIONS {

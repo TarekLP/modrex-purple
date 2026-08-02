@@ -16,7 +16,7 @@ export function entryFilename(entry: string): string {
     return entry.split('/').pop() ?? entry
 }
 
-// Filenames on disk carry a NNN_ priority prefix and .pak extension — disk-level
+// Filenames on disk carry a NNN_ priority prefix and .pak extension, which are disk-level
 // noise for display purposes. Falls back to the raw name if stripping empties it.
 export function displayFilename(filename: string): string {
     const stripped = stripPriorityPrefix(filename).replace(/\.pak$/i, '')
@@ -24,7 +24,7 @@ export function displayFilename(filename: string): string {
 }
 
 // An InstalledMod.id is always an opaque, source-scoped local key (see Rust's
-// sources::source_native_local_id) — never a real, callable id for any source, not even
+// sources::source_native_local_id), never a real, callable id for any source, not even
 // modworkshop. The in-app detail page needs the real remote id back (plus the 'nexus'
 // source flag for Nexus, since ModDetailPage's source prop treats absent as modworkshop)
 // to know what to actually fetch.
@@ -32,7 +32,7 @@ export function isIdentified(m: InstalledMod): boolean {
     return !!m.remoteId
 }
 
-// The real, deduplicated modworkshop ids among the installed list — for the handful of
+// The real, deduplicated modworkshop ids among the installed list, for the handful of
 // call sites (dependency checks) that need to fetch fresh data from modworkshop's own
 // API, which only ever takes a real id, never InstalledMod's opaque local one.
 export function modworkshopRemoteIds(mods: InstalledMod[]): number[] {
@@ -131,7 +131,7 @@ export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
         const scopes = group.map((m) => m.folderId ?? null)
         const distinct = new Set(scopes.map(String))
         if (distinct.size <= 1) continue
-        // Only collapse when some files ended up at root — handles the split-install artifact
+        // Only collapse when some files ended up at root, handling the split-install artifact
         // where reinstalling puts some paks at root. Leave intentional multi-folder layouts alone.
         if (!scopes.some((s) => s === null)) continue
         for (const m of group) {
@@ -143,7 +143,7 @@ export function normalizeModScopes(mods: InstalledMod[]): InstalledMod[] {
     return mods.map((m) => (overrides.has(m.uid) ? { ...m, folderId: overrides.get(m.uid) } : m))
 }
 
-// Folders whose entire subtree was pulled to root by normalizeModScopes — rendering them
+// Folders whose entire subtree was pulled to root by normalizeModScopes, where rendering
 // would show an empty duplicate next to the mod's root card. Folders that were already
 // empty before normalization (freshly created drop targets) stay visible.
 export function foldersEmptiedByNormalize(
@@ -183,7 +183,7 @@ export interface HealthSummary {
     unidentified: InstalledGroup[]
 }
 
-// Free-tier health categories — purely local, no network.
+// Free-tier health categories, purely local with no network.
 export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
     const groups = groupInstalledByIdentity(mods)
     const suspectFileIds = new Set(findSuspectDuplicateGroups(mods).map((s) => s.fileId))
@@ -196,7 +196,7 @@ export function computeHealthSummary(mods: InstalledMod[]): HealthSummary {
                 (g.mods.some((m) => m.updateStatus === 'outdated') ||
                     g.mods.some((m) => m.fileId != null && suspectFileIds.has(m.fileId)))
         ),
-        // remoteId is the one "identified" signal, regardless of source or of id's sign —
+        // remoteId is the one "identified" signal, regardless of source or of id's sign,
         // id is always an opaque, source-scoped key (see sources::source_native_local_id
         // on the Rust side), never a hint about which source or whether it's real.
         unidentified: groups.filter((g) => g.mods.every((m) => !isIdentified(m))),
@@ -213,16 +213,16 @@ export interface SuspectFileGroup {
 // An archive-entry install (install_from_zip_entry/install_cb_flat_archive) uses a uid prefixed
 // with "{fileId}_". These two schemes coexisting for the same fileId can only happen when that
 // exact file's packaging changed between a plain .pak and an archive at some point, orphaning
-// whichever side is no longer current — see install_from_zip_entry's pre-removal fix in mod.rs.
+// whichever side is not current. See install_from_zip_entry's pre-removal in mod.rs.
 // This does NOT fire for legitimate multi-pak archives (several wanted paks sharing one fileId,
-// all archive-scheme) or ambient multi-pak discovery (mod.rs:620-630's filename-uid fallback,
-// which never collides with the "{fileId}_" prefix) — both are real, common, and intentional.
+// all archive-scheme) or ambient multi-pak discovery (identify.rs's filename-uid fallback,
+// which never collides with the "{fileId}_" prefix). Both are real, common, and intentional.
 export function findSuspectDuplicateGroups(mods: InstalledMod[]): SuspectFileGroup[] {
     const byFileId = new Map<number, InstalledMod[]>()
     for (const m of mods) {
         // The uid/fileId convention this whole function reasons about is specific to
         // modworkshop's own install paths (install_mod/install_file/install_from_zip_entry
-        // in mod.rs) — it has no meaning for a Nexus-sourced entry's uid scheme.
+        // in mod.rs). It has no meaning for a Nexus-sourced entry's uid scheme.
         const isModworkshop = !m.source || m.source === 'modworkshop'
         if (!isModworkshop || !isIdentified(m) || m.location || m.fileId == null) continue
         const g = byFileId.get(m.fileId)
@@ -242,7 +242,7 @@ export function findSuspectDuplicateGroups(mods: InstalledMod[]): SuspectFileGro
     return suspects
 }
 
-// Resolves which side of a suspect group is actually stale using the mod's current file list —
+// Resolves which side of a suspect group is actually stale using the mod's live file list.
 // the live "type" field (e.g. "pak" vs "zip"/"7z"/"rar") says definitively whether that fileId is
 // presently a bare file or an archive, rather than guessing from install timestamps. A fileId no
 // longer present in the live list (file deleted upstream) can't be resolved, so it's left unflagged.

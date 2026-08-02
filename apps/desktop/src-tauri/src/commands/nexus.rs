@@ -211,10 +211,10 @@ pub(crate) async fn nexus_get_file(
     .await
 }
 
-// key/expires come from a real nxm:// link, proof the download was
-// authorized via a site click — passing them lets this endpoint succeed for
-// free accounts too. Omitted, it 403s free accounts by design (confirmed
-// live, not a bug here); that direct path is for Premium only.
+// key/expires come from a real nxm:// link, proof the download was authorized via a
+// site click, and passing them lets this endpoint succeed for free accounts too.
+// Omitted, it 403s free accounts by design (confirmed live, not a bug here), because
+// that direct path is for Premium only.
 pub(crate) async fn nexus_get_download_link(
     app: AppHandle,
     game_id: String,
@@ -326,8 +326,8 @@ pub async fn nexus_search_mods(
 
 // fileHash is the archive-level lookup: the MD5 of the whole published archive as
 // uploaded, not the extracted-content SHA256 Modrex already tracks. modFile.version
-// is a real, populated version here (unlike SEARCH_QUERY's mods, which carries none —
-// see the empty-version note in domain.rs), so a hit from this path may set version.
+// is a real, populated version here, unlike SEARCH_QUERY's mods, which carries none
+// (see the empty-version note in domain.rs), so a hit from this path may set version.
 const FILE_HASHES_QUERY: &str = r#"
 query ModrexFileHashes($md5s: [String]!) {
     fileHashes(md5s: $md5s) {
@@ -348,7 +348,7 @@ pub struct NexusHashMatch {
     pub file_size: i64,
 }
 
-// BigInt scalars (fileSize here) are not guaranteed to arrive as a JSON number —
+// BigInt scalars (fileSize here) are not guaranteed to arrive as a JSON number, since
 // some GraphQL servers serialize them as a string to avoid JS float-precision loss
 // on large values, matching the quoted-string convention the input filter already
 // uses for the same field (see the modFileContents fileSize filter note).
@@ -388,7 +388,7 @@ fn parse_hash_matches(value: &Value, want_game_id: u32) -> Result<Vec<NexusHashM
 }
 
 // Per-archive identification: given the whole downloaded archive's MD5, find the
-// Nexus mod(s) it belongs to. Only ever the current game's matches are returned —
+// Nexus mod(s) it belongs to. Only the current game's matches are returned, and
 // discarding a cross-game gameId is the same isolation mod_index.rs enforces via
 // games.name, and it matters here because Nexus's md5 index is global.
 pub(crate) async fn nexus_lookup_by_md5(
@@ -424,9 +424,9 @@ pub(crate) async fn nexus_lookup_by_md5(
 pub enum NexusArchiveIdentity {
     NotFound,
     Identified(NexusHashMatch),
-    /// The same archive bytes are published under more than one Nexus mod (a real,
-    /// observed shape — cross-posted content) and fileSize could not tell them apart
-    /// because they are, by definition, the same size. The caller must ask the user.
+    /// The same archive bytes are published under more than one Nexus mod, a real and
+    /// observed shape for cross-posted content, and fileSize cannot tell them apart because
+    /// they are by definition the same size. The caller must ask the user.
     Ambiguous(Vec<NexusHashMatch>),
 }
 
@@ -477,7 +477,7 @@ pub(crate) async fn identify_archive_by_md5(
 
 /// Renderer-facing wrapper for a dropped file the user is about to install manually
 /// (e.g. from a picker UI) rather than through install_dropped_file's own automatic
-/// attempt. A NotFound or Ambiguous result is not an error — the caller falls through
+/// attempt. A NotFound or Ambiguous result is not an error, and the caller falls through
 /// to the existing unidentified install path either way.
 #[tauri::command]
 #[specta::specta]
@@ -489,7 +489,7 @@ pub async fn identify_dropped_archive(
     identify_archive_by_md5(app, game_id, std::path::Path::new(&path)).await
 }
 
-// modFileContents carries no hash, unlike fileHash(es) above — this is the closest
+// modFileContents carries no hash, unlike fileHash(es) above, so this is the closest
 // legal equivalent to a SHA256 lookup Nexus permits, matching on the file(s) Modrex
 // already has extracted on disk instead of an archive it may no longer hold. Which
 // variant applies is a ModUnit decision, made by the caller in mods/, not here: this
@@ -509,8 +509,8 @@ const CONTENT_PAGE_SIZE: u32 = 50;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum NexusContentQuery {
     /// File-unit games (PD3, Crime Boss): the .pak's published name. fileSize is not
-    /// sent as a filter (see content_filter_json) — it is only used client-side, and
-    /// only when the name alone is ambiguous.
+    /// sent as a filter (see content_filter_json), being used client-side only, and only
+    /// when the name alone is ambiguous.
     FileNameAndSize { file_name: String, file_size: i64 },
     /// Directory-unit games (PD2, PDTH, RAID): the mod's folder name as a path segment.
     FolderSegment { segment: String },
@@ -523,7 +523,7 @@ pub(crate) enum NexusContentQuery {
 // byte size no longer matched Nexus's current index for that same mod, even though
 // its fileName alone resolved to exactly one mod). fileSize is still requested in the
 // response and used to disambiguate client-side, only when fileName alone returns
-// more than one candidate — see parse_content_mod_ids.
+// more than one candidate. See parse_content_mod_ids.
 fn content_filter_json(want_game_id: u32, query: &NexusContentQuery) -> Value {
     let mut filter = serde_json::json!({
         "gameId": [{ "value": want_game_id, "op": "EQUALS" }],
@@ -552,9 +552,9 @@ fn content_node_ids(nodes: &[Value]) -> Vec<u32> {
     ids
 }
 
-/// `disambiguate_by_size` is the local file's byte size for a FileNameAndSize query,
-/// None for FolderSegment (which has no analogous per-node signal to fall back on).
-/// Only consulted when fileName alone returns more than one distinct mod — see
+/// disambiguate_by_size is the local file's byte size for a FileNameAndSize query, and
+/// None for FolderSegment, which has no analogous per-node signal to fall back on. Only
+/// consulted when fileName alone returns more than one distinct mod. See
 /// content_filter_json for why fileSize is never sent as a request filter.
 fn parse_content_mod_ids(
     value: &Value,
@@ -587,15 +587,15 @@ fn parse_content_mod_ids(
         .collect();
     let by_size = content_node_ids(&size_matched_nodes);
     // A miss here just means the fileSize signal did not narrow it down further
-    // (e.g. none of the candidates' currently-indexed size matches) — fall back to
+    // (e.g. none of the candidates' currently-indexed size matches), so fall back to
     // the full name-matched set rather than manufacturing a false empty result.
     Ok(if by_size.len() == 1 { by_size } else { ids })
 }
 
 /// Distinct Nexus mod ids whose published content matches query. Zero is a normal,
-/// expected outcome (roughly a quarter of mods are never indexed) — never treat an
-/// empty result as an error. More than one means the match was not unique; the caller
-/// must not guess which mod it is.
+/// expected outcome, since roughly a quarter of mods are never indexed, so an empty result
+/// is never an error. More than one means the match was not unique, and the caller must not
+/// guess which mod it is.
 pub(crate) async fn nexus_lookup_content_mod_ids(
     app: AppHandle,
     game_id: String,

@@ -247,7 +247,7 @@ export function SettingsPage({
         }
     }, [activeGame])
 
-    // Only reconciles the saved launcher once both halves above have landed —
+    // Only reconciles the saved launcher once both halves above have landed,
     // installedLaunchers is an empty array both while loading and when genuinely
     // empty, so installedLaunchersReady is what tells those two states apart.
     useEffect(() => {

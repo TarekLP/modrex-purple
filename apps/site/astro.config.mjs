@@ -2,8 +2,8 @@ import { defineConfig } from 'astro/config'
 
 // Syntax theme built from the Modrex color tokens (tokens/colors.css): commands
 // and keywords in accent-bright orange, operators muted, everything else the
-// primary off-white. Shiki themes can't reference CSS variables, so the hex
-// values are duplicated here.
+// primary off-white. Shiki themes cannot reference CSS variables, so the hex values are
+// duplicated here.
 const modrexCodeTheme = {
     name: 'modrex',
     type: 'dark',

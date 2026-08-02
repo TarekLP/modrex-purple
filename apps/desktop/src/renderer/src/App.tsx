@@ -76,8 +76,8 @@ function getInitialView(): View {
     if (localStorage.getItem('modrex:on-welcome') === '1') return 'welcome'
     const v = localStorage.getItem('modrex:active-view')
     if (v === 'news' && !GAMES[game as GameId]?.hasNews) return 'browse'
-    // 'nexus' was its own view before Browse gained a source selector; anyone whose
-    // saved view is that lands on Browse, where Nexus now lives.
+    // A saved view of 'nexus' predates the Browse source selector and is not a view any
+    // more, so it falls through to Browse, where Nexus lives.
     return v === 'browse' || v === 'installed' || v === 'news' || v === 'settings' ? v : 'browse'
 }
 
@@ -101,7 +101,7 @@ export default function App() {
         { modId: number; initialMod?: ModSummary; source?: 'nexus' }[]
     >([])
     const [gamePath, setGamePath] = useState<string | null>(null)
-    // false while the active game's path is still being resolved this session —
+    // false while the active game's path is still being resolved this session,
     // consumers must not render "not found" states until this is true.
     const [gamePathReady, setGamePathReady] = useState(false)
     const [installed, setInstalled] = useState<InstalledMod[]>([])
@@ -167,7 +167,8 @@ export default function App() {
     // undefined = not yet loaded; null = path not found this session.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
 
-    // Re-detecting a missing game runs a full launcher scan — don't repeat on every switch/focus, only after the TTL.
+    // Re-detecting a missing game runs a full launcher scan, so it repeats only after the
+    // TTL, not on every switch or focus.
     const failedDetectAt = useRef<Partial<Record<GameId, number>>>({})
 
     // undefined = not yet loaded.
@@ -216,7 +217,7 @@ export default function App() {
                 : 'browse'
         localStorage.setItem('modrex:active-view', dest)
         setBrowseSource(readBrowseSource(g))
-        // The switch commit renders three pages' worth of tree at once — as a
+        // The switch commit renders three pages' worth of tree at once, so as a
         // transition it stays interruptible, so rapid switching can't pile up
         // janky frames (a newer switch cancels the in-progress render).
         startTransition(() => {
@@ -248,7 +249,7 @@ export default function App() {
             const game = activeGame
             const result = await api.getInstalled(game)
             if (activeGameRef.current !== game) return
-            // Unchanged result (the common case for focus refreshes) — skip the state
+            // Unchanged result (the common case for focus refreshes), so skip the state
             // fan-out entirely: the fresh array refs would otherwise re-render the full
             // installed list and the browse grid for nothing. A cache hit implies this
             // game is already in readyGames.
@@ -275,7 +276,7 @@ export default function App() {
     }
 
     // Path resolution must finish (persisting any newly detected path to settings)
-    // before get_installed reads it — fetching concurrently can return a false-empty
+    // before get_installed reads it, since fetching concurrently can return a false-empty
     // list that gets cached as truth.
     const refreshAll = useCallback(async () => {
         const starting = startupPending.current
@@ -295,7 +296,7 @@ export default function App() {
         }
     }, [refreshGamePath, refreshInstalled])
 
-    // Manual path pick must bypass the failed-detection throttle — the user just
+    // Manual path pick must bypass the failed-detection throttle, because the user just
     // gave us a valid path, so the "not found" verdict is stale by definition.
     const handleGamePathSet = useCallback(async () => {
         delete failedDetectAt.current[activeGameRef.current]
@@ -443,7 +444,7 @@ export default function App() {
         (v: 'browse' | 'installed' | 'news' | 'settings') => {
             const isGlobalOnly = v === 'settings' && viewRef.current === 'welcome'
             if (v === 'settings') setSettingsGlobalOnly(isGlobalOnly)
-            // Don't persist global-only settings to localStorage — it's a transient
+            // Do not persist global-only settings to localStorage, since it is a transient
             // overlay on the picker, not the user's intended destination after game select.
             if (!isGlobalOnly) {
                 localStorage.setItem('modrex:active-view', v)

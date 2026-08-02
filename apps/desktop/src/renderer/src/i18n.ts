@@ -19,7 +19,7 @@ type DeepPartial<T> = T extends string ? T : { [K in keyof T]?: DeepPartial<T[K]
 type LocaleBundle = DeepPartial<typeof en>
 
 // RAW_BUNDLES is discovered at build time via import.meta.glob (locales.ts), so its
-// per-file shape can't be checked against en.json at compile time — pnpm check-i18n
+// per-file shape cannot be checked against en.json at compile time, so pnpm check-i18n
 // (pre-commit + CI) is what actually enforces that every locale matches en.json's keys.
 const BUNDLES = RAW_BUNDLES as Record<LocaleId, LocaleBundle>
 

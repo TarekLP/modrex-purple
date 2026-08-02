@@ -8,10 +8,10 @@ use super::types::{InstalledMod, ModFolder};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-/// Resolves the on-disk directory of an installed host mod (e.g. Menu Backgrounds), looked up by
-/// its modworkshop id in the current state — its active dir if present, else its disabled dir,
-/// else the host's conventional folder name directly under the primary target. `None` when the
-/// host mod isn't installed.
+/// Resolves the on-disk directory of an installed host mod (e.g. Menu Backgrounds), looked
+/// up by its modworkshop id in the current state: its active dir if present, else its
+/// disabled dir, else the host's conventional folder name directly under the primary
+/// target. None when the host mod is not installed.
 pub fn resolve_host_mod_dir(
     game_path: &str,
     cfg: &ModEngineConfig,
@@ -39,8 +39,8 @@ pub fn resolve_host_mod_dir(
     cand.exists().then_some(cand)
 }
 
-/// The on-disk directory where a host-pack mod (a `host:<id>:<subpath>` location) lives —
-/// `<host mod dir>/<subpath>/<filename>`. `None` for non-host mods or when the host is absent.
+/// The on-disk directory where a host-pack mod (a host:<id>:<subpath> location) lives,
+/// namely <host mod dir>/<subpath>/<filename>. None for non-host mods or an absent host.
 pub fn host_pack_dir(
     game_path: &str,
     cfg: &ModEngineConfig,
@@ -56,11 +56,11 @@ pub fn host_pack_dir(
     Some(p.join(&m.filename))
 }
 
-/// Discovers host-pack set folders on disk that aren't tracked in `mods` — orphans left after a
-/// state rebuild (host packs live inside another mod, so the normal scan can't find them).
-/// Returns `(host_mod_id, subpath, set_name, enabled, dir)` for each untracked set, scanning both
-/// the host's active subfolder and the Modrex disabled area. Excludes the host's bundled defaults
-/// and any set already tracked. Hosts whose mod isn't installed are skipped.
+/// Discovers host-pack set folders on disk that are not tracked in mods, the orphans left
+/// after a state rebuild (host packs live inside another mod, so the normal scan cannot
+/// find them). Returns (host_mod_id, subpath, set_name, enabled, dir) per untracked set,
+/// scanning the host's active subfolder and the Modrex disabled area. Excludes the host's
+/// bundled defaults, already-tracked sets, and hosts whose mod is not installed.
 pub fn find_untracked_host_packs(
     game_path: &str,
     cfg: &ModEngineConfig,
@@ -114,8 +114,8 @@ pub fn find_untracked_host_packs(
     out
 }
 
-/// The Modrex-managed disabled location for a host pack — outside the host mod so the host no
-/// longer loads it: `<primary disabled dir>/host-<id>/<filename>`. `None` for non-host mods.
+/// The Modrex-managed disabled location for a host pack, outside the host mod so the host
+/// stops loading it: <primary disabled dir>/host-<id>/<filename>. None for non-host mods.
 pub fn host_pack_disabled_dir(
     game_path: &str,
     cfg: &ModEngineConfig,
@@ -188,8 +188,8 @@ pub async fn find_untracked_paks(
             .filter_map(|k| k.strip_prefix(&tag_prefix).map(|s| s.to_string()))
             .collect();
         let location_tag: Option<String> = (i != 0).then(|| target.tag.to_string());
-        // mods/base is the BLT loader's basemod, not a user mod — tracking it
-        // would let the user disable their mod loader from the installed list.
+        // mods/base is the BLT loader's basemod, not a user mod. Tracking it would let
+        // the user disable their mod loader from the installed list.
         let skip_base = i == 0 && matches!(target.unit, ModUnit::Directory { .. });
         let mut target_out: Vec<(String, bool)> = Vec::new();
         scan_active(

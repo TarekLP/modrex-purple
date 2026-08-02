@@ -1,9 +1,8 @@
-// Selects which shape of Nexus content query a mod needs, branching on ModUnit rather
-// than on game — the two engine families need genuinely different discriminators (see
-// engine.rs's ModUnit and the Tier 3 algorithm in the Nexus identification plan), and
-// collapsing them into one "generic" matcher would silently produce the wrong query for
-// half of Modrex's games. The actual network call lives in commands::nexus; this module
-// only decides what to ask.
+// Selects which shape of Nexus content query a mod needs, branching on ModUnit rather than
+// on game. The two engine families need genuinely different discriminators, and collapsing
+// them into one generic matcher would silently produce the wrong query for half of Modrex's
+// games. The actual network call lives in commands::nexus, and this module only decides
+// what to ask.
 
 use super::engine::{ModUnit, ScanTarget};
 use super::naming::{derive_content_segment, recover_published_filename};
@@ -42,20 +41,19 @@ pub(crate) fn nexus_content_query_for(
 #[derive(Debug, Clone, PartialEq, serde::Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum NexusContentIdentifyOutcome {
-    /// Already identified, already carrying a permanent miss, or nothing queryable
-    /// could be derived (no folder segment, or the file could not be found on disk) —
-    /// nothing was attempted, so nothing was recorded.
+    /// Already identified, already carrying a permanent miss, or nothing queryable could
+    /// be derived (no folder segment, or the file could not be found on disk). Nothing was
+    /// attempted, so nothing was recorded.
     Skipped,
     NotFound,
     Ambiguous,
     Identified,
 }
 
-/// Attempts to identify one already-installed, unidentified mod against Nexus's
-/// content index (the Tier 3 match). Callers must gate this behind an explicit user
-/// action — never call it from the get_installed hot path — and must persist m
-/// afterward regardless of outcome, since a miss is recorded on m itself via
-/// nexus_content_missed so it is asked at most once.
+/// Attempts to identify one already-installed, unidentified mod against Nexus's content
+/// index. Callers must gate this behind an explicit user action, never the get_installed
+/// hot path, and must persist m afterward regardless of outcome, since a miss is recorded
+/// on m itself via nexus_content_missed so it is asked at most once.
 pub(crate) async fn identify_via_nexus_content_op(
     app: &AppHandle,
     game_id: &str,

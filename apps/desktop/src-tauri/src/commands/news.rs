@@ -6,9 +6,9 @@ use tauri::{AppHandle, Manager};
 
 const MAX_AGE_SECS: u64 = 3600;
 
-/// A normal browser UA, sent purely so the site's own analytics see a
-/// plausible visitor — curl's TLS/HTTP2 fingerprint is what actually gets
-/// through Cloudflare here, not this string (see `curl_fetch`).
+/// A normal browser UA, sent purely so the site's own analytics see a plausible visitor.
+/// Curl's TLS/HTTP2 fingerprint is what actually gets through Cloudflare here, not this
+/// string (see curl_fetch).
 const BROWSER_UA: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
@@ -54,8 +54,8 @@ fn cache_path(app: &AppHandle, game_id: &str) -> PathBuf {
         .join(format!("news-{}.json", category_slug(game_id)))
 }
 
-/// Picks the 700w variant from a srcset when present (matches the card's
-/// thumbnail rendering size), falling back to the plain `src`.
+/// Picks the 700w variant from a srcset when present (matches the card's thumbnail
+/// rendering size), falling back to the plain src.
 fn pick_image(img: &scraper::ElementRef) -> Option<String> {
     if let Some(srcset) = img.value().attr("srcset") {
         for part in srcset.split(',') {
@@ -74,8 +74,8 @@ fn text_of(el: &scraper::ElementRef) -> String {
     el.text().collect::<String>().trim().to_string()
 }
 
-/// Pure parser over a `paydaythegame.com` news category page. Kept free of
-/// any I/O so it's directly unit-testable against a saved HTML fixture.
+/// Pure parser over a paydaythegame.com news category page. Kept free of any I/O so it is
+/// directly unit-testable against a saved HTML fixture.
 pub fn parse_news_html(html: &str) -> Vec<NewsItem> {
     let document = Html::parse_document(html);
     let article_sel = Selector::parse("article.post-linkxd").unwrap();
@@ -127,10 +127,9 @@ pub fn parse_news_html(html: &str) -> Vec<NewsItem> {
         .collect()
 }
 
-/// WP-PageNavi never shows a link to the page you're currently on (no
-/// `.last` link on the last page, no link back to page 1 from page 1) —
-/// so the total is the max page number across every link plus whichever
-/// page is marked `.current`, not just the `.last` link's target.
+/// WP-PageNavi never shows a link to the page you are currently on (no .last link on the
+/// last page, no link back to page 1 from page 1), so the total is the max page number
+/// across every link plus whichever page is marked .current, not just .last's target.
 pub fn extract_total_pages(html: &str) -> u32 {
     let document = Html::parse_document(html);
     let nav_link_sel = Selector::parse(".wp-pagenavi a").unwrap();
@@ -179,15 +178,12 @@ fn cache_age_secs(path: &std::path::Path) -> Option<u64> {
         .map(|e| e.as_secs())
 }
 
-/// paydaythegame.com sits behind Cloudflare bot management that 403s every
-/// library HTTP client tried (verified live: reqwest and .NET HttpClient
-/// both blocked regardless of UA/headers — a TLS/HTTP2 fingerprint check).
-/// A renderer-side `fetch()` doesn't work either: the site sends no
-/// `Access-Control-Allow-Origin` header, so the browser's CORS policy blocks
-/// the response before JS ever sees it. curl.exe is the one client that
-/// passed in testing, so we shell out to it — matching the existing pattern
-/// of shelling out to system binaries elsewhere in this codebase (steam.rs's
-/// `reg query`, xbox.rs's `powershell`).
+/// paydaythegame.com sits behind Cloudflare bot management that 403s every library HTTP
+/// client tried, reqwest and .NET HttpClient alike, regardless of UA or headers: it is a
+/// TLS/HTTP2 fingerprint check. A renderer-side fetch fails too, since the site sends no
+/// Access-Control-Allow-Origin header and CORS blocks the response before JS sees it.
+/// curl.exe is the one client that passed live testing, so this shells out to it, matching
+/// steam.rs's reg query and xbox.rs's powershell.
 fn curl_fetch(url: &str) -> Result<String, String> {
     let mut cmd = Command::new("curl");
     #[cfg(target_os = "windows")]

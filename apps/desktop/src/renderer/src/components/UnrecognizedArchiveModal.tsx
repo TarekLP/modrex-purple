@@ -12,7 +12,7 @@ interface Props {
 }
 
 /**
- * Shown when an archive can't be placed in any scan target and isn't a known host pack — it
+ * Shown when an archive fits no scan target and is not a known host pack, meaning it
  * installs inside some other mod that Modrex can't infer. Surfaces the author's instructions
  * instead of silently mislaying the files.
  */

@@ -286,11 +286,10 @@ pub(crate) fn query_by_name(
         .replace('%', "\\%")
         .replace('_', "\\_");
     let pattern = format!("%{}%", escaped);
-    // Join files so a name only resolves to a mod that actually has indexed content: a mod
-    // with no files cannot be the source of an installed pak, and anchoring on files keeps
-    // this in step with the sha256 and id lookups above. DISTINCT collapses the one row per
-    // file the join would otherwise produce, so a single many-file mod still reads as one
-    // match and does not trip the ambiguity guard below.
+    // Join files so a name resolves only to a mod that actually has indexed content: a mod
+    // with no files cannot be the source of an installed pak. DISTINCT collapses the one row
+    // per file the join would otherwise produce, so a many-file mod still reads as a single
+    // match instead of tripping the ambiguity guard below.
     let mut stmt = conn
         .prepare(
             "SELECT DISTINCT m.remote_id FROM mods m
@@ -324,7 +323,8 @@ fn query_mod_files(
          ORDER BY f.id",
     ) {
         Ok(s) => s,
-        // index.db predating the entry_name column (1-hour TTL transition)
+        // An index predating the entry_name column, still reachable through the legacy
+        // fallback in open_index.
         Err(_) => return Vec::new(),
     };
     stmt.query_map(rusqlite::params![mod_remote_id, game_name], |row| {

@@ -1,15 +1,15 @@
 /// UE5 IoStore splits a single mod's cooked content across three sibling files sharing one
-/// stem: `Foo.pak` (header), `Foo.ucas` (bulk data), `Foo.utoc` (table of contents). Some games
-/// (Crime Boss: Rockay City) ship this triplet for essentially every mod; others (PAYDAY 3) ship
-/// a bare `.pak` for most mods. Every `ModUnit::File` operation must carry these alongside the
-/// `.pak` it already tracks — `InstalledMod` only ever stores the `.pak` filename, so siblings
-/// are located via `Path::with_extension` rather than stored explicitly.
+/// stem: Foo.pak (header), Foo.ucas (bulk data), Foo.utoc (table of contents). Some games
+/// (Crime Boss: Rockay City) ship this triplet for essentially every mod, while others
+/// (PAYDAY 3) ship a bare .pak for most mods. Every ModUnit::File operation must carry the
+/// siblings alongside the .pak it already tracks. InstalledMod stores only the .pak
+/// filename, so siblings are located by extension rather than stored explicitly.
 pub const PAK_SIDECAR_EXTENSIONS: &[&str] = &["ucas", "utoc"];
 
-/// Replaces the `.{main_ext}` component of `path`'s filename with `.{sidecar_ext}`, preserving
-/// anything after it. Plain `Path::with_extension` is unsafe here: a disabled File-unit mod's
-/// filename is `Foo.pak.disabled` (`disabled_suffix` appended on top of the real extension), and
-/// `with_extension` would replace the trailing `disabled` component instead of `pak`.
+/// Replaces the .{main_ext} component of path's filename with .{sidecar_ext}, preserving
+/// anything after it. Plain Path::with_extension is unsafe here: a disabled File-unit mod's
+/// filename is Foo.pak.disabled (disabled_suffix appended on top of the real extension), and
+/// with_extension would replace the trailing disabled component instead of pak.
 pub fn sidecar_path(
     path: &std::path::Path,
     main_ext: &str,
@@ -59,8 +59,8 @@ fn sanitize(mod_name: &str) -> String {
     result.trim_matches('_').to_string()
 }
 
-/// Folder name for a Crime Boss mod installed under `CrimeBoss/Mods/<name>/` — same
-/// sanitization as `pak_filename`, minus the `.pak` extension.
+/// Folder name for a Crime Boss mod installed under CrimeBoss/Mods/<name>/, using the same
+/// sanitization as pak_filename minus the .pak extension.
 pub fn mod_folder_name(mod_name: &str) -> String {
     sanitize(mod_name)
 }
@@ -103,10 +103,9 @@ pub fn recover_published_filename(on_disk_name: &str, disabled_suffix: &str) -> 
 
 /// Derives the folder-name segment to query Nexus's content index with, for a
 /// Directory-unit mod. Nexus paths appear both as <Name>/main.xml and
-/// assets/mod_overrides/<Name>/main.xml, so a leading assets/mod_overrides/ is
-/// stripped when present. Returns None when nothing usable remains — an archive that
-/// ships a bare root-level marker file has no wrapper folder in Nexus's own index and
-/// cannot be matched this way, no matter what folder Modrex synthesized to hold it.
+/// assets/mod_overrides/<Name>/main.xml, so a leading assets/mod_overrides/ is stripped
+/// when present. None means nothing usable remains: an archive shipping a bare root-level
+/// marker file has no wrapper folder in Nexus's index and cannot be matched this way.
 pub fn derive_content_segment(folder_ref: &str) -> Option<&str> {
     const OVERRIDE_PREFIX: &str = "assets/mod_overrides/";
     let stripped = folder_ref

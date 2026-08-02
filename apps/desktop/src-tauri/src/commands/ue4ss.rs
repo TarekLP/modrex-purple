@@ -2,25 +2,23 @@ use std::path::{Path, PathBuf};
 
 use crate::commands::mods::extract_archive_flat;
 
-/// UE4SS is a community-forked Lua/native modding framework, unlike SuperBLT/DAHM
-/// (one maintainer, one stable build) — each game's UE4SS build is a separately
-/// maintained fork with its own proxy DLL(s) and destination. Verified by downloading
-/// and inspecting the real released archives rather than assumed:
-/// - Crime Boss ("UE4SS-CB", modworkshop id 47749): proxy `dwmapi.dll`, installs into
-///   `CrimeBoss/Binaries/Win64`. Only Steam verified — Crime Boss has no Xbox/GamePass
-///   release, and no Epic build of this mod has been confirmed. Single maintainer, single
-///   release line — no other proxy DLL has been seen for this game.
-/// - PAYDAY 3: installs into `<game_path>/PAYDAY3/Binaries/Win64` for Steam/Epic
-///   (`game_path` already ends in `PAYDAY3`, the Steam installdir name — this is the
-///   *inner* project subfolder, not a second copy of it; verified against a real install).
-///   Unlike Crime Boss, PD3 has multiple independently-maintained mod pages distributing
-///   UE4SS over time, each with its own proxy DLL: the older "PD3 UE4SS / Allow Pak Mods"
-///   (id 44048, Narknon) uses `dxgi.dll`; the newer "PD3 UE4SS V3.01 + Allow Pak Mods"
-///   (id 47771, Shalashaska) uses `xinput1_3.dll`. Both verified against their real
-///   downloaded archives — detection checks either, so it doesn't matter which release a
-///   user actually installed. The Xbox/GamePass build uses a different destination
-///   (`Binaries/WinGDK`) and an unverified proxy DLL — intentionally unsupported here
-///   rather than guessed.
+/// UE4SS is a community-forked Lua and native modding framework. Unlike SuperBLT and DAHM
+/// (one maintainer, one stable build), each game's UE4SS build is a separately maintained
+/// fork with its own proxy DLLs and destination. Every entry below was verified by
+/// downloading and inspecting the real released archives rather than assumed.
+///
+/// Crime Boss ("UE4SS-CB", modworkshop id 47749): proxy dwmapi.dll, installs into
+/// CrimeBoss/Binaries/Win64. Only Steam is verified, as Crime Boss has no Xbox or GamePass
+/// release and no Epic build of this mod has been confirmed. One maintainer and one release
+/// line, so no other proxy DLL has been seen for this game.
+///
+/// PAYDAY 3: installs into <game_path>/PAYDAY3/Binaries/Win64 for Steam and Epic. game_path
+/// already ends in PAYDAY3 (the Steam installdir name), and this is the inner project
+/// subfolder, not a second copy of it. PD3 has several independently maintained mod pages
+/// distributing UE4SS, each with its own proxy DLL: id 44048 (Narknon) uses dxgi.dll, and
+/// id 47771 (Shalashaska) uses xinput1_3.dll. Detection checks either, so which release a
+/// user installed does not matter. The Xbox and GamePass build uses a different destination
+/// (Binaries/WinGDK) and an unverified proxy DLL, so it is unsupported rather than guessed.
 struct Ue4ssDescriptor {
     proxy_dlls: &'static [&'static str],
     binaries_subpath: &'static [&'static str],
@@ -34,9 +32,9 @@ fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssDescript
         }),
         ("pd3", Some("steam")) | ("pd3", Some("epic")) => Some(Ue4ssDescriptor {
             proxy_dlls: &["xinput1_3.dll", "dxgi.dll"],
-            // game_path already ends in `.../PAYDAY3` (the Steam installdir name) — this adds
-            // the *inner* PAYDAY3 project subfolder, not a second copy of the installdir.
-            // Verified against the real install: `<game_path>/PAYDAY3/Binaries/Win64/`.
+            // game_path already ends in .../PAYDAY3 (the Steam installdir name), so this
+            // adds the inner PAYDAY3 project subfolder, not a second copy of the installdir.
+            // Verified against a real install: <game_path>/PAYDAY3/Binaries/Win64/.
             binaries_subpath: &["PAYDAY3", "Binaries", "Win64"],
         }),
         _ => None,
@@ -52,9 +50,8 @@ fn binaries_dir(game_path: &str, descriptor: &Ue4ssDescriptor) -> PathBuf {
         })
 }
 
-/// Pure presence check, kept free of `AppHandle` so it's directly unit-testable —
-/// the launcher must already be resolved by the caller (mirrors
-/// `crimeboss_settings::sync_enabled`'s `launcher: Option<&str>` shape).
+/// Pure presence check, kept free of AppHandle so it is directly unit-testable. The caller
+/// must have resolved the launcher already, mirroring crimeboss_settings::sync_enabled.
 pub(crate) fn is_installed(game_id: &str, game_path: &str, launcher: Option<&str>) -> bool {
     let Some(descriptor) = descriptor_for(game_id, launcher) else {
         return false;
@@ -66,10 +63,10 @@ pub(crate) fn is_installed(game_id: &str, game_path: &str, launcher: Option<&str
         .any(|dll| dir.join(dll).is_file())
 }
 
-/// Extracts a downloaded UE4SS loader package flat into the game's `Binaries` directory.
-/// Unlike a normal mod install, this is never recorded in `state.json` — mirrors
-/// `superblt`/`dahm`: presence-detected via `is_installed`, not tracked or uninstallable
-/// through Modrex.
+/// Extracts a downloaded UE4SS loader package flat into the game's Binaries directory.
+/// Unlike a normal mod install this is never recorded in state.json, mirroring superblt
+/// and dahm: presence-detected via is_installed, not tracked or uninstallable through
+/// Modrex.
 pub(crate) fn install_loader(
     game_id: &str,
     game_path: &str,

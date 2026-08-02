@@ -34,7 +34,7 @@ function setName(entry: string): string {
 /**
  * Confirms installing a content pack (e.g. Menu Backgrounds sets) into its host mod. When the
  * host mod isn't installed yet, offers to install it first; otherwise installs each set into the
- * host's folder via `install_host_pack`.
+ * host's folder via install_host_pack.
  */
 export function HostPackModal({
     payload,

@@ -10,7 +10,7 @@ function makeInstalled(overrides: Partial<InstalledMod> = {}): InstalledMod {
         id,
         // InstalledMod.id is an opaque local key; payload.modId (what
         // computeAutoUpdateSelection actually matches against) is always real, so these
-        // fixtures need remoteId set to match — mirrors modId's real value by default.
+        // fixtures need remoteId set to match, mirroring modId's real value by default.
         remoteId: id >= 0 ? String(id) : undefined,
         name: 'Some Mod',
         version: '1.0',
@@ -93,7 +93,7 @@ describe('computeAutoUpdateSelection', () => {
         ]
         const payload = makePayload()
         // VariantA is already installed from this exact archive, so it's excluded from the
-        // "to install" set returned for an auto-resolve pass — it's not pending work.
+        // "to install" set returned for an auto-resolve pass, so it is not pending work.
         expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual(['VariantC.pak'])
     })
 

@@ -7,7 +7,7 @@ import { getCachedThumbnailUrl, getLocalImage } from '../thumbnailCache'
 // still has to download exceed this.
 const LOCAL_RACE_MS = 50
 
-// `full` selects the original image instead of the small thumbnail variant —
+// full selects the original image instead of the small thumbnail variant,
 // used by the detail page's banner and lightbox.
 export function useThumbnail(file: string | null | undefined, full = false): string | null {
     const [src, setSrc] = useState<string | null>(() => {
@@ -34,7 +34,7 @@ export function useThumbnail(file: string | null | undefined, full = false): str
         }
         // Race the disk cache against a short timeout: when the local image
         // wins, the CDN is never touched. When the CDN fallback fires first, keep
-        // it for this mount — swapping src after the CDN image painted makes the
+        // it for this mount, since swapping src after the CDN image painted makes the
         // browser re-load the image (visible flicker). getLocalImage still
         // records the local URL so future mounts resolve synchronously.
         let cancelled = false

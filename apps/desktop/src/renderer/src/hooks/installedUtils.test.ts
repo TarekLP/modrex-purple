@@ -38,7 +38,7 @@ function makeMod(
         priority: 0,
         // A positive id in these fixtures has always meant "modworkshop-identified".
         // Identification is now signaled by remoteId, not id's sign (an opaque local
-        // key for every source, including modworkshop) — mirror the old convention
+        // key for every source, including modworkshop), so mirror the convention
         // here so existing call sites don't all need an explicit remoteId override.
         ...(id >= 0 ? { remoteId: String(id) } : {}),
         ...overrides,
@@ -306,7 +306,7 @@ describe('foldersEmptiedByNormalize', () => {
 
     it('hides a folder whose only mod was pulled to root', () => {
         // Real shape (Dark Matter Skins): a multi-pak archive in a folder plus a separate
-        // required bare pak at root — normalize collapses the group to root, and the folder
+        // required bare pak at root, so normalize collapses the group to root and the folder
         // would otherwise render as an empty duplicate next to the mod's card.
         const raw = [
             makeMod('100_a', 1, 'A', { folderId: 'f1' }),
@@ -432,7 +432,7 @@ describe('findSuspectDuplicateGroups', () => {
     })
 
     it('does not flag multiple distinct files under one mod id (Custom FOV shape)', () => {
-        // Each file is its own standalone .pak with a different fileId — never a duplicate.
+        // Each file is its own standalone .pak with a different fileId, never a duplicate.
         const mods = [
             makeMod('93530', 55702, 'FOV', { fileId: 93530 }),
             makeMod('93537', 55702, 'FOV', { fileId: 93537 }),
@@ -443,7 +443,7 @@ describe('findSuspectDuplicateGroups', () => {
     })
 
     it('does not flag several wanted variants extracted from one multi-pak archive', () => {
-        // All entries share the archive's fileId but use the archive-scheme uid — no bare uid.
+        // All entries share the archive's fileId but use the archive-scheme uid, no bare uid.
         const mods = [
             makeMod('12345_FOV_100', 9, 'Mod', { fileId: 12345 }),
             makeMod('12345_FOV_120', 9, 'Mod', { fileId: 12345 }),

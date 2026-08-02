@@ -121,12 +121,12 @@ function ModDetailSkeleton() {
 // and unaccepted invites are hidden).
 const CREDIT_LEVELS = new Set(['collaborator', 'maintainer', 'contributor'])
 
-// Donation fields are free-form on the site — only usable as links when http(s).
+// Donation fields are free-form on the site, so they are only usable as http(s) links.
 function httpUrl(raw: string | null | undefined): string | null {
     return raw && /^https?:\/\//.test(raw) ? raw : null
 }
 
-// modworkshop's donation values aren't always URLs — a bare PayPal email or a
+// modworkshop's donation values are not always URLs. A bare PayPal email or a
 // paypal.me handle without a scheme are valid on the site. Same provider patterns
 // as the site's donation-button component, so the button can say where it leads.
 // Order matters: the hosted-button form must match before the generic paypal ones,
@@ -297,7 +297,7 @@ export function ModDetailPage({
     >(new Map())
 
     // InstalledMod.id is an opaque local key regardless of source (see
-    // sources::source_native_local_id) — modId here is always a real id (Nexus or
+    // sources::source_native_local_id), whereas modId here is always a real id (Nexus or
     // modworkshop), so both branches match against remoteId, never id.
     const installedFiles = isNexus
         ? installed.filter((m) => m.source === 'nexus' && m.remoteId === String(modId))
@@ -305,7 +305,7 @@ export function ModDetailPage({
               (m) => (!m.source || m.source === 'modworkshop') && m.remoteId === String(modId)
           )
     const installedMod = installedFiles[0]
-    // Not tracked in the installed list — DLL presence drives its button state.
+    // Not tracked in the installed list, so DLL presence drives its button state.
     // The loader this very mod page publishes, if any. Its button reflects DLL presence
     // rather than the installed-mods list. Loader mod pages are modworkshop-only. A
     // Nexus mod id lives in a different id space and must never be looked up here.
@@ -313,7 +313,7 @@ export function ModDetailPage({
     const isLoaderMod = thisLoader !== undefined
     const loaderModInstalled = thisLoader ? (loaderState[thisLoader.id] ?? null) : null
 
-    // Full-size banner via the disk cache — the CDN sends no cache headers, so a
+    // Full-size banner via the disk cache. The CDN sends no cache headers, so a
     // direct URL costs a download or revalidation round-trip on every page visit.
     const bannerSrc = useThumbnail((detail?.banner ?? mod?.thumbnail)?.file, true)
 
@@ -444,7 +444,7 @@ export function ModDetailPage({
             api.openExternal(mod.download.url)
             return
         }
-        // Dep check runs here — before FileSelectModal — because multi-file mods
+        // Dep check runs here, before FileSelectModal, because multi-file mods
         // (download === null, files.length > 1) go through FileSelectModal which has
         // no dep check of its own, so doInstall is never reached for them.
         let checkedMod = detail

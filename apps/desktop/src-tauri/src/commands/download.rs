@@ -12,8 +12,8 @@ pub struct DownloadProgress {
     pub total: u64,
 }
 
-/// Downloads `url` to a temp file with the given extension, emitting
-/// `download:progress` events as chunks arrive. Returns the temp file path.
+/// Downloads url to a temp file with the given extension, emitting download:progress
+/// events as chunks arrive. Returns the temp file path.
 pub async fn download_file(
     app: &AppHandle,
     url: &str,

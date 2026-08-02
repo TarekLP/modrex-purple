@@ -86,7 +86,7 @@ export function getNexusInstalledMetaEntry(
 // bursts a run of Nexus calls back to back.
 const STAGGER_MS = 2000
 
-// onResult fires after each mod resolves, not just once the whole trickle finishes —
+// onResult fires after each mod resolves, not just once the whole trickle finishes,
 // with a real stagger between requests a caller waiting on the returned promise alone
 // would see nothing update for as long as the whole list takes.
 export async function fetchInstalledNexusModsMeta(

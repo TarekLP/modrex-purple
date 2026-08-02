@@ -14,8 +14,8 @@ interface Props {
 
 /**
  * Confirms moving a Crime Boss mod between the primary Mods/ (ModKit) target and the legacy
- * ~mods target. Both directions confirm — the move is otherwise silent, so this doubles as the
- * only feedback that anything happened — but the wording differs: Mods/ -> ~mods explains the
+ * ~mods target. Both directions confirm, since the move is otherwise silent and this is the
+ * only feedback that anything happened. The wording differs: Mods/ to ~mods explains the
  * Data Table merge tradeoff being given up, while ~mods -> Mods/ is a plain confirmation since it
  * only gains capability.
  */

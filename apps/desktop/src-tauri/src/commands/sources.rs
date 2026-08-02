@@ -1,8 +1,8 @@
-//! The one table a mod source registers in: which games it serves and the id it
-//! knows each game by. Sources differ per game (modworkshop covers all five, Nexus
-//! has no RAID presence), and each names games in its own way - modworkshop by
-//! numeric game id, Nexus by domain slug - so the mapping is the data both sides need
-//! and neither should restate. nexus_domain and its reverse derive from this.
+//! The one table a mod source registers in: which games it serves and the id it knows
+//! each game by. Sources differ per game (modworkshop covers all five, Nexus has no RAID
+//! presence), and each names games in its own way (modworkshop by numeric game id, Nexus
+//! by domain slug), so the mapping is data both sides need and neither should restate.
+//! nexus_domain and its reverse derive from this.
 
 pub struct SourceGame {
     pub game_id: &'static str,
@@ -79,14 +79,15 @@ pub static SOURCE_REGISTRY: &[SourceSpec] = &[
     },
 ];
 
-/// A stable, source-scoped id for InstalledMod.id, keeping a source-native mod's local
-/// identity out of modworkshop's positive id space without colliding with any other
-/// source's. Deliberately not a bare negation of remote_id: two different non-modworkshop
-/// sources (Nexus today, anything added later) can trivially both assign the number 52
-/// to different mods, and negation alone folds them onto the same -52. Folding the source
-/// id into the hash keeps that collision astronomically unlikely instead of guaranteed.
-/// FNV-1a is a bucketing key here, not anything security-sensitive, so a simple
-/// dependency-free hash is enough.
+/// A stable, source-scoped id for InstalledMod.id. Deliberately not a bare negation of
+/// remote_id: two different sources can each assign the number 52 to different mods, and
+/// negation alone folds both onto -52. Hashing the source id in makes that collision
+/// unlikely rather than guaranteed. FNV-1a is a bucketing key, not security-sensitive.
+///
+/// The magnitude uses 63 bits and so routinely exceeds JS's 2^53 safe-integer range, while
+/// ipc_builder casts i64 to a JS number. That is only sound because the renderer compares
+/// this value against other copies of itself from the same payload: never recompute it in
+/// TypeScript and never pass it back to a command. The real per-source id is remote_id.
 pub fn source_native_local_id(source_id: &str, remote_id: &str) -> i64 {
     const FNV_OFFSET: u64 = 0xcbf29ce484222325;
     const FNV_PRIME: u64 = 0x100000001b3;

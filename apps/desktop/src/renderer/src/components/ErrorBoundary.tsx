@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     render() {
         if (this.state.error) {
-            // The window is undecorated — this fallback replaces the custom title
+            // The window is undecorated, so this fallback replaces the custom title
             // bar too, so it must provide its own drag region and close button or a
             // crash leaves the window impossible to move or close.
             return (

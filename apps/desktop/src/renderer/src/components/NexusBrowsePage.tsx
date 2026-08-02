@@ -53,7 +53,7 @@ function buildPages(current: number, last: number): (number | '...')[] {
 }
 
 // The files tab hosts "Mod Manager Download", which hands the download back to
-// Modrex via the nxm:// deep link, the sanctioned free-tier flow — there is no
+// Modrex via the nxm:// deep link, the sanctioned free-tier flow. There is no
 // in-app install trigger, so ModCard's onInstall routes here. onOpen instead goes
 // to the in-app detail page (ModDetailPage), matching modworkshop's ModCard.
 function openOnNexus(mod: ModSummary, domain: string) {

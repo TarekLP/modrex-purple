@@ -4,14 +4,14 @@ import type { Mod, ModDependency, InstalledMod } from '../../shared/types'
 // modworkshop dependency metadata only. Never feed ids from another source (Nexus,
 // mod.io) into these tables: two sources collide on numbers. InstalledMod.id is an
 // opaque, source-scoped local key (see sources::source_native_local_id on the Rust
-// side), never a real modworkshop id even for a modworkshop-sourced entry — matching
+// side), never a real modworkshop id even for a modworkshop-sourced entry, so matching
 // against a real id here always goes through remoteId instead.
 
 /**
  * Combines a mod's direct and instructs-template dependencies, keeping
- * modworkshop-hosted deps (`mod` set) and offsite deps (`url` set, e.g.
+ * modworkshop-hosted deps (mod set) and offsite deps (url set, e.g.
  * SuperBLT). Deps whose mod was deleted (neither set) are dropped.
- * Sorted by the author-defined `order` (id as tiebreak), matching modworkshop:
+ * Sorted by the author-defined order (id as tiebreak), matching modworkshop:
  * the sequence is meaningful install order, not arbitrary.
  */
 export function collectDeps(mod: Mod | null | undefined): ModDependency[] {
@@ -29,9 +29,9 @@ export function isOffsiteDep(d: ModDependency): boolean {
 /**
  * SuperBLT is declared on modworkshop as an offsite dependency (it has no mod page).
  * It lives in the game root as a loader DLL, so its install state comes from
- * `api.checkSuperblt`, not the installed-mods list. PD2 only: that check looks for
+ * api.checkSuperblt, not the installed-mods list. PD2 only: that check looks for
  * WSOCK32/IPHLPAPI/libsuperblt_loader.so, and PDTH's loaders are PDTHModOverrides
- * (DINPUT8.dll) and DAHM (lightfx.dll) instead — every PDTH caller leaves the loader
+ * (DINPUT8.dll) and DAHM (lightfx.dll) instead, so every PDTH caller leaves the loader
  * state null rather than running a check that can only ever answer false there.
  */
 export function isLoaderDep(d: ModDependency): boolean {
@@ -39,14 +39,13 @@ export function isLoaderDep(d: ModDependency): boolean {
 }
 
 /**
- * Required deps the user doesn't have. `loaderInstalled` is the result of
- * `api.checkSuperblt` (null = unknown) — loader deps are only reported missing
- * on a definitive negative, so detection gaps never nag users who already have
- * the loader. Non-loader offsite deps can't be verified and are always surfaced;
- * the per-mod dismissal handles false positives there. Pass `loaderModIds` for
- * loaders hosted on modworkshop but installed as game-root DLLs (e.g.
- * PDTHModOverrides 53474, DAHM 14267) — those deps are checked against their
- * per-id installed state rather than the installed-mods list.
+ * Required deps the user does not have. loaderInstalled is api.checkSuperblt's result,
+ * where null means unknown: loader deps are only reported missing on a definitive negative,
+ * so detection gaps never nag users who already have the loader. Non-loader offsite deps
+ * cannot be verified and are always surfaced, with the per-mod dismissal handling false
+ * positives. loaderModIds covers loaders hosted on modworkshop but installed as game-root
+ * DLLs (e.g. PDTHModOverrides 53474, DAHM 14267), checked against their per-id installed
+ * state rather than the installed-mods list.
  */
 export function missingRequiredDeps(
     allDeps: ModDependency[],

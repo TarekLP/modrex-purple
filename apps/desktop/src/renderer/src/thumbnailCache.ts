@@ -20,7 +20,7 @@ export async function getLocalImage(filename: string, full = false): Promise<str
     const hit = resolved.get(key)
     if (hit) return hit
 
-    // Ensures the file exists in the disk cache (downloads if missing) — the
+    // Ensures the file exists in the disk cache, downloading if missing, so the
     // thumb:// protocol serves it from there with immutable cache headers, so
     // the webview reuses decoded images across page remounts. The returned
     // cache name is Rust's to choose (small thumbnail variant or full image).

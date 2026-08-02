@@ -96,8 +96,8 @@ fn roundtrip_analytics_fields() {
 #[test]
 fn analytics_consent_defaults_to_not_asked() {
     // An old settings file with no analytics keys must read back as "not yet asked",
-    // not as an implicit opt-in or opt-out — asked/enabled are tracked as two plain
-    // bools specifically so this state doesn't need a nullable field to represent it.
+    // not as an implicit opt-in or opt-out. asked and enabled are two plain bools
+    // specifically so this state needs no nullable field to represent it.
     let mut f = NamedTempFile::new().unwrap();
     write!(f, r#"{{"gamePath":"C:\\Games"}}"#).unwrap();
     let loaded = read_from(f.path());
@@ -206,12 +206,11 @@ fn support_prompt_eligible_tolerates_clock_moved_backwards() {
     assert!(!support_prompt_eligible(10, 5_000_000, 1_000_000));
 }
 
-// A real pre-upgrade settings.json: every field converted from Option<T> in this
-// version is present with an explicit `null`, not absent, because that's what the
-// old Option<T> fields serialized as. serde(default) alone does not cover this — it
-// only fires for an absent key — so without null_default (settings.rs) this file
-// fails to parse and read_settings falls back to Settings::default(), silently
-// wiping every game path, launcher, and preference on the user's next launch.
+// A real pre-upgrade settings.json, where every field that is non-Option today is
+// present with an explicit null rather than absent. serde(default) alone does not cover
+// that, firing only for an absent key, so without null_default (settings.rs) this file
+// fails to parse and read_settings falls back to Settings::default(), silently wiping
+// every game path, launcher, and preference on the user's next launch.
 const PRE_UPGRADE_SETTINGS_JSON: &str = r#"{
   "games": {
     "pd3": {
@@ -259,8 +258,8 @@ fn recover_legacy_analytics_consent_from_explicit_bool() {
     let mut s: Settings = serde_json::from_str(PRE_UPGRADE_SETTINGS_JSON).unwrap();
     assert!(!s.analytics_consent_asked); // absent in the old file, defaults false
     recover_legacy_analytics_consent(&mut s, PRE_UPGRADE_SETTINGS_JSON);
-    // The old file's analyticsEnabled: true proves the user was already asked —
-    // must not re-show the first-run consent dialog to them.
+    // The old file's analyticsEnabled: true proves the user was already asked, so the
+    // first-run consent dialog must not be shown to them again.
     assert!(s.analytics_consent_asked);
 }
 

@@ -20,7 +20,7 @@ interface Props {
 }
 
 // Mirrors BrowsePage's buildPages: first, last, and a window around current,
-// with "…" filling the gaps.
+// with '...' filling the gaps.
 function buildPages(current: number, last: number): (number | '...')[] {
     const pages: (number | '...')[] = []
     const delta = 2

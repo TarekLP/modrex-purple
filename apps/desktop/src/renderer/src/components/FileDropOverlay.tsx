@@ -3,8 +3,8 @@ import { PackagePlus, CircleCheck, CircleAlert, Loader2, X } from 'lucide-react'
 import { t } from '../i18n'
 import type { DropResult } from '../hooks/useFileDropInstall'
 
-// Keeps children mounted through the exit transition: flips `shown` on the next frame
-// after mount (enter), and delays unmount by the transition duration on `active=false`.
+// Keeps children mounted through the exit transition: flips shown on the next frame
+// after mount (enter), and delays unmount by the transition duration on active=false.
 function useMountTransition(active: boolean, durationMs: number) {
     const [render, setRender] = useState(active)
     const [shown, setShown] = useState(false)

@@ -67,7 +67,7 @@ fn extract_total_pages_reads_last_link_on_early_pages() {
 
 #[test]
 fn extract_total_pages_falls_back_to_current_span_on_last_page() {
-    // WP-PageNavi shows no `.last` link when you're already on the last page.
+    // WP-PageNavi shows no .last link when you are already on the last page.
     let html = r#"<div class=wp-pagenavi role=navigation>
         <a class=first href=https://www.paydaythegame.com/news/category/payday3/>« First</a>
         <a class="page smaller" href=https://www.paydaythegame.com/news/category/payday3/page/18/>18</a>

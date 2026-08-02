@@ -50,13 +50,11 @@ async fn fetch_image(app: &AppHandle, file: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Caches an image and returns the cache filename for the renderer to build its
-/// thumb:// URL from. Default: the pre-generated small variant
-/// (thumbnail_{file}, ~10-20x smaller than the original, which can be multiple
-/// MB), falling back to the original for old images without one
-/// (has_thumb: false). With full = true: the original, cached under
-/// {filename}, used by the detail page (banner, lightbox), where the CDN's
-/// missing cache headers would otherwise cost a revalidation round-trip per view.
+/// Caches an image and returns the cache filename for the renderer to build its thumb://
+/// URL from. Default is the pre-generated small variant (thumbnail_{file}, 10-20x smaller
+/// than an original that can run to several MB), falling back to the original for old
+/// images without one (has_thumb: false). With full = true it caches the original under
+/// {filename}, which the detail page needs because the CDN sends no cache headers.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_thumbnail(
@@ -123,8 +121,8 @@ pub(crate) fn is_safe_thumb_filename(filename: &str) -> bool {
         && !Path::new(filename).is_absolute()
 }
 
-/// Returns the bare filename when the raw URI path is a single safe path
-/// segment; rejects anything that could escape the thumbnails directory.
+/// Returns the bare filename when the raw URI path is a single safe path segment, and
+/// rejects anything that could escape the thumbnails directory.
 pub(crate) fn sanitize_thumb_filename(raw_path: &str) -> Option<String> {
     let decoded = percent_encoding::percent_decode_str(raw_path.trim_start_matches('/'))
         .decode_utf8()
@@ -146,11 +144,10 @@ pub(crate) fn thumb_content_type(filename: &str) -> &'static str {
     }
 }
 
-/// Serves thumb:// requests from the thumbnail disk cache. Unlike Tauri's
-/// asset protocol, responses carry an immutable Cache-Control header: CDN
-/// filenames are content-unique, so the webview can reuse cached (and decoded)
-/// images across page remounts instead of re-reading and re-decoding on every
-/// mount. Without the header, every game/tab switch re-loads the whole grid.
+/// Serves thumb:// requests from the thumbnail disk cache. Unlike Tauri's asset protocol,
+/// responses carry an immutable Cache-Control header: CDN filenames are content-unique, so
+/// the webview reuses cached and decoded images across page remounts. Without the header,
+/// every game or tab switch re-loads the whole grid.
 pub(crate) fn handle_thumb_protocol(
     app: &AppHandle,
     request: tauri::http::Request<Vec<u8>>,

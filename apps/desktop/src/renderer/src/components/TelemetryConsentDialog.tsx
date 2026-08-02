@@ -13,9 +13,9 @@ interface Props {
 }
 
 /**
- * Analytics consent pop-up. On first run it's forced — Escape and overlay clicks
+ * Analytics consent pop-up. On first run it is forced, so Escape and overlay clicks
  * can't dismiss it, only an explicit Enable / No thanks. Reopened from Settings
- * (`dismissable`), it can be closed without changing the existing choice.
+ * (dismissable), it can be closed without changing the existing choice.
  */
 export function TelemetryConsentDialog({ open, onChoice, dismissable = false, onClose }: Props) {
     return (

@@ -27,7 +27,7 @@ export const commands = {
 	/**
 	 *  Renderer-facing wrapper for a dropped file the user is about to install manually
 	 *  (e.g. from a picker UI) rather than through install_dropped_file's own automatic
-	 *  attempt. A NotFound or Ambiguous result is not an error — the caller falls through
+	 *  attempt. A NotFound or Ambiguous result is not an error, and the caller falls through
 	 *  to the existing unidentified install path either way.
 	 */
 	identifyDroppedArchive: (gameId: string, path: string) => __TAURI_INVOKE<NexusArchiveIdentity>("identify_dropped_archive", { gameId, path }),
@@ -39,8 +39,8 @@ export const commands = {
 	setDiscordPresenceEnabled: (enabled: boolean) => __TAURI_INVOKE<void>("set_discord_presence_enabled", { enabled }),
 	updateDiscordPresence: (game: string) => __TAURI_INVOKE<void>("update_discord_presence", { game }),
 	/**
-	 *  Returns a backwards-compatible flat view of PD3 settings for the renderer.
-	 *  Commit 4 will switch callers to get_game_settings once the game switcher lands.
+	 *  Returns a backwards-compatible flat view of PD3 settings for the renderer. New callers
+	 *  take get_game_settings instead, which is per-game rather than pinned to pd3.
 	 */
 	getSettings: () => __TAURI_INVOKE<unknown>("get_settings"),
 	getGameSettings: (gameId: string) => __TAURI_INVOKE<GameSettings_Serialize>("get_game_settings", { gameId }),
@@ -51,15 +51,15 @@ export const commands = {
 	setSkipFileopenlogWarning: (skip: boolean) => __TAURI_INVOKE<void>("set_skip_fileopenlog_warning", { skip }),
 	dismissDepsWarning: (modId: number) => __TAURI_INVOKE<void>("dismiss_deps_warning", { modId }),
 	/**
-	 *  Counts a successful mod install toward the one-time "star us on GitHub"
-	 *  prompt. When the milestone is reached in a clean session, the shown flag is
-	 *  persisted *before* the renderer displays anything (write-on-show), so the
-	 *  prompt can never fire twice while settings.json survives.
+	 *  Counts a successful mod install toward the one-time "star us on GitHub" prompt. When
+	 *  the milestone is reached in a clean session, the shown flag is persisted before the
+	 *  renderer displays anything (write-on-show), so the prompt can never fire twice while
+	 *  settings.json survives.
 	 */
 	recordSuccessfulInstall: (cleanSession: boolean) => __TAURI_INVOKE<void>("record_successful_install", { cleanSession }),
 	/**
 	 *  Current analytics consent: None = not yet asked, Some(true/false) = chosen.
-	 *  The Option only exists at this IPC boundary — settings.json itself tracks
+	 *  The Option only exists at this IPC boundary. settings.json itself tracks
 	 *  "asked" and "enabled" as two separate plain bools (see Settings).
 	 */
 	getAnalyticsConsent: () => __TAURI_INVOKE<boolean | null>("get_analytics_consent"),
@@ -69,7 +69,7 @@ export const commands = {
 	 */
 	setAnalyticsConsent: (enabled: boolean) => __TAURI_INVOKE<void>("set_analytics_consent", { enabled }),
 	/**
-	 *  Renderer-origin events route through here; Rust-native events call track
+	 *  Renderer-origin events route through here. Rust-native events call track
 	 *  directly. Both share the consent gate in send_event.
 	 */
 	trackEvent: (name: string, params: unknown | null) => __TAURI_INVOKE<void>("track_event", { name, params }),
@@ -87,7 +87,7 @@ export const commands = {
 	/**
 	 *  User-initiated Tier 3 identification (see nexus_content.rs): looks up one already-
 	 *  installed, unidentified mod against Nexus's content index. Never called from
-	 *  get_installed — the renderer calls this per-mod from an explicit "Identify" action,
+	 *  get_installed. The renderer calls this per-mod from an explicit "Identify" action,
 	 *  same shape as the ModWorkshop identification pipeline being automatic (SHA256) while
 	 *  this one, lacking a hash to key on, cannot safely be.
 	 */
@@ -147,13 +147,11 @@ export const commands = {
 	downloadUpdate: () => __TAURI_INVOKE<null>("download_update"),
 	installUpdate: () => __TAURI_INVOKE<null>("install_update"),
 	/**
-	 *  Caches an image and returns the cache filename for the renderer to build its
-	 *  thumb:// URL from. Default: the pre-generated small variant
-	 *  (thumbnail_{file}, ~10-20x smaller than the original, which can be multiple
-	 *  MB), falling back to the original for old images without one
-	 *  (has_thumb: false). With full = true: the original, cached under
-	 *  {filename}, used by the detail page (banner, lightbox), where the CDN's
-	 *  missing cache headers would otherwise cost a revalidation round-trip per view.
+	 *  Caches an image and returns the cache filename for the renderer to build its thumb://
+	 *  URL from. Default is the pre-generated small variant (thumbnail_{file}, 10-20x smaller
+	 *  than an original that can run to several MB), falling back to the original for old
+	 *  images without one (has_thumb: false). With full = true it caches the original under
+	 *  {filename}, which the detail page needs because the CDN sends no cache headers.
 	 */
 	getThumbnail: (filename: string, full: boolean | null) => __TAURI_INVOKE<string>("get_thumbnail", { filename, full }),
 	getIndexModFiles: (modId: number, gameId: string) => __TAURI_INVOKE<IndexModFile[]>("get_index_mod_files", { modId, gameId }),
@@ -411,7 +409,7 @@ export type LoaderInfo = {
 	modworkshopIds: number[],
 	games: string[],
 	/**
-	 *  No direct download - the renderer must route installs through the normal mod
+	 *  No direct download, so the renderer must route installs through the normal mod
 	 *  flow rather than calling install_loader.
 	 */
 	viaModFlow: boolean,
@@ -436,8 +434,8 @@ export type ModDependency = {
 
 /**
  *  A mod as /mods/{id} returns it: every summary field plus the ones only the detail call
- *  carries. The collections are required but may be empty, which is the normalization the
- *  renderer previously did itself with `?? []` at each use.
+ *  carries. The collections are required but may be empty, so the renderer never needs an
+ *  empty-array fallback of its own at each use.
  */
 export type ModDetail = {
 	id: number,
@@ -484,7 +482,7 @@ export type ModDownload = {
 
 /**
  *  One downloadable file on a mod. Distinct from ModDownload above, which is the single
- *  default download a listing carries; a mod can publish many files.
+ *  default download a listing carries. A mod can publish many files.
  */
 export type ModFile = {
 	id: number,
@@ -618,18 +616,18 @@ export type NewsResult = {
  */
 export type NexusArchiveIdentity = "notFound" | ({ identified: NexusHashMatch }) & { ambiguous?: never } | 
 /**
- *  The same archive bytes are published under more than one Nexus mod (a real,
- *  observed shape — cross-posted content) and fileSize could not tell them apart
- *  because they are, by definition, the same size. The caller must ask the user.
+ *  The same archive bytes are published under more than one Nexus mod, a real and
+ *  observed shape for cross-posted content, and fileSize cannot tell them apart because
+ *  they are by definition the same size. The caller must ask the user.
  */
 ({ ambiguous: NexusHashMatch[] }) & { identified?: never };
 
 /**  What attempting Nexus content identification for one installed mod produced. */
 export type NexusContentIdentifyOutcome = 
 /**
- *  Already identified, already carrying a permanent miss, or nothing queryable
- *  could be derived (no folder segment, or the file could not be found on disk) —
- *  nothing was attempted, so nothing was recorded.
+ *  Already identified, already carrying a permanent miss, or nothing queryable could
+ *  be derived (no folder segment, or the file could not be found on disk). Nothing was
+ *  attempted, so nothing was recorded.
  */
 "skipped" | "notFound" | "ambiguous" | "identified";
 
@@ -685,11 +683,11 @@ export type TopLevelItem = { type: "folder"; id: string } | { type: "mod"; id: s
 /**
  *  Whether a mod's installed version can be compared against the remote one.
  * 
- *  This used to live in the version STRING, with "unknown" and "outdated" standing in for
- *  a real value. That worked only because neither is a plausible modworkshop version, and
- *  it forced every reader to know both sentinels. Per-source version semantics do not fit
- *  one overloaded string either: Nexus search returns no version at all, and Steam
- *  Workshop has update timestamps rather than versions.
+ *  Kept out of the version string deliberately. Sentinel values like "unknown" and
+ *  "outdated" only work while no source publishes them as a real version, and they force
+ *  every reader to know the full sentinel set. Per-source semantics do not fit one
+ *  overloaded string either: Nexus search returns no version at all, and Steam Workshop
+ *  has update timestamps rather than versions.
  */
 export type UpdateStatus = 
 /**  version holds a real, comparable value. */

@@ -1,6 +1,6 @@
 // Fails when a legal page's "Last updated" date is older than the change it describes.
 //
-// The date is deliberately NOT derived from git at build time. Two reasons: `git log` on a
+// The date is deliberately NOT derived from git at build time. Two reasons: git log on a
 // file bumps for a Prettier reformat or a CSS tweak just as readily as for a wording change,
 // which would move a legal date for a non-legal reason; and the deploy host is not
 // guaranteed to clone with enough history to answer the question at all. So the page states

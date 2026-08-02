@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'fs'
 
 // Locale files are auto-discovered at runtime (locales.ts's import.meta.glob), so there
-// is no registry to keep in sync — this check only has to verify a translation file's
+// is no registry to keep in sync, so this check only has to verify a translation file's
 // own shape against en.json. A locale missing a key silently falls back to English at
 // runtime with no signal anywhere; this is what makes that failure loud instead.
 

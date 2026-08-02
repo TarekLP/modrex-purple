@@ -1,9 +1,8 @@
-//! The one table a mod loader registers in. A loader is a hook installed next to the
-//! game (never tracked in state.json, never uninstallable through Modrex), so all five
-//! differ only in how presence is detected and how the package lands on disk - this
-//! captures both as data. The generic check_loader/install_loader commands dispatch over
-//! it and list_loaders hands it to the renderer, so a new game's loader is one entry here
-//! with no new command pair and no renderer edit.
+//! The one table a mod loader registers in. A loader is a hook installed next to the game
+//! (never tracked in state.json, never uninstallable through Modrex), so all five differ
+//! only in how presence is detected and how the package lands on disk, and this captures
+//! both as data. check_loader and install_loader dispatch over it and list_loaders hands
+//! it to the renderer, so a new game's loader is one entry here and nothing else.
 
 use tauri::AppHandle;
 
@@ -33,8 +32,8 @@ pub enum InstallStrategy {
     /// Extract the whole archive flat into the game root. Used when the package ships
     /// support files the loader needs (DAHM's framework modules, RAID's Lua basemod).
     ExtractAllFlat { url: &'static str },
-    /// No canonical download host - each release is somebody's modworkshop mod page, so
-    /// installing goes through the normal mod-install flow instead (see zip.rs's
+    /// No canonical download host, since each release is somebody's modworkshop mod page,
+    /// so installing goes through the normal mod-install flow instead (see zip.rs's
     /// UE4SS_LOADER sentinel).
     ViaModFlow,
 }
@@ -43,7 +42,7 @@ pub struct LoaderSpec {
     pub id: &'static str,
     /// modworkshop mod ids this loader is published under. A dependency on one of these
     /// means "install the loader", not "install a mod". Empty for loaders hosted offsite
-    /// (SuperBLT has no modworkshop page - the renderer matches it by a name heuristic).
+    /// (SuperBLT has no modworkshop page, so the renderer matches it by a name heuristic).
     pub modworkshop_ids: &'static [i64],
     /// Games whose mods can depend on this loader.
     pub games: &'static [&'static str],
@@ -59,7 +58,7 @@ pub struct LoaderInfo {
     pub id: String,
     pub modworkshop_ids: Vec<i64>,
     pub games: Vec<String>,
-    /// No direct download - the renderer must route installs through the normal mod
+    /// No direct download, so the renderer must route installs through the normal mod
     /// flow rather than calling install_loader.
     pub via_mod_flow: bool,
 }
@@ -77,7 +76,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
             "IPHLPAPI.dll",
             "libsuperblt_loader.so",
         ]),
-        // Latest-release endpoint from superblt.znix.xyz - 302s to a versioned zip
+        // Latest-release endpoint from superblt.znix.xyz, which 302s to a versioned zip
         // containing exactly WSOCK32.dll. The basemod (mods/base) is fetched by the
         // loader itself on next launch, which is why only the DLL is extracted.
         install: InstallStrategy::ExtractEntries {
@@ -89,7 +88,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         id: "pdth_overrides",
         modworkshop_ids: &[53474],
         games: &["pdth"],
-        // DINPUT8.dll is the proxy loader and PDTHModOverrides.dll the payload; only the
+        // DINPUT8.dll is the proxy loader and PDTHModOverrides.dll the payload. Only the
         // proxy's presence is the install signal, but both are extracted below.
         detect: DetectStrategy::RootFiles(&["DINPUT8.dll"]),
         install: InstallStrategy::ExtractEntries {
@@ -102,7 +101,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         modworkshop_ids: &[14267],
         games: &["pdth"],
         detect: DetectStrategy::RootFiles(&["lightfx.dll"]),
-        // Stable redirect maintained by DAHM's author - 302s to a versioned ZIP that
+        // Stable redirect maintained by DAHM's author, which 302s to a versioned ZIP that
         // extracts flat to the game root (it ships ~40 framework modules alongside).
         install: InstallStrategy::ExtractAllFlat {
             url: "https://dahm.neonsynth.de/main.php",
@@ -114,7 +113,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         games: &["raid"],
         // IPHLPAPI.dll is also what the discontinued RaidBLT shipped, so its presence
         // means a BLT hook is installed, not necessarily the SuperBLT one. No Linux
-        // variant - RAID has no native Linux build.
+        // variant, because RAID has no native Linux build.
         detect: DetectStrategy::RootFiles(&["WSOCK32.dll", "IPHLPAPI.dll"]),
         // Stable default-download endpoint of the modworkshop page. Unlike PD2's
         // SuperBLT the zip ships the Lua basemod (mods/base) and updater/ inside, so a
@@ -126,7 +125,7 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
     LoaderSpec {
         id: "ue4ss",
         // Crime Boss (47749) plus PD3's two independently-maintained mod pages
-        // (47771 newer, 44048 older) - both PD3 ids must be recognized.
+        // (47771 newer, 44048 older). Both PD3 ids must be recognized.
         modworkshop_ids: &[47749, 47771, 44048],
         games: &["cb", "pd3"],
         detect: DetectStrategy::Ue4ssProxy,
@@ -172,11 +171,11 @@ pub fn check_loader(
         .and_then(|gs| gs.launcher.clone());
     let installed = is_loader_installed(spec, &game_id, &game_path, launcher.as_deref());
 
-    // PD2's Diesel 3.0 branch has no SuperBLT build, so the DLL being present does not
-    // mean the loader works. Answering that here rather than at one call site keeps every
-    // consumer consistent - when only the dep warning knew, a mod page showed "SuperBLT
-    // installed" while installing the same mod reported it missing.
-    // Temporary; remove with the Diesel 3.0 notice (.TODO: remove-diesel3-notice).
+    // PD2's Diesel 3.0 branch has no SuperBLT build, so the DLL being present does not mean
+    // the loader works. Answering that here rather than at one call site keeps every
+    // consumer consistent: if only the dep warning knew, a mod page would report SuperBLT
+    // installed while installing the same mod reported it missing.
+    // Temporary, remove with the Diesel 3.0 notice (.TODO: remove-diesel3-notice).
     if installed && spec.id == "superblt" && crate::commands::superblt::is_diesel3(&game_path) {
         return Ok(false);
     }
@@ -194,7 +193,7 @@ pub async fn install_loader(
 }
 
 /// Whether the loader's files are on disk. The launcher is only consulted by the UE4SS
-/// descriptor table; root-file loaders ignore it.
+/// descriptor table, and root-file loaders ignore it.
 pub fn is_loader_installed(
     spec: &LoaderSpec,
     game_id: &str,
@@ -291,8 +290,8 @@ mod tests {
         }
     }
 
-    /// A modworkshop id must map to exactly one loader - the renderer turns a dependency
-    /// id straight into a loader without disambiguating.
+    /// A modworkshop id must map to exactly one loader, because the renderer turns a
+    /// dependency id straight into a loader without disambiguating.
     #[test]
     fn modworkshop_ids_do_not_collide_across_loaders() {
         let mut seen: Vec<i64> = LOADER_REGISTRY
@@ -319,7 +318,6 @@ mod tests {
         }
     }
 
-    // Detection coverage ported from the per-loader modules this registry replaced.
     fn detects(loader_id: &str, files: &[&str]) -> bool {
         let tmp = TempDir::new().unwrap();
         for f in files {
@@ -348,8 +346,8 @@ mod tests {
         assert!(!detects("raid_superblt", &["libsuperblt_loader.so"]));
     }
 
-    /// DINPUT8.dll is the proxy and the only install signal - the payload DLL alone
-    /// means the loader is not hooked in.
+    /// DINPUT8.dll is the proxy and the only install signal.
+    /// The payload DLL alone means the loader is not hooked in.
     #[test]
     fn pdth_overrides_requires_the_proxy_dll() {
         assert!(detects("pdth_overrides", &["DINPUT8.dll"]));
@@ -374,10 +372,10 @@ mod tests {
         ));
     }
 
-    /// The Diesel 3.0 carve-out lives in check_loader, which needs an AppHandle; assert
-    /// the raw detection stays pure so the override has exactly one home. When only the
-    /// dep warning applied it, a mod page reported SuperBLT installed while installing
-    /// the same mod reported it missing.
+    /// The Diesel 3.0 carve-out lives in check_loader, which needs an AppHandle. This
+    /// asserts raw detection stays pure so the override has exactly one home: applied in
+    /// only one consumer, a mod page would report SuperBLT installed while installing the
+    /// same mod reported it missing.
     #[test]
     fn raw_superblt_detection_ignores_the_diesel3_marker() {
         let tmp = TempDir::new().unwrap();

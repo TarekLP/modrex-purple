@@ -9,7 +9,7 @@ function makeInstalled(id: number, overrides: Partial<InstalledMod> = {}): Insta
         uid: `uid-${id}`,
         id,
         // InstalledMod.id is an opaque local key; api.installMod always needs the real
-        // id, which only ever lives in remoteId — these fixtures use the same number
+        // id, which only ever lives in remoteId. These fixtures use the same number
         // for both for simplicity, matching what mockInstallMod is asserted against.
         remoteId: String(id),
         name: `Mod ${id}`,

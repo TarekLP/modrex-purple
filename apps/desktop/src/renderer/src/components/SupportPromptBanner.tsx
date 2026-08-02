@@ -7,7 +7,7 @@ const GITHUB_URL = 'https://github.com/modrexio/modrex'
 
 // One-time "star us on GitHub" banner. The shown flag is already persisted by the
 // time this renders (settings.rs::record_successful_install writes it before
-// emitting the event), so closing is purely visual — it can never come back.
+// emitting the event), so closing is purely visual and it can never come back.
 export function SupportPromptBanner({ onClose }: { onClose: () => void }) {
     return (
         <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-surface-raised border-b border-border">

@@ -6,13 +6,11 @@ use tauri::{AppHandle, Emitter, Manager};
 
 /// Treats an explicit JSON null as the field's default.
 ///
-/// serde(default) only covers an ABSENT field. Every field below that carries this used
-/// to be Option<T>, so every settings.json written before this version has it present
-/// with an explicit `null` rather than absent — without this, deserializing that file
-/// fails with "invalid type: null, expected ..." and read_settings falls back to
-/// Settings::default(), silently wiping every game path, launcher, and preference on
-/// the user's very next launch. Same problem, same fix, as domain.rs's null_default for
-/// modworkshop's API responses.
+/// serde(default) only covers an ABSENT field. Older settings.json files carry every field
+/// below as an explicit null instead, which fails deserialization with "invalid type: null,
+/// expected ..." and drops read_settings back to Settings::default(), silently wiping every
+/// game path, launcher, and preference on the next launch. Same fix as domain.rs's
+/// null_default for modworkshop responses.
 fn null_default<'de, D, T>(d: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
@@ -38,12 +36,12 @@ where
 #[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GameSettings {
-    // Not-yet-detected is a real third state here (auto-detection hasn't resolved,
-    // or the game isn't installed) — these two stay Option.
+    // Not-yet-detected is a real third state here (auto-detection has not resolved, or the
+    // game is not installed), so these two stay Option.
     pub game_path: Option<String>,
     pub launcher: Option<String>,
-    // deserialize_with only ever narrows null to the same wire type (see null_default);
-    // #[specta(type)] tells specta that, since it can't infer through a custom deserializer.
+    // deserialize_with only ever narrows null to the same wire type (see null_default).
+    // #[specta(type)] tells specta that, since it cannot infer through a custom deserializer.
     #[serde(default, deserialize_with = "null_default")]
     #[specta(type = String)]
     pub launch_options: String,
@@ -80,7 +78,7 @@ impl Default for GameSettings {
 #[serde(rename_all = "camelCase")]
 pub struct NexusOAuthTokens {
     // Present only when the OS credential store was unavailable at write time (see
-    // commands::secrets); the normal path stores both tokens there instead and leaves
+    // commands::secrets). The normal path stores both tokens there instead and leaves
     // these None, with only expires_at kept here either way.
     pub access_token: Option<String>,
     pub refresh_token: Option<String>,
@@ -97,14 +95,10 @@ pub struct Settings {
     // modworkshop mod ids only; ids from other sources must not land here.
     #[serde(default, deserialize_with = "null_default")]
     pub dismissed_deps_warnings: Vec<i32>,
-    // Telemetry: analytics_consent_asked distinguishes "never shown the first-run
-    // consent dialog" from "shown it, and this is their answer" — kept as its own
-    // bool so that state survives without the dialog either nagging forever or the
-    // saved choice being indistinguishable from "never asked". A pre-upgrade file
-    // never has this key at all (it's new), so read_settings recovers it from the
-    // old analyticsEnabled field's presence — see the comment there. analytics_id
-    // is a random per-install identifier; it is never transmitted unless the user
-    // has enabled analytics.
+    // analytics_consent_asked distinguishes "never shown the first-run consent dialog"
+    // from "shown it, and this is their answer". Its own bool keeps that state without
+    // the dialog either nagging forever or the saved choice reading as "never asked".
+    // analytics_id is a random per-install identifier, never transmitted unless enabled.
     #[serde(default)]
     pub analytics_consent_asked: bool,
     #[serde(default, deserialize_with = "null_default")]
@@ -121,7 +115,7 @@ pub struct Settings {
     // app-data wipe, where the guards below re-rate-limit it to once per 7+ days.
     #[serde(default, deserialize_with = "null_default")]
     pub successful_installs: u64,
-    // 0 = not yet recorded; a real first-install timestamp is never anywhere near epoch.
+    // 0 means not yet recorded. A real first-install timestamp is never near epoch.
     #[serde(default, deserialize_with = "null_default")]
     pub first_install_at: u64,
     #[serde(default, deserialize_with = "null_default")]
@@ -204,10 +198,10 @@ pub fn read_settings(app: &AppHandle) -> Settings {
     migrate_settings(s)
 }
 
-/// analytics_consent_asked postdates analyticsEnabled, so it's absent (defaults false)
-/// in every pre-upgrade file — without this, a user who already answered the consent
-/// dialog (recorded as an explicit true/false, not the null that meant "never asked")
-/// would see it again on their first launch after updating.
+/// analytics_consent_asked is absent (and so defaults to false) in every settings.json
+/// written before it existed. Without this recovery, a user who already answered the
+/// consent dialog (recorded there as an explicit true or false, not the null that meant
+/// "never asked") would be shown it again on their first launch after updating.
 pub(crate) fn recover_legacy_analytics_consent(s: &mut Settings, raw_content: &str) {
     if s.analytics_consent_asked {
         return;
@@ -244,10 +238,9 @@ pub(crate) fn write_settings(app: &AppHandle, settings: &Settings) {
 
 static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 
-/// Serializes every read-modify-write of settings.json. The game picker
-/// resolves all games' paths concurrently; without the lock those writers
-/// overwrote each other's just-saved paths, making games flap between
-/// installed and not installed.
+/// Serializes every read-modify-write of settings.json. The game picker resolves all
+/// games' paths concurrently, and without the lock those writers overwrite each other's
+/// just-saved paths, making games flap between installed and not installed.
 pub fn update_settings<T>(app: &AppHandle, mutate: impl FnOnce(&mut Settings) -> T) -> T {
     let _guard = SETTINGS_LOCK.lock().unwrap();
     let mut s = read_settings(app);
@@ -356,8 +349,8 @@ pub fn migrate_from_electron(app: &AppHandle) {
     }
 }
 
-/// Returns a backwards-compatible flat view of PD3 settings for the renderer.
-/// Commit 4 will switch callers to get_game_settings once the game switcher lands.
+/// Returns a backwards-compatible flat view of PD3 settings for the renderer. New callers
+/// take get_game_settings instead, which is per-game rather than pinned to pd3.
 #[tauri::command]
 #[specta::specta]
 pub fn get_settings(app: AppHandle) -> crate::commands::api::Json {
@@ -438,7 +431,7 @@ pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
 }
 
 /// Current analytics consent: None = not yet asked, Some(true/false) = chosen.
-/// The Option only exists at this IPC boundary — settings.json itself tracks
+/// The Option only exists at this IPC boundary. settings.json itself tracks
 /// "asked" and "enabled" as two separate plain bools (see Settings).
 #[tauri::command]
 #[specta::specta]
@@ -461,9 +454,9 @@ pub fn set_analytics_consent(app: AppHandle, enabled: bool) {
     });
 }
 
-/// Returns the persisted anonymous analytics ID, generating and persisting one if
-/// absent. Used by the analytics sender; the ID never leaves the device unless the
-/// user has enabled analytics.
+/// Returns the persisted anonymous analytics ID, generating and persisting one if absent.
+/// Used by the analytics sender. The ID never leaves the device unless the user has
+/// enabled analytics.
 pub(crate) fn ensure_analytics_id(app: &AppHandle) -> String {
     if let Some(id) = read_settings(app).analytics_id {
         return id;
@@ -483,10 +476,10 @@ pub(crate) fn support_prompt_eligible(installs: u64, first_install_at: u64, now_
         && now_ms.saturating_sub(first_install_at) >= SUPPORT_PROMPT_MIN_AGE_MS
 }
 
-/// Counts a successful mod install toward the one-time "star us on GitHub"
-/// prompt. When the milestone is reached in a clean session, the shown flag is
-/// persisted *before* the renderer displays anything (write-on-show), so the
-/// prompt can never fire twice while settings.json survives.
+/// Counts a successful mod install toward the one-time "star us on GitHub" prompt. When
+/// the milestone is reached in a clean session, the shown flag is persisted before the
+/// renderer displays anything (write-on-show), so the prompt can never fire twice while
+/// settings.json survives.
 #[tauri::command]
 #[specta::specta]
 pub fn record_successful_install(app: AppHandle, clean_session: bool) {

@@ -36,11 +36,11 @@ export function setArchiveEntries(game: GameId, fileId: number, entries: string[
     try {
         localStorage.setItem(storageKeyFor(game), JSON.stringify(map))
     } catch {
-        // localStorage unavailable/full — in-memory copy still serves this session
+        // localStorage unavailable or full. The in-memory copy still serves this session.
     }
 }
 
-// Union by entry filename — lets currently-installed files seed the cache without
+// Union by entry filename, which lets currently-installed files seed the cache without
 // clobbering richer entry paths recorded from the archive itself.
 export function mergeArchiveEntries(game: GameId, fileId: number, entries: string[]): void {
     const existing = getArchiveEntries(game, fileId) ?? []

@@ -222,17 +222,10 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         identity_migrated = true;
     }
 
-    // Backfill remote_id for modworkshop entries identified before remote_id existed for
-    // that source: their id already IS the real modworkshop id (the only meaning id ever
-    // had before InstalledMod.id became opaque for every source), so this is a plain
-    // fill-in, never a re-derivation. This has to run before upgrade_negative_ids
-    // (identify.rs), which otherwise can't tell "genuinely never identified" apart from
-    // "identified long ago, just missing this new field" — every pre-existing modworkshop
-    // install falls in the second bucket on the first launch after this change ships, and
-    // upgrade_negative_ids's fuzzy SHA256/name fallback is real re-identification: a name
-    // match specifically clears the stored version and marks the mod Outdated, which
-    // would otherwise fire for any mod whose installed bytes have since drifted from the
-    // index, en masse, as a side effect of a data migration rather than a real update.
+    // A positive id on a modworkshop entry already IS the real modworkshop id, so this is a
+    // plain fill-in, never a re-derivation. Must run before upgrade_negative_ids: it cannot
+    // tell "never identified" from "identified before remote_id existed", and its name
+    // fallback would mass-mark pre-existing installs Outdated during a plain data migration.
     for m in state.mods.iter_mut() {
         if m.remote_id.is_some() || m.id < 0 || m.source != "modworkshop" {
             continue;
@@ -241,14 +234,11 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
         identity_migrated = true;
     }
 
-    // Repair entries an older, unguarded build of upgrade_negative_ids (identify.rs)
-    // reassigned to a modworkshop id: a source-native entry's id must always be
-    // source_native_local_id(source, remote_id), since that's what a Nexus mod's card
-    // badge and its per-source update check both key off. A same-named modworkshop
-    // listing whose file happened to SHA256-match at some point could otherwise leave
-    // the id stuck pointing at the wrong record indefinitely — upgrade_negative_ids only
-    // ever looks at still-negative ids, so nothing else will ever notice or fix this on
-    // its own.
+    // A source-native entry's id must always be source_native_local_id(source, remote_id),
+    // which is what a Nexus mod's card badge and its per-source update check both key off.
+    // An entry whose id was reassigned to a cross-posted modworkshop listing stays stuck on
+    // the wrong record: upgrade_negative_ids only looks at still-negative ids, so nothing
+    // else notices. This repairs it on every load.
     let mut identity_id_repaired = false;
     for m in state.mods.iter_mut() {
         let Some(remote_id) = m.remote_id.as_deref() else {
@@ -262,14 +252,12 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
     }
     let state = state;
 
-    // One-time cleanup: remove auto-discovered, never-installed entries whose directory has no
-    // scan_marker file on disk, or whose name is on the target's excluded_names list. The first
-    // case purges DAHM framework modules (base.lua, no mod.txt) that were mistakenly collected
-    // into state when base.lua was first added as an entry_marker; the second purges UE4SS's
-    // bundled framework sub-mods (e.g. ActorDumperMod) that ambient scans collected before
-    // excluded_names existed — their marker file is still genuinely on disk, so the first check
-    // alone never catches them. Entries with a file_id (Modrex-installed) or a remote_id
-    // (identified, against any source) are kept.
+    // Removes auto-discovered, never-installed entries whose directory has no scan_marker
+    // file on disk, or whose name is on the target's excluded_names list. The first case
+    // purges DAHM framework modules (base.lua, no mod.txt). The second purges UE4SS's
+    // bundled framework sub-mods (e.g. ActorDumperMod), whose marker file is genuinely
+    // present, so the first check alone never catches them. Entries with a file_id
+    // (Modrex-installed) or a remote_id (identified against any source) are kept.
     let cleanup_removed: HashSet<String> = state
         .mods
         .iter()
@@ -406,7 +394,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
     } else {
         for f in state.folders.iter().filter(|f| phantom_ids.contains(&f.id)) {
             if let Some(rel) = get_folder_path(&state.folders, Some(f.id.as_str())) {
-                // remove_dir succeeds only if the directory is empty — safe to call unconditionally
+                // remove_dir succeeds only on an empty directory, so this is safe unconditionally.
                 let _ = fs::remove_dir(dis_dir.join(&rel));
             }
         }
@@ -418,7 +406,7 @@ pub fn reconcile_state(game_path: &str, state_path: &Path, cfg: &ModEngineConfig
             .collect()
     };
 
-    // Compact folder priorities to sequential (1, 2, 3, ...) — repairs gaps caused by prior bugs
+    // Compact folder priorities to sequential (1, 2, 3, ...), repairing any gaps.
     let (final_folders, any_compacted) = compact_folder_priorities(
         &cleaned_folders,
         &mods_base_path,

@@ -11,26 +11,25 @@ pub enum ModUnit {
         entry_markers: &'static [&'static str],
         /// Markers that unconditionally promote a directory to a mod during the ambient scan.
         scan_markers: &'static [&'static str],
-        /// Like `scan_markers` but the directory is only tracked if its SHA256 matches the index.
-        /// Unidentified entries are silently dropped — they are loader framework internals, not
-        /// user mods. Use when a marker (e.g. `base.lua`) is shared between framework modules
-        /// and genuinely installable mods that are distinguishable only via the mod index.
+        /// Like scan_markers, but the directory is only tracked if its SHA256 matches the
+        /// index. Unidentified entries are dropped as loader framework internals, not user
+        /// mods. Use when a marker (e.g. base.lua) is shared between framework modules and
+        /// genuinely installable mods that only the mod index can tell apart.
         index_gated_markers: &'static [&'static str],
-        /// Directory names the ambient scan must never treat as a user mod, even though they
-        /// match `scan_markers`/`entry_markers` — known bundled framework internals shipped
-        /// alongside genuinely installable content. Use when `index_gated_markers` can't apply
-        /// (the bundled content's files are never hashed into the mod index — e.g. UE4SS's own
-        /// framework sub-mods under `Mods/`, which are plain `.lua` scripts, not `.pak` files).
+        /// Directory names the ambient scan must never treat as a user mod even though they
+        /// match scan_markers or entry_markers, being known bundled framework internals
+        /// shipped alongside installable content. Use when index_gated_markers cannot apply
+        /// because the bundled files are never hashed into the mod index, as with UE4SS's
+        /// own framework sub-mods under Mods/, which are .lua scripts rather than .pak files.
         excluded_names: &'static [&'static str],
         priority_prefix: bool,
     },
 }
 
-/// UE4SS ships these framework-internal sub-mods bundled inside every install's `Mods/` folder
-/// (verified against the real UE4SS-CB and PD3-UE4SS releases) — they carry the exact same
-/// `Scripts/main.lua` shape as a genuine user sub-mod, so the ambient scan must exclude them by
-/// name rather than by marker. `shared` holds Lua libraries the bundled modules import, not a
-/// mod itself.
+/// UE4SS ships these framework-internal sub-mods bundled inside every install's Mods/ folder
+/// (verified against the real UE4SS-CB and PD3-UE4SS releases). They carry the exact same
+/// Scripts/main.lua shape as a genuine user sub-mod, so the ambient scan must exclude them
+/// by name rather than by marker. shared holds Lua libraries the bundled modules import.
 const UE4SS_BUNDLED_SUBMODS: &[&str] = &[
     "ActorDumperMod",
     "BPML_GenericFunctions",
@@ -134,8 +133,8 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
                 excluded_names: UE4SS_BUNDLED_SUBMODS,
                 priority_prefix: false,
             },
-            // game_path already ends in `PAYDAY3` (the Steam installdir) — see ue4ss.rs's
-            // descriptor comment for why this isn't a second copy of it. Steam/Epic only.
+            // game_path already ends in PAYDAY3 (the Steam installdir). See ue4ss.rs's
+            // descriptor comment for why this is not a second copy of it. Steam and Epic only.
             label_key: "ue4ssMods",
             mods_subpath: &["PAYDAY3", "Binaries", "Win64", "Mods"],
             disabled_subpath: &["PAYDAY3", "Binaries", "Win64", "Mods", "disabled"],
@@ -144,17 +143,16 @@ pub static PD3_ENGINE: ModEngineConfig = ModEngineConfig {
     ],
 };
 
-// Primary target is `CrimeBoss/Mods/<name>/` (Directory unit) — the official ModKit's install
-// location. Unlike PD2/PDTH's Directory targets, the install-time content isn't an
-// author-supplied folder copied as-is; Modrex synthesizes the `Content/Paks/WindowsNoEditor/`
-// skeleton itself around the extracted .pak (+ .ucas/.utoc) regardless of how the source archive
-// is packaged (see zip.rs's CB-specific resolution path). The official UGC mod-loader merges
-// multiple mods' Data Table Extensions additively when mods live here; the legacy `paks` target
-// (generic Unreal pak-mount, no merge semantics) only ever "last loaded wins" on overlapping
-// data, so it's kept for backward compatibility / loose-triplet-only mods but never selected for
-// new installs (`resolve_archive_download` dispatches on `cfg.primary().unit`, which is this
-// Directory target — `paks` is reachable only via `target_for(Some("paks"))`, i.e. ambient scan
-// of pre-existing installs).
+// Primary target is CrimeBoss/Mods/<name>/ (Directory unit), the official ModKit's install
+// location. Unlike PD2 and PDTH's Directory targets the install-time content is not an
+// author-supplied folder copied as-is. Modrex synthesizes the Content/Paks/WindowsNoEditor/
+// skeleton itself around the extracted .pak and its .ucas/.utoc siblings, however the source
+// archive is packaged (see zip.rs's CB-specific resolution path). The official UGC mod-loader
+// merges multiple mods' Data Table Extensions additively when mods live here, whereas the
+// legacy paks target is generic Unreal pak-mount with no merge semantics and resolves
+// overlapping data as last-loaded-wins. It is kept for loose-triplet-only mods but never
+// selected for new installs: resolve_archive_download dispatches on cfg.primary().unit, so
+// paks is reachable only via target_for(Some("paks")) during an ambient scan.
 pub static CRIMEBOSS_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "cb",
     index_game_name: "Crime Boss: Rockay City",
@@ -248,10 +246,10 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
             tag: "mods",
             unit: ModUnit::Directory {
                 // base.lua is the DAHM mod-framework entry point. It is in entry_markers so
-                // DAHM sub-mod ZIPs are classified correctly during install, and in
+                // DAHM sub-mod ZIPs classify correctly during install, and in
                 // index_gated_markers so base.lua-only directories ARE discovered by the scan
-                // but only tracked when their SHA256 matches the mod index — that's the reliable
-                // way to tell user-installed DAHM sub-mods from DAHM's bundled framework modules.
+                // but tracked only when their SHA256 matches the mod index. That match is the
+                // reliable way to tell user-installed sub-mods from DAHM's own framework.
                 entry_markers: &["mod.txt", "base.lua"],
                 scan_markers: &["mod.txt"],
                 index_gated_markers: &["base.lua"],
@@ -280,28 +278,28 @@ pub static PDTH_ENGINE: ModEngineConfig = ModEngineConfig {
     ],
 };
 
-// BLT/Diesel infrastructure dirs the loader creates under mods/ but which are never user mods:
-// base (the SuperBLT basemod), plus the downloads/logs/saves runtime dirs BLT and BeardLib
-// recreate on every launch. Common to every Diesel game (RAID, PD2, PDTH); mirrors
-// RAIDWW2-BeardLib's own _ignore_folders list (Classes/Frameworks.lua), verified against a real
-// install. On RAID's blanket-accept target this list is what keeps them out of the mod scan; on
-// PD2/PDTH markers already exclude them from the scan, but the list is still needed so
-// launch_without_mods (which moves folders regardless of markers) doesn't back them up and then
-// fail to restore them once the loader recreates them. BeardLib (the framework) is deliberately
-// omitted: unlike these runtime/basemod dirs it's a normal installable mod page (id 49760),
-// tracked like any other mod.
+// BLT and Diesel infrastructure dirs the loader creates under mods/ that are never user
+// mods: base (the SuperBLT basemod) plus the downloads, logs and saves runtime dirs BLT and
+// BeardLib recreate on every launch. Common to every Diesel game (RAID, PD2, PDTH), and
+// mirrors RAIDWW2-BeardLib's own _ignore_folders list (Classes/Frameworks.lua), verified
+// against a real install. On RAID's blanket-accept target this list is what keeps them out
+// of the mod scan. On PD2 and PDTH markers already exclude them, but the list is still
+// needed so launch_without_mods, which moves folders regardless of markers, does not back
+// them up and then fail to restore them once the loader recreates them. BeardLib itself is
+// deliberately omitted: it is a normal installable mod page (id 49760), tracked like any
+// other mod.
 const BLT_INFRA_FOLDERS: &[&str] = &["base", "downloads", "logs", "saves"];
 
-// RAID's modern loader (RAID-SuperBLT + RAIDWW2-BeardLib) loads BLT script mods AND asset
-// override packs from a single mods/<name>/ folder: the game's older assets/mod_overrides mount
-// was removed (current builds show a "MOD OVERRIDES IS NO LONGER USED" migration dialog, and
-// BeardLib's FindOverrides scans each mods/<name>/ folder for override content — soundbanks/,
-// guis/, units/, etc. — instead). So RAID has one blanket-accept target like Crime Boss's Mods/:
-// every folder in mods/ is a user mod unless it's on RAID_INFRA_FOLDERS. Markers aren't usable
-// here because asset packs carry no supermod.xml/mod.xml; identification still reads those
-// embedded ids when present (embedded_modworkshop_id) and otherwise falls back to SHA256/name.
-// The top-level base skip in find_untracked_paks also covers mods/base (which carries a
-// supermod.xml that a blanket scan would otherwise treat as a user mod).
+// RAID's modern loader (RAID-SuperBLT plus RAIDWW2-BeardLib) loads BLT script mods AND asset
+// override packs from a single mods/<name>/ folder. The game's assets/mod_overrides mount is
+// gone (current builds show a "MOD OVERRIDES IS NO LONGER USED" migration dialog, and
+// BeardLib's FindOverrides scans each mods/<name>/ folder for override content such as
+// soundbanks/, guis/ and units/ instead). So RAID has one blanket-accept target like Crime
+// Boss's Mods/: every folder in mods/ is a user mod unless it is on RAID_INFRA_FOLDERS.
+// Markers are unusable here because asset packs carry no supermod.xml or mod.xml.
+// Identification still reads those embedded ids when present (embedded_modworkshop_id) and
+// otherwise falls back to SHA256 then name. The top-level base skip in find_untracked_paks
+// also covers mods/base, whose supermod.xml a blanket scan would treat as a user mod.
 pub static RAID_ENGINE: ModEngineConfig = ModEngineConfig {
     game_id: "raid",
     index_game_name: "RAID: World War II",

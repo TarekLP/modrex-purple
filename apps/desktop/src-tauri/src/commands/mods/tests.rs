@@ -249,14 +249,14 @@ fn loader_signature_detects_top_level_settings_ini() {
 #[test]
 fn loader_signature_absent_for_a_standalone_lua_submod() {
     // A single Lua sub-mod a user downloads separately: no top-level DLL/ini, just the
-    // mod's own folder — must not be misclassified as the full loader package.
+    // mod's own folder, so it must not be misclassified as the full loader package.
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     assert!(!has_ue4ss_loader_signature(zip.path()));
 }
 
 #[test]
 fn loader_signature_requires_top_level_ini_not_nested() {
-    // A sub-mod could plausibly bundle its own ini somewhere under its own folder —
+    // A sub-mod could plausibly bundle its own ini somewhere under its own folder,
     // only a *top-level* UE4SS-settings.ini counts as the full loader.
     let zip = make_zip(&[("CoolMod/Config/UE4SS-settings.ini", b"not the real one")]);
     assert!(!has_ue4ss_loader_signature(zip.path()));
@@ -318,7 +318,7 @@ fn crimeboss_standalone_submod_resolves_to_ue4ss_mods_target() {
 
 #[test]
 fn pd3_standalone_submod_resolves_to_ue4ss_mods_target() {
-    // PD3's primary unit is File (paks) — the fallback must still find the secondary
+    // PD3's primary unit is File (paks), so the fallback must still find the secondary
     // Directory target even though it isn't primary.
     let zip = make_zip(&[("CoolMod/Scripts/main.lua", b"-- a real sub-mod")]);
     let cfg = engine_for_game("pd3").unwrap();
@@ -344,8 +344,8 @@ fn genuinely_unplaceable_archive_errors_on_pd3() {
 
 #[test]
 fn flat_crime_boss_archive_surfaces_confirm_sentinel_not_dead_end() {
-    // Crime Boss's primary `mods` target blanket-accepts any directory, so a flat archive (no
-    // enclosing folder at all) isn't classifiable but also isn't necessarily garbage — surface a
+    // Crime Boss's primary mods target blanket-accepts any directory, so a flat archive (no
+    // enclosing folder at all) is not classifiable but is not necessarily garbage, so surface a
     // confirm dialog instead of deleting the download outright.
     let zip = make_zip(&[("readme.txt", b"nothing installable here")]);
     let cfg = engine_for_game("cb").unwrap();
@@ -1030,7 +1030,7 @@ fn pd2_engine_has_two_targets() {
 // ── RAID single blanket-accept engine ─────────────────────────────────────
 // RAID's loader reads both BLT script mods and asset packs from one mods/<name>/ folder
 // (assets/mod_overrides was removed), so the engine is a single blanket-accept target that
-// excludes only BLT infrastructure dirs — see RAID_ENGINE in engine.rs.
+// excludes only BLT infrastructure dirs. See RAID_ENGINE in engine.rs.
 
 #[test]
 fn raid_engine_has_single_blanket_mods_target() {
@@ -1125,7 +1125,7 @@ fn classify_multiple_overrides_all_secondary() {
 #[test]
 fn classify_mixed_modpack_routes_each_dir_to_its_target() {
     // RAMP-shaped: a wrapper with a "mods" folder and an "overrides" folder; the overrides
-    // folder mixes BeardLib mods (have main.xml → must go to mods/) and asset-only dirs.
+    // folder mixes BeardLib mods (they have main.xml, so they go to mods/) and asset-only dirs.
     let dirs = classify(&[
         "Pack/mods folder/BeardlibMod/main.xml",
         "Pack/mods folder/BltMod/mod.txt",
@@ -1133,14 +1133,14 @@ fn classify_mixed_modpack_routes_each_dir_to_its_target() {
         "Pack/overrides folder/AssetMod/guis/x.texture",
         "Pack/overrides folder/AssetMod2/units/y.unit",
     ]);
-    // Marker dirs → primary (mods), regardless of which folder they were packaged in.
+    // Marker dirs go to primary (mods), regardless of which folder they were packaged in.
     assert_eq!(tag_of(&dirs, "Pack/mods folder/BeardlibMod"), Some(&None));
     assert_eq!(tag_of(&dirs, "Pack/mods folder/BltMod"), Some(&None));
     assert_eq!(
         tag_of(&dirs, "Pack/overrides folder/BeardlibOverride"),
         Some(&None)
     );
-    // Marker-less sibling dirs → overrides.
+    // Marker-less sibling dirs go to overrides.
     assert_eq!(
         tag_of(&dirs, "Pack/overrides folder/AssetMod"),
         Some(&Some("mod_overrides".into()))
@@ -1220,7 +1220,7 @@ fn classify_mixes_bare_and_wrapped_overrides() {
 #[test]
 fn classify_ignores_beardlib_internal_overrides() {
     // A BeardLib mod (has main.xml) that carries its own assets/mod_overrides internally must
-    // stay a single mods/ mod — its internals are not separate override mods.
+    // stay a single mods/ mod, because its internals are not separate override mods.
     let dirs = classify(&[
         "Pack/mods folder/BeardMod/main.xml",
         "Pack/mods folder/BeardMod/assets/mod_overrides/Internal/x.texture",
@@ -1232,7 +1232,7 @@ fn classify_ignores_beardlib_internal_overrides() {
 
 #[test]
 fn classify_ue4ss_submod_routes_to_ue4ss_mods_tag() {
-    // Scripts/main.lua is a nested marker — classification must resolve to the mod's own
+    // Scripts/main.lua is a nested marker, so classification must resolve to the mod's own
     // folder (Mods/CoolMod), not the Scripts/ subfolder the marker actually lives in.
     let names = vec!["Mods/CoolMod/Scripts/main.lua".to_string()];
     let dirs = classify_archive_dirs(&names, engine_for_game("cb").unwrap());
@@ -1266,8 +1266,8 @@ async fn find_untracked_paks_excludes_bundled_ue4ss_submods() {
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("main.lua"), b"-- mod").unwrap();
     };
-    make_lua_mod("ActorDumperMod"); // bundled framework internal — must be excluded
-    make_lua_mod("CoolMod"); // a genuine user sub-mod — must be reported
+    make_lua_mod("ActorDumperMod"); // bundled framework internal, must be excluded
+    make_lua_mod("CoolMod"); // a genuine user sub-mod, must be reported
 
     let cfg = engine_for_game("cb").unwrap();
     let results = find_untracked_paks(tmp.path().to_str().unwrap(), &HashSet::new(), cfg).await;
@@ -1283,7 +1283,7 @@ async fn find_untracked_paks_excludes_bundled_ue4ss_submods() {
 #[test]
 fn reconcile_state_purges_already_tracked_bundled_ue4ss_submods() {
     // Simulates state.json entries collected by an earlier ambient scan, before excluded_names
-    // existed — the marker file is still genuinely on disk, so the scan_markers-presence check
+    // existed. The marker file is still genuinely on disk, so the scan_markers-presence check
     // alone would never catch these; only the excluded_names check does.
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
@@ -1365,7 +1365,7 @@ fn reconcile_state_recovers_source_identity_from_uid() {
     assert_eq!(nexus.remote_id.as_deref(), Some("123"));
     assert_eq!(nexus.file_remote_id.as_deref(), Some("456"));
     // The workshop entry's old id (42) WAS its real modworkshop id, before id became
-    // opaque for every source — reconcile backfills remote_id from it directly (no
+    // opaque for every source, so reconcile backfills remote_id from it directly (no
     // SHA256/name re-derivation) and only then re-derives id as the opaque local key.
     let workshop = state.mods.iter().find(|m| m.uid == "789").unwrap();
     assert_eq!(workshop.remote_id.as_deref(), Some("42"));
@@ -1415,7 +1415,7 @@ fn reconcile_state_backfills_remote_id_for_a_legacy_modworkshop_entry_without_to
     // before remote_id existed for that source has a real positive id and no remote_id at
     // all. Without the backfill, upgrade_negative_ids (identify.rs) can't tell that apart
     // from "genuinely never identified" and would run its fuzzy SHA256/name fallback on
-    // it — the name-match branch specifically wipes the version and marks it Outdated,
+    // it: the name-match branch specifically wipes the version and marks it Outdated,
     // which must not happen here since this entry was already correctly identified.
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
@@ -1465,7 +1465,7 @@ fn reconcile_state_backfills_remote_id_for_a_legacy_modworkshop_entry_without_to
 fn reconcile_state_repairs_a_source_native_id_wrongly_promoted_to_modworkshop() {
     // Reproduces a real corrupted save: an older, unguarded upgrade_negative_ids let a
     // Nexus-installed mod's id drift to a modworkshop id (an exact SHA256 match against a
-    // cross-posted file), while source/remote_id stayed "nexus"/"52" — the sign of id is
+    // cross-posted file), while source and remote_id stayed "nexus" and "52". The sign of id is
     // what a Nexus mod's card badge and its own per-source update check both rely on, so a
     // stuck-positive id needs an active repair, not just a guard against new occurrences.
     let tmp = TempDir::new().unwrap();
@@ -1558,7 +1558,7 @@ fn setup_identify_index() -> rusqlite::Connection {
 #[test]
 fn upgrade_negative_ids_never_promotes_a_source_native_entry_even_on_an_exact_sha256_hit() {
     // A Nexus-installed file that happens to byte-match a modworkshop file (a real
-    // cross-post) must not have its id reassigned to that modworkshop mod's id — the
+    // cross-post) must not have its id reassigned to that modworkshop mod's id, since the
     // corruption this reproduces: same sha256, entry ends up positive while source and
     // remote_id still say "nexus", desyncing its card badge and its own update check.
     let conn = setup_identify_index();
@@ -1704,7 +1704,7 @@ fn detect_rejects_real_override_mod() {
 
 #[test]
 fn detect_rejects_mod_with_marker() {
-    // Has a marker → it's a real mod even though it carries background-named images.
+    // Has a marker, so it is a real mod even though it carries background-named images.
     assert!(detect_host(&[
         "Some Mod/mod.txt",
         "Some Mod/standard.png",
@@ -1716,7 +1716,7 @@ fn detect_rejects_mod_with_marker() {
 
 #[test]
 fn detect_ignores_non_image_signature_files() {
-    // Right names, wrong (non-image) extensions → not a background set.
+    // Right names, wrong (non-image) extensions, so not a background set.
     assert!(detect_host(&["Set/standard.lua", "Set/crimenet.txt", "Set/briefing.json",]).is_none());
 }
 
@@ -1740,7 +1740,7 @@ fn unplaceable_flags_loose_media_pack() {
 
 #[test]
 fn unplaceable_allows_real_override() {
-    // Files nested under a category dir → a placeable asset-override mod.
+    // Files nested under a category dir, so a placeable asset-override mod.
     assert!(!unplaceable(&["3D weapon rails/units/x.unit"]));
 }
 
@@ -1762,8 +1762,8 @@ fn parse_host_location_roundtrip() {
     assert_eq!(parse_host_location("host:abc:Assets"), None);
 }
 
-/// A game dir with Menu Backgrounds (id 17160) installed at `mods/Menu Backgrounds`, plus a zip
-/// holding one background set. Returns `(tempdir, state_path, zip)`.
+/// A game dir with Menu Backgrounds (id 17160) installed at mods/Menu Backgrounds, plus a zip
+/// holding one background set. Returns (tempdir, state_path, zip).
 fn host_fixture() -> (TempDir, std::path::PathBuf, NamedTempFile) {
     let tmp = TempDir::new().unwrap();
     let game = tmp.path();
@@ -1909,7 +1909,7 @@ fn discovers_untracked_host_packs_excluding_bundled() {
             .find(|(_, _, n, _, _)| n == "astolfo bg")
             .unwrap()
             .3
-    ); // active → enabled
+    ); // active means enabled
     assert!(
         !found
             .iter()
@@ -2196,7 +2196,7 @@ fn safe_dest_rejects_absolute_path() {
 
 #[test]
 fn extract_dir_entry_drops_traversal_entries() {
-    // An archive whose mod directory smuggles a `../` entry must not write outside dest.
+    // An archive whose mod directory smuggles a ../ entry must not write outside dest.
     let zip = make_zip(&[
         ("mymod/main.xml", b"safe"),
         ("mymod/../escape.pak", b"malicious"),
@@ -2274,7 +2274,7 @@ fn embedded_id_rejects_non_numeric_id() {
 
 #[test]
 fn embedded_id_ignores_substring_attribute_names() {
-    // `someid="7"` must not be mistaken for `id`.
+    // someid="7" must not be mistaken for id.
     let d = dir_with_main_xml(r#"<AssetUpdates someid="7" id="42" provider="modworkshop"/>"#);
     assert_eq!(embedded_modworkshop_id(d.path()), Some((42, None)));
 }
@@ -2315,7 +2315,7 @@ fn embedded_id_reads_legacy_raidblt_auto_updates() {
     );
 }
 
-// ── identify_untracked (hash → embedded-id → name priority) ───────────────────
+// ── identify_untracked (hash, then embedded-id, then name) ───────────────────────
 
 fn make_index() -> rusqlite::Connection {
     let conn = rusqlite::Connection::open_in_memory().unwrap();
@@ -2473,14 +2473,14 @@ fn identify_untracked_embedded_without_version_uses_index_version() {
         m.id,
         crate::commands::sources::source_native_local_id("modworkshop", "301")
     );
-    assert_eq!(m.version, "3.3"); // no declared version → index's current version (avoids false update)
+    assert_eq!(m.version, "3.3"); // no declared version, so the index's current version
     assert_eq!(m.file_id, None);
 }
 
 #[test]
 fn identify_untracked_falls_back_to_name_without_embedded() {
     let game = TempDir::new().unwrap();
-    // mod.txt mod — no main.xml, so no embedded id; resolution drops to name match.
+    // mod.txt mod with no main.xml, so no embedded id and resolution drops to a name match.
     make_mod_dir(game.path(), None, "SomeMod", "mod.txt", "{}");
     let conn = make_index();
     conn.execute_batch(
@@ -2605,8 +2605,8 @@ fn disable_then_enable_carries_iostore_sidecars() {
     disable_mod_op(game, &sp, "1", cfg, None);
     assert!(!active_dir.join(format!("{stem}.ucas")).exists());
     assert!(!active_dir.join(format!("{stem}.utoc")).exists());
-    // Disabled File-unit mods get both a different directory and a `.disabled`-suffixed
-    // filename (see naming::sidecar_path) — sidecars must carry the same suffix.
+    // Disabled File-unit mods get both a different directory and a .disabled-suffixed
+    // filename (see naming::sidecar_path), so sidecars must carry the same suffix.
     assert!(disabled_dir.join(format!("{stem}.ucas.disabled")).exists());
     assert!(disabled_dir.join(format!("{stem}.utoc.disabled")).exists());
 
@@ -2652,13 +2652,13 @@ fn uninstall_removes_iostore_sidecars() {
 }
 
 // Real-world Crime Boss ModKit "Package Mod" output is a folder users are told to copy into
-// `CrimeBoss/Mods/<name>/`: `<name>/Content/Paks/WindowsNoEditor/<name>-WindowsNoEditor.{pak,ucas,utoc}`
+// CrimeBoss/Mods/<name>/: <name>/Content/Paks/WindowsNoEditor/<name>-WindowsNoEditor.{pak,ucas,utoc}
 // (verified against the actual "More Multiplayer Jobs" download from modworkshop, mod id 54316).
-// `CrimeBoss/Mods/` is the primary install target (the official UGC mod-loader there merges
-// multiple mods' Data Table Extensions additively; the legacy `~mods` target is generic Unreal
-// pak-mounting with no merge semantics — see engine.rs's CRIMEBOSS_ENGINE comment). Regardless
+// CrimeBoss/Mods/ is the primary install target (the official UGC mod-loader there merges
+// multiple mods' Data Table Extensions additively; the legacy ~mods target is generic Unreal
+// pak-mounting with no merge semantics, see engine.rs's CRIMEBOSS_ENGINE comment). Regardless
 // of how the archive nests the triplet, Modrex always synthesizes the canonical
-// `Content/Paks/WindowsNoEditor/` skeleton itself rather than copying the archive's wrapper
+// Content/Paks/WindowsNoEditor/ skeleton itself rather than copying the archive's wrapper
 // folder as-is.
 #[test]
 fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
@@ -2724,7 +2724,7 @@ fn modkit_packaged_archive_installs_into_crimeboss_mods_skeleton() {
     assert!(!tmp.path().join("CrimeBoss/Content/Paks/~mods").exists());
 }
 
-// The loose-triplet convention (no wrapper folder at all — e.g. modworkshop's #1 most-downloaded
+// The loose-triplet convention (no wrapper folder at all, e.g. modworkshop's #1 most-downloaded
 // Crime Boss mod, "Total Mission Value") must resolve into the exact same Mods/ skeleton.
 #[test]
 fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
@@ -2769,7 +2769,7 @@ fn loose_triplet_archive_also_installs_into_crimeboss_mods_skeleton() {
 }
 
 // Identification of pre-existing/manually-placed Mods/ content must hash the .pak specifically,
-// not "first file alphabetically" — a sibling Config/ folder (custom gameplay tags, per the
+// not "first file alphabetically". A sibling Config/ folder (custom gameplay tags, per the
 // ModKit docs) sorts before Content/ and would otherwise be hashed instead.
 #[test]
 fn hashable_file_for_mod_dir_prefers_pak_over_alphabetically_first_file() {
@@ -2827,8 +2827,8 @@ fn settings_id_strips_suffix_and_lowercases() {
 
 #[test]
 fn settings_id_strips_legacy_priority_prefix_first() {
-    // The legacy `~mods` target applies a load-order prefix (e.g. `001_`) that the in-game id has
-    // no awareness of — stripping it must happen before suffix-matching, not after.
+    // The legacy ~mods target applies a load-order prefix (e.g. 001_) that the in-game id has
+    // no awareness of, so stripping it must happen before suffix-matching, not after.
     assert_eq!(
         settings_id_from_pak_filename("001_DallasPDCrimeBoss-WindowsNoEditor.pak"),
         Some("dallaspd".to_string())
@@ -2837,7 +2837,7 @@ fn settings_id_strips_legacy_priority_prefix_first() {
 
 #[test]
 fn settings_id_none_for_non_modkit_naming() {
-    // "Total Mission Value" — a real mod predating/bypassing the ModKit's standard pipeline.
+    // "Total Mission Value", a real mod that bypasses the ModKit's standard pipeline.
     assert_eq!(
         settings_id_from_pak_filename("Nadz_TotalMissionValue_P.pak"),
         None
@@ -3010,7 +3010,7 @@ fn enable_mod_op_syncs_settings_when_files_are_at_active_path_but_state_says_dis
 
 // ── ue4ss_modstxt: UE4SS mods.txt sync ────────────────────────────────────────
 // Fixture matches the real UE4SS-CB mods.txt byte-for-byte (BOM, CRLF, blank lines, comment,
-// trailing "do not move up" warning) — verified against the actual downloaded release.
+// trailing "do not move up" warning), verified against the actual downloaded release.
 
 const UE4SS_MODSTXT_FIXTURE: &str = "\u{FEFF}CheatManagerEnablerMod : 1\r\nActorDumperMod : 0\r\nConsoleCommandsMod : 1\r\nConsoleEnablerMod : 1\r\n\r\n\r\n; Built-in keybinds, do not move up!\r\nKeybinds : 1\r\n";
 
@@ -3105,7 +3105,7 @@ fn disable_then_enable_ue4ss_submod_edits_mods_txt_not_files() {
     };
     install_mod_from_path(game, &sp, mod_data, &src, None, cfg, target).unwrap();
 
-    // UE4SS owns mods.txt — simulate it already existing with this mod enabled.
+    // UE4SS owns mods.txt, so simulate it already existing with this mod enabled.
     let mods_txt = mods_base(game, target).join("mods.txt");
     fs::write(&mods_txt, "CoolMod : 1\r\n").unwrap();
     let main_lua = mods_base(game, target)
@@ -3115,7 +3115,7 @@ fn disable_then_enable_ue4ss_submod_edits_mods_txt_not_files() {
     assert!(main_lua.exists());
 
     disable_mod_op(game, &sp, "1", cfg, None);
-    // The files never move — only the mods.txt line and the tracked flag change.
+    // The files never move. Only the mods.txt line and the tracked flag change.
     assert!(main_lua.exists());
     assert_eq!(
         read_enabled_from_mods_txt(&mods_txt, "CoolMod"),
@@ -3143,8 +3143,8 @@ fn read_enabled_from_mods_txt_none_when_missing_or_unknown() {
 // Real-world shape verified against modworkshop mod id 56196 ("Career Criminal Janitor Set"):
 // two independent mods ("The Cleaner", "The Sweeper") bundled in one archive, each with its own
 // Content/Paks/WindowsNoEditor triplet. install_from_zip_entry (the command this exercises the
-// underlying pieces of) can't be unit-tested directly — it needs an AppHandle and makes a network
-// call — but resolve_archive_download's detection and extract_entry_into_crimeboss_skeleton's
+// underlying pieces of) cannot be unit-tested directly, needing an AppHandle and a network
+// call, but resolve_archive_download's detection and extract_entry_into_crimeboss_skeleton's
 // per-entry extraction are exactly what it relies on, and both are directly testable.
 
 fn janitor_bundle_zip() -> NamedTempFile {
@@ -3272,8 +3272,8 @@ fn crimeboss_bundle_archive_each_entry_installs_independently_without_cross_cont
 
 #[test]
 fn reorder_skips_priority_prefix_for_targets_that_dont_use_it() {
-    // Crime Boss's primary `mods` target manages order via ModSettings JSON, not filename
-    // prefixes (engine.rs: priority_prefix: false) — reordering must leave the folder name as-is.
+    // Crime Boss's primary mods target manages order via ModSettings JSON, not filename
+    // prefixes (engine.rs: priority_prefix: false), so reordering must leave the name as-is.
     let cfg = engine_for_game("cb").unwrap();
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
@@ -3308,7 +3308,7 @@ fn reorder_skips_priority_prefix_for_targets_that_dont_use_it() {
 
 #[test]
 fn reorder_applies_priority_prefix_for_targets_that_use_it() {
-    // PD3's `paks` target relies on the numeric prefix for UE5's alphabetical pak load order.
+    // PD3's paks target relies on the numeric prefix for UE5's alphabetical pak load order.
     let cfg = engine_for_game("pd3").unwrap();
     let tmp = TempDir::new().unwrap();
     let game = tmp.path().to_str().unwrap();
@@ -3424,7 +3424,7 @@ fn move_crimeboss_mod_wraps_legacy_pak_into_skeleton() {
         paks_target,
     )
     .unwrap();
-    // priority_prefix is enabled for the legacy target — confirms the fixture matches real installs.
+    // priority_prefix is enabled for the legacy target, confirming the fixture is realistic.
     let state = read_state(&sp);
     assert_eq!(
         state.mods[0].filename,
@@ -3494,7 +3494,7 @@ fn move_crimeboss_mod_preserves_disabled_state() {
 // ── stale_entry_for_zip_install ───────────────────────────────────────────────
 // Real-world regression shape (Dark Matter Skins, modworkshop 56976): a select-all batch
 // install of a 36-entry archive left only the last entry, because every install saw exactly
-// one same-id entry — the sibling installed a moment earlier — and pre-removed it.
+// one same-id entry, the sibling installed a moment earlier, and pre-removed it.
 
 fn zip_install_entry(uid: &str, remote_id: i64, file_id: i64) -> InstalledMod {
     InstalledMod {

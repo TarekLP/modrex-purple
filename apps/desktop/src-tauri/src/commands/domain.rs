@@ -4,18 +4,16 @@
 //!
 //! The private Wire types are what modworkshop actually sends. They carry a
 //! container-level serde(default) because the API omits fields inconsistently (type and
-//! size are absent on link-type downloads, avatar on users who never set one). These
-//! shapes used to cross IPC as untyped JSON that TypeScript only claimed to know, so a
-//! missing field rendered as a blank label. Deserializing into a struct WITHOUT defaults
-//! would turn that same response into a hard error and empty the whole browse page, so
-//! the wire layer stays maximally forgiving.
+//! size are absent on link-type downloads, avatar on users who never set one).
+//! Deserializing into a struct WITHOUT defaults turns a response missing one field into a
+//! hard error that empties the whole browse page, so the wire layer stays maximally
+//! forgiving.
 //!
 //! The public types are what crosses IPC, and their fields are required. Normalizing in
 //! Rust (absent string becomes empty, absent count becomes zero) is what lets the renderer
 //! keep strong types: specta derives optionality from the serde attributes, so one struct
-//! carrying both derives plus serde(default) exports EVERY field as optional, which is
-//! weaker than the hand-written types this replaces. Option survives only where absence is
-//! real and the renderer already branches on it.
+//! carrying both derives plus serde(default) exports EVERY field as optional. Option
+//! survives only where absence is real and the renderer already branches on it.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -323,7 +321,7 @@ struct WireLinkPage {
 }
 
 /// One downloadable file on a mod. Distinct from ModDownload above, which is the single
-/// default download a listing carries; a mod can publish many files.
+/// default download a listing carries. A mod can publish many files.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct ModFile {
     pub id: i64,
@@ -583,8 +581,8 @@ pub struct InstructsTemplate {
 }
 
 /// A mod as /mods/{id} returns it: every summary field plus the ones only the detail call
-/// carries. The collections are required but may be empty, which is the normalization the
-/// renderer previously did itself with `?? []` at each use.
+/// carries. The collections are required but may be empty, so the renderer never needs an
+/// empty-array fallback of its own at each use.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct ModDetail {
     pub id: i64,
@@ -756,14 +754,14 @@ struct WireNexusPage {
 /// Three mappings are judgement calls rather than renames, and each loses something:
 ///
 /// - endorsements becomes likes. Both count approval, but they are not the same metric.
-/// - pictureUrl becomes thumbnail.file. modworkshop stores a CDN filename there, Nexus
-///   gives a full URL; the renderer's useThumbnail passes absolute URLs through untouched,
+/// - pictureUrl becomes thumbnail.file. modworkshop stores a CDN filename there and Nexus
+///   gives a full URL. The renderer's useThumbnail passes absolute URLs through untouched,
 ///   which is the same route locally recorded thumbnails already take.
 /// - version is EMPTY. The GraphQL search selection carries no version at all, and an
 ///   empty version is what suppresses false update prompts in useModData, so a Nexus mod
 ///   still cannot report updates. Fixing that needs a per-mod detail call, not this one.
 ///
-/// has_download is true because every Nexus search result is downloadable; the download
+/// has_download is true because every Nexus search result is downloadable. The download
 /// itself is null since acquisition goes through the nxm handoff, not a direct URL.
 fn nexus_node_to_summary(w: WireNexusNode) -> ModSummary {
     let summary = w.summary.unwrap_or_default();
@@ -852,11 +850,9 @@ struct WireNexusUser {
 }
 
 /// Parses a Nexus mod-detail response into the neutral detail shape. Nexus has no
-/// equivalent of modworkshop's images, dependencies, tags, members, changelog or
-/// license, so those all come back empty or None. ModDetailPage's tabs already hide
-/// themselves on absent data, so this degrades to a smaller but still correct page
-/// rather than an error. desc is Nexus's own BBCode markup, parsed by the renderer's
-/// NexusDescription component rather than treated as markdown or HTML.
+/// equivalent of modworkshop's images, dependencies, tags, members, changelog or license,
+/// so those come back empty or None and ModDetailPage's tabs hide themselves, degrading to
+/// a smaller but still correct page. desc is Nexus BBCode, parsed by NexusDescription.
 pub fn parse_nexus_detail(value: serde_json::Value) -> Result<ModDetail, String> {
     let w: WireNexusDetail = serde_json::from_value(value)
         .map_err(|e| format!("nexus mod detail did not parse: {e}"))?;
@@ -968,11 +964,10 @@ fn nexus_file_to_mod_file(w: WireNexusFile, domain: &str, mod_id: u32) -> ModFil
     }
 }
 
-/// Parses a Nexus mod's file listing into the neutral file-page shape. Nexus files carry
-/// no direct download URL for a free account (only Premium or a real nxm:// handoff from
-/// the site produces one), so download_url stays empty and url instead deep-links to the
-/// file's own tab on the mod's Nexus page, the same fallback DownloadsTab already shows
-/// when no files are known at all.
+/// Parses a Nexus mod's file listing into the neutral file-page shape. Nexus files carry no
+/// direct download URL for a free account (only Premium or a real nxm:// handoff from the
+/// site produces one), so download_url stays empty and url deep-links to the file's tab on
+/// the mod's Nexus page, the same fallback DownloadsTab shows when no files are known.
 pub fn parse_nexus_files(
     value: serde_json::Value,
     domain: &str,
@@ -1095,7 +1090,7 @@ mod tests {
         assert_eq!(page.data[0].id, 3);
     }
 
-    // A hosted file carries download_url/type/size; the renderer picks install behaviour
+    // A hosted file carries download_url/type/size. The renderer picks install behaviour
     // from type, so it must survive as null rather than becoming an empty string.
     #[test]
     fn parses_a_file_listing() {

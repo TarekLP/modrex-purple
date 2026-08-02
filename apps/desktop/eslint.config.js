@@ -3,10 +3,10 @@ import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 
-// Hardcoded Tailwind color utilities (e.g. bg-red-500) — the project uses only the
-// semantic tokens defined in index.css's @theme block (surface, accent, danger, …).
-// A known utility prefix + color family + shade; scoped to className attributes below
-// so prose and other strings can never false-positive.
+// Hardcoded Tailwind color utilities (e.g. bg-red-500). The project uses only the semantic
+// tokens defined in index.css's @theme block (surface, accent, danger and so on). Matches a
+// known utility prefix plus color family plus shade, scoped to className attributes below so
+// prose and other strings can never false-positive.
 const tailwindColor =
     '(bg|text|border|ring|from|to|via|fill|stroke|outline|divide|placeholder|shadow|accent|caret|decoration)-' +
     '(zinc|slate|gray|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-' +

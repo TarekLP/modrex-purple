@@ -34,7 +34,7 @@ interface Props {
 }
 
 // Nexus has no "install this exact version" call for a free account (see
-// nexus_get_download_link's key/expires requirement) — its own site is the only
+// nexus_get_download_link's key and expires requirement), so its own site is the only
 // place that can hand back a real nxm:// download, same as everywhere else Nexus
 // installs originate from this app.
 function nexusUpdateUrl(ins: InstalledMod, gameId: string): string | null {
@@ -197,8 +197,8 @@ export function UpdatesModal({
             api.openExternal(nexusUrl)
             return
         }
-        // Not a Nexus mod at this point, so the real modworkshop id — what
-        // api.installMod actually needs — lives in remoteId, never InstalledMod.id
+        // Not a Nexus mod at this point, so the real modworkshop id, which is what
+        // api.installMod needs, lives in remoteId, never InstalledMod.id
         // (an opaque local key).
         const remoteId = Number(ins.remoteId)
         if (!Number.isFinite(remoteId) || remoteId <= 0) return

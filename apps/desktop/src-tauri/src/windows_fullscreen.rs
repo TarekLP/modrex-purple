@@ -1,8 +1,7 @@
-// Tao 0.35.3 clamps a fullscreen window to the taskbar work area when the
-// window was previously maximized. During borderless fullscreen Tao removes
-// the overlapped-window styles but retains WS_MAXIMIZE, so consuming
-// WM_NCCALCSIZE only for that native signature preserves the proposed monitor
-// rectangle without changing normal maximize behavior.
+// Tao 0.35.3 clamps a fullscreen window to the taskbar work area when it was
+// maximized before entering fullscreen. Borderless fullscreen drops the
+// overlapped-window styles but keeps WS_MAXIMIZE, so consuming WM_NCCALCSIZE
+// for only that style signature preserves the proposed monitor rectangle.
 
 use std::io;
 

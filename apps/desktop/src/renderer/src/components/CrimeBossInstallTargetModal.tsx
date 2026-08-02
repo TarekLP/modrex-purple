@@ -12,11 +12,12 @@ interface Props {
 }
 
 /**
- * Shown before a fresh Crime Boss install when the user has set "Always ask" in Settings — there's
+ * Shown before a fresh Crime Boss install when the user has set "Always ask" in Settings.
+ * There is
  * no way to tell from the archive alone whether a mod needs the official ModKit's Data Table merge
  * (Mods/) or plain pak mounting (~mods), so the choice is deferred to the user up front instead of
  * defaulting silently. Choosing "legacy" installs into Mods/ as normal, then relocates to ~mods
- * (see useCrimeBossInstallTarget) — there's no install path that writes directly into ~mods.
+ * (see useCrimeBossInstallTarget). No install path writes directly into ~mods.
  */
 export function CrimeBossInstallTargetModal({ modName, busy, error, onChoose, onCancel }: Props) {
     return (

@@ -153,8 +153,8 @@ function stripRedundantBreaks(nodes: ReactNode[]): ReactNode[] {
 }
 
 // No color class on strong or h1 through h3 here, deliberately. A hardcoded text color
-// on these would beat an inherited color from an ancestor color tag's span style,
-// which is why bold colored headings used to render in the default text color instead.
+// on these would beat an inherited color from an ancestor color tag's span style, so bold
+// colored headings would render in the default text color instead.
 const WRAPPER_CLASS =
     'text-sm text-text-muted leading-relaxed ' +
     '[&_strong]:font-semibold ' +

@@ -24,19 +24,16 @@ impl specta::Type for Json {
 const BASE: &str = "https://api.modworkshop.net";
 const MAX_CONCURRENT: usize = 3;
 // modworkshop enforces 90 req/min per IP, shared across every endpoint
-// (confirmed live via the x-ratelimit-limit response header — not documented
-// anywhere). Burst up to 4, then 1.3/sec sustained (≈78/min) leaves headroom
-// instead of exceeding it: the previous 4/sec sustained (240/min) was 2.7x
-// over the real limit and self-inflicted the 429s it was meant to prevent.
+// (confirmed live via the x-ratelimit-limit response header, which modworkshop
+// documents nowhere). Burst up to 4, then 1.3/sec sustained (about 78/min) sits
+// deliberately under that ceiling: exceeding it self-inflicts the 429s below.
 const RATE_BURST: f64 = 4.0;
 const RATE_PER_SEC: f64 = 1.3;
 
-// Last x-ratelimit-remaining seen on any response; -1 = unknown (no response
-// yet this run). modworkshop exposes no reset timestamp, so once the budget
-// gets low we can't compute an exact wait — add a flat precautionary pause
-// instead and let the token bucket's steady pacing (plus the server's window
-// eventually rolling over) do the rest. This makes the client slow down
-// proactively instead of only reacting after a 429 already happened.
+// Last x-ratelimit-remaining seen on any response. -1 means no response yet this
+// run. modworkshop exposes no reset timestamp, so an exact wait cannot be computed
+// once the budget runs low. A flat precautionary pause backs the client off
+// proactively instead of reacting only after a 429 has already happened.
 static RATE_REMAINING: AtomicI64 = AtomicI64::new(-1);
 const LOW_REMAINING_THRESHOLD: i64 = 5;
 const LOW_REMAINING_PAUSE: Duration = Duration::from_secs(3);
@@ -195,10 +192,10 @@ pub struct ListModsParams {
     pub sort: Option<String>,
     pub category_id: Option<u32>,
     pub page: Option<u32>,
-    // Filters the listing down to exactly these mod ids (undocumented
-    // modworkshop feature, verified live: `/games/{id}/mods?ids[]=A&ids[]=B`
-    // returns just A and B, full list-item shape). Lets bulk metadata refresh
-    // use one request per ~50 ids instead of one `get_mod` per id.
+    // Filters the listing down to exactly these mod ids (undocumented modworkshop
+    // feature, verified live: /games/{id}/mods?ids[]=A&ids[]=B returns just A and B
+    // in full list-item shape). Lets a bulk metadata refresh use one request per
+    // ~50 ids instead of one get_mod per id.
     pub ids: Option<Vec<u32>>,
     pub tags: Option<Vec<u32>>,
     pub block_tags: Option<Vec<u32>>,
@@ -289,6 +286,9 @@ pub async fn list_categories(app: AppHandle, game_id: u32) -> Result<Json, Strin
 #[tauri::command]
 #[specta::specta]
 pub async fn list_tags(app: AppHandle, game_id: u32) -> Result<Json, String> {
+    // global must be sent as 1, never true: params go out as a query string and
+    // modworkshop's Laravel boolean rule 422s on the literal "true". It folds site-wide
+    // tags in on top of the game's own, and the server still drops any the game hides.
     api_get(
         &app,
         &format!("/games/{}/tags", game_id),

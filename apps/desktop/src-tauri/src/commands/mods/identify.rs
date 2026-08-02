@@ -1,6 +1,6 @@
-//! Mod identification for `get_installed`: maps untracked / negative-id on-disk mods back to
-//! their modworkshop identity via SHA256 index lookup, embedded BeardLib ids, and name matching.
-//! Split out of `mod.rs`; the `#[tauri::command]` surface there orchestrates these helpers.
+//! Mod identification for get_installed: maps untracked and unidentified on-disk mods back
+//! to their modworkshop identity via SHA256 index lookup, embedded BeardLib ids, and name
+//! matching. The command surface in mod.rs orchestrates these helpers.
 
 use super::crimeboss_settings;
 use super::engine;
@@ -28,10 +28,10 @@ fn first_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     None
 }
 
-/// Recursively finds a `.pak` file inside `dir`, preferring it over `first_file_in_dir`'s
-/// alphabetical-first pick. Crime Boss's `Mods/<name>/` can have a sibling `Config/` folder
-/// (custom gameplay tags) that sorts before `Content/` — without this, identification would
-/// hash an `.ini` instead of the `.pak` modrex-index actually records SHA256 for.
+/// Recursively finds a .pak file inside dir, preferring it over first_file_in_dir's
+/// alphabetical-first pick. Crime Boss's Mods/<name>/ can have a sibling Config/ folder
+/// (custom gameplay tags) that sorts before Content/, and without this, identification
+/// would hash an .ini instead of the .pak the index records a SHA256 for.
 fn first_pak_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
     entries.sort_by_key(|e| e.file_name());
@@ -65,16 +65,16 @@ pub(crate) fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::pa
     first_pak_file_in_dir(dir).or_else(|| first_file_in_dir(dir))
 }
 
-/// Reads the value of an XML attribute (`name="value"` or `name='value'`) from a single
-/// element's text, matching the attribute name case-insensitively. Lightweight scanner —
-/// avoids pulling in a full XML parser for the one element we care about.
+/// Reads the value of an XML attribute (name="value" or name='value') from a single
+/// element's text, matching the attribute name case-insensitively. A lightweight scanner
+/// avoids pulling in a full XML parser for the one element that matters here.
 fn xml_attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     let lower = tag.to_ascii_lowercase();
     let needle = format!("{}=", name.to_ascii_lowercase());
     let mut from = 0;
     while let Some(rel) = lower[from..].find(&needle) {
         let at = from + rel;
-        // Require a boundary before the name so `id=` doesn't match inside `someid=`.
+        // Require a boundary before the name so id= does not match inside someid=.
         let boundary = at == 0 || !lower.as_bytes()[at - 1].is_ascii_alphanumeric();
         let eq = at + needle.len();
         let bytes = tag.as_bytes();
@@ -90,9 +90,9 @@ fn xml_attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     None
 }
 
-/// Scans `xml` for elements whose name starts with `tag_name` and returns the first one
-/// whose provider is modworkshop (the default when omitted) and whose `id_attr` parses as
-/// a positive id, along with the element's own version attribute if present.
+/// Scans xml for elements whose name starts with tag_name and returns the first one whose
+/// provider is modworkshop (the default when omitted) and whose id_attr parses as a positive
+/// id, along with the element's own version attribute if present.
 fn embedded_id_from_tag(xml: &str, tag_name: &str, id_attr: &str) -> Option<(i64, Option<String>)> {
     let lower = xml.to_ascii_lowercase();
     let needle = format!("<{}", tag_name);
@@ -121,7 +121,7 @@ fn embedded_id_from_tag(xml: &str, tag_name: &str, id_attr: &str) -> Option<(i64
     None
 }
 
-/// The version attribute of supermod.xml's root mod element — RAID-SuperBLT mods declare
+/// The version attribute of supermod.xml's root mod element. RAID-SuperBLT mods declare
 /// their version there, not on the update element.
 fn supermod_root_version(xml: &str) -> Option<String> {
     let lower = xml.to_ascii_lowercase();
@@ -141,7 +141,7 @@ fn supermod_root_version(xml: &str) -> Option<String> {
 /// Returns the modworkshop mod id (and declared version, if present) a mod embeds in its
 /// marker file. One format per BLT family, all verified against real downloads: BeardLib's
 /// main.xml (AssetUpdates element, id + version attributes), RAID-SuperBLT's supermod.xml
-/// (update element with an identifier attribute; version declared on the root mod element),
+/// (update element with an identifier attribute, version declared on the root mod element),
 /// and legacy RaidBLT's mod.xml (auto_updates element, id + version attributes). The
 /// provider defaults to modworkshop when omitted; any other provider is ignored. This
 /// identity survives version drift, so it works even for very old installs.
@@ -166,17 +166,13 @@ pub(crate) fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Opt
 
 // ── get_installed identification pipeline ──────────────────────────────────────
 
-/// Upgrades negative-id (unidentified) entries whose SHA256 is now present in the index —
-/// e.g. the mod was added to the index after it was first installed locally.
-/// Returns true if any entries were upgraded (caller must persist the change).
-/// Retries identification for every still-unidentified (negative-id) tracked mod on each
-/// refresh — not just at first ambient discovery. SHA256 is tried first (exact, pins the
-/// file); when a mod's modworkshop file has been updated since install (version drift), the
-/// installed bytes no longer match anything in the index and SHA256 will never hit again, so
-/// name is the only identity left. Without this second pass, a mod that missed both checks
-/// once (e.g. because the local index was still stale at that exact moment) stays "Unknown"
-/// forever — the user would have to wipe state and force a fresh discovery pass to fix it,
-/// defeating the app's promise that nothing needs manual intervention.
+/// Upgrades unidentified entries whose SHA256 is now present in the index, e.g. a mod added
+/// to the index after it was installed locally. Returns true if any entry was upgraded, and
+/// the caller must persist that. This runs on every refresh, not just at first ambient
+/// discovery: SHA256 is tried first because it pins the exact file, but once a mod's
+/// modworkshop file is updated the installed bytes can never match again, leaving the name as
+/// the only identity. Without the retry, a mod that missed both checks once, say against a
+/// momentarily stale index, stays "Unknown" until the user wipes state by hand.
 pub(crate) fn upgrade_negative_ids(
     app: &AppHandle,
     mods: &mut [InstalledMod],
@@ -199,15 +195,12 @@ pub(crate) fn upgrade_negative_ids_with_conn(
     let mut any = false;
     for m in mods {
         // remote_id is the one signal for "already identified", regardless of source or of
-        // id's sign — id itself is always an opaque, source-scoped key (see
-        // sources::source_native_local_id) and never means "modworkshop" by being positive.
-        // An entry that already carries a remote_id (Nexus today) is not a failed
-        // identification; it already has one, from its own source, and neither the exact
-        // SHA256 match below nor the fuzzy name fallback further down may reassign it to a
-        // modworkshop id instead. A byte-identical cross-posted file is real (the same mod
-        // re-hosted on both platforms), but merging its identity into modworkshop's would
-        // desync it from the still-Nexus source field, which is exactly what a Nexus mod
-        // card's badge, and useModData's per-source refresh, key off of.
+        // id's sign: id is an opaque, source-scoped key (see sources::source_native_local_id)
+        // and never means "modworkshop" by being positive. An entry already carrying a
+        // remote_id has one from its own source, so neither the exact SHA256 match below nor
+        // the name fallback may reassign it to a modworkshop id. A byte-identical cross-posted
+        // file is real, but merging its identity into modworkshop's desyncs it from the source
+        // field that a Nexus card's badge and useModData's per-source refresh key off.
         if m.remote_id.is_some() {
             continue;
         }
@@ -229,13 +222,12 @@ pub(crate) fn upgrade_negative_ids_with_conn(
             let remote_id_str = remote_id.to_string();
             m.id = crate::commands::sources::source_native_local_id("modworkshop", &remote_id_str);
             m.remote_id = Some(remote_id_str);
-            // The SHA256 check above just failed against the index's current file for this
-            // mod, so unlike the embedded-id "no declared version" fallback (which has zero
-            // signal and deliberately reads as up-to-date to avoid an endless false nag),
-            // here we know for a fact the installed bytes are stale. "outdated" is never a
-            // real modworkshop version string, so it reads as different from whatever the
-            // current one turns out to be — surfacing the update instead of hiding it behind
-            // the "unknown version" suppression in `useModData`.
+            // The SHA256 check above just failed against the index's current file, so unlike
+            // the embedded-id "no declared version" fallback (zero signal, deliberately reads
+            // as up-to-date to avoid an endless false nag), the installed bytes are known
+            // stale here. "outdated" is never a real modworkshop version, so it reads as
+            // different from the current one and surfaces the update instead of hiding it
+            // behind useModData's "unknown version" suppression.
             m.version = String::new();
             m.update_status = UpdateStatus::Outdated;
             any = true;
@@ -270,10 +262,10 @@ pub(crate) fn regroup_negative_ids_by_name_suffix(mods: &mut [InstalledMod]) {
 }
 
 /// Crime Boss mods can be toggled from the game's own Options > Mods screen, which writes
-/// straight to `Saved/ModSettings/<id>.json` — Modrex's tracked `enabled` flag (driven by which
-/// folder a mod's files happen to sit in) has no way to learn about that on its own. Re-reads
-/// the real value for every tracked mod and corrects the flag where it disagrees. Returns `true`
-/// if anything changed (callers fold that into their existing save_state decision).
+/// straight to Saved/ModSettings/<id>.json, and Modrex's tracked enabled flag, driven by which
+/// folder the files sit in, has no way to learn about that. Re-reads the real value for every
+/// tracked mod and corrects the flag where it disagrees. Returns true if anything changed, for
+/// callers to fold into their existing save_state decision.
 pub(crate) fn resync_crimeboss_enabled_flags(
     game_path: &str,
     cfg: &ModEngineConfig,
@@ -288,10 +280,10 @@ pub(crate) fn resync_crimeboss_enabled_flags(
         }
         let target = cfg.target_for(m.location.as_deref());
         let rel = get_folder_path(folders, m.folder_id.as_deref());
-        // Don't trust `m.enabled` to pick which location holds the file: it's exactly the flag
-        // this function corrects, so on the *second* in-game toggle in a row it would already be
-        // stale relative to where the file actually sits (the in-game manager never moves
-        // files — only this resync, or Modrex's own enable/disable, ever does). Check both.
+        // Do not trust m.enabled to pick which location holds the file: it is exactly the
+        // flag this function corrects, so on a second in-game toggle in a row it is already
+        // stale relative to where the file sits. The in-game manager never moves files, only
+        // this resync and Modrex's own enable and disable do. Check both.
         let active = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
         let disabled = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
         let path = if active.exists() {
@@ -319,7 +311,7 @@ fn is_host_pack_location(location: Option<&str>) -> bool {
 }
 
 /// Creates app folders for every directory segment in the untracked paths that does not yet
-/// exist, pushing them onto `state.folders`. Returns the folder-path-to-id map used to place
+/// exist, pushing them onto state.folders. Returns the folder-path-to-id map used to place
 /// reconciled and newly identified mods.
 pub(crate) fn ensure_untracked_folders(
     state: &mut ModsState,
@@ -390,8 +382,8 @@ pub(crate) fn ensure_untracked_folders(
     folder_path_to_id
 }
 
-/// Hashes each untracked entry (the pak file, or a mod directory's marker/representative file)
-/// so it can be matched against the index. The returned vec is index-aligned with `untracked`.
+/// Hashes each untracked entry, either the pak file or a mod directory's representative
+/// marker file, so it can be matched against the index. The result is aligned with untracked.
 pub(crate) async fn hash_untracked(
     game_path: &str,
     untracked: &[(String, bool, Option<String>)],
@@ -442,7 +434,7 @@ pub(crate) async fn hash_untracked(
 }
 
 /// Reconciles untracked entries that hash-match an existing tracked mod (Phase 1, mutating
-/// `state.mods` in place), then identifies the rest via the index with name/number/hash
+/// state.mods in place), then identifies the rest via the index with name, number and hash
 /// fallbacks (Phase 2). Returns the full mod list: tracked entries plus newly identified ones.
 pub(crate) fn identify_untracked(
     state: &mut ModsState,
@@ -530,10 +522,10 @@ pub(crate) fn identify_untracked(
 
         let gname = cfg.index_game_name;
 
-        // BeardLib mods declare their modworkshop id in main.xml; this identity survives
-        // version drift, so prefer it over the fuzzy name fallback (but below an exact hash
-        // match, which also pins the precise file). Installed version comes from the mod's
-        // own declaration; the real display name is enriched from the index when present.
+        // BeardLib mods declare their modworkshop id in main.xml, and that identity survives
+        // version drift, so prefer it over the fuzzy name fallback but below an exact hash
+        // match, which also pins the precise file. Installed version comes from the mod's own
+        // declaration, and the real display name is enriched from the index when present.
         let embedded = if entry_target.is_directory_unit() {
             let mod_dir = if *enabled {
                 mods_base(game_path, entry_target).join(rel_path)
@@ -571,9 +563,10 @@ pub(crate) fn identify_untracked(
                 })
                 .map(|remote_id| {
                     // A confirmed name hit after the SHA256 check above already missed means
-                    // the installed bytes are known-stale (unlike the numeric/hash_filename
-                    // fallbacks below, which have no such confirmation) — "outdated" surfaces
-                    // the update instead of being suppressed by the "unknown version" guard.
+                    // the installed bytes are known stale, unlike the numeric and
+                    // hash_filename fallbacks below, which have no such confirmation. So
+                    // "outdated" surfaces the update instead of hitting the unknown-version
+                    // guard.
                     (
                         remote_id,
                         stripped_name.trim().to_string(),
@@ -621,11 +614,11 @@ pub(crate) fn identify_untracked(
             },
         };
 
-        // Dirs discovered via index_gated_markers (e.g. base.lua) that didn't match the index
-        // are loader framework modules, not user mods — drop them.
-        // Guard: only filter when the index actually has entries for this game; if it doesn't,
-        // we can't tell framework modules from real mods, so show everything (some "Unknown")
-        // rather than hide everything. Once the game is indexed the filter kicks in correctly.
+        // Dirs discovered via index_gated_markers (e.g. base.lua) that did not match the
+        // index are loader framework modules, not user mods, so they are dropped. Only filter
+        // when the index actually has entries for this game: without them there is no way to
+        // tell framework modules from real mods, so show everything, some of it "Unknown",
+        // rather than hide everything. The filter starts applying once the game is indexed.
         if id < 0 {
             if let engine::ModUnit::Directory {
                 scan_markers,
@@ -648,7 +641,8 @@ pub(crate) fn identify_untracked(
             }
         }
 
-        // Fall back to filename uid when file_id already exists — multi-pak ZIPs share one file_id.
+        // Fall back to the filename uid when file_id already exists, since multi-pak ZIPs
+        // share one file_id.
         let uid = match file_id {
             Some(fid) => {
                 let candidate = fid.to_string();
@@ -661,10 +655,10 @@ pub(crate) fn identify_untracked(
             None => strip_priority_prefix(&filename).to_string(),
         };
 
-        // id here is still real modworkshop id (positive) or hash_filename's placeholder
-        // (always negative) — the sign check above is the one place it's still meaningful,
-        // since it's this match's own local result, not the stored InstalledMod.id. From
-        // here on id becomes the opaque, source-scoped key; remote_id carries the real one.
+        // id here is still a real modworkshop id (positive) or hash_filename's placeholder
+        // (always negative), so the sign check above is the one place it stays meaningful:
+        // it reads this match's own local result, not the stored InstalledMod.id. Past this
+        // point id is the opaque source-scoped key and remote_id carries the real one.
         let (id, remote_id) = if id > 0 {
             let remote_id = id.to_string();
             (

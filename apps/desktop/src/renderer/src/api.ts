@@ -221,7 +221,7 @@ export const api = {
         return commands.nexusOauthSignOut()
     },
     // Whether the OS credential store (Windows Credential Manager / Linux Secret
-    // Service) is currently usable — not Nexus-specific, but Nexus sign-in is the one
+    // Service) is currently usable. Not Nexus-specific, but Nexus sign-in is the one
     // feature today that needs it, so this is what gates the Settings warning banner.
     secretStoreAvailable(): Promise<boolean> {
         return commands.secretStoreAvailable()
@@ -510,7 +510,7 @@ export const api = {
 
     // ── Mod loaders (registry-driven) ──────────────────────────────────────────
     // The registry (src-tauri/src/commands/loaders.rs) owns which loaders exist, the
-    // modworkshop ids they are published under, and which games they serve — the
+    // modworkshop ids they are published under, and which games they serve, so the
     // renderer reads it instead of restating those tables.
     listLoaders(): Promise<LoaderInfo[]> {
         return commands.listLoaders()

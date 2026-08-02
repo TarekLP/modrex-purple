@@ -99,7 +99,7 @@ export function InstalledPage({
         setHealthProgress(null)
     }
 
-    // Runs eagerly on click rather than lazily inside the modal — the dependency check costs
+    // Runs eagerly on click rather than lazily inside the modal, since the dependency check
     // a network fetch per mod, so the modal only opens once the full report is ready.
     async function runHealthCheck() {
         if (checkingHealth) return

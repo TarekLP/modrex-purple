@@ -1,7 +1,7 @@
 // Reference implementation: https://github.com/HW12Dev/PDModExtractor (MIT)
 // .pdmod is a password-protected ZIP containing pdmod.json (ItemQueue manifest) plus the
 // replacement asset files. BundlePath and BundleExtension in the manifest are Bob Jenkins
-// lookup8 hashes; the hashlist maps them back to game-relative asset paths.
+// lookup8 hashes, and the hashlist maps them back to game-relative asset paths.
 
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use zip::ZipArchive;
 
 const PDMOD_PASSWORD: &[u8] = b"0$45'5))66S2ixF51a<6}L2UK";
 
-// Bob Jenkins lookup8 hash — direct port of hash.cpp from PDModExtractor.
+// Bob Jenkins lookup8 hash, direct port of hash.cpp from PDModExtractor.
 pub fn hash64(s: &str) -> u64 {
     let k = s.as_bytes();
     let length = k.len() as u64;

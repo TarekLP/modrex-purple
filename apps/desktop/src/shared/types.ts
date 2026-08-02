@@ -31,7 +31,7 @@ export interface InstructsTemplate {
     dependencies: ModDependency[]
 }
 
-// A user attached to a mod's credits (member of the mod page). `level` is the
+// A user attached to a mod's credits (member of the mod page). level is the
 // modworkshop role: collaborator | maintainer | contributor | viewer.
 export interface ModMember {
     id: number
@@ -54,18 +54,15 @@ export interface ModTag {
  * refresh produce this shape, which lacks the images, banner, dependencies,
  * instructs_template and tags that only /mods/{id} returns.
  *
- * This must stay structurally identical to the generated ModSummary in bindings.ts.
- * api.ts assigns the command result to it WITHOUT a cast, so any drift is a compile
- * error there. That is why the nullable fields are written as | null rather than
- * optional: Rust Option exports that way, and loosening them back to ?: would break
- * that check rather than fix anything.
+ * Must stay structurally identical to the generated ModSummary in bindings.ts. api.ts
+ * assigns the command result to it WITHOUT a cast, so any drift is a compile error there.
+ * Nullable fields are written | null rather than optional because Rust Option exports that
+ * way, and loosening them to ?: breaks that check rather than fixing anything.
  *
- * It does NOT yet prevent a summary being used where a Mod is expected. Every field
- * Mod adds is optional and TypeScript is structural, so ModSummary still satisfies
- * Mod. Closing that needs the DETAIL path typed in Rust too, which is what makes
- * non-optional detail fields honest. Until then the installedMetaCache invariant in
- * modCache.ts (a thin entry reaching modCache renders a mod page with no gallery and
- * no dependency warnings) stays a prose rule.
+ * It does NOT prevent a summary being used where a Mod is expected: every field Mod adds is
+ * optional and TypeScript is structural, so ModSummary still satisfies Mod. Closing that
+ * needs the detail path typed in Rust too, so until then modCache.ts's installedMetaCache
+ * invariant stays a prose rule.
  */
 export interface ModSummary {
     id: number
@@ -109,7 +106,7 @@ export interface Mod extends ModSummary {
     donation: string | null
     banner: ModImage | null
     // Collections are required but may be empty: Rust normalizes an absent array to an
-    // empty one, so consumers no longer need their own ?? [] at every use.
+    // empty one, so consumers need no ?? [] fallback of their own at each use.
     images: ModImage[]
     dependencies: ModDependency[]
     instructs_template: InstructsTemplate | null
@@ -163,7 +160,7 @@ export type { GameId, GameSpec } from '@modrex/games'
 export type { ModFolder, TopLevelItem, IndexModFile, NewsItem, NewsResult } from './bindings'
 
 export interface InstalledMod {
-    uid: string // unique per installed file — stable identity across renames
+    uid: string // unique per installed file, stable identity across renames
     id: number
     name: string
     version: string
@@ -183,11 +180,11 @@ export interface InstalledMod {
     folderId?: string | null // null or absent = root level
     archiveBroken?: boolean
     location?: string // scan target tag; absent = primary target
-    // Whether version is comparable. Replaces the old habit of encoding this in the
-    // version string itself as "unknown" / "outdated".
+    // Whether version is comparable. Kept out of the version string so "unknown" and
+    // "outdated" are never mistaken for real version values.
     updateStatus?: 'known' | 'unknown' | 'outdated'
     // Nexus content-index lookup already found nothing (or an ambiguous result) for
-    // this mod — a permanent miss until Nexus indexes it, so it's never re-queried.
+    // this mod, a permanent miss until Nexus indexes it, so it is never re-queried.
     nexusContentMissed?: boolean
 }
 

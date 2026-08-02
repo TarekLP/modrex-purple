@@ -1,5 +1,5 @@
 fn main() {
-    // `analytics.rs` bakes these in at compile time via `option_env!`. Cargo doesn't
+    // analytics.rs bakes these in at compile time via option_env!. Cargo does not
     // track env vars read that way, so without these lines a cached build (CI uses
     // rust-cache) could ship stale/empty credentials. Declaring them forces a
     // recompile whenever the values change.
@@ -9,7 +9,7 @@ fn main() {
 
     // The bindings-export test links rfd's TaskDialogIndirect, imported from comctl32
     // by ordinal and present only in common-controls v6. The app exe gets v6 through
-    // tauri-build's embedded manifest; test binaries have none and would die at load
+    // tauri-build's embedded manifest, but test binaries have none and would die at load
     // with STATUS_ORDINAL_NOT_FOUND, so embed the same dependency into them here.
     if std::env::var("CARGO_CFG_WINDOWS").is_ok() {
         println!("cargo:rustc-link-arg-tests=/MANIFEST:EMBED");

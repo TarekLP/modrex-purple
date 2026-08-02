@@ -23,7 +23,7 @@ interface Props {
 
 /**
  * Confirms installing a Crime Boss archive that has no enclosing folder (every entry sits at the
- * zip root) — there's only one possible destination (the primary mods/ target), so this is a
+ * zip root). There is only one possible destination (the primary mods/ target), so this is a
  * yes/no confirmation rather than a picker.
  */
 export function CrimeBossFlatArchiveModal({

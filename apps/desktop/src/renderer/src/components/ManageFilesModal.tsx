@@ -76,7 +76,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
 
     const rawById = new Map(installed.map((m) => [m.uid, m]))
 
-    // Resolves suspect bare/archive-uid collisions against the mod's live file list — the
+    // Resolves suspect bare and archive uid collisions against the mod's live file list. The
     // current file "type" (pak vs zip/7z/rar) says definitively which side is the leftover,
     // rather than guessing from install timestamps. See findSuspectDuplicateGroups in
     // installedUtils.ts for why a structural collision is required before this even runs.
@@ -117,14 +117,14 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         for (const [fileId, paths] of byFileId) mergeArchiveEntries(activeGame, fileId, paths)
     }, [mods, installed, folders, activeGame])
 
-    // The SHA256 index knows every pak a mod's archives ship — merge it in so
+    // The SHA256 index knows every pak a mod's archives ship, so merge it in and
     // files deleted before Modrex ever saw the archive still show up as ghosts.
     // Only archives the user actually installed from count: other remote files
     // (alternate downloads, old versions) were never theirs, and bare-file
-    // installs (uid === fileId) can't match — the app renames them on disk and
+    // installs (uid === fileId) cannot match, since the app renames them on disk and
     // the index only has the CDN blob name for them, not a real filename.
     // The real modworkshop id (api.getIndexModFiles/getCachedModFiles/installModFile all
-    // need this) — InstalledMod.id is an opaque local key, never that, even here.
+    // need this). InstalledMod.id is an opaque local key, never that, even here.
     const modRemoteId = Number(mods[0].remoteId)
     useEffect(() => {
         if (!Number.isFinite(modRemoteId) || modRemoteId <= 0) return
@@ -210,7 +210,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             )
             if (typeof outcome !== 'string' && 'needsPicker' in outcome) {
                 const zip = outcome.needsPicker as unknown as ZipMultiPakPayload
-                // The archive is authoritative — heal the cache and resolve the
+                // The archive is authoritative, so heal the cache and resolve the
                 // real entry path (cached ghosts may carry a reconstructed one).
                 setArchiveEntries(activeGame, zip.fileId, zip.entries)
                 const realEntry = zip.entries.find(
@@ -289,7 +289,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
     const visibleMods = [...visibleRootMods, ...visibleGroups.flatMap((g) => g.mods)]
     const anyVisibleEnabled = visibleMods.some((m) => m.enabled)
 
-    // Archive entries no longer installed — shown as rows with an install action.
+    // Archive entries not currently installed, shown as rows with an install action.
     // Installed filenames carry the NNN_ disk prefix; archive entry names don't.
     // Each ghost lands in the folder where its archive-directory siblings live.
     // Bare-file installs (uid === fileId) contribute no ghosts: their only

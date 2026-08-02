@@ -55,9 +55,9 @@ fn detect_game(game: &'static GameDef) -> Option<DetectedGame> {
 
 // ── OS helpers ────────────────────────────────────────────────────────────────
 
-// reg and Get-AppxPackage hang forever when their backing service is wedged —
-// poll with a deadline and kill instead of .output()'s unbounded wait. Callers'
-// output is a single line, so reading stdout only after exit can't fill the pipe.
+// reg and Get-AppxPackage hang forever when their backing service is wedged, so this
+// polls with a deadline and kills instead of taking .output()'s unbounded wait. Callers'
+// output is a single line, so reading stdout only after exit cannot fill the pipe.
 #[cfg(target_os = "windows")]
 pub(super) fn run_bounded(
     mut cmd: std::process::Command,
@@ -215,14 +215,14 @@ fn resolve_and_save_game_path(
     game_path: Option<String>,
 ) -> Result<(), String> {
     let game_def = game_def_for_id(&game_id)?;
-    // Path validation and detection can stall for seconds (SMB timeouts, wedged
-    // services), so resolve first and only take the settings lock to apply the
-    // result — sync commands on the main thread must never wait behind a probe.
+    // Path validation and detection can stall for seconds (SMB timeouts, wedged services),
+    // so resolve first and take the settings lock only to apply the result. Sync commands
+    // on the main thread must never wait behind a probe.
     let (resolved_path, resolved_launcher) = if let Some(path) = game_path {
         // A hand-picked folder is checked here rather than accepted outright: the
-        // auto-detect branch below re-validates every saved path on each refresh, so
-        // an unvalidated wrong pick was silently dropped a moment later with nothing
-        // telling the user why. Rejecting up front is what surfaces the error.
+        // auto-detect branch below re-validates every saved path on each refresh, so an
+        // unvalidated wrong pick is dropped a moment later with nothing telling the user
+        // why. Rejecting up front is what surfaces the error.
         if game_def.resolve_executable(&path).is_none() {
             return Err(format!(
                 "'{path}' is not a {} installation (no {} in it)",
@@ -289,9 +289,9 @@ pub async fn configure_game_path(
 
 #[tauri::command]
 #[specta::specta]
-// `title` comes from the renderer already localized and already naming the active game:
-// building it here would hardcode English and, before this took a parameter, named
-// PAYDAY 3 no matter which of the five games was being configured.
+// title comes from the renderer already localized and already naming the active game.
+// Building it here would hardcode English and name one fixed game rather than whichever
+// of the five is being configured.
 pub async fn pick_folder(
     app: AppHandle,
     title: String,
@@ -329,12 +329,11 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
                 for entry in entries.flatten() {
                     let name = entry.file_name();
                     let dest = mods_dir.join(&name);
-                    // Self-heal installs stranded by the pre-fix behaviour: a disposable runtime dir
-                    // (BLT's logs/downloads) backed up by an older build, then recreated in mods/
-                    // while the game ran, can't rename back over the fresh copy, which strands
-                    // mods.bak and pins the "mods hidden" banner. These are regenerated caches, not
-                    // mods, so drop the stale backup so mods.bak can clear. Deliberately excludes
-                    // saves/ (mod-persisted user data) and base/: those are never auto-deleted.
+                    // A disposable runtime dir (BLT's logs/downloads) backed up and then
+                    // recreated in mods/ while the game ran cannot rename back over the
+                    // fresh copy, stranding mods.bak and pinning the "mods hidden" banner.
+                    // These are regenerated caches, so dropping the stale backup clears it.
+                    // saves/ and base/ are excluded: user data is never auto-deleted.
                     let name_str = name.to_string_lossy();
                     if dest.exists()
                         && target.excluded_names().contains(&name_str.as_ref())
@@ -483,22 +482,23 @@ pub fn restore_mods(app: AppHandle, game_id: String) -> Result<(), String> {
     do_restore(game_path, cfg)
 }
 
-// Native process enumeration (NtQuerySystemInformation / /proc) — never spawns
-// tasklist/pgrep, so a wedged WMI service or missing procps can't hang the UI.
+// Native process enumeration (NtQuerySystemInformation on Windows, /proc elsewhere). It
+// never spawns tasklist or pgrep, so a wedged WMI service or missing procps cannot hang
+// the UI.
 fn refresh_process_list() -> sysinfo::System {
     let mut sys = sysinfo::System::new();
     let kind = sysinfo::ProcessRefreshKind::nothing();
-    // cmdlines are only needed to see through Proton/wine wrapper process names;
-    // on Windows the process name is always the exe name
+    // cmdlines are only needed to see through Proton and wine wrapper process names.
+    // On Windows the process name is always the exe name.
     #[cfg(not(windows))]
     let kind = kind.with_cmd(sysinfo::UpdateKind::Always);
     sys.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, kind);
     sys
 }
 
-// The on-disk name may carry `.exe` (Windows, Proton) and Linux /proc truncates
-// names to 15 chars, so prefix-match the name; the command-line fallback keeps
-// the old `pgrep -f` behavior for games launched through Proton/Wine wrappers.
+// The on-disk name may carry .exe (Windows, Proton) and Linux /proc truncates names to 15
+// chars, so the name is prefix-matched. The command-line fallback covers games launched
+// through Proton or Wine wrappers, where the wrapper owns the process name.
 fn matches_process(name: &str, cmd: &[String], process_name: &str) -> bool {
     name.starts_with(process_name) || cmd.iter().any(|c| c.contains(process_name))
 }
@@ -541,8 +541,8 @@ pub fn stop_game(game_id: String) -> Result<(), String> {
     Ok(())
 }
 
-/// Returns the URL only if it is safe to hand to the OS shell: an `http`, `https`, or
-/// `mailto` URL containing no characters that could break out of the Windows `cmd /c start`
+/// Returns the URL only if it is safe to hand to the OS shell: an http, https, or mailto
+/// URL containing no characters that could break out of the Windows cmd /c start
 /// invocation. Links come from untrusted mod authors, so this gates every external open.
 fn sanitize_external_url(url: &str) -> Option<&str> {
     if url.contains(['"', '\n', '\r']) {

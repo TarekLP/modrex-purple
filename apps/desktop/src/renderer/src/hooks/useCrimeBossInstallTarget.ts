@@ -14,10 +14,10 @@ interface PendingChoice {
 /**
  * Gates a Crime Boss install behind a Mods/ (ModKit) vs ~mods (legacy pak) choice when the user
  * has set "Always ask" in Settings (crimebossInstallMode); every other game, and "Automatic"
- * mode, runs `install` immediately with no prompt. There's no way to tell from file content alone
+ * mode, runs install immediately with no prompt. There's no way to tell from file content alone
  * which target a given mod actually needs (see CLAUDE.md's Crime Boss section), so this defers the
- * decision to the user instead of guessing — `install` always lands in Mods/ either way (the only
- * target `resolve_crimeboss_archive` knows how to install fresh into); choosing "legacy" here just
+ * decision to the user instead of guessing. Install always lands in Mods/ either way (the
+ * target resolve_crimeboss_archive knows how to install fresh into); choosing "legacy" here just
  * relocates the result afterward via the same move_crimeboss_mod_target op the Installed page uses.
  */
 export function useCrimeBossInstallTarget(
@@ -30,7 +30,7 @@ export function useCrimeBossInstallTarget(
     const [error, setError] = useState<string | null>(null)
 
     // Stable across renders so it can be depended on from a memoized callback (e.g. BrowsePage's
-    // handleInstall, which crosses the ModGrid memo boundary — see CLAUDE.md).
+    // handleInstall, which crosses the ModGrid memo boundary, see CLAUDE.md).
     const runInstall = useCallback(
         (modId: number, modName: string, install: () => Promise<void>): Promise<void> => {
             const mode =
@@ -49,7 +49,7 @@ export function useCrimeBossInstallTarget(
         if (!gamePath) return
         const { mods } = await api.getInstalled(activeGame)
         // modId here is always the real modworkshop id (Nexus installs never reach this
-        // hook) — InstalledMod.id is an opaque local key, so match against remoteId.
+        // hook). InstalledMod.id is an opaque local key, so match against remoteId.
         const modIdStr = String(modId)
         const fresh = mods.filter((m) => m.remoteId === modIdStr && !m.location)
         for (const m of fresh) {
