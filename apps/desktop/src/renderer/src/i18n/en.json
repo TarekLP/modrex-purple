@@ -481,12 +481,6 @@
         "star": "Star on GitHub",
         "dismiss": "No thanks"
     },
-    "diesel3Notice": {
-        "title": "PAYDAY 2 Diesel 3.0 Beta",
-        "body": "SuperBLT from the official website is not compatible with Diesel 3.0. If you use BLT mods, install the community port from GitHub instead.",
-        "github": "Get from GitHub",
-        "gotIt": "Got it"
-    },
     "telemetry": {
         "title": "Help improve Modrex",
         "intro": "Modrex can send anonymous usage data so we can see which mods break, which games need attention, and what to build next. It's optional, and you can change this anytime in Settings.",

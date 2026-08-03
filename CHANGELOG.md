@@ -32,6 +32,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
   - Banners keep the same proportions as on ModWorkshop instead of being cropped to a fixed height.
   - Descriptions and dependency lists use the full page width.
 - The Dependencies & Instructions tab now lists dependencies in the author's intended install order, numbered, with instructions below.
+- The PAYDAY 2 Diesel 3.0 notice no longer appears at startup.
 
 ### Fixed
 
