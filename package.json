@@ -28,7 +28,7 @@
         "lint": "pnpm --dir apps/desktop lint && pnpm site:lint",
         "lint:fix": "pnpm --dir apps/desktop lint:fix && pnpm --dir apps/site lint:fix",
         "generate-licenses": "pnpm --dir apps/desktop generate-licenses",
-        "release:desktop": "pnpm --dir apps/desktop version",
+        "release:desktop": "cd apps/desktop && pnpm version",
         "site:dev": "pnpm --dir apps/site dev",
         "site:build": "pnpm --dir apps/site build",
         "site:typecheck": "pnpm --dir apps/site typecheck",

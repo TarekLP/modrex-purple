@@ -17,15 +17,6 @@ writeFileSync(
 
 execSync('cargo update --manifest-path src-tauri/Cargo.toml -p modrex', { stdio: 'inherit' })
 
-const readmePath = '../../README.md'
-const readme = readFileSync(readmePath, 'utf8')
-writeFileSync(
-    readmePath,
-    readme
-        .replace(/Modrex_[\d.]+_x64-setup\.exe/g, `Modrex_${version}_x64-setup.exe`)
-        .replace(/modrex_[\d.]+_amd64\.AppImage/g, `modrex_${version}_amd64.AppImage`)
-)
-
 const changelogPath = '../../CHANGELOG.md'
 const changelog = readFileSync(changelogPath, 'utf8')
 const unreleasedBody = changelog.match(/## Unreleased\n([\s\S]*?)\n## /)?.[1].trim()
@@ -39,7 +30,13 @@ writeFileSync(
     changelog.replace(/## Unreleased\n+/, `## Unreleased\n\n## ${version}\n\n`)
 )
 
+// npm's version command commits and tags only when the package directory itself holds a
+// .git entry. The desktop app is a workspace member two levels under the repository root,
+// so that step silently never runs and the release commit and tag are made here instead.
+// Without the tag the release workflow, which triggers on it, never fires at all.
 execSync(
-    'git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock ../../README.md ../../CHANGELOG.md',
+    'git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock ../../CHANGELOG.md',
     { stdio: 'inherit' }
 )
+execSync(`git commit -m "chore(release): ${version}"`, { stdio: 'inherit' })
+execSync(`git tag v${version}`, { stdio: 'inherit' })
