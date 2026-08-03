@@ -36,6 +36,7 @@ src/styles/global.css    ← imports tokens + shared utilities + mobile breakpoi
 src/styles/starlight.css ← docs-only styling layered over Starlight (loaded via customCss)
 src/styles/tokens/       ← design tokens (fonts, colors, typography, spacing, base, components)
 functions/api/collect.ts ← Cloudflare Pages Function, see "API (Cloudflare Pages Functions)" below
+functions/api/downloads.ts ← Cloudflare Pages Function backing the README download badge, see below
 functions/install.sh.ts  ← Cloudflare Pages Function serving modrex.net/install.sh, see below
 ```
 
@@ -46,6 +47,30 @@ functions/install.sh.ts  ← Cloudflare Pages Function serving modrex.net/instal
 **Not an open relay**: the function requires `measurement_id` + `api_secret` query params (400 otherwise) and pins `measurement_id` to Modrex's own GA4 property - exact match against the `MODREX_GA_MEASUREMENT_ID` Pages env var when set, otherwise a `G-[A-Z0-9]{4,}` shape check (403 on mismatch) - so modrex.net can't be used as a generic unauthenticated relay into arbitrary GA4 accounts. **Fire-and-forget**: it returns 204 immediately and performs the upstream fetch inside `waitUntil`; the desktop client never reads the response, and upstream failures are deliberately unobserved.
 
 **Geolocation fix**: the one place this function isn't a pure byte passthrough. Since Google sees the request coming from this function's own outbound `fetch`, not the desktop app's connection, GA4 would otherwise geolocate every single user as wherever Cloudflare's network egresses from — not their real country. The function reads `CF-Connecting-IP` (set by Cloudflare's edge from the real TCP connection; not spoofable by the client) and injects it as a top-level `ip_override` field in the forwarded JSON body, which is GA4's documented mechanism for exactly this server-side-proxy scenario. Absent under local `wrangler pages dev` (no real edge involved) — forwards fine, just without geo correction in that case.
+
+### Download badge (`functions/api/downloads.ts`)
+
+Serves a [shields.io endpoint badge](https://shields.io/badges/endpoint-badge) at
+`/api/downloads`, consumed by the repository README's Downloads badge. It exists because
+shields' own `github/downloads/:user/:repo/total` counts **every** release asset, and for this
+repo roughly 86% of that is the desktop app's updater polling `latest.json` (plus the
+electron-era `latest.yml` and `.blockmap` sidecars) rather than anyone installing anything.
+Shields has no wildcard or exclude syntax and pinning one exact asset name would drop Linux
+plus every past naming era, so the filtering has to happen server-side.
+
+- **Filter**: an allowlist of installer extensions (`INSTALLER_EXTENSIONS`), matched against the
+  end of the asset name, deliberately not a blocklist of known metadata suffixes — a new sidecar
+  format added to the release workflow would silently inflate the count under a blocklist,
+  whereas a new installer format under-counts visibly until it is added. Suffix matching is also
+  what keeps `X.exe.blockmap` and `X.exe.sig` from counting as `X.exe`.
+- **Caching**: `Cache-Control` plus the `cacheSeconds` field shields honors (1 hour). Shields
+  caches endpoint responses and GitHub's Camo proxy caches the rendered image again, which is
+  what keeps the GitHub API calls to a trickle; `GITHUB_TOKEN` (same optional Pages env var
+  `src/lib/github.ts` uses) is the margin for a cache miss against the 60/hour unauthenticated
+  limit.
+- **Failure shape**: an upstream failure renders `unavailable` with `isError: true` and a 5
+  minute cache, never a number — a stale-looking count would misreport, and a short TTL keeps a
+  GitHub outage from becoming a retry storm.
 
 ### Install script (`functions/install.sh.ts`)
 
