@@ -12,12 +12,79 @@ import { EmbedPlayer } from './EmbedPlayer'
 // match shapes it was written against.
 const { Tag, Parser } = bbcode
 
-// A textarea is RCDATA. Setting its innerHTML decodes entities without parsing markup
-// as real elements.
+// The HTML Latin-1 named references, in code point order from 160 to 255, so the table
+// is built by index instead of as 96 hand-paired entries. Mod authors write in many
+// languages and their editors escape accented letters this way, so leaving the block out
+// would show a literal "&eacute;" in real descriptions. An offset anywhere in the list
+// shifts every name after it, which is why the decode test probes across the block
+// rather than at one position.
+const LATIN1_NAMES =
+    'nbsp iexcl cent pound curren yen brvbar sect uml copy ordf laquo not shy reg macr deg plusmn sup2 sup3 acute micro para middot cedil sup1 ordm raquo frac14 frac12 frac34 iquest Agrave Aacute Acirc Atilde Auml Aring AElig Ccedil Egrave Eacute Ecirc Euml Igrave Iacute Icirc Iuml ETH Ntilde Ograve Oacute Ocirc Otilde Ouml times Oslash Ugrave Uacute Ucirc Uuml Yacute THORN szlig agrave aacute acirc atilde auml aring aelig ccedil egrave eacute ecirc euml igrave iacute icirc iuml eth ntilde ograve oacute ocirc otilde ouml divide oslash ugrave uacute ucirc uuml yacute thorn yuml'.split(
+        ' '
+    )
+
+// Anything outside these tables and the numeric forms below is left as its literal text,
+// which is what a reader of a mod description would rather see than a swallowed
+// character.
+const NAMED_ENTITIES: Record<string, string> = {
+    ...Object.fromEntries(LATIN1_NAMES.map((name, i) => [name, String.fromCodePoint(160 + i)])),
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    ndash: '–',
+    mdash: '—',
+    hellip: '…',
+    lsquo: '‘',
+    rsquo: '’',
+    ldquo: '“',
+    rdquo: '”',
+    sbquo: '‚',
+    bdquo: '„',
+    lsaquo: '‹',
+    rsaquo: '›',
+    bull: '•',
+    dagger: '†',
+    Dagger: '‡',
+    permil: '‰',
+    prime: '′',
+    Prime: '″',
+    trade: '™',
+    euro: '€',
+    minus: '−',
+    ne: '≠',
+    le: '≤',
+    ge: '≥',
+    infin: '∞',
+    larr: '←',
+    uarr: '↑',
+    rarr: '→',
+    darr: '↓',
+    harr: '↔',
+}
+
+const ENTITY_RE = /&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g
+
+// Description text is attacker controlled, so a code point out of range or inside the
+// surrogate block reaches here from real input, not from a bug. String.fromCodePoint
+// throws on the first and produces an unpaired surrogate on the second.
+function decodeCodePoint(ref: string): string | null {
+    const hex = ref[1] === 'x' || ref[1] === 'X'
+    const code = hex ? parseInt(ref.slice(2), 16) : Number(ref.slice(1))
+    if (!Number.isInteger(code) || code < 1 || code > 0x10ffff) return null
+    if (code >= 0xd800 && code <= 0xdfff) return null
+    return String.fromCodePoint(code)
+}
+
+// Decoded from an explicit table rather than by writing the text into a detached node's
+// innerHTML and reading the parsed value back. That round trip is the idiom CodeQL's
+// js/xss-through-dom reports, and it built a throwaway element per call.
 function decodeEntities(text: string): string {
-    const el = document.createElement('textarea')
-    el.innerHTML = text
-    return el.value
+    return text.replace(ENTITY_RE, (match, ref: string) => {
+        if (ref.startsWith('#')) return decodeCodePoint(ref) ?? match
+        return NAMED_ENTITIES[ref] ?? match
+    })
 }
 
 // Vortex's own preprocessing step: real description data mixes literal br HTML into
@@ -35,8 +102,14 @@ function preprocess(text: string): string {
 // ampersand in a URL comes back out as the literal text "amp" entity form. Confirmed
 // against a live Nexus mod whose button image lost all its styling this way, since its
 // colors are set through the query string.
+//
+// These four are the exact set the library escapes (its ESCAPE_DICT). Undoing only
+// them, rather than running the general decoder, keeps an entity that survived
+// preprocess as literal text in the source from being decoded a second time here.
+const CONTENT_ESCAPES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"' }
+
 function decodeContentEscape(text: string): string {
-    return decodeEntities(text)
+    return text.replace(/&(amp|lt|gt|quot);/g, (_, name: string) => CONTENT_ESCAPES[name])
 }
 
 // Vortex's own br tag, not a bbcode-to-react default.

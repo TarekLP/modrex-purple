@@ -125,6 +125,41 @@ describe('NexusDescription', () => {
         expect(getByText(/x\.test/).getAttribute('href')).toBe('https://x.test/a?a=1&b=2')
     })
 
+    it('decodes named and numeric entities in description prose', () => {
+        const { container } = render(
+            <NexusDescription text="Tom&rsquo;s mod &mdash; 100&#37; &#x2192; done &copy;" />
+        )
+        expect(container.textContent).toBe('Tom’s mod — 100% → done ©')
+    })
+
+    // The Latin-1 table is built by index from one ordered name list, so a missing or
+    // transposed name shifts every entry after it. These probe near both ends and three
+    // interior positions, which no single-point offset can pass. The name at index 0 is
+    // nbsp, deliberately not asserted here so the file carries no invisible character.
+    it('decodes the Latin-1 named entities across the whole block', () => {
+        const { container } = render(
+            <NexusDescription text="&iexcl;|&reg;|&Agrave;|&eacute;|&uuml;|&yuml;" />
+        )
+        expect(container.textContent).toBe('¡|®|À|é|ü|ÿ')
+    })
+
+    it('leaves an unknown or malformed entity as its literal text', () => {
+        const { container } = render(
+            <NexusDescription text="&notreal; &#xD800; &#1114112; &amp;notreal;" />
+        )
+        expect(container.textContent).toBe('&notreal; &#xD800; &#1114112; &notreal;')
+    })
+
+    // The general decoder must not run on content read back through getContent, or an
+    // entity the author wrote as literal text (escaped at the source as "&amp;copy;")
+    // would be decoded a second time and turn into the character.
+    it('does not double-decode an entity that is literal text inside a url', () => {
+        const { container } = render(
+            <NexusDescription text="[url]https://x.test/a?q=&amp;amp;copy;[/url]" />
+        )
+        expect(container.querySelector('a')?.getAttribute('href')).toBe('https://x.test/a?q=&copy;')
+    })
+
     // A br touching a block element's boundary is dead space, since the block already
     // starts its own line. Confirmed by a real regression where this doubled the total
     // break count for a real mod's full description.
