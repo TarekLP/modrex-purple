@@ -36,6 +36,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed automatic updates for Linux DEB and RPM installations.
 - Fixed popup windows resizing and shifting position as their contents changed, most noticeably when switching tabs in the mod health check.
 - Fixed the download progress bar sometimes remaining visible after a mod finished installing.
 - Fixed the game picker's "Installed only" filter sometimes hiding installed games.

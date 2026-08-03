@@ -61,6 +61,15 @@
         ],
         "license": "../../../LICENSE",
         "resources": ["../THIRD_PARTY_LICENSES.md"],
+        "linux": {
+            "deb": {
+                "conflicts": ["pd3-mod-manager"],
+                "replaces": ["pd3-mod-manager"]
+            },
+            "rpm": {
+                "obsoletes": ["pd3-mod-manager"]
+            }
+        },
         "windows": {
             "nsis": {
                 "installMode": "currentUser",

@@ -6,6 +6,7 @@ on:
             - 'v*'
 
 permissions:
+    actions: read
     contents: write
 
 jobs:
@@ -13,6 +14,57 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - name: Validate release provenance
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+
+                  TAG_TYPE=$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")
+                  if [ "$TAG_TYPE" != 'tag' ]; then
+                    echo "::error::$GITHUB_REF_NAME must be an annotated tag"
+                    exit 1
+                  fi
+
+                  TAG_COMMIT=$(git rev-parse "refs/tags/$GITHUB_REF_NAME^{}")
+                  CHECKOUT_COMMIT=$(git rev-parse HEAD)
+                  if [ "$TAG_COMMIT" != "$CHECKOUT_COMMIT" ]; then
+                    echo "::error::$GITHUB_REF_NAME does not point at the checked-out commit"
+                    exit 1
+                  fi
+
+                  git fetch --no-tags origin main
+                  if ! git merge-base --is-ancestor "$TAG_COMMIT" FETCH_HEAD; then
+                    echo "::error::$GITHUB_REF_NAME is not reachable from main"
+                    exit 1
+                  fi
+
+                  RUNS_URL="/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$TAG_COMMIT&event=push&per_page=1"
+                  for ATTEMPT in {1..120}; do
+                    CI_STATE=$(gh api "$RUNS_URL" --jq 'if .total_count == 0 then ["missing", "pending"] else [.workflow_runs[0].status, (.workflow_runs[0].conclusion // "pending")] end | @tsv')
+                    read -r CI_STATUS CI_CONCLUSION <<< "$CI_STATE"
+
+                    if [ "$CI_STATUS" = 'completed' ] && [ "$CI_CONCLUSION" = 'success' ]; then
+                      echo "CI passed for $TAG_COMMIT"
+                      break
+                    fi
+                    if [ "$CI_STATUS" = 'completed' ]; then
+                      echo "::error::CI finished with conclusion: $CI_CONCLUSION"
+                      exit 1
+                    fi
+
+                    if [ "$ATTEMPT" -eq 120 ]; then
+                      echo "::error::Timed out waiting for CI on $TAG_COMMIT"
+                      exit 1
+                    fi
+
+                    echo "Waiting for CI on $TAG_COMMIT ($CI_STATUS)"
+                    sleep 10
+                  done
+
             - uses: actions/setup-node@v7
               with:
                   node-version: 22
@@ -176,12 +228,16 @@ jobs:
             - uses: actions/upload-artifact@v7
               with:
                   name: linux-deb
-                  path: apps/desktop/src-tauri/target/release/bundle/deb/*.deb
+                  path: |
+                      apps/desktop/src-tauri/target/release/bundle/deb/*.deb
+                      apps/desktop/src-tauri/target/release/bundle/deb/*.sig
 
             - uses: actions/upload-artifact@v7
               with:
                   name: linux-rpm
-                  path: apps/desktop/src-tauri/target/release/bundle/rpm/*.rpm
+                  path: |
+                      apps/desktop/src-tauri/target/release/bundle/rpm/*.rpm
+                      apps/desktop/src-tauri/target/release/bundle/rpm/*.sig
 
             - uses: actions/upload-artifact@v7
               with:
@@ -206,90 +262,160 @@ jobs:
               working-directory: apps/desktop
               run: node scripts/changelog-section.mjs "${{ steps.ver.outputs.version }}" > ../../RELEASE_BODY.md
 
-            - name: Rename artifacts to stable arch-suffixed names
+            - name: Rename updater artifacts to stable arch-suffixed names
               run: |
-                  WIN_EXE=$(ls windows-nsis/*.exe | head -1)
+                  shopt -s nullglob
+                  WIN_FILES=(windows-nsis/*.exe)
+                  DEB_FILES=(linux-deb/*.deb)
+                  RPM_FILES=(linux-rpm/*.rpm)
+                  APPIMAGE_FILES=(linux-appimage/*.AppImage)
+
+                  if (( ${#WIN_FILES[@]} != 1 )); then
+                    echo "Expected one NSIS installer, found ${#WIN_FILES[@]}" >&2
+                    exit 1
+                  fi
+                  if (( ${#DEB_FILES[@]} != 1 )); then
+                    echo "Expected one DEB package, found ${#DEB_FILES[@]}" >&2
+                    exit 1
+                  fi
+                  if (( ${#RPM_FILES[@]} != 1 )); then
+                    echo "Expected one RPM package, found ${#RPM_FILES[@]}" >&2
+                    exit 1
+                  fi
+                  if (( ${#APPIMAGE_FILES[@]} != 1 )); then
+                    echo "Expected one AppImage, found ${#APPIMAGE_FILES[@]}" >&2
+                    exit 1
+                  fi
+
+                  WIN_EXE=${WIN_FILES[0]}
+                  DEB=${DEB_FILES[0]}
+                  RPM=${RPM_FILES[0]}
+                  APPIMAGE=${APPIMAGE_FILES[0]}
+
+                  for ARTIFACT in "$WIN_EXE" "$DEB" "$RPM" "$APPIMAGE"; do
+                    if [ ! -s "${ARTIFACT}.sig" ]; then
+                      echo "Missing updater signature: ${ARTIFACT}.sig" >&2
+                      exit 1
+                    fi
+                  done
+
                   mv "$WIN_EXE" windows-nsis/modrex_x86_64.exe
                   mv "${WIN_EXE}.sig" windows-nsis/modrex_x86_64.exe.sig
-                  APPIMAGE=$(ls linux-appimage/*.AppImage | head -1)
+                  mv "$DEB" linux-deb/modrex_x86_64.deb
+                  mv "${DEB}.sig" linux-deb/modrex_x86_64.deb.sig
+                  mv "$RPM" linux-rpm/modrex_x86_64.rpm
+                  mv "${RPM}.sig" linux-rpm/modrex_x86_64.rpm.sig
                   mv "$APPIMAGE" linux-appimage/modrex_x86_64.AppImage
                   mv "${APPIMAGE}.sig" linux-appimage/modrex_x86_64.AppImage.sig
 
-            # compat: Electron app hardcodes LINUX_ARTIFACT='pd3-mod-manager' for deb/rpm downloads
-            # deb is repacked to add Conflicts/Replaces so apt removes the old pd3-mod-manager package
-            # rpm is rebuilt to add Obsoletes so dnf/rpm removes the old pd3-mod-manager package
-            - name: Patch Linux artifacts and produce arch-suffixed + compat filenames
-              run: |
-                  DEB_SRC=$(ls linux-deb/*.deb | head -1)
-                  dpkg-deb -R "$DEB_SRC" deb-tmp
-                  printf "Conflicts: pd3-mod-manager\nReplaces: pd3-mod-manager\n" >> deb-tmp/DEBIAN/control
-                  dpkg-deb -b deb-tmp linux-deb/modrex_x86_64.deb
+                  # Legacy Electron clients request these package names.
                   cp linux-deb/modrex_x86_64.deb linux-deb/pd3-mod-manager.deb
-                  rm -rf deb-tmp "$DEB_SRC"
-                  sudo apt-get install -y rpm
-                  RPM_SRC=$(ls linux-rpm/*.rpm | head -1)
-                  NAME=$(rpm -qp --queryformat '%{NAME}' "$RPM_SRC")
-                  VERSION=$(rpm -qp --queryformat '%{VERSION}' "$RPM_SRC")
-                  RELEASE=$(rpm -qp --queryformat '%{RELEASE}' "$RPM_SRC")
-                  SUMMARY=$(rpm -qp --queryformat '%{SUMMARY}' "$RPM_SRC"); SUMMARY=${SUMMARY:-$NAME}
-                  LICENSE=$(rpm -qp --queryformat '%{LICENSE}' "$RPM_SRC"); LICENSE=${LICENSE:-MIT}
-                  ARCH=$(rpm -qp --queryformat '%{ARCH}' "$RPM_SRC")
-                  mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
-                  STAGING="$HOME/rpmbuild/BUILD/stage"
-                  mkdir -p "$STAGING"
-                  rpm2cpio "$RPM_SRC" | (cd "$STAGING" && cpio -idmv 2>/dev/null)
-                  SPEC="$HOME/rpmbuild/SPECS/${NAME}.spec"
-                  {
-                    printf "Name:      %s\n" "$NAME"
-                    printf "Version:   %s\n" "$VERSION"
-                    printf "Release:   %s\n" "$RELEASE"
-                    printf "Summary:   %s\n" "$SUMMARY"
-                    printf "License:   %s\n" "$LICENSE"
-                    printf "BuildArch: %s\n" "$ARCH"
-                    printf "Obsoletes: pd3-mod-manager\n"
-                    printf "\n%%description\n%s\n" "$SUMMARY"
-                    printf "\n%%install\ncp -a %s/. %%{buildroot}/\n" "$STAGING"
-                    printf "\n%%files\n"
-                    find "$STAGING" ! -type d | sed "s|$STAGING||" | sort
-                  } > "$SPEC"
-                  rpmbuild -bb \
-                    --define "_topdir $HOME/rpmbuild" \
-                    --define "__os_install_post %{nil}" \
-                    --define "_build_id_links none" \
-                    "$SPEC"
-                  mv "$(find ~/rpmbuild/RPMS -name '*.rpm' | head -1)" linux-rpm/modrex_x86_64.rpm
                   cp linux-rpm/modrex_x86_64.rpm linux-rpm/pd3-mod-manager.rpm
-                  rm -f "$RPM_SRC"
 
             - name: Generate latest.json (tauri-plugin-updater)
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   TAG=$GITHUB_REF_NAME
                   DATE=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
-                  WIN_EXE=$(ls windows-nsis/*.exe | head -1)
-                  WIN_FILENAME=$(basename "$WIN_EXE")
-                  WIN_SIG=$(cat "windows-nsis/${WIN_FILENAME}.sig")
-                  LINUX_APPIMAGE=$(ls linux-appimage/*.AppImage | head -1)
-                  LINUX_FILENAME=$(basename "$LINUX_APPIMAGE")
-                  LINUX_SIG=$(cat "linux-appimage/${LINUX_FILENAME}.sig")
+                  WIN_SIG=$(<windows-nsis/modrex_x86_64.exe.sig)
+                  DEB_SIG=$(<linux-deb/modrex_x86_64.deb.sig)
+                  RPM_SIG=$(<linux-rpm/modrex_x86_64.rpm.sig)
+                  APPIMAGE_SIG=$(<linux-appimage/modrex_x86_64.AppImage.sig)
                   jq -n \
                     --arg version "${{ steps.ver.outputs.version }}" \
                     --arg notes "" \
                     --arg pub_date "$DATE" \
                     --arg win_sig "$WIN_SIG" \
-                    --arg win_url "https://github.com/modrexio/modrex/releases/download/$TAG/$WIN_FILENAME" \
-                    --arg linux_sig "$LINUX_SIG" \
-                    --arg linux_url "https://github.com/modrexio/modrex/releases/download/$TAG/$LINUX_FILENAME" \
-                    '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {"windows-x86_64": {signature: $win_sig, url: $win_url}, "linux-x86_64": {signature: $linux_sig, url: $linux_url}}}' \
+                    --arg win_url "https://github.com/modrexio/modrex/releases/download/$TAG/modrex_x86_64.exe" \
+                    --arg deb_sig "$DEB_SIG" \
+                    --arg deb_url "https://github.com/modrexio/modrex/releases/download/$TAG/modrex_x86_64.deb" \
+                    --arg rpm_sig "$RPM_SIG" \
+                    --arg rpm_url "https://github.com/modrexio/modrex/releases/download/$TAG/modrex_x86_64.rpm" \
+                    --arg appimage_sig "$APPIMAGE_SIG" \
+                    --arg appimage_url "https://github.com/modrexio/modrex/releases/download/$TAG/modrex_x86_64.AppImage" \
+                    '{
+                      version: $version,
+                      notes: $notes,
+                      pub_date: $pub_date,
+                      platforms: {
+                        "windows-x86_64": {signature: $win_sig, url: $win_url},
+                        "linux-x86_64-deb": {signature: $deb_sig, url: $deb_url},
+                        "linux-x86_64-rpm": {signature: $rpm_sig, url: $rpm_url},
+                        "linux-x86_64-appimage": {signature: $appimage_sig, url: $appimage_url}
+                      }
+                    }' \
                     > latest.json
 
-            # compat: serves Electron clients still on electron-updater
+            - name: Validate updater artifacts and package migration
+              run: |
+                  set -euo pipefail
+                  sudo apt-get update
+                  sudo apt-get install -y minisign rpm
+
+                  jq -r '.plugins.updater.pubkey' apps/desktop/src-tauri/tauri.conf.json |
+                    base64 --decode > "$RUNNER_TEMP/updater.pub"
+
+                  TARGETS=(
+                    windows-x86_64
+                    linux-x86_64-deb
+                    linux-x86_64-rpm
+                    linux-x86_64-appimage
+                  )
+                  ARTIFACTS=(
+                    windows-nsis/modrex_x86_64.exe
+                    linux-deb/modrex_x86_64.deb
+                    linux-rpm/modrex_x86_64.rpm
+                    linux-appimage/modrex_x86_64.AppImage
+                  )
+
+                  for INDEX in "${!TARGETS[@]}"; do
+                    TARGET=${TARGETS[$INDEX]}
+                    ARTIFACT=${ARTIFACTS[$INDEX]}
+                    SIGNATURE=$(<"${ARTIFACT}.sig")
+                    DECODED_SIGNATURE="$RUNNER_TEMP/updater-$INDEX.minisig"
+                    printf '%s' "$SIGNATURE" | base64 --decode > "$DECODED_SIGNATURE"
+                    minisign -V -p "$RUNNER_TEMP/updater.pub" -m "$ARTIFACT" -x "$DECODED_SIGNATURE"
+
+                    MANIFEST_SIGNATURE=$(jq -r --arg target "$TARGET" '.platforms[$target].signature // empty' latest.json)
+                    if [ "$MANIFEST_SIGNATURE" != "$SIGNATURE" ]; then
+                      echo "::error::latest.json has the wrong signature for $TARGET"
+                      exit 1
+                    fi
+
+                    EXPECTED_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$(basename "$ARTIFACT")"
+                    MANIFEST_URL=$(jq -r --arg target "$TARGET" '.platforms[$target].url // empty' latest.json)
+                    if [ "$MANIFEST_URL" != "$EXPECTED_URL" ]; then
+                      echo "::error::latest.json has the wrong URL for $TARGET"
+                      exit 1
+                    fi
+                  done
+
+                  if [ "$(dpkg-deb -f linux-deb/modrex_x86_64.deb Conflicts)" != 'pd3-mod-manager' ]; then
+                    echo '::error::DEB is missing the pd3-mod-manager conflict'
+                    exit 1
+                  fi
+                  if [ "$(dpkg-deb -f linux-deb/modrex_x86_64.deb Replaces)" != 'pd3-mod-manager' ]; then
+                    echo '::error::DEB is missing the pd3-mod-manager replacement'
+                    exit 1
+                  fi
+                  if ! rpm -qp --obsoletes linux-rpm/modrex_x86_64.rpm | grep -Fxq pd3-mod-manager; then
+                    echo '::error::RPM is missing the pd3-mod-manager obsoletion'
+                    exit 1
+                  fi
+                  if ! cmp -s linux-deb/modrex_x86_64.deb linux-deb/pd3-mod-manager.deb; then
+                    echo '::error::Legacy DEB is not identical to the signed updater package'
+                    exit 1
+                  fi
+                  if ! cmp -s linux-rpm/modrex_x86_64.rpm linux-rpm/pd3-mod-manager.rpm; then
+                    echo '::error::Legacy RPM is not identical to the signed updater package'
+                    exit 1
+                  fi
+
+            # Legacy Electron clients consume these manifests.
             - name: Generate latest.yml and latest-linux.yml (electron-updater compat)
               run: |
                   VERSION=${{ steps.ver.outputs.version }}
                   DATE=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
-                  WIN_EXE=$(ls windows-nsis/*.exe | head -1)
+                  WIN_EXE=windows-nsis/modrex_x86_64.exe
                   WIN_FILENAME=$(basename "$WIN_EXE")
                   WIN_SIZE=$(stat -c %s "$WIN_EXE")
                   WIN_SHA512=$(openssl dgst -sha512 -binary "$WIN_EXE" | base64 -w 0)
@@ -303,7 +429,7 @@ jobs:
                     echo "sha512: $WIN_SHA512"
                     echo "releaseDate: '$DATE'"
                   } > latest.yml
-                  LINUX_APPIMAGE=$(ls linux-appimage/*.AppImage | head -1)
+                  LINUX_APPIMAGE=linux-appimage/modrex_x86_64.AppImage
                   LINUX_FILENAME=$(basename "$LINUX_APPIMAGE")
                   LINUX_SIZE=$(stat -c %s "$LINUX_APPIMAGE")
                   LINUX_SHA512=$(openssl dgst -sha512 -binary "$LINUX_APPIMAGE" | base64 -w 0)

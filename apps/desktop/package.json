@@ -21,6 +21,7 @@
         "check-updater": "node scripts/check-updater.mjs",
         "check-i18n": "node scripts/check-i18n.mjs",
         "checks": "pnpm check-version && pnpm check-commands && pnpm check-csp && pnpm check-games && pnpm check-sources && pnpm check-updater && pnpm check-i18n && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+        "preversion": "node scripts/check-release-tree.mjs",
         "version": "node scripts/version.mjs",
         "test": "cargo test --manifest-path src-tauri/Cargo.toml && vitest run",
         "test:renderer": "vitest run",

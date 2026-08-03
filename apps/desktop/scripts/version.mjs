@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from 'fs'
-import { execSync } from 'child_process'
+import { execFileSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
 
 const { version } = JSON.parse(readFileSync('package.json', 'utf8'))
 
@@ -15,7 +15,9 @@ writeFileSync(
     cargo.replace(/^version = "[^"]+"$/m, `version = "${version}"`)
 )
 
-execSync('cargo update --manifest-path src-tauri/Cargo.toml -p modrex', { stdio: 'inherit' })
+execFileSync('cargo', ['update', '--manifest-path', 'src-tauri/Cargo.toml', '-p', 'modrex'], {
+    stdio: 'inherit',
+})
 
 const changelogPath = '../../CHANGELOG.md'
 const changelog = readFileSync(changelogPath, 'utf8')
@@ -30,13 +32,21 @@ writeFileSync(
     changelog.replace(/## Unreleased\n+/, `## Unreleased\n\n## ${version}\n\n`)
 )
 
-// npm's version command commits and tags only when the package directory itself holds a
-// .git entry. The desktop app is a workspace member two levels under the repository root,
-// so that step silently never runs and the release commit and tag are made here instead.
-// Without the tag the release workflow, which triggers on it, never fires at all.
-execSync(
-    'git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock ../../CHANGELOG.md',
+// The workspace package is below the repository's .git directory, so pnpm does not
+// create its release commit and tag.
+execFileSync(
+    'git',
+    [
+        'add',
+        'package.json',
+        'src-tauri/tauri.conf.json',
+        'src-tauri/Cargo.toml',
+        'src-tauri/Cargo.lock',
+        '../../CHANGELOG.md',
+    ],
     { stdio: 'inherit' }
 )
-execSync(`git commit -m "chore(release): ${version}"`, { stdio: 'inherit' })
-execSync(`git tag v${version}`, { stdio: 'inherit' })
+execFileSync('git', ['commit', '-m', `chore(release): ${version}`], { stdio: 'inherit' })
+execFileSync('git', ['tag', '-a', `v${version}`, '-m', `chore(release): ${version}`], {
+    stdio: 'inherit',
+})

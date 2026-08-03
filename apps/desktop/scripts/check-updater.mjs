@@ -1,25 +1,24 @@
-import { readFileSync } from 'fs'
+import { readFileSync } from 'node:fs'
 
-// The in-app auto-updater is a silent single point of failure. tauri-plugin-updater polls
-// the endpoint in tauri.conf.json for a latest.json whose shape release.yml generates at
-// release time. If the two drift - a renamed platform key, a dropped latest.json upload, a
-// repo rename applied in one place but not the other - every installed client stops
-// receiving updates with no error anywhere. This ties the generator to the consumer config
-// so the drift fails CI instead of a future release. It is intentionally coupled to
-// release.yml text: a real refactor of the release job should re-examine this check.
+// Manifest/config drift silently disables updates for every installed client. Keep this
+// check coupled to the release workflow so CI catches that drift before publishing.
 
 const VALID_TARGETS = new Set([
-    'linux-x86_64',
-    'linux-i686',
-    'linux-aarch64',
-    'linux-armv7',
+    'linux-x86_64-deb',
+    'linux-x86_64-rpm',
+    'linux-x86_64-appimage',
     'windows-x86_64',
     'windows-i686',
     'windows-aarch64',
     'darwin-x86_64',
     'darwin-aarch64',
 ])
-const REQUIRED_TARGETS = ['windows-x86_64', 'linux-x86_64']
+const REQUIRED_TARGETS = [
+    'windows-x86_64',
+    'linux-x86_64-deb',
+    'linux-x86_64-rpm',
+    'linux-x86_64-appimage',
+]
 
 const problems = []
 
@@ -41,6 +40,15 @@ if (conf.bundle?.createUpdaterArtifacts !== true) {
         'tauri.conf.json bundle.createUpdaterArtifacts must be true (updater needs .sig artifacts)'
     )
 }
+if (!conf.bundle?.linux?.deb?.conflicts?.includes('pd3-mod-manager')) {
+    problems.push('tauri.conf.json bundle.linux.deb.conflicts must include pd3-mod-manager')
+}
+if (!conf.bundle?.linux?.deb?.replaces?.includes('pd3-mod-manager')) {
+    problems.push('tauri.conf.json bundle.linux.deb.replaces must include pd3-mod-manager')
+}
+if (!conf.bundle?.linux?.rpm?.obsoletes?.includes('pd3-mod-manager')) {
+    problems.push('tauri.conf.json bundle.linux.rpm.obsoletes must include pd3-mod-manager')
+}
 
 const release = readFileSync('../../.github/workflows/release.yml', 'utf8')
 
@@ -48,7 +56,7 @@ if (!/>\s*latest\.json\b/.test(release)) {
     problems.push('release.yml does not generate latest.json (no "> latest.json" redirect found)')
 }
 
-const jqFilter = release.match(/'(\{version:[\s\S]*?\})'/)?.[1]
+const jqFilter = release.match(/'(\{\s*version:[\s\S]*?\})'/)?.[1]
 if (!jqFilter) {
     problems.push('release.yml: could not find the jq object template that builds latest.json')
 } else {
@@ -57,7 +65,7 @@ if (!jqFilter) {
             problems.push(`release.yml latest.json template is missing the "${key}" field`)
         }
     }
-    const platformKeys = [...jqFilter.matchAll(/"((?:windows|linux|darwin)-[a-z0-9_]+)"/g)].map(
+    const platformKeys = [...jqFilter.matchAll(/"((?:windows|linux|darwin)-[a-z0-9_-]+)"/g)].map(
         (m) => m[1]
     )
     for (const key of platformKeys) {
@@ -76,6 +84,34 @@ if (!release.includes('run: pnpm build:signed')) {
     problems.push(
         'release.yml must build with pnpm build:signed (plain pnpm build skips updater signatures)'
     )
+}
+for (const signaturePattern of [
+    'bundle/deb/*.sig',
+    'bundle/rpm/*.sig',
+    'bundle/appimage/*.sig',
+    'bundle/nsis/*.sig',
+]) {
+    if (!release.includes(signaturePattern)) {
+        problems.push(`release.yml does not upload updater signatures matching ${signaturePattern}`)
+    }
+}
+for (const artifact of [
+    'modrex_x86_64.exe',
+    'modrex_x86_64.deb',
+    'modrex_x86_64.rpm',
+    'modrex_x86_64.AppImage',
+]) {
+    if (!release.includes(artifact)) {
+        problems.push(`release.yml does not produce the stable updater artifact ${artifact}`)
+    }
+}
+if (!release.includes('minisign -V')) {
+    problems.push('release.yml does not verify final updater artifacts with minisign')
+}
+for (const postSignMutation of ['dpkg-deb -R', 'rpmbuild -bb']) {
+    if (release.includes(postSignMutation)) {
+        problems.push(`release.yml mutates signed packages with ${postSignMutation}`)
+    }
 }
 
 const publishIdx = release.indexOf('Publish release')

@@ -216,4 +216,14 @@ Reusable skills live in `.agents/skills/` and are listed in `AGENTS.md`. Availab
 
 **Deferred work**: tracked in `.TODO`. Do NOT act on anything in it unless the user explicitly says "do the TODO: <name>" — never infer intent from the file on your own.
 
-**Releasing**: run `pnpm version patch|minor|major` — bumps `package.json`, commits as `chore(release): X.Y.Z`, creates a `vX.Y.Z` tag. As part of the version bump, `scripts/version.mjs` stamps the root `CHANGELOG.md` file's `## Unreleased` section into a `## X.Y.Z` section (no brackets, no date — opening a fresh empty `Unreleased` above it) and stages it into the release commit — so `/changelog` entries written before the version number was known land in the right place automatically. Pushing the tag triggers the CI release workflow, which extracts that section (`scripts/changelog-section.mjs`) as the GitHub release body instead of an auto-generated commit dump, and publishes the release as `vX.Y.Z` (not "Modrex vX.Y.Z"). Publishing the release also fires `.github/workflows/site-deploy-hook.yml`, which POSTs a Cloudflare Pages deploy hook so modrex.net rebuilds with the new release metadata.
+**Releasing**: with a clean tracked tree, run `pnpm version patch|minor|major` from
+this directory, or `pnpm release:desktop patch|minor|major` from the repository root.
+The command bumps `package.json`, commits as `chore(release): X.Y.Z`, and creates an
+annotated `vX.Y.Z` tag. It also stamps the root `CHANGELOG.md` file's
+`## Unreleased` section into `## X.Y.Z` and stages it in the release commit.
+
+`git push --follow-tags` pushes the release commit and annotated tag. The release
+workflow waits for CI to pass on that exact commit, builds the signed updater artifacts,
+and creates a draft GitHub Release named `vX.Y.Z`. Publishing that draft makes its
+`latest.json` available to installed clients and triggers
+`.github/workflows/site-deploy-hook.yml` to rebuild modrex.net.
