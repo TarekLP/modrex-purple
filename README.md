@@ -10,13 +10,19 @@
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/modrexio/modrex/releases/latest)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/tenzpx8JRM)
 
-A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/), [Crime Boss: Rockay City](https://store.steampowered.com/app/2933080/Crime_Boss_Rockay_City/), and [RAID: World War II](https://store.steampowered.com/app/414740/RAID_World_War_II/) powered by [modworkshop](https://modworkshop.net) and [Nexus Mods](https://www.nexusmods.com).
+A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/PAYDAY_3/), [PAYDAY 2](https://store.steampowered.com/app/218620/PAYDAY_2/), [PAYDAY: The Heist](https://store.steampowered.com/app/24240/PAYDAY_The_Heist/), [Crime Boss: Rockay City](https://store.steampowered.com/app/2933080/Crime_Boss_Rockay_City/) and [RAID: World War II](https://store.steampowered.com/app/414740/RAID_World_War_II/) powered by [ModWorkshop](https://modworkshop.net) and [Nexus Mods](https://www.nexusmods.com).
 
 <img src="assets/example.png" width="900" alt="Modrex app screenshot" />
 
 </div>
 
 ## Installation
+
+Windows:
+
+```pwsh
+winget install Modrexio.Modrex
+```
 
 Linux:
 
@@ -35,20 +41,33 @@ Or grab a specific package:
 
 ## Features
 
-- Supports PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, Crime Boss: Rockay City, and RAID: World War II, with a searchable game picker
-- Browse and search mods from modworkshop, or from Nexus Mods after signing in (every game except RAID)
-- In-app News tab with the latest posts for each game
-- Full mod detail page: description, images, downloads, changelog, dependencies, and install instructions
-- Rich description rendering: formatted text, tables, collapsible sections, colored text, and inline video embeds (YouTube, Streamable)
-- One-click install, uninstall, enable, and disable for `.pak`, `.zip`, `.7z`, `.rar`, `.tar.gz`/`.tar.xz`, and `.pdmod` (PDTH) mods
+### Browse
+
+- Switch between ModWorkshop and Nexus Mods from the top of the Browse page, wherever a game has both
+- Filter by category and by tag, choosing tags to include or exclude
+- Full mod pages: description, images, downloads, changelog, license, dependencies, install instructions and contributor credits
+- Formatted descriptions with tables, collapsible sections, colored text and inline video embeds (YouTube, Streamable)
+- News tab with the latest posts for each game
+
+### Install
+
+- One-click install, uninstall, enable and disable for `.pak`, `.zip`, `.7z`, `.rar`, `.tar.gz`/`.tar.xz` and `.pdmod`
+- Drag archives from the file explorer into the window
+- Mod loaders installed for you when a mod needs one: SuperBLT, BeardLib, DAHM, PDTHModOverrides and UE4SS
+- Mods you placed by hand are identified by SHA256 against a live mod index, and unrecognized Nexus mods by matching them against Nexus's own listings
+
+### Stay in control
+
 - Organize mods into folders with arbitrary nesting depth and drag-and-drop reordering
-- Mods with multiple installed files grouped as a single card, with per-file management
-- Health Check scans your entire library and bulk-repairs missing files, broken archives, outdated installs, and missing dependencies
+- Mods with several installed files grouped as one card, with per-file management
 - Update detection with selective per-mod updates
-- Launch modded or vanilla directly from the app
-- Automatically detects your game installation (Steam, Epic Games Store, Xbox App)
-- One-click install for mod loaders: SuperBLT (PD2), DAHM and PDTHModOverrides (PDTH), UE4SS (PD3, Crime Boss), RAID-SuperBLT (RAID)
-- Identifies manually placed mod files via SHA256 lookup against a live mod index
+- Health Check scans your entire library and bulk-repairs missing files, broken archives, outdated installs and missing dependencies
+
+### The app
+
+- Every supported game behind a searchable picker, with your install detected automatically (Steam, Epic Games Store, Xbox App)
+- Launch modded or vanilla, per game
+- Interface in English and Russian
 - Discord Rich Presence shows the active game on your profile
 - Automatic update checks with one-click in-app updates
 
@@ -75,8 +94,13 @@ If something goes wrong, attach your log file to a [bug report](https://github.c
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commands, and commit style.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commands and commit style.
 
 ## License
 
 Modrex is open source under the [MIT License](LICENSE).
+
+## Support
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/modrexio)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Donate-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/bipolyarus)
