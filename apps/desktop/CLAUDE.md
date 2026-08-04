@@ -217,7 +217,7 @@ Reusable skills live in `.agents/skills/` and are listed in `AGENTS.md`. Availab
 **Deferred work**: tracked in `.TODO`. Do NOT act on anything in it unless the user explicitly says "do the TODO: <name>" — never infer intent from the file on your own.
 
 **Releasing**: with a clean tracked tree, run `pnpm version patch|minor|major` from
-this directory, or `pnpm release:desktop patch|minor|major` from the repository root.
+the repository root. Running it from this directory is blocked.
 The command bumps `package.json`, commits as `chore(release): X.Y.Z`, and creates an
 annotated `vX.Y.Z` tag. It also stamps the root `CHANGELOG.md` file's
 `## Unreleased` section into `## X.Y.Z` and stages it in the release commit.

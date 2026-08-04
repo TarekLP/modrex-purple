@@ -1,5 +1,6 @@
 {
     "name": "modrex-workspace",
+    "version": "0.12.2",
     "private": true,
     "type": "module",
     "packageManager": "pnpm@10.32.1",
@@ -28,8 +29,8 @@
         "lint": "pnpm --dir apps/desktop lint && pnpm site:lint",
         "lint:fix": "pnpm --dir apps/desktop lint:fix && pnpm --dir apps/site lint:fix",
         "generate-licenses": "pnpm --dir apps/desktop generate-licenses",
-        "preversion": "node -e \"console.error('Run pnpm release:desktop patch, minor, or major from the repository root.'); process.exit(1)\"",
-        "release:desktop": "cd apps/desktop && pnpm version",
+        "preversion": "node apps/desktop/scripts/check-release-tree.mjs",
+        "version": "node apps/desktop/scripts/version.mjs",
         "site:dev": "pnpm --dir apps/site dev",
         "site:build": "pnpm --dir apps/site build",
         "site:typecheck": "pnpm --dir apps/site typecheck",

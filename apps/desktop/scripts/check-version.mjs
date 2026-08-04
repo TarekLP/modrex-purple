@@ -12,6 +12,7 @@ function capture(contents, pattern, source) {
 }
 
 const packageVersion = JSON.parse(readFileSync('package.json', 'utf8')).version
+const rootPackageVersion = JSON.parse(readFileSync('../../package.json', 'utf8')).version
 const tauriVersion = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8')).version
 const cargoToml = readFileSync('src-tauri/Cargo.toml', 'utf8')
 const cargoLock = readFileSync('src-tauri/Cargo.lock', 'utf8')
@@ -28,6 +29,7 @@ const lockVersion = capture(
 )
 
 const versions = {
+    '../../package.json': rootPackageVersion,
     'package.json': packageVersion,
     'src-tauri/tauri.conf.json': tauriVersion,
     'src-tauri/Cargo.toml': cargoVersion,

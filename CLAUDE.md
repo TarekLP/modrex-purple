@@ -27,7 +27,7 @@ pnpm dev
 pnpm build
 pnpm checks
 pnpm test
-pnpm release:desktop patch|minor|major
+pnpm version patch|minor|major
 ```
 
 Project-specific commands can also be run from the application directory.
