@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.13.0
+
 ### Added
 
 - Added Nexus Mods as a second mod source for PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, and Crime Boss: Rockay City. Browse and install through OAuth sign-in and website mod-manager downloads, choosing between ModWorkshop and Nexus Mods from the top of the Browse page.
