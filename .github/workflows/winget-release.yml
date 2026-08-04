@@ -3,6 +3,11 @@ name: Publish to WinGet
 on:
     release:
         types: [published]
+    workflow_dispatch:
+        inputs:
+            tag_name:
+                description: 'Release tag to publish'
+                required: true
 
 jobs:
     publish:
@@ -13,4 +18,12 @@ jobs:
               with:
                   identifier: Modrexio.Modrex
                   installers-regex: 'modrex_x86_64\.exe$'
+                  # The action's own default covers the release event only, and its
+                  # dispatch fallback resolves to the branch name rather than a tag.
+                  release-tag: ${{ github.event.release.tag_name || inputs.tag_name }}
                   token: ${{ secrets.WINGET_TOKEN }}
+                  # fork-user defaults to the repository owner, but the modrexio
+                  # organization has no winget-pkgs fork. The fork lives on the
+                  # maintainer account that WINGET_TOKEN belongs to, and komac
+                  # fails to resolve the repository without this.
+                  fork-user: ShulhaOleh

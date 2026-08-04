@@ -6,46 +6,34 @@ on:
         inputs:
             tag_name:
                 description: 'Version tag to fetch and post'
-                default: 'v0.9.1'
+                required: true
 
 jobs:
+    # The release path waits behind the release-delay environment's timer; the
+    # manual path is the resend escape hatch and deliberately posts immediately.
     notify:
         if: github.event_name == 'release'
         runs-on: ubuntu-latest
         environment: release-delay
         steps:
-            - name: Post to Discord
-              env:
-                  DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
-                  RELEASE_TAG: ${{ github.event.release.tag_name }}
-                  RELEASE_BODY: ${{ github.event.release.body }}
-                  RELEASE_URL: ${{ github.event.release.html_url }}
-              run: |
-                  PAYLOAD=$(jq -n \
-                    --arg tag "$RELEASE_TAG" \
-                    --arg body "$RELEASE_BODY" \
-                    --arg url "$RELEASE_URL" \
-                    '{username:"Modrex",avatar_url:"https://github.com/modrexio.png",embeds:[{title:$tag,description:$body,url:$url,color:5814783}]}')
-                  curl -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
-
-    notify-manual:
-        if: github.event_name == 'workflow_dispatch'
-        runs-on: ubuntu-latest
-        steps:
+            - uses: actions/checkout@v7
             - name: Post to Discord
               env:
                   DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
                   GH_TOKEN: ${{ github.token }}
                   REPOSITORY: ${{ github.repository }}
-                  INPUT_TAG: ${{ inputs.tag_name }}
-              run: |
-                  RELEASE=$(gh api "repos/$REPOSITORY/releases/tags/$INPUT_TAG")
-                  TAG=$(echo "$RELEASE" | jq -r '.tag_name')
-                  BODY=$(echo "$RELEASE" | jq -r '.body')
-                  URL=$(echo "$RELEASE" | jq -r '.html_url')
-                  PAYLOAD=$(jq -n \
-                    --arg tag "$TAG" \
-                    --arg body "$BODY" \
-                    --arg url "$URL" \
-                    '{username:"Modrex",avatar_url:"https://github.com/modrexio.png",embeds:[{title:$tag,description:$body,url:$url,color:5814783}]}')
-                  curl -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+                  TAG: ${{ github.event.release.tag_name }}
+              run: bash .github/scripts/post-discord-release.sh "$TAG"
+
+    notify-manual:
+        if: github.event_name == 'workflow_dispatch'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - name: Post to Discord
+              env:
+                  DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+                  GH_TOKEN: ${{ github.token }}
+                  REPOSITORY: ${{ github.repository }}
+                  TAG: ${{ inputs.tag_name }}
+              run: bash .github/scripts/post-discord-release.sh "$TAG"
