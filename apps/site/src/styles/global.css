@@ -235,6 +235,13 @@ h2.sec-title {
     }
 }
 
+/* Both copy buttons (download cards, docs code blocks) grow to a touch target. */
+@media (max-width: 640px) {
+    :root {
+        --copy-btn-size: 44px;
+    }
+}
+
 @media (max-width: 480px) {
     h2.sec-title {
         font-size: 32px;

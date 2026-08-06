@@ -21,7 +21,7 @@ A desktop mod manager for [PAYDAY 3](https://store.steampowered.com/app/1272080/
 Windows:
 
 ```pwsh
-winget install Modrexio.Modrex
+winget install modrex
 ```
 
 Linux:

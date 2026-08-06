@@ -20,6 +20,9 @@ const rpmAsset = release?.assets.find((a) => a.name === 'modrex_x86_64.rpm')
 
 const fallbackUrl = 'https://github.com/modrexio/modrex/releases/latest'
 const installCmd = 'curl -fsSL https://modrex.net/install.sh | sh'
+// The published winget manifest sets Moniker: modrex, so the short name resolves
+// without the Modrexio.Modrex identifier.
+const wingetCmd = 'winget install modrex'
 
 const windowsFiles: DlFile[] = exeAsset
     ? [
@@ -91,6 +94,20 @@ const linuxFiles: DlFile[] = [
                         ))
                     }
                 </div>
+                <div class="cli">
+                    <span class="cli-label">Or with winget</span>
+                    <div class="quick-install">
+                        <code><span class="tok-cmd">winget</span> install modrex</code>
+                        <button
+                            class="copy-btn"
+                            data-cmd={wingetCmd}
+                            aria-label="Copy winget install command"
+                        >
+                            <i data-lucide="copy"></i>
+                            <i data-lucide="check" style="display: none"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="dl-card" id="dl-card-lin">
                 <div class="os-header">
@@ -98,79 +115,43 @@ const linuxFiles: DlFile[] = [
                     <h3>Linux</h3>
                     <span class="os-badge" id="badge-lin">Your OS</span>
                 </div>
-                <div class="install-tabs" role="tablist">
-                    <button
-                        class="install-tab"
-                        role="tab"
-                        id="tab-script"
-                        aria-controls="panel-script"
-                        aria-selected="true"
-                        data-panel="panel-script"
-                    >
-                        Script
-                    </button>
-                    <button
-                        class="install-tab"
-                        role="tab"
-                        id="tab-package"
-                        aria-controls="panel-package"
-                        aria-selected="false"
-                        data-panel="panel-package"
-                    >
-                        Package
-                    </button>
+                <div class="files">
+                    {
+                        linuxFiles.map((f) => (
+                            <div class="dl-file">
+                                <span class="fname">{f.name}</span>
+                                {f.size && <span class="fsize">{f.size}</span>}
+                                <a class="dl-btn" href={f.url}>
+                                    <i data-lucide="download" />
+                                    Install (.{f.name.split('.').pop()})
+                                </a>
+                            </div>
+                        ))
+                    }
                 </div>
-                <div class="install-tab-panels">
-                    <div
-                        class="install-panel"
-                        id="panel-script"
-                        role="tabpanel"
-                        aria-labelledby="tab-script"
-                    >
-                        <div class="quick-install">
-                            <code
-                                ><span class="tok-cmd">curl</span> -fsSL https://modrex.net/install.sh
-                                <span class="tok-pipe">|</span>
-                                <span class="tok-cmd">sh</span></code
-                            >
-                            <button
-                                class="copy-btn"
-                                id="copy-install"
-                                data-cmd={installCmd}
-                                aria-label="Copy install command"
-                            >
-                                <i data-lucide="copy"></i>
-                                <i data-lucide="check" style="display: none"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div
-                        class="install-panel"
-                        id="panel-package"
-                        role="tabpanel"
-                        aria-labelledby="tab-package"
-                        hidden
-                    >
-                        <div class="files">
-                            {
-                                linuxFiles.map((f) => (
-                                    <div class="dl-file">
-                                        <span class="fname">{f.name}</span>
-                                        {f.size && <span class="fsize">{f.size}</span>}
-                                        <a class="dl-btn" href={f.url}>
-                                            <i data-lucide="download" />
-                                            Install (.{f.name.split('.').pop()})
-                                        </a>
-                                    </div>
-                                ))
-                            }
-                        </div>
+                <div class="cli">
+                    <span class="cli-label">Or with the install script</span>
+                    <div class="quick-install">
+                        <code
+                            ><span class="tok-cmd">curl</span> -fsSL https://modrex.net/install.sh{
+                                ' '
+                            }<span class="tok-pipe">|</span>{' '}<span class="tok-cmd">sh</span
+                            ></code
+                        >
+                        <button
+                            class="copy-btn"
+                            data-cmd={installCmd}
+                            aria-label="Copy install command"
+                        >
+                            <i data-lucide="copy"></i>
+                            <i data-lucide="check" style="display: none"></i>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
         <p class="dl-note">
-            Supports Steam, Epic Games &amp; Xbox launchers on Windows. Steam on Linux. See the
+            Supports Steam, Epic Games &amp; Xbox launchers on Windows. Steam on Linux. See the{' '}
             <a href="/docs/">installation guide</a>.
         </p>
     </div>
@@ -181,80 +162,21 @@ const linuxFiles: DlFile[] = [
     import { detectOs } from '../lib/os-detect'
     createIcons({ icons: { Check, Copy, Download } })
 
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-    document.querySelectorAll<HTMLElement>('.install-tabs').forEach((tabList) => {
-        const tabs = tabList.querySelectorAll<HTMLButtonElement>('.install-tab')
-        tabs.forEach((tab) => {
-            tab.addEventListener('click', () => {
-                if (tab.getAttribute('aria-selected') === 'true') return
-                tabs.forEach((t) => t.setAttribute('aria-selected', String(t === tab)))
-
-                const wrapper =
-                    tabList.parentElement?.querySelector<HTMLElement>('.install-tab-panels')
-                const panels = wrapper?.querySelectorAll<HTMLElement>('.install-panel')
-                const current = Array.from(panels ?? []).find((p) => !p.hidden)
-                const next = document.getElementById(tab.dataset.panel ?? '')
-                if (!wrapper || !current || !next || current === next) return
-
-                if (reduceMotion) {
-                    current.hidden = true
-                    next.hidden = false
-                    return
-                }
-
-                // Both panels crossfade together while the wrapper morphs from the
-                // old height to the new one in one simultaneous motion (matching the
-                // sidebar's width+opacity transition), not a fade-out-then-in chain.
-                const currentHeight = current.offsetHeight
-                wrapper.style.height = `${currentHeight}px`
-
-                next.hidden = false
-                next.style.position = 'absolute'
-                next.style.top = '0'
-                next.style.left = '0'
-                next.style.width = '100%'
-                next.style.opacity = '0'
-                // Natural content height, unconstrained by the wrapper's locked height
-                // above (inset:0 would stretch to fill it instead of sizing to content).
-                const nextHeight = next.offsetHeight
-
-                // Force a style flush so the opacity:0 start state is committed
-                // before the transition-triggering changes below.
-                void next.offsetHeight
-
-                wrapper.style.height = `${nextHeight}px`
-                current.classList.add('is-fading')
-                next.style.opacity = '1'
-
+    document.querySelectorAll<HTMLElement>('.copy-btn').forEach((copyBtn) => {
+        copyBtn.addEventListener('click', async () => {
+            const cmd = copyBtn.dataset.cmd
+            if (!cmd) return
+            await navigator.clipboard.writeText(cmd)
+            const [copyIcon, checkIcon] = copyBtn.querySelectorAll<SVGElement>('svg')
+            if (copyIcon && checkIcon) {
+                copyIcon.style.display = 'none'
+                checkIcon.style.display = ''
                 setTimeout(() => {
-                    current.hidden = true
-                    current.classList.remove('is-fading')
-                    next.style.position = ''
-                    next.style.top = ''
-                    next.style.left = ''
-                    next.style.width = ''
-                    next.style.opacity = ''
-                    wrapper.style.height = ''
-                }, 200)
-            })
+                    copyIcon.style.display = ''
+                    checkIcon.style.display = 'none'
+                }, 1500)
+            }
         })
-    })
-
-    const copyBtn = document.getElementById('copy-install')
-    copyBtn?.addEventListener('click', async () => {
-        const cmd = copyBtn.dataset.cmd
-        if (!cmd) return
-        await navigator.clipboard.writeText(cmd)
-        const [copyIcon, checkIcon] = copyBtn.querySelectorAll<SVGElement>('svg')
-        if (copyIcon && checkIcon) {
-            copyIcon.style.display = 'none'
-            checkIcon.style.display = ''
-            setTimeout(() => {
-                copyIcon.style.display = ''
-                checkIcon.style.display = 'none'
-            }, 1500)
-        }
     })
 
     const { isMobile, isLinux } = detectOs()
@@ -288,6 +210,8 @@ const linuxFiles: DlFile[] = [
     }
 
     .dl-card {
+        display: flex;
+        flex-direction: column;
         background: var(--color-surface);
         border: 1px solid var(--color-border);
         border-radius: var(--radius-lg);
@@ -324,72 +248,32 @@ const linuxFiles: DlFile[] = [
         font-weight: 600;
     }
 
-    /* Mirrors the app's own tab pattern (Tabs.List/Tabs.Trigger in
-       ModDetailPage.tsx): flex row on a hairline, accent underline + accent
-       text on the active trigger, a soft hover fill on the rest. */
-    .install-tabs {
+    .files {
         display: flex;
-        gap: 4px;
-        margin-top: 20px;
-        border-bottom: 1px solid var(--color-border);
+        flex-direction: column;
+        gap: 8px;
+        /* The bottom margin is the floor under the .cli block's margin-top: auto,
+           which collapses to zero in whichever card is the tallest. */
+        margin: 20px 0;
     }
 
-    .install-tab {
-        position: relative;
-        background: none;
-        border: none;
-        border-bottom: 2px solid transparent;
-        padding: 0 4px 10px;
-        margin-bottom: -1px;
-        font-size: 13px;
-        font-family: inherit;
+    /* The cards stretch to a shared height but hold different file counts, so the
+       slack goes above this block. That keeps the command line and the card
+       bottoms on one baseline across both cards. */
+    .cli {
+        margin-top: auto;
+        padding-top: 20px;
+        border-top: 1px solid var(--color-border);
+    }
+
+    .cli-label {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         color: var(--text-tertiary);
-        cursor: pointer;
-        transition: var(--transition-colors);
-    }
-
-    .install-tab::before {
-        content: '';
-        position: absolute;
-        inset: 2px 4px 12px;
-        border-radius: var(--radius-sm);
-        background: var(--color-surface-hover);
-        opacity: 0;
-        transition: opacity 0.15s ease;
-        z-index: -1;
-    }
-
-    .install-tab:hover {
-        color: var(--text-secondary);
-    }
-
-    .install-tab:hover::before {
-        opacity: 1;
-    }
-
-    .install-tab[aria-selected='true'] {
-        color: var(--color-accent-bright);
-        border-bottom-color: var(--color-accent);
-    }
-
-    /* Mirrors the app sidebar's collapse/expand (Sidebar.tsx: transition-[width]
-       duration-200 on the container + transition-opacity duration-200 on the
-       content, running together, no translate). Here the axis is vertical:
-       the wrapper's height and the panel's opacity animate at once. */
-    .install-tab-panels {
-        position: relative;
-        margin-top: 16px;
-        overflow: hidden;
-        transition: height var(--duration) var(--ease);
-    }
-
-    .install-panel {
-        opacity: 1;
-        transition: opacity var(--duration) var(--ease);
-    }
-
-    .install-panel.is-fading {
-        opacity: 0;
     }
 
     .quick-install {
@@ -427,8 +311,8 @@ const linuxFiles: DlFile[] = [
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        width: 28px;
-        height: 28px;
+        width: var(--copy-btn-size);
+        height: var(--copy-btn-size);
         background: transparent;
         border: none;
         border-radius: var(--radius-sm);
@@ -445,18 +329,8 @@ const linuxFiles: DlFile[] = [
     }
 
     .copy-btn svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    .files {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .dl-card > .files {
-        margin-top: 20px;
+        width: var(--copy-btn-icon);
+        height: var(--copy-btn-icon);
     }
 
     .dl-file {
@@ -530,18 +404,8 @@ const linuxFiles: DlFile[] = [
             grid-template-columns: 1fr;
         }
 
-        .install-tab {
-            min-height: 44px;
-            padding: 8px 12px 10px;
-        }
-
         .quick-install {
             padding: 8px 8px 8px 12px;
-        }
-
-        .copy-btn {
-            width: 44px;
-            height: 44px;
         }
 
         .dl-btn {

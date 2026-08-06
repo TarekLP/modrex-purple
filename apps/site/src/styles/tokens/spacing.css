@@ -30,6 +30,13 @@
     /* --- Borders: one hairline weight, everywhere --- */
     --border-width: 1px;
 
+    /* --- Copy button on a command line. Two of these exist and cannot share a
+       class: the download cards build their own button, while the docs restyle
+       the one Expressive Code generates. They share these numbers instead.
+       global.css widens the box to a touch target under 640px. --- */
+    --copy-btn-size: 28px;
+    --copy-btn-icon: 14px;
+
     /* --- Elevation: the app barely uses shadow. Modals get one soft drop;
        everything else is defined by a 1px border on a raised surface. --- */
     --shadow-none: none;

@@ -340,16 +340,49 @@ body {
     border-radius: var(--radius-sm);
 }
 
-/* Size code blocks to their content instead of the full content column, and
-   reserve room at the end of the line so the floating copy button doesn't
-   cover the last characters. */
-.sl-markdown-content .expressive-code {
-    width: fit-content;
-    max-width: 100%;
-}
-
+/* Reserve room at the end of the line so the floating copy button doesn't cover
+   the last characters. */
 .sl-markdown-content .expressive-code .frame.is-terminal:not(.has-title) pre > code {
     padding-inline-end: 3rem;
+}
+
+/* Match the copy button on the download section's command rows (.copy-btn in
+   DownloadSection.astro): flat, borderless, tertiary icon that fills in on
+   hover. Expressive Code paints the idle and hover backgrounds through the
+   button's inner div, so the swap runs through its opacity variables rather
+   than a background rule. Starlight also parks the button at opacity 0 until
+   the frame is hovered, which hides it entirely on touch; every code block on
+   this site is a command meant to be copied, so it stays visible. */
+.sl-markdown-content .expressive-code .copy button {
+    width: var(--copy-btn-size);
+    height: var(--copy-btn-size);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    opacity: 1;
+    --ec-frm-inlBtnFg: var(--text-tertiary);
+    --ec-frm-inlBtnBg: var(--color-surface-active);
+    --ec-frm-inlBtnBrdOpa: 0;
+    --ec-frm-inlBtnBgIdleOpa: 0;
+    --ec-frm-inlBtnBgHoverOrFocusOpa: 1;
+    --ec-frm-inlBtnBgActOpa: 1;
+}
+
+/* The icon is a mask on ::after, sized by its own inset rather than a width. */
+.sl-markdown-content .expressive-code .copy button::after {
+    margin: calc((var(--copy-btn-size) - var(--copy-btn-icon)) / 2);
+}
+
+/* Expressive Code pins the button under the frame's top edge, which reads as
+   off-centre on a one-line command. Centre it only while the block is a single
+   line, so a longer block keeps its button beside the first line. */
+.sl-markdown-content .expressive-code .frame:not(:has(.ec-line ~ .ec-line)) .copy {
+    inset-block-start: 50%;
+    transform: translateY(-50%);
+}
+
+.sl-markdown-content .expressive-code .copy button:hover,
+.sl-markdown-content .expressive-code .copy button:focus:focus-visible {
+    --ec-frm-inlBtnFg: var(--color-text);
 }
 
 .sl-markdown-content code:not(:where(pre *)) {
