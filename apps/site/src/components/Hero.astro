@@ -1,5 +1,11 @@
 ---
+import { Picture } from 'astro:assets'
 import type { Release } from '../lib/github'
+import gamePicker from '../assets/screenshots/game-picker-window.png'
+import browseMods from '../assets/screenshots/browse-mods-window.png'
+import installedMods from '../assets/screenshots/installed-mods-window.png'
+import news from '../assets/screenshots/news-window.png'
+import settings from '../assets/screenshots/settings-window.png'
 
 interface Props {
     release?: Release | null
@@ -7,13 +13,21 @@ interface Props {
 
 const { release = null } = Astro.props
 
+// Imported rather than served from public/ so astro:assets emits AVIF and WebP at
+// several widths. The sources are 2560px PNG screenshots, two megabytes each; the
+// first one is the largest contentful paint of the whole site.
 const shots = [
-    { src: '/Game%20Picker%20Window.png', alt: 'Choose game' },
-    { src: '/Browse%20Mods%20Window.png', alt: 'Browse mods' },
-    { src: '/Installed%20Mods%20Window.png', alt: 'Installed mods' },
-    { src: '/News%20Window.png', alt: 'News' },
-    { src: '/Settings%20Window.png', alt: 'Settings' },
+    { src: gamePicker, alt: 'Choosing a game in Modrex: PAYDAY 3, PAYDAY 2, Crime Boss and RAID' },
+    { src: browseMods, alt: 'Browsing ModWorkshop and Nexus Mods inside Modrex' },
+    { src: installedMods, alt: 'The Modrex installed mods list with folders and load order' },
+    { src: news, alt: 'The Modrex news tab showing the latest posts for the active game' },
+    { src: settings, alt: 'Modrex settings: game path, launcher and launch options' },
 ]
+
+// The hero card is 74% of the wrap on desktop and 88% on mobile; these widths cover
+// both at 1x and 2x, and the fullscreen viewer reuses the same generated set.
+const SHOT_WIDTHS = [640, 1180, 1960]
+const SHOT_SIZES = '(max-width: 640px) 88vw, 74vw'
 
 // Infinite track with two clones per edge: a wrap step travels onto the first
 // clone, and the second keeps a neighbor sliver visible beyond it; with one
@@ -69,12 +83,15 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
                     {
                         slots.map((s, i) => (
                             <div class:list={['shot-card', { active: i === CLONES }]}>
-                                <img
+                                <Picture
                                     src={s.src}
                                     alt={s.alt}
-                                    width="980"
-                                    height="524"
+                                    widths={SHOT_WIDTHS}
+                                    sizes={SHOT_SIZES}
+                                    formats={['avif']}
+                                    fallbackFormat="webp"
                                     loading={i === CLONES ? 'eager' : 'lazy'}
+                                    fetchpriority={i === CLONES ? 'high' : 'auto'}
                                 />
                             </div>
                         ))
@@ -107,11 +124,13 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
                     {
                         slots.map((s, i) => (
                             <div class:list={['viewer-card', { active: i === CLONES }]}>
-                                <img
+                                <Picture
                                     src={s.src}
                                     alt={s.alt}
-                                    width="1180"
-                                    height="631"
+                                    widths={SHOT_WIDTHS}
+                                    sizes={SHOT_SIZES}
+                                    formats={['avif']}
+                                    fallbackFormat="webp"
                                     loading="lazy"
                                 />
                             </div>
@@ -447,6 +466,9 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
         cursor: zoom-in;
     }
 
+    /* Picture wraps every screenshot; an inline wrapper would leave a baseline gap
+       under the card and break the measured card width the carousel steps by. */
+    .shot-card picture,
     .shot-card img {
         display: block;
         width: 100%;
@@ -549,6 +571,11 @@ const slots = [...shots.slice(-CLONES), ...shots, ...shots.slice(0, CLONES)]
         border-color: var(--color-accent);
         opacity: 1;
         transform: scale(1);
+    }
+
+    .viewer-card picture {
+        display: block;
+        width: 100%;
     }
 
     .viewer-card img {

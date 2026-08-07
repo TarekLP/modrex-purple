@@ -132,6 +132,13 @@ export default defineConfig({
         mdx(),
         sitemap({
             filter: (page) => !page.includes('/privacy') && !page.includes('/terms'),
+            // Only the homepage gets a lastmod: it renders live release and mod-index data,
+            // so it really does change every build. Stamping the build date onto the static
+            // docs pages too is the pattern search engines learn to distrust and ignore.
+            serialize: (item) =>
+                item.url === 'https://modrex.net/'
+                    ? { ...item, lastmod: new Date().toISOString() }
+                    : item,
         }),
     ],
     vite: {

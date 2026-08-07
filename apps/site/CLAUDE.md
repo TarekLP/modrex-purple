@@ -23,6 +23,7 @@ Astro 6 site, static output — everything under `src/` is rendered at build tim
 
 ```
 src/pages/               ← routes (index, 404, privacy, terms; docs routes come from Starlight)
+src/assets/screenshots/  ← app screenshots, imported (never public/) so astro:assets emits AVIF/WebP
 src/components/          ← Astro components (marketing) + docs/ (MDX components) + starlight/ (Starlight overrides)
 src/layouts/             ← BaseLayout (every non-docs page; docs pages use Starlight's shell)
 src/content/docs/        ← MDX doc pages (the Starlight docs collection)
@@ -32,6 +33,7 @@ src/lib/github.ts        ← GitHub Releases API (build-time only): getLatestRel
 src/lib/mod-index.ts     ← build-time recognized-mod count from the R2 catalog manifest (never a SQLite shard)
 src/lib/mod-index-shared.ts ← R2 manifest URL + payload type, shared with the browser refresh in Features
 src/lib/os-detect.ts     ← detectOs(): shared client-side OS detection for Hero/DownloadSection/Nav
+src/lib/og-image.ts      ← getOgImage(): the shared 1200x630 og:image, derived from a screenshot at build time
 src/styles/global.css    ← imports tokens + shared utilities + mobile breakpoints
 src/styles/starlight.css ← docs-only styling layered over Starlight (loaded via customCss)
 src/styles/tokens/       ← design tokens (fonts, colors, typography, spacing, base, components)
@@ -135,13 +137,29 @@ GA4 and the consent banner exist only on `BaseLayout` pages (`index`, `privacy`,
 
 `astro.config.mjs` sets `site: 'https://modrex.net'` — this powers `Astro.site` and `Astro.url` throughout the app. The sitemap integration auto-generates `/sitemap-index.xml` at build time from all static routes, excluding `/privacy` and `/terms` via its `filter`.
 
-`BaseLayout.astro` emits: `<meta name="description">`, `<link rel="canonical">`, `<meta name="theme-color">` (`#131313`, matching `--color-surface`), Open Graph tags (`og:title/description/image/image:alt/url/type/site_name`), Twitter card tags (including `twitter:image:alt`), and `<link rel="manifest" href="/site.webmanifest">`. The default `og:image` is `/logo.png` resolved to an absolute URL via `new URL('/logo.png', Astro.site)`; `og:image:alt`/`twitter:image:alt` share the `ogImageAlt` prop (default generic, overridden on `index.astro` for the screenshot). No `twitter:site`/`twitter:creator` — Modrex has no X account. `BaseLayout` has a `<slot name="head" />` inside `<head>` for page-specific injections.
+`BaseLayout.astro` emits: `<meta name="description">`, `<link rel="canonical">`, `<meta name="theme-color">` (`#131313`, matching `--color-surface`), Open Graph tags (`og:title/description/image/image:alt/url/type/site_name/locale`), Twitter card tags (including `twitter:image:alt`), `<link rel="manifest" href="/site.webmanifest">`, and a site-wide `Organization` JSON-LD block (duplicated in the Starlight `Head` override, since docs pages never render `BaseLayout`). The default `og:image` is `/logo.png` resolved to an absolute URL via `new URL('/logo.png', Astro.site)`; `og:image:alt`/`twitter:image:alt` share the `ogImageAlt` prop (default generic, overridden on `index.astro` for the screenshot). `og:image:type` is **derived from the `ogImage` URL's extension**, not passed in — an unrecognized extension emits no type tag rather than a wrong one. No `twitter:site`/`twitter:creator` — Modrex has no X account. `BaseLayout` has a `<slot name="head" />` inside `<head>` for page-specific injections.
+
+The shared `og:image` is generated at build time by `getOgImage()` (`src/lib/og-image.ts`): a 1200x630 JPEG cut from `browse-mods-window.png`. Never point `og:image` at a raw screenshot — the sources are ~2MB and scrapers commonly give up at that size. JPEG rather than PNG because Astro's PNG encoder does not quantize (~780kB vs ~120kB), and scrapers are the one audience with no WebP/AVIF guarantee.
 
 `src/pages/index.astro` injects a `SoftwareApplication` JSON-LD block via `<script type="application/ld+json" is:inline set:html={...} slot="head">`. The `is:inline` directive is required when using `set:html` on a script tag.
 
 Docs pages get their structured data from the Starlight `Head` override (`src/components/starlight/Head.astro`): a `BreadcrumbList` per docs page (section labels for `games`/`concepts`) and a `HowTo` block on `/docs/getting-started`. The starlight config `head` array injects the shared site-wide head tags on docs pages: `google-site-verification`, `apple-touch-icon`, the web manifest link, and `theme-color` (Starlight emits none of these itself, so there is no duplicate).
 
-`public/robots.txt` allows all crawlers and points to the sitemap URL. If the domain changes, update `site` in `astro.config.mjs`, the sitemap URL in `robots.txt`, and the `url`/`downloadUrl` in the JSON-LD in `index.astro` — all three must match.
+`public/robots.txt` allows all crawlers and points to the sitemap URL. If the domain changes, update `site` in `astro.config.mjs`, the sitemap URL in `robots.txt`, the `url`/`downloadUrl` in the JSON-LD in `index.astro`, the `Organization` blocks in `BaseLayout.astro` and `starlight/Head.astro`, and the homepage URL match in the sitemap `serialize` — they must all match.
+
+Only the homepage carries a sitemap `lastmod`, set in the sitemap `serialize` in `astro.config.mjs`. It renders live release and mod-index data so it genuinely changes every build; stamping the build date onto the static docs pages too is the pattern search engines learn to distrust.
+
+### Images
+
+Screenshots are imported from `src/assets/screenshots/`, never served from `public/`. `Hero.astro`
+renders them through `<Picture>` with AVIF plus a WebP fallback at the widths in `SHOT_WIDTHS`; the
+first real card is `loading="eager"` with `fetchpriority="high"` and is the site's LCP element.
+There is deliberately **no** `<link rel="preload">` for it: a preload without a matching
+`imagesrcset`/`imagesizes` would double-download now that a srcset is in play.
+
+`.shot-card picture` and `.viewer-card picture` need `display: block` — `<picture>` is inline by
+default, which leaves a baseline gap in the card and perturbs the width the carousel measures to
+compute its step stride.
 
 ### Static assets
 

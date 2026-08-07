@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro'
+import { getOgImage } from '../lib/og-image'
 import Nav from '../components/Nav.astro'
 import Hero from '../components/Hero.astro'
 import Features from '../components/Features.astro'
@@ -44,6 +45,8 @@ try {
     console.error('Failed to load Nexus mod counts', error)
 }
 
+const ogImage = await getOgImage()
+
 const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -66,12 +69,11 @@ const jsonLd = {
 <BaseLayout
     title="Modrex"
     description="Free, open-source mod manager for PAYDAY 3, PAYDAY 2, PAYDAY: The Heist, Crime Boss, and RAID. One-click mods from ModWorkshop and Nexus Mods."
-    ogImage={new URL('/Browse%20Mods%20Window.png', Astro.site).href}
+    ogImage={new URL(ogImage.src, Astro.site).href}
     ogImageAlt="Browsing ModWorkshop mods in the Modrex desktop app"
-    ogImageWidth={2560}
-    ogImageHeight={1368}
+    ogImageWidth={1200}
+    ogImageHeight={630}
 >
-    <link rel="preload" as="image" href="/Game%20Picker%20Window.png" slot="head" />
     <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} slot="head" />
     <Nav release={release} />
     <Hero release={release} />
