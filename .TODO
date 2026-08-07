@@ -111,6 +111,11 @@ Engine fact that shapes everything: BOTH PAYDAY 3 and Crime Boss are Unreal Engi
 4.27.2. This means the parser needs exactly one format generation: the UE 4.27 pak index
 layout and the UE 4.27 IoStore layout. No UE5 variants, no version matrix.
 
+(UPDATE 2026-08-07: the stalker2-support decision eventually adds a UE5 generation for
+STALKER 2's local conflict detection. That variant is tracked in stalker2-support, not
+here - these phases stay scoped to UE 4.27 and must not widen into a version matrix
+preemptively.)
+
 (This entry used to carry a warning that apps/desktop/CLAUDE.md misattributed PD3 to UE5.
 That has since been corrected in the docs - they now say UE 4.27 explicitly - so the
 warning is dropped as of 2026-08-01.)
@@ -284,22 +289,44 @@ and were verified gone before this entry was trimmed:
   Nexus mods.
 - File list: nexus_list_mod_files is registered and DownloadsTab serves both sources.
 
-Only the dependency gap remains.
+VERIFIED 2026-08-07 by live GraphQL introspection plus targeted data queries
+(unauthenticated but app-identified, the mode the 2026-07-29 research validated; this
+machine has no Nexus sign-in, so anything marked doc-verified below still needs one
+live confirmation from a signed-in session during implementation). Two assumptions
+this entry used to state are now WRONG and are corrected here:
 
-### No dependency handling
+1. "Nexus has NO batch metadata endpoint" is FALSE for GraphQL v2. `modsByUid(uids:
+   [ID!], offset, count)` and `modFilesByUid(...)` exist and work: uid is
+   gameId * 2^32 + modId (confirmed live: uid 29824252903431 = game 6944, mod 7), and
+   one request returned several mods' name/version/updatedAt. The nexusModCache
+   one-mod-per-2s trickle and the per-mod detail loop in useModData's Nexus branch can
+   both collapse into one batched query per game. See nexus-update-detection.
+2. "The GraphQL search selection carries no version" is no longer true of the schema:
+   Mod.version is NON_NULL and returns real data in the mods search (verified live,
+   "3.11"). The empty-version behavior is now a selection choice in nexus.rs's
+   SEARCH_QUERY, not an API limit. Fixing it must be coordinated with useModData's
+   empty-version-suppresses-update-prompts rule so cached search results do not start
+   nagging (see nexus-update-detection).
 
-`ModDependency` is ModWorkshop-shaped (`mod_id` plus a nested summary, or an offsite url).
-Nexus has its own dependency model. DepsTab, the deps warning modal and the health check
-all assume the ModWorkshop shape, so this is not a small addition. DepsTab still matches
-dependencies with `(!m.source || m.source === 'modworkshop')`, which is the honest current
-behavior: a Nexus mod's dependencies are simply not resolved rather than mis-resolved.
+### Dependencies: structured data EXISTS on v2 (was: assumed site-only)
 
-The quota constraint that shaped the update-detection design applies here too and is worth
-re-reading before starting: Nexus has NO batch metadata endpoint (ModWorkshop's `ids[]`
-filter has no equivalent) and enforces a daily quota, so resolving a dependency tree cannot
-be a loop of detail calls. `waitForForegroundClear()` exists for this kind of background
-work. Asking the Nexus contact about batch metadata and quota headroom for a mod manager is
-still the one question that changes the answer.
+`Mod.modRequirements` is real: `nexusRequirements` (paginated nodes of `{ modId,
+gameId, modName, notes, url, externalRequirement }`), `dlcRequirements`, and
+`modsRequiringThisMod`. That is exactly the split DepsTab needs: internal requirements
+carry a real modId/gameId to open in-app, external ones carry url + name for the gated
+external-link row, notes is the author's free text. Shape verified live; both sampled
+mods had totalCount 0, so POPULATION is unverified - before building, find one mod
+whose site page lists requirements and confirm the API returns them (open question 6
+in nexus-policy-boundaries if it does not).
+
+Scope guidance when built: DISPLAY first (a Nexus deps tab mirroring DepsTab, with
+external rows opening through shell_open_external). Auto-install of internal
+requirements can reuse the existing per-source install flow afterward; do not build
+recursive tree resolution up front - batch modsByUid makes enrichment cheap, but the
+tree is still author-declared data of unknown consistency. No "optional vs required"
+flag exists; the site's optional grouping is not in the schema - never invent one from
+notes text. DepsTab's `(!m.source || m.source === 'modworkshop')` guard stays until
+this lands; unresolved is still more honest than mis-resolved.
 
 ### Explicitly NOT doing: category and tag filtering
 
@@ -311,7 +338,252 @@ query takes `facets` (type ModsFacet) alongside `filter`, and the schema carries
 likely exists server-side. It is still not worth building. Nexus categories are a
 different taxonomy from ModWorkshop's (different ids, names, hierarchy, per-game
 associations), so the two could never share one dropdown, and each source would need its
-own filter UI for little gain.
+own filter UI for little gain. (2026-08-07 re-introspection confirmed modCategory, tags,
+and a nameStemmed search filter all exist and return live data; the decision above is
+about product value, not availability, and stands.)
+
+### Verified lower-priority surface (available, deliberately not scheduled)
+
+All confirmed by introspection 2026-08-07. None of these outranks the entries below or
+the stalker2-support sequencing; they are recorded so nobody re-researches them.
+
+- Endorse/abstain: v2 mutations createModEndorsement / abstainFromModEndorsement (and
+  v1 REST endorse.json). v1 docs describe not-downloaded / too-soon error cases -
+  confirm exact rules when built and surface them as friendly messages, never as raw
+  errors.
+- Tracking: v2 trackMod / untrackMod mutations plus Mod.viewerTracked. Enables a
+  "track on Nexus" toggle and a tracked-mods import ("bring your Nexus library") -
+  needs an authed query for the user's tracked list (introspect when built; v1 REST
+  /user/tracked_mods.json exists as fallback).
+- Uploader metadata: Mod.uploader { name, memberId, avatar } returns live data;
+  profile URL derivable as nexusmods.com/users/{memberId}. Small detail-page row.
+- Collections: full v2 read surface exists (collection, collectionsV2,
+  collectionRevision). RESEARCH ONLY - large, Vortex-flagship territory; nothing in
+  Modrex needs it today, and it must not enter the roadmap before the mod.io work has
+  real consumers (see acquire-install-split sequencing).
+- Media section: the v2 media query is the per-game community media browser
+  (game-scoped filter only - NOT a mod's gallery; see nexus-detail-parity for that
+  verdict).
+- Persistent Nexus caching: nexusModCache is deliberately session-only; keys are
+  already game-scoped, so localStorage persistence mirroring modCache is possible any
+  time. Low value until the batched update check (nexus-update-detection) settles what
+  is worth persisting.
+
+---
+
+## TODO: nexus-update-detection
+
+Replace the per-mod Nexus update trickle with one batched check per game, and make
+per-file supersession exact. VERIFIED 2026-08-07; supersedes the quota-shaped design
+notes that used to live in nexus-feature-parity.
+
+User problem: Nexus update checks are slow (one request per installed mod, 2s stagger)
+and version-string-only, so a mod whose author replaced a file without bumping the
+mod-level version never surfaces, and large libraries burn quota.
+
+Verified API surface:
+
+- BATCH (live-verified): modsByUid(uids: [gameId*2^32+modId]) returns name, version,
+  updatedAt for many mods in one request. This is the ModWorkshop ids[] equivalent the
+  old notes said did not exist. modFilesByUid batches file lists the same way.
+- Per-file supersession (doc-verified via the v1 API docs and Nexus's own
+  node-nexus-api types; live-confirm with a signed-in session): v1 files.json returns
+  file_updates chains (old_file_id -> new_file_id with timestamps), and
+  /games/{domain}/mods/updated.json?period=1d|1w|1m returns { mod_id,
+  latest_file_update, latest_mod_activity } per changed mod.
+- v2 ModFile (live-verified) carries fileId, name, version, category, sizeInBytes
+  (string BigInt - reuse parse_big_int), date, changelogText - but NO successor links,
+  so exact supersession stays a v1 files.json job.
+
+Proposed algorithm (per game, background, behind waitForForegroundClear):
+
+1. One modsByUid batch over installed Nexus mods' uids -> updatedAt + version per mod.
+2. Mods whose updatedAt is not newer than the locally recorded check time are done.
+3. For the changed few, fetch v1 files.json once each and walk file_updates from the
+   stored file_remote_id to the chain head; a successor existing = exact update, and
+   the successor's file_id/name feed the update UI. Chains can have several hops -
+   walk to the end, guard against cycles.
+4. No file_updates entry for the installed file: fall back to the current
+   version-string compare, never claim an exact update. latest_mod_activity alone
+   (description edits) must not trigger an update prompt - that is the main
+   false-positive trap. Files with category ARCHIVED/OLD_VERSION and optional files
+   with no successor are the main false-negative trap: absence of a chain entry is
+   "unknown", not "current".
+
+Required stored identifiers already exist: InstalledMod.remote_id, file_remote_id, and
+the source registry's numeric game ids. Modules: nexus.rs (batch query + files.json
+call), nexusModCache.ts (replace the stagger loop), useModData's Nexus branch,
+mods/types.rs only if a last-checked timestamp is added. Tests: uid math round-trip,
+chain walk (multi-hop, cycle guard, no-successor), updatedAt short-circuit, and a
+fixture from a real files.json. Coordinate with enabling version in SEARCH_QUERY
+(nexus-feature-parity item 2) so update prompts come from this check, not from stale
+search snapshots.
+
+Policy: batched lookups of the user's own installed mods are ordinary API use; the v2
+docs warn the schema can change without notice, so keep the v1 version-compare path as
+the fallback rather than deleting it. Unresolved: whether Mod.updatedAt moves on
+non-file edits (measure during implementation); viewerUpdateAvailable semantics
+(auth-scoped, untested).
+
+---
+
+## TODO: nexus-premium-downloads
+
+Premium accounts should download inside the app; free accounts keep the website
+handoff. Tier detection first, direct downloads second. Status: ready to implement
+except the two live confirmations marked below. VERIFIED/doc-verified 2026-08-07.
+
+User problem: Premium users currently get the same browser round-trip as free users,
+although the API supports direct links for them; and Modrex cannot even say which tier
+the signed-in account is.
+
+Tier detection - two verified candidates, pick during implementation:
+
+- OIDC userinfo endpoint (https://users.nexusmods.com/oauth/userinfo, live-verified to
+  exist via discovery): claims include membership_roles and premium_expiry. OAuth-native,
+  no v1 dependency. Response shape untested (no sign-in on the dev machine).
+- v1 /users/validate.json (doc-verified via Nexus's node-nexus-api types): is_premium,
+  is_supporter, user name. CAUTION: the response also carries the account's personal
+  api key and email - never log the response body, store only the booleans + name.
+
+Cache the result per session plus on sign-in; a detection failure degrades to the free
+flow silently is WRONG - show "tier unknown, using website flow" instead, since a
+Premium user silently demoted would report it as a download bug.
+
+Direct downloads (Premium only):
+
+- nexus_get_download_link already accepts (None, None) for key/expires; that keyless
+  call is Premium-only BY DESIGN - free accounts 403 (confirmed live during the nxm
+  work; the first-party node-nexus-api docs state the key "can only be generated on
+  the website" for non-premium). LIVE-CONFIRM once with a Premium session: keyless
+  link succeeds under the OAuth bearer, and note the returned link's expiry behavior
+  (links are temporary; treat a failed download start as expired -> re-request once).
+- Flow: DownloadsTab install button, when tier == premium, resolves the link and runs
+  the normal download_file + install pipeline (progress events already exist); free
+  tier keeps the nmm=1 website handoff and the nxm:// path untouched. Respect
+  Mod.directDownloadEnabled if it proves relevant to per-mod availability.
+- Cancellation/retry: download_file has progress but no user cancel; acceptable for
+  v1 of this feature, note S2-sized files will eventually want cancel + resume.
+
+Modules: nexus.rs, DownloadsTab.tsx, SettingsPage (tier row), settings cache. Tests:
+tier parse (userinfo and/or validate fixtures), keyless-link request shape, free-tier
+routing regression (must still open the website). Error cases: 403 on keyless call for
+a free account must route to the website flow with no error toast (it is the expected
+tier behavior), expired link -> one silent re-request then a real error.
+
+Non-goals, permanent: no free-tier workaround of any kind - no scraping, no browser
+automation, no reusing another session's key. The website click IS the free-tier
+authorization, per Nexus's design. See nexus-policy-boundaries.
+
+---
+
+## TODO: nexus-detail-parity
+
+Verified presentation gaps on the Nexus detail page, smallest-first. All API facts
+live-verified 2026-08-07 unless marked.
+
+- Per-file changelogs: v2 modFiles.changelogText ([String], live-populated) - render
+  in DownloadsTab per file. Mod-level: v1 changelogs.json (doc-verified,
+  version -> notes map) can back a Changelog tab like ModWorkshop's. Both authed.
+- Version in browse/search: add version to SEARCH_QUERY (live-verified populated) -
+  gate behind the nexus-update-detection coordination note.
+- Uploader row: uploader { name, memberId, avatar } (live) + profile link
+  nexusmods.com/users/{memberId} through shell_open_external.
+- Bigger images where the UI already wants them: thumbnailLargeUrl exists (live);
+  pictureUrl stays the detail hero.
+- ADULT CONTENT - currently a real gap, raise priority: adult mods are returned by
+  DEFAULT to unauthenticated/unfiltered queries (live: 12 adult S2 mods,
+  totalCount, with adultContent flags) and Modrex neither selects the flag nor
+  filters, so adult thumbnails render unblurred today. Fix: select adultContent
+  everywhere, default to excluding adult results via the ModsFilter adultContent
+  predicate (matching the site's signed-out default), and when shown, use
+  thumbnailBlurredUrl / thumbnailLargeBlurredUrl (both exist precisely for this) with
+  an explicit reveal. UNRESOLVED: whether authed results auto-respect the account's
+  content preferences (needs a signed-in test; question 4 in nexus-policy-boundaries).
+  Tests: filter predicate presence, blurred-variant selection, reveal gating.
+- GALLERY: API-BLOCKED, verified two-sided - Mod carries no image-list field, and the
+  v2 media query cannot filter by mod (MediaSearchFilter has gameId/type/owner only),
+  so a mod's site gallery is not reachable. Scraping the website for it is NOT an
+  acceptable fallback (AUP; see nexus-policy-boundaries). Single pictureUrl stays the
+  honest ceiling until Nexus answers question 2. If they expose it later: disk-cache
+  via the thumbnails full-URL-keying work, CSP already allows staticdelivery/images
+  hosts - re-audit both csp and devCsp at that point.
+
+Modules: nexus.rs (selection sets), domain.rs (wire fields), ModDetailPage /
+DownloadsTab / NexusBrowsePage, i18n. Sequencing: any of these can ship independently;
+none needs the source restructure.
+
+---
+
+## TODO: nexus-oauth-lifecycle
+
+Small verified auth gaps. VERIFIED 2026-08-07 against
+users.nexusmods.com/.well-known/openid-configuration.
+
+- Revocation: a revocation_endpoint EXISTS (/oauth/revoke). nexus_oauth_sign_out
+  currently deletes local tokens only - add a best-effort revoke call (access +
+  refresh token, per RFC 7009 token_type_hint) before local deletion. Failure to
+  revoke must not block sign-out. There is NO end_session endpoint - nothing else to
+  call.
+- Plaintext fallback visibility: when store_tokens falls back to settings.json
+  (credential store unavailable), the user is never told. Show a one-line notice in
+  the Settings Nexus section while the fallback is active (secret_store_available
+  already exists as a command).
+- Refresh rotation: UNRESOLVED - discovery metadata does not say whether refresh
+  tokens rotate. Keep REFRESH_LOCK's conservative serialize-everything behavior, and
+  NEVER refresh the app's grant from outside the app (a rotated token persisted
+  nowhere would sign the real app out) - this is also why verification sessions must
+  not "just refresh" an expired token.
+- Scopes: keep exactly `public openid profile`. Discovery advertises only
+  public/openid; profile was granted at registration (support-confirmed) and feeds
+  the settings display. Nothing verified this session needs a new scope - endorse/
+  track/collections mutations should be re-tested under the current scopes before
+  assuming otherwise.
+
+---
+
+## TODO: nexus-policy-boundaries
+
+Permanent reference plus the questions only Nexus can answer. Not a task; do not
+"complete" this entry. Language below distinguishes what Nexus states outright from
+what is inference - do not upgrade inference to policy when citing this.
+
+STATED by Nexus (AUP, read 2026-07-29, re-checked 2026-08-06; API docs; first-party
+client docs):
+
+- No fetching data en masse to rehost ("scraping"), no mass downloading, no serving
+  Nexus data from Modrex infrastructure. This is why there is no Nexus content index
+  and why gallery/requirements scraping is off the table even where the API lacks the
+  data.
+- Free-tier download links require the website-generated key/expires; the website
+  click is the authorization. No workaround is acceptable in any form.
+- Public applications must be registered (Modrex is) and send Application-Name/
+  -Version on every request (nexus_headers does).
+- Do not store users' tokens server-side. Modrex stores them locally only.
+- The v2 GraphQL API is explicitly "in development" and may change without warning -
+  every v2-dependent feature keeps a fallback or degrades gracefully.
+
+INFERENCE (researched 2026-07-29, unchanged): a crowd-sourced hash-to-identity map
+built from per-user lookups is effectively closed under the AUP plus the ToS database
+-rights position, even though each individual lookup is legitimate. Treat as requiring
+written Nexus permission, i.e. do not build absent that.
+
+QUESTIONS for Nexus support (owner sends manually; registered-app channel):
+
+1. Batch metadata: modsByUid/modFilesByUid now exist in v2 - are they intended for
+   third-party managers at our scale, and is there a stability/deprecation channel
+   registered apps should watch?
+2. Mod galleries: not exposed on Mod and media cannot filter by mod - is exposing a
+   mod's image gallery to registered apps planned?
+3. Per-inner-file hashes on ModFileContent (standing community request) - any plans?
+   This would replace our name/size heuristics with exact matching.
+4. Adult content: do authenticated API responses respect the account's content
+   preferences automatically, or are clients expected to filter on adultContent
+   themselves (what we will do by default either way)?
+5. Refresh tokens: do they rotate on use? (Determines whether our serialized refresh
+   can ever relax.)
+6. modRequirements: shape is live but our samples returned empty - is population
+   complete for recent games, or partial?
 
 ---
 
@@ -387,6 +659,13 @@ on disk" is source-agnostic and stays untouched.
 - Recommended source order after Nexus: mod.io next (API-first, direct binary
   downloads, OAuth or API key, designed for managers - validates the abstraction
   with the least incidental complexity), then Steam Workshop, then ModDB.
+  UPDATED 2026-08-07: the stalker2-support decision gives this order concrete
+  consumers instead of a speculative sequence - mod.io's first real users are
+  STALKER 2's non-Steam builds (GOG and Microsoft Store route official mods
+  through mod.io) plus Ready or Not if its go/no-go passes (mod.io is its official
+  platform), and STALKER 2's Steam Workshop support starts as
+  reconcile-what-Steam-installed, not acquisition. Build each source when its
+  consumer game lands, not before.
   Re-verify Nexus and mod.io API terms (registered-app requirements, free-user
   download policy) against current documents before building - the architecture
   above holds either way, but product constraints may have changed.
@@ -428,6 +707,73 @@ source-scoped key. The index reader is the holdout.
 
 ---
 
+## TODO: stalker2-support
+
+Next major game. DECIDED 2026-08-07 after the strategy research sessions; this entry
+records the direction and its guardrails so later work does not relitigate them. Like
+everything in this file, do not start implementation without the owner explicitly
+saying so.
+
+### The decision
+
+- STALKER 2: Heart of Chornobyl (Steam appid 1643320, UE5 - 5.1.x per public info,
+  verify the exact version when the parser work starts) is the next game added.
+- Ready or Not is the likely game AFTER it - a second consumer for the UE5 pak
+  handling, the Nexus flows, conflict detection, and the future mod.io client - but
+  it gets its own independent go/no-go (real-install verification, conflict-pain,
+  anti-cheat and pak-signature checks) and nothing starts on it until STALKER 2 v1
+  has shipped.
+- No game is ever added merely to rehearse an API or a source integration. A game
+  enters the roster only when supporting it is independently worthwhile; the
+  fallback for a game that disappoints is feature-freeze, since public support
+  cannot be retracted.
+
+### v1 scope (smallest credible, family-conforming)
+
+- Sources: the existing Nexus integration plus local archive install and
+  drag-and-drop. No mod.io and no Steam Workshop in v1. Registry facts verified live
+  2026-08-07: domain stalker2heartofchornobyl, numeric gameId 6944 (for the
+  SOURCE_REGISTRY numeric_id field), 1,552 published Nexus mods (modCount - lower
+  than raw mod-id evidence suggests, since ids run past 2,300 with hidden/removed
+  listings). S2 has adult-flagged mods (12 live), so nexus-detail-parity's adult
+  handling should land with or before this game; its mods also lean on requirements
+  (UE4SS et al), making nexus-feature-parity's dependency work more valuable here
+  than for the PAYDAY catalog.
+- File-unit target at Stalker2/Content/Paks/~mods with .pak/.ucas/.utoc sidecars
+  carried through every op (the Crime Boss sidecar mechanism, not new code).
+- The standard engine surface: install, uninstall, enable/disable, update
+  detection, health check, reorder.
+- Store detection: Steam and Xbox via the existing launchers where the build allows
+  it; GOG is a new launcher module (registry keys + Galaxy manifests) and belongs
+  to v1 because no current game exercises GOG at all.
+- Load order: the community convention is a _{N}_P filename SUFFIX (higher number
+  loads later), not the NNN_ prefix the File unit assumes today - see the note in
+  game-registry-behavior-hooks.
+
+### Deliberately NOT v1
+
+- Local pak conflict detection for UE5 (which installed mods claim the same packed
+  cfg/asset paths) is the differentiating follow-up, not a launch blocker. The S2
+  community currently solves this with standalone merge tools, which is the demand
+  evidence. It is local-only parsing of the user's own files - no index, no Nexus
+  policy exposure - and needs the UE5 format generation noted in pak-analyzer.
+- mod.io and Steam Workshop are sequenced by verified user value through the
+  acquire-install-split chain (see the 2026-08-07 update there), never
+  speculatively.
+
+### Verify on real installations before any implementation
+
+- ~mods loading still intact on the current game patch, and the exact pak/IoStore
+  container versions (for the conflict-detection follow-up).
+- Sidecar shapes from ~10 real Nexus mods (bare pak vs triplet mix).
+- The _{N}_P suffix semantics vs plain alphabetical ordering.
+- GOG and Xbox/Game Pass build layouts and whether their file access permits pak
+  installs at all.
+- GSC's current modding guidance (support.stalker2.com) for anything that
+  constrains third-party managers.
+
+---
+
 ## TODO: game-registry-behavior-hooks
 
 Scalability. Medium. Stages 1 and 3 of the original game-registry entry landed on
@@ -454,6 +800,10 @@ module instead of a branch in a shared file:
 - `enabled_sync` - Crime Boss ModSettings (crimeboss_settings.rs), UE4SS mods.txt
   (ue4ss_modstxt.rs)
 - `embedded_id_parser` - BeardLib main.xml, RAID supermod.xml + mod.xml (identify.rs)
+- Priority naming is about to join this list: stalker2-support brings the first game
+  whose load order is a filename SUFFIX (_{N}_P, higher loads later) rather than the
+  NNN_ prefix naming.rs assumes for File units - a per-game naming behavior, same
+  migration rule as the rest (opportunistic, when touched).
 
 Migrate OPPORTUNISTICALLY, whenever a `game_id ==` branch is touched, not big-bang. The
 conformance suite (commands/conformance_tests.rs) covers the uniform contract, so a hook
