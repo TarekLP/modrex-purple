@@ -589,6 +589,13 @@ export const api = {
     onNexusOAuthFailed(callback: (error: string) => void): () => void {
         return onEvent<string>('nexus-oauth:failed', callback)
     },
+    // The backend discarded a stored sign-in that can no longer be refreshed (see
+    // nexus_oauth.rs's end_session). Distinct from onNexusOAuthFailed, which reports a
+    // sign-in attempt the user just made: this arrives unprompted, so every surface that
+    // reports sign-in state has to react rather than keep claiming to be signed in.
+    onNexusSessionExpired(callback: () => void): () => void {
+        return onEvent<null>('nexus-oauth:expired', () => callback())
+    },
     onNxmInstallFailed(callback: (error: string) => void): () => void {
         return onEvent<string>('nxm:install-failed', callback)
     },

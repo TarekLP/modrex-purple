@@ -169,6 +169,9 @@ export function SettingsPage({
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() => readSavedTab(globalOnly))
     const [nexusSignedIn, setNexusSignedIn] = useState<boolean | null>(null)
+    // Signed out because the session lapsed rather than because the user asked, which
+    // needs saying: the sign-in button alone gives no hint that anything was lost.
+    const [nexusSessionExpired, setNexusSessionExpired] = useState(false)
     const [nexusSignInError, setNexusSignInError] = useState<string | null>(null)
     const [secretStoreAvailable, setSecretStoreAvailable] = useState<boolean | null>(null)
     const [confirmNexusSignOut, setConfirmNexusSignOut] = useState(false)
@@ -280,12 +283,21 @@ export function SettingsPage({
         const offSignedIn = api.onNexusOAuthSignedIn(() => {
             setNexusSignedIn(true)
             setNexusSignInError(null)
+            setNexusSessionExpired(false)
         })
         const offFailed = api.onNexusOAuthFailed((error) => setNexusSignInError(error))
+        // The backend already cleared the stored sign-in, so this section has to follow it
+        // down rather than keep offering a Sign out button for credentials that are gone.
+        const offExpired = api.onNexusSessionExpired(() => {
+            setNexusSignedIn(false)
+            setNexusSignInError(null)
+            setNexusSessionExpired(true)
+        })
         return () => {
             cancelled = true
             offSignedIn()
             offFailed()
+            offExpired()
         }
     }, [])
 
@@ -756,6 +768,14 @@ export function SettingsPage({
                                                     </Button>
                                                 )}
                                             </div>
+                                            {nexusSessionExpired && (
+                                                <div className="mt-2 flex items-start gap-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
+                                                    <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                                    <span>
+                                                        {t('settings.nexusAccount.sessionExpired')}
+                                                    </span>
+                                                </div>
+                                            )}
                                             {nexusSignInError !== null && (
                                                 <p className="text-xs text-danger-text">
                                                     {t('settings.nexusAccount.failed', {

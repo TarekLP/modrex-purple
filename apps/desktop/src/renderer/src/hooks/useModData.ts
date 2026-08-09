@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { ModSummary, InstalledMod, GameId } from '../../../shared/types'
 import { getInstalledMetaEntry, fetchInstalledModsMeta, INSTALLED_META_TTL_MS } from '../modCache'
-import { getNexusInstalledMetaEntry, fetchInstalledNexusModsMeta } from '../nexusModCache'
+import {
+    getNexusInstalledMetaEntry,
+    fetchInstalledNexusModsMeta,
+    useNexusAuthEpoch,
+} from '../nexusModCache'
 import { getLocalImage } from '../thumbnailCache'
 import { isIdentified } from './installedUtils'
 
@@ -25,6 +29,8 @@ export function useModData(
     // that same id so modData/failedIds stay one shared map/set for both sources.
     const nexusFetchedAt = useRef<Map<number, number>>(new Map())
     const installedKey = useRef<string>('')
+    const nexusAuthEpoch = useNexusAuthEpoch()
+    const seenAuthEpoch = useRef(nexusAuthEpoch)
 
     useEffect(() => {
         if (installed.length === 0) {
@@ -36,13 +42,32 @@ export function useModData(
             return
         }
 
+        // Signing in again retires every Nexus outcome recorded against the previous
+        // session: those mods failed on a token that no longer exists. Both the fetched-at
+        // stamps (which back off failures for the full TTL) and failedIds (which pins the
+        // rows to their local-name fallback) have to go, or the list keeps the metadata it
+        // could not fetch until the app restarts.
+        const authChanged = seenAuthEpoch.current !== nexusAuthEpoch
+        if (authChanged) {
+            seenAuthEpoch.current = nexusAuthEpoch
+            nexusFetchedAt.current.clear()
+            const nexusInsIds = new Set(
+                installed.filter((m) => m.source === 'nexus').map((m) => m.id)
+            )
+            setFailedIds((prev) => {
+                const next = new Set([...prev].filter((id) => !nexusInsIds.has(id)))
+                return next.size === prev.size ? prev : next
+            })
+        }
+
         // Bail early when the set of mod ids has not changed, which avoids redundant
         // sync pre-populate on every focus refresh that produces a new array reference.
+        // A new session bypasses it: the ids are the same, the answers are not.
         const nextKey = installed
             .map((m) => m.id)
             .sort((a, b) => a - b)
             .join(',')
-        if (nextKey === installedKey.current) return
+        if (!authChanged && nextKey === installedKey.current) return
         installedKey.current = nextKey
 
         const now = Date.now()
@@ -173,7 +198,7 @@ export function useModData(
                 }
             ).catch(() => {})
         }
-    }, [installed, workshopId, gameId])
+    }, [installed, workshopId, gameId, nexusAuthEpoch])
 
     const updatable = useMemo(() => {
         const installedVersions = new Set(installed.map((m) => `${m.id}:${m.version}`))

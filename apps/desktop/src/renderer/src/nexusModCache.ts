@@ -1,6 +1,43 @@
+import { useSyncExternalStore } from 'react'
 import type { Mod, ModFile } from '../../shared/types'
 import { api } from './api'
 import { waitForForegroundClear } from './requestPriority'
+
+// Counts the Nexus sign-ins this session. Anything a caller recorded about a mod having
+// already been tried - a failure, a fetched-at stamp, an "already attempted" uid - was
+// recorded against a token that no longer exists, so it stops being a reason not to ask
+// again the moment a new session starts. Without this the whole installed list keeps the
+// metadata it could not fetch on the dead token until the app restarts.
+//
+// Deliberately not bumped when a session expires: the retries would only fail again
+// against the same rate-limited quota, and the caches below hold successful mod metadata,
+// which stays true no matter who is signed in.
+let authEpoch = 0
+const authListeners = new Set<() => void>()
+
+function subscribeNexusAuth(onChange: () => void): () => void {
+    authListeners.add(onChange)
+    return () => {
+        authListeners.delete(onChange)
+    }
+}
+
+function getNexusAuthEpoch(): number {
+    return authEpoch
+}
+
+/** Re-renders the caller whenever a new Nexus session begins. */
+export function useNexusAuthEpoch(): number {
+    return useSyncExternalStore(subscribeNexusAuth, getNexusAuthEpoch)
+}
+
+// Registered once at module load; the listener lives for the app's lifetime, mirroring
+// SourceSelect's own sign-in listener, which drops its cached per-source counts for the
+// same reason.
+api.onNexusOAuthSignedIn(() => {
+    authEpoch++
+    for (const notify of authListeners) notify()
+})
 
 // Deliberately separate from modCache.ts's cache, not merged into it: Nexus mod ids are
 // only unique within a game domain (they repeat across games, same as the nxm progress-id

@@ -45,17 +45,30 @@ function subscribe(fn: () => void): () => void {
 // sign-in so ensureCount re-fetches instead of honouring the stale null forever. Registered
 // once at module load; the listener lives for the app's lifetime.
 api.onNexusOAuthSignedIn(() => {
+    const games = dropNexusCounts()
+    if (games.length === 0) return
+    // Flip the visible counts to skeletons immediately, then re-fetch the real totals.
+    for (const l of listeners) l()
+    for (const g of games) ensureCount(g, 'nexus')
+})
+
+// A lapsed session makes the cached total a claim about a library this app can no longer
+// reach, so it is dropped without re-fetching: fetchCount would only see the signed-out
+// state and cache the same null again.
+api.onNexusSessionExpired(() => {
+    if (dropNexusCounts().length === 0) return
+    for (const l of listeners) l()
+})
+
+function dropNexusCounts(): GameId[] {
     const games: GameId[] = []
     for (const key of [...countCache.keys()]) {
         if (!key.endsWith(':nexus')) continue
         countCache.delete(key)
         games.push(key.slice(0, -':nexus'.length) as GameId)
     }
-    if (games.length === 0) return
-    // Flip the visible counts to skeletons immediately, then re-fetch the real totals.
-    for (const l of listeners) l()
-    for (const g of games) ensureCount(g, 'nexus')
-})
+    return games
+}
 
 function ensureCount(gameId: GameId, sourceId: string): void {
     const key = cacheKey(gameId, sourceId)

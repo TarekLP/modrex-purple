@@ -70,15 +70,55 @@ pub(crate) fn authorize_url(challenge: &str, state: &str) -> String {
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct TokenResponse {
     pub access_token: String,
-    pub refresh_token: String,
+    // Absent when the server does not rotate the refresh token on this grant. The caller
+    // keeps the token it already holds in that case, so requiring the field here would
+    // turn a successful refresh into a failed one.
+    #[serde(default)]
+    pub refresh_token: Option<String>,
     pub expires_in: u64,
+}
+
+/// Why a token grant failed. Only the authorization server rejecting the grant itself
+/// justifies discarding a stored sign-in, so the two cases stay distinct up to the caller.
+#[derive(Debug)]
+pub(crate) enum TokenError {
+    /// The presented grant is expired, revoked, or already consumed. No retry recovers
+    /// it, only a new sign-in.
+    Rejected(String),
+    /// Network fault, timeout, or a server-side error. This says nothing about whether
+    /// the grant is still good, so the sign-in must survive it.
+    Transient(String),
+}
+
+impl std::fmt::Display for TokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Rejected(message) | Self::Transient(message) => write!(f, "{message}"),
+        }
+    }
+}
+
+// RFC 6749 section 5.2 error body: {"error": "...", "error_description": "..."}.
+// invalid_grant is deliberately the only code that ends the session. Its siblings
+// (invalid_client, unsupported_grant_type) mean this client is misconfigured, where
+// discarding the user's credentials would only produce a sign-in loop that fixes
+// nothing, and an unparseable body is usually a proxy or captive-portal page.
+pub(crate) fn classify_token_error(status: u16, body: &str) -> TokenError {
+    let code = serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| v["error"].as_str().map(str::to_string));
+    match code.as_deref() {
+        Some("invalid_grant") => TokenError::Rejected("invalid_grant".to_string()),
+        Some(other) => TokenError::Transient(format!("{status}: {other}")),
+        None => TokenError::Transient(format!("{status}")),
+    }
 }
 
 pub(crate) async fn exchange_code(
     app: &AppHandle,
     code: &str,
     verifier: &str,
-) -> Result<TokenResponse, String> {
+) -> Result<TokenResponse, TokenError> {
     token_request(
         app,
         &[
@@ -95,7 +135,7 @@ pub(crate) async fn exchange_code(
 pub(crate) async fn refresh_tokens(
     app: &AppHandle,
     refresh_token: &str,
-) -> Result<TokenResponse, String> {
+) -> Result<TokenResponse, TokenError> {
     token_request(
         app,
         &[
@@ -107,7 +147,10 @@ pub(crate) async fn refresh_tokens(
     .await
 }
 
-async fn token_request(app: &AppHandle, params: &[(&str, &str)]) -> Result<TokenResponse, String> {
+async fn token_request(
+    app: &AppHandle,
+    params: &[(&str, &str)],
+) -> Result<TokenResponse, TokenError> {
     let res = http_client()
         .post(format!("{OAUTH_BASE}/token"))
         .header("User-Agent", user_agent(app))
@@ -115,11 +158,16 @@ async fn token_request(app: &AppHandle, params: &[(&str, &str)]) -> Result<Token
         .timeout(Duration::from_secs(15))
         .send()
         .await
-        .map_err(|e| e.to_string())?;
-    if !res.status().is_success() {
-        return Err(format!("nexus oauth token: {}", res.status()));
+        .map_err(|e| TokenError::Transient(e.to_string()))?;
+
+    let status = res.status();
+    if !status.is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(classify_token_error(status.as_u16(), &body));
     }
-    res.json().await.map_err(|e| e.to_string())
+    res.json()
+        .await
+        .map_err(|e| TokenError::Transient(e.to_string()))
 }
 
 struct PendingLogin {
@@ -199,8 +247,16 @@ async fn handle_oauth_callback(app: &AppHandle, url: &str) -> Result<(), String>
         return Err("nexus oauth: state mismatch".to_string());
     }
 
-    let tokens = exchange_code(app, &code, &pending.verifier).await?;
-    store_tokens(app, &tokens).await?;
+    let tokens = exchange_code(app, &code, &pending.verifier)
+        .await
+        .map_err(|e| format!("nexus oauth: token exchange failed ({e})"))?;
+    // The authorization_code grant always issues one, unlike a refresh (see TokenResponse):
+    // without it the session would die at the first expiry with nothing to refresh from.
+    let refresh_token = tokens
+        .refresh_token
+        .clone()
+        .ok_or("nexus oauth: sign-in response carried no refresh token")?;
+    store_tokens(app, &tokens, &refresh_token).await?;
     log::info!("nexus oauth: signed in");
     app.emit("nexus-oauth:signed-in", ())
         .map_err(|e| e.to_string())
@@ -224,71 +280,139 @@ struct LoadedTokens {
     expires_at: i64,
 }
 
+const SIGN_IN_REQUIRED: &str = "nexus oauth: sign in required";
+const SESSION_EXPIRED: &str = "nexus oauth: session expired, sign in again";
+
+// Emitted whenever a stored sign-in is discarded without the user asking for it, so the
+// UI can stop reporting a session that no longer works and offer re-authorization.
+// Signing out deliberately does not emit it: the user already knows.
+const EXPIRED_EVENT: &str = "nexus-oauth:expired";
+
 // settings.json's nexus_oauth record is the sign-in marker either way. The two token
 // values live either inline (the credential store was unavailable at write time) or in
 // the OS credential store on the normal path. See store_tokens.
-async fn load_tokens(app: &AppHandle) -> Result<Option<LoadedTokens>, String> {
+//
+// A record whose credential-store entries have gone missing is not recoverable by
+// retrying, so it ends the session rather than failing every request forever behind a UI
+// that still claims to be signed in.
+async fn require_tokens(app: &AppHandle) -> Result<LoadedTokens, String> {
     let Some(saved) = read_settings(app).nexus_oauth else {
-        return Ok(None);
+        return Err(SIGN_IN_REQUIRED.to_string());
     };
     if let (Some(access_token), Some(refresh_token)) =
         (saved.access_token.clone(), saved.refresh_token.clone())
     {
-        return Ok(Some(LoadedTokens {
+        return Ok(LoadedTokens {
             access_token,
             refresh_token,
             expires_at: saved.expires_at,
-        }));
+        });
     }
-    let missing =
-        || "nexus oauth: stored sign-in missing from credential store, sign in again".to_string();
-    let access_token = secrets::get_secret(ACCESS_TOKEN_KEY)
-        .await?
-        .ok_or_else(missing)?;
-    let refresh_token = secrets::get_secret(REFRESH_TOKEN_KEY)
-        .await?
-        .ok_or_else(missing)?;
-    Ok(Some(LoadedTokens {
+    // A read failure here is the store being unreadable right now, which is transient and
+    // must not end the session; only a confirmed absence below does.
+    let access_token = secrets::get_secret(ACCESS_TOKEN_KEY).await?;
+    let refresh_token = secrets::get_secret(REFRESH_TOKEN_KEY).await?;
+    let (Some(access_token), Some(refresh_token)) = (access_token, refresh_token) else {
+        end_session(app, "credentials missing from the credential store").await;
+        return Err(SIGN_IN_REQUIRED.to_string());
+    };
+    Ok(LoadedTokens {
         access_token,
         refresh_token,
         expires_at: saved.expires_at,
-    }))
+    })
 }
 
 pub(crate) async fn access_token(app: &AppHandle) -> Result<String, String> {
-    let Some(tokens) = load_tokens(app).await? else {
-        return Err("nexus oauth: sign in required".to_string());
-    };
+    let tokens = require_tokens(app).await?;
     if !needs_refresh(tokens.expires_at, chrono::Utc::now().timestamp()) {
         return Ok(tokens.access_token);
     }
 
     let _guard = REFRESH_LOCK.lock().await;
     // Another request may have refreshed while this one waited on the lock.
-    let Some(tokens) = load_tokens(app).await? else {
-        return Err("nexus oauth: sign in required".to_string());
-    };
+    let tokens = require_tokens(app).await?;
     if !needs_refresh(tokens.expires_at, chrono::Utc::now().timestamp()) {
         return Ok(tokens.access_token);
     }
+    refresh_and_store(app, &tokens.refresh_token).await
+}
 
-    let fresh = refresh_tokens(app, &tokens.refresh_token)
-        .await
-        .map_err(|e| format!("nexus oauth: token refresh failed ({e}), sign in again"))?;
+/// Refreshes regardless of the stored expiry, for a request that was rejected as
+/// unauthorized while its token still looked valid. Nexus can retire an access token
+/// before expires_at says so (the user revoked the app or changed their password, or the
+/// local clock is wrong), and the expiry-driven path above would then never refresh,
+/// leaving every request to fail permanently.
+///
+/// stale is the token that was rejected. Concurrent callers hitting the same rejection
+/// must not each spend a refresh: Nexus consumes the refresh token it is given, so the
+/// second call would present one the server has already retired and read the rejection as
+/// an expired session.
+pub(crate) async fn force_refresh(app: &AppHandle, stale: &str) -> Result<String, String> {
+    let _guard = REFRESH_LOCK.lock().await;
+    let tokens = require_tokens(app).await?;
+    if tokens.access_token != stale {
+        return Ok(tokens.access_token);
+    }
+    refresh_and_store(app, &tokens.refresh_token).await
+}
+
+// Callers must hold REFRESH_LOCK, for the reason given on force_refresh.
+async fn refresh_and_store(app: &AppHandle, refresh_token: &str) -> Result<String, String> {
+    let fresh = match refresh_tokens(app, refresh_token).await {
+        Ok(fresh) => fresh,
+        Err(rejected @ TokenError::Rejected(_)) => {
+            end_session(app, &rejected.to_string()).await;
+            return Err(SESSION_EXPIRED.to_string());
+        }
+        Err(transient) => {
+            return Err(format!("nexus oauth: token refresh failed ({transient})"));
+        }
+    };
+    let rotated = fresh
+        .refresh_token
+        .clone()
+        .unwrap_or_else(|| refresh_token.to_string());
     // The fresh token is still returned below even if persisting it fails: it is valid
     // for this call regardless, and the only consequence of a failed persist is the user
     // signing in again next launch, not a broken current request.
-    if let Err(e) = store_tokens(app, &fresh).await {
+    if let Err(e) = store_tokens(app, &fresh, &rotated).await {
         log::warn!("nexus oauth: token refreshed but failed to persist ({e})");
     }
     Ok(fresh.access_token)
 }
 
-pub(crate) async fn store_tokens(app: &AppHandle, tokens: &TokenResponse) -> Result<(), String> {
+async fn end_session(app: &AppHandle, reason: &str) {
+    log::warn!("nexus oauth: session ended ({reason})");
+    clear_stored_tokens(app).await;
+    let _ = app.emit(EXPIRED_EVENT, ());
+}
+
+async fn clear_stored_tokens(app: &AppHandle) {
+    // Attempted unconditionally: a sign-in stored under the settings.json fallback
+    // never touched the credential store, so these are no-ops for it (delete_secret
+    // treats a missing entry as success), and a sign-in stored securely is fully
+    // cleared either way.
+    if let Err(e) = secrets::delete_secret(ACCESS_TOKEN_KEY).await {
+        log::warn!("nexus oauth: clearing stored access token: {e}");
+    }
+    if let Err(e) = secrets::delete_secret(REFRESH_TOKEN_KEY).await {
+        log::warn!("nexus oauth: clearing stored refresh token: {e}");
+    }
+    update_settings(app, |s| s.nexus_oauth = None);
+}
+
+/// refresh_token is passed separately from tokens because a refresh response may omit it
+/// (see TokenResponse), in which case the caller passes the one it already holds.
+pub(crate) async fn store_tokens(
+    app: &AppHandle,
+    tokens: &TokenResponse,
+    refresh_token: &str,
+) -> Result<(), String> {
     let expires_at = chrono::Utc::now().timestamp() + tokens.expires_in as i64;
     let record = if secrets::store_status().await == secrets::SecretStoreStatus::Available {
         secrets::store_secret(ACCESS_TOKEN_KEY, tokens.access_token.clone()).await?;
-        secrets::store_secret(REFRESH_TOKEN_KEY, tokens.refresh_token.clone()).await?;
+        secrets::store_secret(REFRESH_TOKEN_KEY, refresh_token.to_string()).await?;
         NexusOAuthTokens {
             access_token: None,
             refresh_token: None,
@@ -298,7 +422,7 @@ pub(crate) async fn store_tokens(app: &AppHandle, tokens: &TokenResponse) -> Res
         log::warn!("nexus oauth: credential store unavailable, storing tokens in settings.json");
         NexusOAuthTokens {
             access_token: Some(tokens.access_token.clone()),
-            refresh_token: Some(tokens.refresh_token.clone()),
+            refresh_token: Some(refresh_token.to_string()),
             expires_at,
         }
     };
@@ -315,17 +439,7 @@ pub fn nexus_oauth_signed_in(app: AppHandle) -> bool {
 #[tauri::command]
 #[specta::specta]
 pub async fn nexus_oauth_sign_out(app: AppHandle) {
-    // Attempted unconditionally: a sign-in stored under the settings.json fallback
-    // never touched the credential store, so these are no-ops for it (delete_secret
-    // treats a missing entry as success), and a sign-in stored securely is fully
-    // cleared either way.
-    if let Err(e) = secrets::delete_secret(ACCESS_TOKEN_KEY).await {
-        log::warn!("nexus oauth sign out: {e}");
-    }
-    if let Err(e) = secrets::delete_secret(REFRESH_TOKEN_KEY).await {
-        log::warn!("nexus oauth sign out: {e}");
-    }
-    update_settings(&app, |s| s.nexus_oauth = None);
+    clear_stored_tokens(&app).await;
 }
 
 #[cfg(test)]

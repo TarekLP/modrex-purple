@@ -78,6 +78,70 @@ fn needs_refresh_only_inside_expiry_margin() {
     assert!(needs_refresh(now - 100, now));
 }
 
+// The whole point of the split: only these classify as Rejected, because only Rejected
+// discards the user's stored sign-in.
+#[test]
+fn invalid_grant_is_the_only_rejected_token_error() {
+    assert!(matches!(
+        classify_token_error(
+            400,
+            r#"{"error":"invalid_grant","error_description":"expired"}"#
+        ),
+        TokenError::Rejected(_)
+    ));
+    assert!(matches!(
+        classify_token_error(400, r#"{"error":"invalid_client"}"#),
+        TokenError::Transient(_)
+    ));
+    assert!(matches!(
+        classify_token_error(400, r#"{"error":"unsupported_grant_type"}"#),
+        TokenError::Transient(_)
+    ));
+}
+
+// A proxy or captive portal answering the token endpoint with HTML must never be read as
+// a dead grant, since that would sign the user out over a network problem.
+#[test]
+fn an_unparseable_error_body_is_transient() {
+    assert!(matches!(
+        classify_token_error(502, "<!DOCTYPE html><title>Bad Gateway</title>"),
+        TokenError::Transient(_)
+    ));
+    assert!(matches!(
+        classify_token_error(500, ""),
+        TokenError::Transient(_)
+    ));
+    // Valid JSON carrying no error field at all.
+    assert!(matches!(
+        classify_token_error(400, r#"{"message":"nope"}"#),
+        TokenError::Transient(_)
+    ));
+}
+
+#[test]
+fn transient_token_errors_name_the_status() {
+    assert_eq!(classify_token_error(503, "").to_string(), "503");
+    assert_eq!(
+        classify_token_error(400, r#"{"error":"invalid_request"}"#).to_string(),
+        "400: invalid_request"
+    );
+}
+
+// A refresh response that does not rotate the refresh token still deserializes, so the
+// caller can keep the token it already holds instead of treating the refresh as failed.
+#[test]
+fn token_response_tolerates_a_missing_refresh_token() {
+    let rotated: TokenResponse =
+        serde_json::from_str(r#"{"access_token":"a","refresh_token":"r","expires_in":3600}"#)
+            .unwrap();
+    assert_eq!(rotated.refresh_token.as_deref(), Some("r"));
+
+    let unrotated: TokenResponse =
+        serde_json::from_str(r#"{"access_token":"a","expires_in":3600}"#).unwrap();
+    assert_eq!(unrotated.refresh_token, None);
+    assert_eq!(unrotated.access_token, "a");
+}
+
 #[test]
 fn parse_callback_surfaces_oauth_error() {
     let err = parse_callback_url(

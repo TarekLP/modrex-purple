@@ -27,6 +27,7 @@ import { WelcomeScreen } from './components/WelcomeScreen'
 import { TopBar } from './components/TopBar'
 import { ResizeHandles } from './components/ResizeHandles'
 import { SupportPromptBanner } from './components/SupportPromptBanner'
+import { NexusSessionBanner } from './components/NexusSessionBanner'
 import { api, type StartupPhase } from './api'
 import { TelemetryConsentDialog } from './components/TelemetryConsentDialog'
 import { FileDropOverlay, FileDropStatus } from './components/FileDropOverlay'
@@ -121,6 +122,10 @@ export default function App() {
     } | null>(null)
     const [showUpdateModal, setShowUpdateModal] = useState(false)
     const [showSupportPrompt, setShowSupportPrompt] = useState(false)
+    // A discarded Nexus session is app-wide, not per page: it silently stops installed
+    // metadata, update checks and background identification everywhere, so it is reported
+    // here rather than only on the pages that happen to make a request.
+    const [nexusSessionExpired, setNexusSessionExpired] = useState(false)
 
     // Kept in sync with view so handleSidebarChange can read it without taking view as a dep.
     const viewRef = useRef<View>(view)
@@ -380,6 +385,17 @@ export default function App() {
 
     useEffect(() => api.onSupportPromptEligible(() => setShowSupportPrompt(true)), [])
 
+    useEffect(() => {
+        const offExpired = api.onNexusSessionExpired(() => setNexusSessionExpired(true))
+        // Signing in from anywhere resolves it, including the Settings section, so this
+        // listens for the outcome rather than being wired to the banner's own button.
+        const offSignedIn = api.onNexusOAuthSignedIn(() => setNexusSessionExpired(false))
+        return () => {
+            offExpired()
+            offSignedIn()
+        }
+    }, [])
+
     async function handleUpdate() {
         if (!update) return
         setShowUpdateModal(false)
@@ -557,6 +573,9 @@ export default function App() {
                                 </button>
                             </div>
                         </div>
+                    )}
+                    {nexusSessionExpired && view !== 'welcome' && (
+                        <NexusSessionBanner onDismiss={() => setNexusSessionExpired(false)} />
                     )}
                     {showSupportPrompt && view !== 'welcome' && (
                         <SupportPromptBanner onClose={() => setShowSupportPrompt(false)} />

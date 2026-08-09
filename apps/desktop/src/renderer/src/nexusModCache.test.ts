@@ -44,7 +44,11 @@ beforeEach(async () => {
 
     mockNexusGetModDetail = vi.fn()
     vi.doMock('./api', () => ({
-        api: { nexusGetModDetail: mockNexusGetModDetail },
+        api: {
+            nexusGetModDetail: mockNexusGetModDetail,
+            // Subscribed to at module load to track Nexus sign-ins.
+            onNexusOAuthSignedIn: () => () => {},
+        },
     }))
 
     cache = await import('./nexusModCache')

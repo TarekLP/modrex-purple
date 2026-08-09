@@ -60,9 +60,8 @@ pub(crate) fn nexus_numeric_game_id(game_id: &str) -> Result<u32, String> {
         .ok_or_else(|| format!("nexus: no numeric game id for '{game_id}'"))
 }
 
-async fn nexus_headers(app: &AppHandle) -> Result<Vec<(&'static str, String)>, String> {
-    let token = nexus_oauth::access_token(app).await?;
-    Ok(vec![
+fn nexus_headers(app: &AppHandle, token: &str) -> Vec<(&'static str, String)> {
+    vec![
         ("Authorization", format!("Bearer {token}")),
         ("User-Agent", user_agent(app)),
         ("Application-Name", "Modrex".to_string()),
@@ -70,17 +69,27 @@ async fn nexus_headers(app: &AppHandle) -> Result<Vec<(&'static str, String)>, S
             "Application-Version",
             app.package_info().version.to_string(),
         ),
-    ])
+    ]
 }
 
 // Shared retry/rate-limit loop for both the REST GET client and the GraphQL
 // POST client below, build re-creates the request fresh each attempt
-// since a sent RequestBuilder can't be replayed. label is only for errors.
+// since a sent RequestBuilder can't be replayed. It takes the auth headers as a
+// parameter so a retry can rebuild the request around a newly refreshed token.
+// label is only for errors.
 async fn send_with_retry(
+    app: &AppHandle,
     label: &str,
-    build: impl Fn() -> reqwest::RequestBuilder,
+    build: impl Fn(&[(&'static str, String)]) -> reqwest::RequestBuilder,
 ) -> Result<Value, String> {
-    for attempt in 0u64..3 {
+    let mut token = nexus_oauth::access_token(app).await?;
+    let mut refreshed = false;
+    // Counted rather than looped over, because only a rate-limit retry spends the budget:
+    // the single token refresh below is a different failure with its own one-shot guard,
+    // and letting it consume an attempt would report a 429 that never happened.
+    let mut attempt = 0u64;
+
+    while attempt < 3 {
         let wait = rate_limiter()
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -94,7 +103,7 @@ async fn send_with_retry(
             tokio::time::sleep(LOW_REMAINING_PAUSE).await;
         }
 
-        let res = build()
+        let res = build(&nexus_headers(app, &token))
             .timeout(Duration::from_secs(15))
             .send()
             .await
@@ -106,7 +115,18 @@ async fn send_with_retry(
 
         if res.status() == 429 {
             let base_ms = 1000u64 << attempt.min(3);
+            attempt += 1;
             tokio::time::sleep(Duration::from_millis(base_ms)).await;
+            continue;
+        }
+
+        // Nexus can retire an access token before the expiry Modrex stored for it, so the
+        // expiry-driven refresh in nexus_oauth never fires and every later request fails
+        // the same way. One forced refresh per request turns that permanent rejection into
+        // a single retry; a second 401 means the new token is genuinely unauthorized.
+        if res.status() == 401 && !refreshed {
+            refreshed = true;
+            token = nexus_oauth::force_refresh(app, &token).await?;
             continue;
         }
 
@@ -138,13 +158,11 @@ async fn nexus_get(
             pairs.append_pair(k, v);
         }
     }
-    let headers = nexus_headers(app).await?;
-
-    send_with_retry(path, || {
+    send_with_retry(app, path, |headers| {
         let mut req = http_client()
             .get(url.clone())
             .header("Accept", "application/json");
-        for (k, v) in &headers {
+        for (k, v) in headers {
             req = req.header(*k, v);
         }
         req
@@ -274,7 +292,6 @@ pub async fn nexus_search_mods(
     offset: Option<u32>,
 ) -> Result<crate::commands::domain::ModPage, String> {
     let domain = nexus_domain(&game_id)?;
-    let headers = nexus_headers(&app).await?;
     let sort_field = validate_sort_field(&sort)?;
 
     let mut filter = serde_json::json!({
@@ -303,9 +320,9 @@ pub async fn nexus_search_mods(
         },
     });
 
-    let value = send_with_retry("search", || {
+    let value = send_with_retry(&app, "search", |headers| {
         let mut req = http_client().post(GRAPHQL_BASE).json(&body);
-        for (k, v) in &headers {
+        for (k, v) in headers {
             req = req.header(*k, v);
         }
         req
@@ -397,16 +414,15 @@ pub(crate) async fn nexus_lookup_by_md5(
     md5s: Vec<String>,
 ) -> Result<Vec<NexusHashMatch>, String> {
     let want = nexus_numeric_game_id(&game_id)?;
-    let headers = nexus_headers(&app).await?;
 
     let body = serde_json::json!({
         "query": FILE_HASHES_QUERY,
         "variables": { "md5s": md5s },
     });
 
-    let value = send_with_retry("fileHashes", || {
+    let value = send_with_retry(&app, "fileHashes", |headers| {
         let mut req = http_client().post(GRAPHQL_BASE).json(&body);
-        for (k, v) in &headers {
+        for (k, v) in headers {
             req = req.header(*k, v);
         }
         req
@@ -602,7 +618,6 @@ pub(crate) async fn nexus_lookup_content_mod_ids(
     query: NexusContentQuery,
 ) -> Result<Vec<u32>, String> {
     let want = nexus_numeric_game_id(&game_id)?;
-    let headers = nexus_headers(&app).await?;
     let filter = content_filter_json(want, &query);
     let disambiguate_by_size = match &query {
         NexusContentQuery::FileNameAndSize { file_size, .. } => Some(*file_size),
@@ -614,9 +629,9 @@ pub(crate) async fn nexus_lookup_content_mod_ids(
         "variables": { "filter": filter, "count": CONTENT_PAGE_SIZE },
     });
 
-    let value = send_with_retry("modFileContents", || {
+    let value = send_with_retry(&app, "modFileContents", |headers| {
         let mut req = http_client().post(GRAPHQL_BASE).json(&body);
-        for (k, v) in &headers {
+        for (k, v) in headers {
             req = req.header(*k, v);
         }
         req

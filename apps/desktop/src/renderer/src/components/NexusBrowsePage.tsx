@@ -79,6 +79,7 @@ export function NexusBrowsePage({
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [signedIn, setSignedIn] = useState<boolean | null>(null)
+    const [sessionExpired, setSessionExpired] = useState(false)
     const [busyUid, setBusyUid] = useState<string | null>(null)
     const [downloadMap, setDownloadMap] = useState<
         ReadonlyMap<number, { downloaded: number; total: number; fileId: number }>
@@ -186,6 +187,29 @@ export function NexusBrowsePage({
         }
     }, [isActive])
 
+    // A session that lapses while this page is open would otherwise leave the grid
+    // reporting whatever the failed request said, which reads as Nexus being broken
+    // rather than as a sign-in the user has to redo.
+    useEffect(() => {
+        const offExpired = api.onNexusSessionExpired(() => {
+            setSignedIn(false)
+            setSessionExpired(true)
+            setError(null)
+        })
+        const offSignedIn = api.onNexusOAuthSignedIn(() => {
+            setSignedIn(true)
+            setSessionExpired(false)
+            setError(null)
+            // The failed attempt is still the last one recorded, so clear it or the fetch
+            // effect below treats the page as already loaded for these filters.
+            lastFetchedRef.current = ''
+        })
+        return () => {
+            offExpired()
+            offSignedIn()
+        }
+    }, [])
+
     useEffect(() => {
         if (!isActive || signedIn !== true || !domain) return
         const filters = JSON.stringify([page, query, sort])
@@ -278,7 +302,11 @@ export function NexusBrowsePage({
                 </div>
             </div>
 
-            {error && (
+            {/* Suppressed while signed out, because the prompt below already explains the
+                situation in the user's terms. A request in flight when the session ends
+                rejects after the expiry event has been handled, so its raw message would
+                otherwise land on top of that prompt. */}
+            {error && signedIn !== false && (
                 <div className="mx-6 mt-4 px-4 py-3 bg-danger/30 border border-danger-hover rounded text-sm text-danger-text">
                     {error}
                 </div>
@@ -286,7 +314,9 @@ export function NexusBrowsePage({
 
             {signedIn === false ? (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-text-subtle">
-                    <span>{t('nexus.signInRequired')}</span>
+                    <span>
+                        {sessionExpired ? t('nexus.sessionExpiredHint') : t('nexus.signInRequired')}
+                    </span>
                     <button
                         onClick={onGoToSettings}
                         className="text-xs text-accent hover:text-accent-bright underline transition-colors"

@@ -106,6 +106,7 @@
         "loadFailed": "Couldn't load mods",
         "modCount": "{total} mods",
         "signInRequired": "Sign in with Nexus Mods to browse mods from Nexus.",
+        "sessionExpiredHint": "Your Nexus Mods sign-in has expired. Sign in again to keep browsing.",
         "goToSettings": "Configure in Settings",
         "sort": {
             "lastUpdated": "Last Updated",
@@ -113,6 +114,12 @@
             "mostEndorsed": "Most Endorsed",
             "relevance": "Relevance"
         }
+    },
+    "nexusSession": {
+        "expired": "Your Nexus Mods sign-in has expired. Browsing, installing and update checks for Nexus mods are paused until you sign in again.",
+        "signIn": "Sign in again",
+        "awaiting": "Waiting for browser…",
+        "failed": "Nexus Mods sign-in failed: {error}"
     },
     "installed": {
         "comingSoon": "Mod management for this game is coming soon.",
@@ -402,6 +409,7 @@
             "signOut": "Sign out",
             "signedIn": "Signed in to Nexus Mods.",
             "failed": "Sign-in failed: {error}",
+            "sessionExpired": "Your sign-in expired and was cleared. This happens when the session is revoked, the account password changes, or Modrex goes unused long enough for it to lapse.",
             "signOutConfirmTitle": "Sign out of Nexus Mods?",
             "signOutConfirmBody": "You'll need to sign in again in your browser to browse and install Nexus Mods.",
             "signOutConfirm": "Sign out",

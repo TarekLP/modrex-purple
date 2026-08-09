@@ -9,6 +9,16 @@ const mockListModFiles = vi.fn()
 const mockListModLinks = vi.fn()
 const mockListMods = vi.fn()
 
+// nexusModCache subscribes to this at module load to track Nexus sign-ins. Capturing the
+// callback is what lets the re-authorization test below fire a real sign-in. Hoisted
+// because the subscription runs while the mocked module is first imported, before a
+// plain const at this scope would have initialized.
+const { signedInListeners } = vi.hoisted(() => ({ signedInListeners: [] as (() => void)[] }))
+
+function emitNexusSignedIn() {
+    for (const listener of signedInListeners) listener()
+}
+
 vi.mock('../api', () => ({
     api: {
         nexusGetModDetail: (...args: unknown[]) => mockNexusGetModDetail(...args),
@@ -16,6 +26,10 @@ vi.mock('../api', () => ({
         listModFiles: (...args: unknown[]) => mockListModFiles(...args),
         listModLinks: (...args: unknown[]) => mockListModLinks(...args),
         listMods: (...args: unknown[]) => mockListMods(...args),
+        onNexusOAuthSignedIn: (callback: () => void) => {
+            signedInListeners.push(callback)
+            return () => {}
+        },
     },
 }))
 vi.mock('../thumbnailCache', () => ({
@@ -169,5 +183,29 @@ describe('useModData end-to-end with a real installed Nexus mod', () => {
         await waitFor(() => expect(result.current.failedIds.has(-500)).toBe(true))
         expect(result.current.modData.has(-500)).toBe(false)
         expect(result.current.updatable).toEqual([])
+    })
+
+    // The reported bug: metadata that failed on an expired token stayed missing for the
+    // rest of the session even after signing in again, because the installed ids had not
+    // changed (so the effect never re-ran), the failure was stamped with the full
+    // freshness TTL, and failedIds was never cleared.
+    it('retries a mod that failed on an expired session once the user signs in again', async () => {
+        const installed = [makeNexusInstall(-600, '600', '1.0.0')]
+        mockNexusGetModDetail.mockRejectedValue(new Error('nexus oauth: session expired'))
+
+        const { result } = renderHook(() => useModData(installed, 853, 'pd3'))
+
+        await waitFor(() => expect(result.current.failedIds.has(-600)).toBe(true))
+        expect(mockNexusGetModDetail).toHaveBeenCalledTimes(1)
+
+        mockNexusGetModDetail.mockReset()
+        mockNexusGetModDetail.mockResolvedValue(makeNexusDetail(600, '1.1.0'))
+        // Same installed array reference, so nothing but the new session can drive this.
+        emitNexusSignedIn()
+
+        await waitFor(() => expect(result.current.modData.get(-600)?.version).toBe('1.1.0'))
+        expect(mockNexusGetModDetail).toHaveBeenCalledWith('pd3', 600)
+        expect(result.current.failedIds.has(-600)).toBe(false)
+        expect(result.current.updatable).toHaveLength(1)
     })
 })

@@ -3,6 +3,7 @@ import type { GameId, InstalledMod } from '../../../shared/types'
 import { isIdentified } from './installedUtils'
 import { hasSource } from '../sources'
 import { waitForForegroundClear } from '../requestPriority'
+import { useNexusAuthEpoch } from '../nexusModCache'
 import { api } from '../api'
 
 const STAGGER_MS = 2000
@@ -30,10 +31,14 @@ export function useAutoIdentifyNexusMods({
 }: Options): void {
     const attempted = useRef<Set<string>>(new Set())
     const running = useRef(false)
+    const nexusAuthEpoch = useNexusAuthEpoch()
 
+    // A mod is attempted once per game, and once per Nexus session: an attempt that only
+    // failed because the token was dead is not an answer, and without the reset it would
+    // never be asked again for the rest of the session.
     useEffect(() => {
         attempted.current = new Set()
-    }, [activeGame])
+    }, [activeGame, nexusAuthEpoch])
 
     useEffect(() => {
         if (!gamePath || running.current || !hasSource(activeGame, 'nexus')) return
@@ -73,5 +78,5 @@ export function useAutoIdentifyNexusMods({
             cancelled = true
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [installed, gamePath, activeGame])
+    }, [installed, gamePath, activeGame, nexusAuthEpoch])
 }
