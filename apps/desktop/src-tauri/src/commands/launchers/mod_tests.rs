@@ -88,6 +88,80 @@ fn steam_libraries_no_path_key() {
     assert_eq!(libs, vec![steam_path]);
 }
 
+// ── is_installation ───────────────────────────────────────────────────────
+
+fn touch(path: std::path::PathBuf) {
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, "").unwrap();
+}
+
+#[test]
+fn is_installation_accepts_win64_layout() {
+    let dir = TempDir::new().unwrap();
+    touch(dir.path().join("PAYDAY3.exe"));
+    assert!(PD3.is_installation(dir.path().to_str().unwrap()));
+}
+
+// A Microsoft Store copy stages only the WinGDK binary, so the launch executable is
+// absent and validating against it alone rejected a real installation.
+#[test]
+fn is_installation_accepts_microsoft_store_layout() {
+    let dir = TempDir::new().unwrap();
+    touch(
+        dir.path()
+            .join("PAYDAY3")
+            .join("Binaries")
+            .join("WinGDK")
+            .join("PAYDAY3-WinGDK-Shipping.exe"),
+    );
+    let path = dir.path().to_str().unwrap();
+    assert!(PD3.resolve_executable(path).is_none());
+    assert!(PD3.is_installation(path));
+}
+
+#[test]
+fn is_installation_rejects_unrelated_folder() {
+    let dir = TempDir::new().unwrap();
+    touch(dir.path().join("readme.txt"));
+    assert!(!PD3.is_installation(dir.path().to_str().unwrap()));
+}
+
+// PAYDAY 2 has no Microsoft Store release, so nothing widens its check.
+#[test]
+fn is_installation_without_xbox_release_matches_executables_only() {
+    let dir = TempDir::new().unwrap();
+    touch(dir.path().join("payday2_win32_release.exe"));
+    assert!(PD2.is_installation(dir.path().to_str().unwrap()));
+
+    let other = TempDir::new().unwrap();
+    touch(other.path().join("PAYDAY3.exe"));
+    assert!(!PD2.is_installation(other.path().to_str().unwrap()));
+}
+
+// ── probe_order ───────────────────────────────────────────────────────────
+
+fn order_ids(preferred: Option<&str>) -> Vec<&'static str> {
+    probe_order(preferred).iter().map(|l| l.id()).collect()
+}
+
+#[test]
+fn probe_order_defaults_to_registration_order() {
+    assert_eq!(order_ids(None), vec!["steam", "epic", "xbox"]);
+}
+
+#[test]
+fn probe_order_puts_the_chosen_launcher_first() {
+    assert_eq!(order_ids(Some("xbox")), vec!["xbox", "epic", "steam"]);
+    assert_eq!(order_ids(Some("epic")), vec!["epic", "steam", "xbox"]);
+}
+
+// A hand-picked folder saves "manual", which is not a store, and must not reorder or
+// drop any probe.
+#[test]
+fn probe_order_ignores_a_launcher_that_is_not_a_store() {
+    assert_eq!(order_ids(Some("manual")), vec!["steam", "epic", "xbox"]);
+}
+
 // ── identify_launcher_for_path ────────────────────────────────────────────
 
 #[test]

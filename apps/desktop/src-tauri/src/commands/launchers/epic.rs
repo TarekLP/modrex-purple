@@ -13,9 +13,13 @@ impl Launcher for Epic {
         epic_manifest_dir().exists()
     }
 
+    // A manifest outlives the install it describes, so the folder is checked the way
+    // Steam and Xbox check theirs. Without it a leftover manifest wins the probe order
+    // over a store that really has the game and hands back a path with nothing in it.
     fn find_game(&self, game: &GameDef) -> Option<String> {
         let def = game.epic.as_ref()?;
-        epic_find_game(def.display_name).map(|(loc, _)| loc)
+        let (location, _) = epic_find_game(def.display_name)?;
+        game.is_installation(&location).then_some(location)
     }
 
     fn identify_path(&self, game_path: &str) -> bool {

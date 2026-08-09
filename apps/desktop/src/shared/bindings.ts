@@ -130,8 +130,19 @@ export const commands = {
 	listSources: () => __TAURI_INVOKE<SourceInfo[]>("list_sources"),
 	checkLoader: (loaderId: string, gameId: string, gamePath: string) => __TAURI_INVOKE<boolean>("check_loader", { loaderId, gameId, gamePath }),
 	installLoader: (loaderId: string, gamePath: string) => __TAURI_INVOKE<null>("install_loader", { loaderId, gamePath }),
-	installedLaunchers: (gameId: string) => __TAURI_INVOKE<string[]>("installed_launchers", { gameId }),
+	detectedInstalls: (gameId: string) => __TAURI_INVOKE<DetectedInstall[]>("detected_installs", { gameId }),
 	configureGamePath: (gameId: string, gamePath: string | null) => __TAURI_INVOKE<null>("configure_game_path", { gameId, gamePath }),
+	/**
+	 *  Points a game at one specific store's copy, moving the game path and the launcher
+	 *  together. The launcher is recorded as chosen rather than re-derived from the folder's
+	 *  marker files: a Steam PAYDAY 3 folder carries no steam_appid.txt, so deriving it would
+	 *  downgrade a deliberate choice to manual and launch the wrong copy.
+	 * 
+	 *  The path comes from a detected_installs probe the renderer already ran, so switching
+	 *  costs no new probing. It is re-checked here because that probe is cached for the
+	 *  session and the folder can be gone by now.
+	 */
+	selectGameInstall: (gameId: string, launcher: string, gamePath: string) => __TAURI_INVOKE<null>("select_game_install", { gameId, launcher, gamePath }),
 	pickFolder: (title: string, defaultPath: string | null) => __TAURI_INVOKE<string | null>("pick_folder", { title, defaultPath }),
 	launchGame: (gameId: string) => __TAURI_INVOKE<null>("launch_game", { gameId }),
 	launchWithoutMods: (gameId: string) => __TAURI_INVOKE<null>("launch_without_mods", { gameId }),
@@ -198,6 +209,16 @@ export type CbFlatPayload_Serialize = {
 	fileId?: number | null,
 	fileType?: string | null,
 	modVersion?: string | null,
+};
+
+/**
+ *  One store's copy of a game. A game owned on two stores has two of these, installed
+ *  side by side and modded independently, so a launcher is only ever meaningful paired
+ *  with the path it was found at.
+ */
+export type DetectedInstall = {
+	launcher: string,
+	gamePath: string,
 };
 
 export type FilePage = {

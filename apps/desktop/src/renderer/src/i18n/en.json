@@ -373,12 +373,14 @@
         },
         "launcher": {
             "title": "Launcher",
-            "description": "How to launch {game}. Detected automatically when the game path is set.",
+            "description": "How to launch {game}. Detected automatically from your installed stores.",
             "detecting": "Detecting…",
             "steam": "Steam",
             "epic": "Epic Games",
             "xbox": "Xbox",
-            "manual": "Manual (launch executable directly)"
+            "manual": "Manual (launch executable directly)",
+            "switchFailed": "That copy of the game is no longer where it was found — pick the folder manually.",
+            "multipleCopies": "{count} copies found — the selected launcher decides which one Modrex mods and launches."
         },
         "launchOptions": {
             "title": "Launch Options",

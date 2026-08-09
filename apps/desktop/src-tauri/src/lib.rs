@@ -90,8 +90,9 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::loaders::check_loader,
             commands::loaders::install_loader,
             // launchers & system
-            commands::launchers::installed_launchers,
+            commands::launchers::detected_installs,
             commands::launchers::configure_game_path,
+            commands::launchers::select_game_install,
             commands::launchers::pick_folder,
             commands::launchers::launch_game,
             commands::launchers::launch_without_mods,

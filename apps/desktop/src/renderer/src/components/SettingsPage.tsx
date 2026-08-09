@@ -26,7 +26,7 @@ import { SkeletonBar } from './Skeleton'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { StorageSettings } from './StorageSettings'
 import { api } from '../api'
-import type { GameSettings } from '../api'
+import type { DetectedInstall, GameSettings } from '../api'
 import { getSettingsCache, setSettingsCache, patchSettingsCache } from '../settingsCache'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
@@ -43,11 +43,18 @@ const SPONSOR_URL = 'https://github.com/sponsors/modrexio'
 const DISCORD_URL = 'https://discord.gg/tenzpx8JRM'
 const WEBSITE_URL = 'https://modrex.net/'
 
-const LAUNCHER_OPTIONS = [
-    { value: 'steam', label: 'Steam', icon: <SteamIcon className={iconClass} /> },
-    { value: 'epic', label: 'Epic Games', icon: <EpicIcon className={iconClass} /> },
-    { value: 'xbox', label: 'Xbox', icon: <XboxIcon className={iconClass} /> },
-]
+// Keyed by the launcher ids the Rust registry reports. Only the key is held here: t()
+// at module scope would freeze at import time and never follow a language switch.
+const LAUNCHER_LABELS: Record<string, { labelKey: Parameters<typeof t>[0]; icon?: ReactNode }> = {
+    steam: { labelKey: 'settings.launcher.steam', icon: <SteamIcon className={iconClass} /> },
+    epic: { labelKey: 'settings.launcher.epic', icon: <EpicIcon className={iconClass} /> },
+    xbox: { labelKey: 'settings.launcher.xbox', icon: <XboxIcon className={iconClass} /> },
+    manual: { labelKey: 'settings.launcher.manual' },
+}
+
+// Not a store, so no probe ever reports it: it is what a hand-picked folder saves when
+// the folder carries none of the stores' marker files.
+const MANUAL_LAUNCHER = 'manual'
 
 type SettingsTab = 'game' | 'application' | 'advanced' | 'about'
 
@@ -122,9 +129,15 @@ interface Props {
     globalOnly?: boolean
 }
 
-function effectiveLauncher(gs: GameSettings, installed: string[]): string {
-    const saved = gs.launcher ?? installed[0] ?? 'steam'
-    return installed.length > 0 && !installed.includes(saved) ? installed[0] : saved
+function effectiveLauncher(gs: GameSettings, installs: DetectedInstall[]): string {
+    const saved = gs.launcher ?? installs[0]?.launcher ?? 'steam'
+    // A hand-picked folder is a copy no store knows about, so it is kept as chosen
+    // rather than snapped to whichever store also happens to have the game — that
+    // would launch the store's copy while Modrex mods the picked one.
+    if (saved === MANUAL_LAUNCHER) return saved
+    return installs.length > 0 && !installs.some((i) => i.launcher === saved)
+        ? installs[0].launcher
+        : saved
 }
 
 export function SettingsPage({
@@ -147,14 +160,15 @@ export function SettingsPage({
     const [checkState, setCheckState] = useState<'idle' | 'checking' | 'upToDate'>('idle')
     const [launcher, setLauncher] = useState(() => {
         const cached = getSettingsCache(activeGame)
-        return cached ? effectiveLauncher(cached.settings, cached.installedLaunchers) : 'steam'
+        return cached ? effectiveLauncher(cached.settings, cached.installs) : 'steam'
     })
-    const [installedLaunchers, setInstalledLaunchers] = useState<string[]>(
-        () => getSettingsCache(activeGame)?.installedLaunchers ?? []
+    const [installs, setInstalls] = useState<DetectedInstall[]>(
+        () => getSettingsCache(activeGame)?.installs ?? []
     )
-    const [installedLaunchersReady, setInstalledLaunchersReady] = useState(
+    const [installsReady, setInstallsReady] = useState(
         () => getSettingsCache(activeGame) !== undefined
     )
+    const [launcherError, setLauncherError] = useState<string | null>(null)
     const [launchOptions, setLaunchOptions] = useState(
         () => getSettingsCache(activeGame)?.settings.launchOptions ?? ''
     )
@@ -218,7 +232,7 @@ export function SettingsPage({
         localStorage.setItem(globalOnly ? GLOBAL_TAB_KEY : GAME_TAB_KEY, tab)
     }
 
-    // getGameSettings is a plain settings.json read (near-instant); getInstalledLaunchers
+    // getGameSettings is a plain settings.json read (near-instant); getDetectedInstalls
     // probes every store's registry/VDF/manifests (can take seconds). Fetching them
     // separately means the page only waits on the fast read, not the probe.
     useEffect(() => {
@@ -235,14 +249,14 @@ export function SettingsPage({
         })
 
         const cached = getSettingsCache(activeGame)
-        setInstalledLaunchersReady(cached !== undefined)
-        const launchers = cached
-            ? Promise.resolve(cached.installedLaunchers)
-            : api.getInstalledLaunchers(activeGame)
-        launchers.then((installed) => {
+        setInstallsReady(cached !== undefined)
+        const detected = cached
+            ? Promise.resolve(cached.installs)
+            : api.getDetectedInstalls(activeGame)
+        detected.then((found) => {
             if (cancelled) return
-            setInstalledLaunchers(installed)
-            setInstalledLaunchersReady(true)
+            setInstalls(found)
+            setInstallsReady(true)
         })
 
         return () => {
@@ -251,15 +265,15 @@ export function SettingsPage({
     }, [activeGame])
 
     // Only reconciles the saved launcher once both halves above have landed,
-    // installedLaunchers is an empty array both while loading and when genuinely
-    // empty, so installedLaunchersReady is what tells those two states apart.
+    // installs is an empty array both while loading and when genuinely empty, so
+    // installsReady is what tells those two states apart.
     useEffect(() => {
-        if (!settings || !installedLaunchersReady) return
-        setSettingsCache(activeGame, { settings, installedLaunchers })
-        const effective = effectiveLauncher(settings, installedLaunchers)
+        if (!settings || !installsReady) return
+        setSettingsCache(activeGame, { settings, installs })
+        const effective = effectiveLauncher(settings, installs)
         setLauncher(effective)
         if (effective !== settings.launcher) api.setLauncher(effective, activeGame)
-    }, [settings, installedLaunchers, installedLaunchersReady, activeGame])
+    }, [settings, installs, installsReady, activeGame])
 
     useEffect(() => {
         if (!launchOptionsLoaded.current) return
@@ -301,7 +315,16 @@ export function SettingsPage({
         }
     }, [])
 
-    const availableLaunchers = LAUNCHER_OPTIONS.filter((o) => installedLaunchers.includes(o.value))
+    // One option per copy actually on disk, plus the current choice when it is a
+    // hand-picked folder, which no probe can report.
+    const launcherOptions = useMemo(() => {
+        const ids = installs.map((install) => install.launcher)
+        if (launcher === MANUAL_LAUNCHER) ids.push(MANUAL_LAUNCHER)
+        return ids.map((id) => {
+            const spec = LAUNCHER_LABELS[id]
+            return { value: id, label: spec ? t(spec.labelKey) : id, icon: spec?.icon }
+        })
+    }, [installs, launcher])
 
     async function handleBrowse() {
         setPicking(true)
@@ -313,8 +336,15 @@ export function SettingsPage({
             if (!picked) return
             try {
                 await api.setGamePath(picked, activeGame)
-                setSettings((s) => ({ ...s, gamePath: picked }))
-                patchSettingsCache(activeGame, { gamePath: picked })
+                // Read back rather than assume: the backend also identifies which store
+                // the picked folder belongs to, and the launcher shown has to be that
+                // one, not whichever was selected for the copy being replaced.
+                const saved = await api.getGameSettings(activeGame)
+                setSettings(saved)
+                patchSettingsCache(activeGame, {
+                    gamePath: saved.gamePath,
+                    launcher: saved.launcher,
+                })
                 await onGamePathChange()
             } catch {
                 setPathError(t('settings.gamePath.invalid', { game: GAMES[activeGame].name }))
@@ -335,10 +365,27 @@ export function SettingsPage({
         }
     }
 
+    // Picking a launcher points the game at that store's copy, path included. Writing the
+    // launcher alone leaves Modrex modding one copy while launching the other, since the
+    // two stores install side by side and share nothing.
     async function handleLauncherChange(value: string) {
+        // Only the already-selected hand-picked folder has no install behind it, so
+        // re-selecting it is the one no-op this can be called with.
+        const install = installs.find((i) => i.launcher === value)
+        if (!install) return
+        const previous = launcher
         setLauncher(value)
-        patchSettingsCache(activeGame, { launcher: value })
-        await api.setLauncher(value, activeGame)
+        setLauncherError(null)
+        try {
+            await api.selectGameInstall(activeGame, value, install.gamePath)
+        } catch {
+            setLauncher(previous)
+            setLauncherError(t('settings.launcher.switchFailed'))
+            return
+        }
+        patchSettingsCache(activeGame, { launcher: value, gamePath: install.gamePath })
+        setSettings((s) => ({ ...s, launcher: value, gamePath: install.gamePath }))
+        await onGamePathChange()
     }
 
     async function handleCrimeBossInstallModeChange(value: string) {
@@ -459,7 +506,7 @@ export function SettingsPage({
                                             })}
                                         >
                                             <div className="mt-1">
-                                                {!installedLaunchersReady ? (
+                                                {!installsReady ? (
                                                     <span className="text-sm text-text-muted flex items-center gap-2">
                                                         <Loader className="w-3.5 h-3.5 animate-spin shrink-0" />
                                                         {t('settings.launcher.detecting')}
@@ -468,11 +515,22 @@ export function SettingsPage({
                                                     <Select
                                                         value={launcher}
                                                         onChange={handleLauncherChange}
-                                                        options={availableLaunchers}
-                                                        disabled={availableLaunchers.length <= 1}
+                                                        options={launcherOptions}
+                                                        disabled={launcherOptions.length <= 1}
                                                     />
                                                 )}
                                             </div>
+                                            {launcherError ? (
+                                                <p className="text-xs text-danger-text">
+                                                    {launcherError}
+                                                </p>
+                                            ) : installs.length > 1 ? (
+                                                <p className="text-xs text-text-subtle">
+                                                    {t('settings.launcher.multipleCopies', {
+                                                        count: installs.length,
+                                                    })}
+                                                </p>
+                                            ) : null}
                                         </Section>
 
                                         {activeGame === 'cb' && (

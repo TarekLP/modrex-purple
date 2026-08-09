@@ -47,10 +47,8 @@ const BrowsePageMemo = memo(BrowsePage)
 // render once with final values instead of showing provisional state that flips.
 function warmSettingsCache(game: GameId) {
     if (getSettingsCache(game)) return
-    Promise.all([api.getGameSettings(game), api.getInstalledLaunchers(game)])
-        .then(([settings, installedLaunchers]) =>
-            setSettingsCache(game, { settings, installedLaunchers })
-        )
+    Promise.all([api.getGameSettings(game), api.getDetectedInstalls(game)])
+        .then(([settings, installs]) => setSettingsCache(game, { settings, installs }))
         .catch(() => {})
 }
 

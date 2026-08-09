@@ -1,9 +1,9 @@
 import type { GameId } from '../../shared/types'
-import type { GameSettings } from './api'
+import type { DetectedInstall, GameSettings } from './api'
 
 export interface SettingsCacheEntry {
     settings: GameSettings
-    installedLaunchers: string[]
+    installs: DetectedInstall[]
 }
 
 // Session cache for SettingsPage data, mirroring gamePathCache/installedCache in

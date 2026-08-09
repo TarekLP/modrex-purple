@@ -6,6 +6,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed only one copy of a game being usable when it is installed on more than one store. The Launcher setting now switches the game path with it, so Modrex mods and launches the copy you pick.
+- Fixed the Microsoft Store copy of PAYDAY 3 being rejected when its folder was picked manually.
+- Fixed the game being detected through a leftover Epic Games manifest after it was uninstalled there.
 - Fixed an expired Nexus Mods sign-in failing silently.
 - Fixed installed Nexus mods not recovering their details and update checks after signing in again, until the app was restarted.
 - Fixed Nexus Mods requests failing until the app was restarted when Nexus rejected a sign-in before it was due to expire.

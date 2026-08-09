@@ -35,16 +35,27 @@ fn game_def_for_id(game_id: &str) -> Result<&'static GameDef, String> {
         .ok_or_else(|| format!("unknown game id '{game_id}'"))
 }
 
+// The launcher the user settled on is probed first so that re-detection, which only runs
+// once the saved path has gone stale, cannot move someone who owns the game on two stores
+// back to the copy that happens to come first in the fixed order.
+fn probe_order(preferred: Option<&str>) -> [&'static dyn Launcher; 3] {
+    let mut order = all_launchers();
+    if let Some(index) = order.iter().position(|l| Some(l.id()) == preferred) {
+        order.swap(0, index);
+    }
+    order
+}
+
 // A stalled find_game leaves no trace in Modrex.log without the probe line before it.
-fn detect_game(game: &'static GameDef) -> Option<DetectedGame> {
-    for launcher in all_launchers() {
+fn detect_game(game: &'static GameDef, preferred: Option<&str>) -> Option<DetectedInstall> {
+    for launcher in probe_order(preferred) {
         if !launcher.is_installed() {
             continue;
         }
         log::info!("probing {} for {}", launcher.id(), game.name);
         if let Some(path) = launcher.find_game(game) {
             log::info!("found {} via {}: {path}", game.name, launcher.id());
-            return Some(DetectedGame {
+            return Some(DetectedInstall {
                 launcher: launcher.id().to_string(),
                 game_path: path,
             });
@@ -178,19 +189,26 @@ fn maybe_suppress_crash_reporter(game_id: &str, settings: &GameSettings) {
 
 // ── Tauri commands ────────────────────────────────────────────────────────────
 
-#[derive(Serialize)]
+/// One store's copy of a game. A game owned on two stores has two of these, installed
+/// side by side and modded independently, so a launcher is only ever meaningful paired
+/// with the path it was found at.
+#[derive(Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
-pub struct DetectedGame {
+pub struct DetectedInstall {
     pub launcher: String,
     pub game_path: String,
 }
 
+// Every copy, not just the first one found: this is what the launcher picker in Settings
+// switches between, and it can only switch the game path along with the launcher if it
+// knows where each store's copy lives.
+//
 // Detection stats paths on every drive and Steam library, which blocks for the
 // SMB timeout on a dead network drive, sync commands run on the main thread,
 // so all detection work goes through spawn_blocking.
 #[tauri::command]
 #[specta::specta]
-pub async fn installed_launchers(game_id: String) -> Result<Vec<String>, String> {
+pub async fn detected_installs(game_id: String) -> Result<Vec<DetectedInstall>, String> {
     let game = game_def_for_id(game_id.as_str())?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut found = Vec::new();
@@ -199,8 +217,11 @@ pub async fn installed_launchers(game_id: String) -> Result<Vec<String>, String>
                 continue;
             }
             log::info!("probing {} for {}", launcher.id(), game.name);
-            if launcher.find_game(game).is_some() {
-                found.push(launcher.id().to_string());
+            if let Some(game_path) = launcher.find_game(game) {
+                found.push(DetectedInstall {
+                    launcher: launcher.id().to_string(),
+                    game_path,
+                });
             }
         }
         found
@@ -223,7 +244,7 @@ fn resolve_and_save_game_path(
         // auto-detect branch below re-validates every saved path on each refresh, so an
         // unvalidated wrong pick is dropped a moment later with nothing telling the user
         // why. Rejecting up front is what surfaces the error.
-        if game_def.resolve_executable(&path).is_none() {
+        if !game_def.is_installation(&path) {
             return Err(format!(
                 "'{path}' is not a {} installation (no {} in it)",
                 game_def.name,
@@ -240,7 +261,7 @@ fn resolve_and_save_game_path(
         let exe_exists = existing
             .game_path
             .as_deref()
-            .is_some_and(|p| game_def.resolve_executable(p).is_some());
+            .is_some_and(|p| game_def.is_installation(p));
         if exe_exists {
             // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
             let launcher = existing.launcher.or_else(|| {
@@ -250,7 +271,7 @@ fn resolve_and_save_game_path(
                     .map(identify_launcher_for_path)
             });
             (existing.game_path, launcher)
-        } else if let Some(detected) = detect_game(game_def) {
+        } else if let Some(detected) = detect_game(game_def, existing.launcher.as_deref()) {
             (Some(detected.game_path), Some(detected.launcher))
         } else {
             (None, None)
@@ -281,6 +302,55 @@ pub async fn configure_game_path(
     })
     .await
     .map_err(|e| format!("game path resolution failed to run: {e}"))??;
+    tauri::async_runtime::spawn(async move {
+        crate::commands::mod_index::ensure_index(index_app).await;
+    });
+    Ok(())
+}
+
+/// Points a game at one specific store's copy, moving the game path and the launcher
+/// together. The launcher is recorded as chosen rather than re-derived from the folder's
+/// marker files: a Steam PAYDAY 3 folder carries no steam_appid.txt, so deriving it would
+/// downgrade a deliberate choice to manual and launch the wrong copy.
+///
+/// The path comes from a detected_installs probe the renderer already ran, so switching
+/// costs no new probing. It is re-checked here because that probe is cached for the
+/// session and the folder can be gone by now.
+#[tauri::command]
+#[specta::specta]
+pub async fn select_game_install(
+    app: AppHandle,
+    game_id: String,
+    launcher: String,
+    game_path: String,
+) -> Result<(), String> {
+    let game_def = game_def_for_id(&game_id)?;
+    if !all_launchers().iter().any(|l| l.id() == launcher) {
+        return Err(format!("unknown launcher '{launcher}'"));
+    }
+    let index_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if !game_def.is_installation(&game_path) {
+            return Err(format!(
+                "'{game_path}' is no longer a {} installation",
+                game_def.name
+            ));
+        }
+        update_settings(&app, |s| {
+            let entry = s
+                .games
+                .get_or_insert_with(HashMap::new)
+                .entry(game_id)
+                .or_default();
+            entry.game_path = Some(game_path);
+            entry.launcher = Some(launcher);
+        });
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("install switch failed to run: {e}"))??;
+    // The other copy may be for a game whose index was skipped at startup, when the
+    // then-saved path was stale.
     tauri::async_runtime::spawn(async move {
         crate::commands::mod_index::ensure_index(index_app).await;
     });

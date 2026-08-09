@@ -3,6 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { commands, type InstallOutcome } from '../../shared/bindings'
 import type {
+    DetectedInstall,
     LoaderInfo,
     SourceInfo,
     NexusArchiveIdentity,
@@ -10,6 +11,7 @@ import type {
 } from '../../shared/bindings'
 export type {
     InstallOutcome,
+    DetectedInstall,
     LoaderInfo,
     SourceInfo,
     NexusArchiveIdentity,
@@ -161,6 +163,9 @@ export const api = {
     },
     setLauncher(launcher: string, gameId: string): Promise<void> {
         return commands.setLauncher(gameId, launcher)
+    },
+    async selectGameInstall(gameId: string, launcher: string, gamePath: string): Promise<void> {
+        await commands.selectGameInstall(gameId, launcher, gamePath)
     },
     setLaunchOptions(launchOptions: string, gameId: string): Promise<void> {
         return commands.setLaunchOptions(gameId, launchOptions)
@@ -543,8 +548,8 @@ export const api = {
     async restoreMods(gameId: string): Promise<void> {
         await commands.restoreMods(gameId)
     },
-    getInstalledLaunchers(gameId: string): Promise<string[]> {
-        return commands.installedLaunchers(gameId)
+    getDetectedInstalls(gameId: string): Promise<DetectedInstall[]> {
+        return commands.detectedInstalls(gameId)
     },
     openExternal(url: string): Promise<void> {
         return commands.shellOpenExternal(url)
