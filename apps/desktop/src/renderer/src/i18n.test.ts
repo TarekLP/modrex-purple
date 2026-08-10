@@ -60,13 +60,13 @@ describe('locale store', () => {
     })
 
     it('matches navigator.languages by primary subtag when nothing is saved', async () => {
-        vi.stubGlobal('navigator', { language: 'en-GB', languages: ['de-DE', 'en-GB'] })
+        vi.stubGlobal('navigator', { language: 'en-GB', languages: ['xx-XX', 'en-GB'] })
         const { getLocale } = await loadModule()
         expect(getLocale()).toBe('en')
     })
 
     it('falls back to en when no navigator language matches a registered locale', async () => {
-        vi.stubGlobal('navigator', { language: 'de-DE', languages: ['de-DE'] })
+        vi.stubGlobal('navigator', { language: 'xx-XX', languages: ['xx-XX'] })
         const { getLocale } = await loadModule()
         expect(getLocale()).toBe('en')
     })
