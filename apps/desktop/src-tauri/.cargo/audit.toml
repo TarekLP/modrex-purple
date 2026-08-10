@@ -2,4 +2,6 @@
 ignore = [
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
+    # sevenz-rust path traversal, all call sites write through safe_dest instead
+    "RUSTSEC-2026-0245",
 ]
