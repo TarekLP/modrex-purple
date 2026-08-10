@@ -4,6 +4,10 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- Added German as a language option for the app's interface.
+
 ### Fixed
 
 - Fixed only one copy of a game being usable when it is installed on more than one store. The Launcher setting now switches the game path with it, so Modrex mods and launches the copy you pick.
