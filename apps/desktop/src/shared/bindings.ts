@@ -44,7 +44,6 @@ export const commands = {
 	 */
 	getSettings: () => __TAURI_INVOKE<unknown>("get_settings"),
 	getGameSettings: (gameId: string) => __TAURI_INVOKE<GameSettings_Serialize>("get_game_settings", { gameId }),
-	setLauncher: (gameId: string, launcher: string) => __TAURI_INVOKE<void>("set_launcher", { gameId, launcher }),
 	setLaunchOptions: (gameId: string, launchOptions: string) => __TAURI_INVOKE<void>("set_launch_options", { gameId, launchOptions }),
 	setCrimebossInstallMode: (mode: string) => __TAURI_INVOKE<void>("set_crimeboss_install_mode", { mode }),
 	setSuppressCrashReporter: (gameId: string, suppress: boolean) => __TAURI_INVOKE<void>("set_suppress_crash_reporter", { gameId, suppress }),
@@ -231,6 +230,7 @@ export type GameSettings = GameSettings_Serialize | GameSettings_Deserialize;
 export type GameSettings_Deserialize = {
 	gamePath: string | null,
 	launcher: string | null,
+	installPinned?: boolean,
 	launchOptions?: string,
 	suppressCrashReporter?: boolean,
 	crimebossInstallMode?: string,
@@ -239,6 +239,7 @@ export type GameSettings_Deserialize = {
 export type GameSettings_Serialize = {
 	gamePath: string | null,
 	launcher: string | null,
+	installPinned: boolean,
 	launchOptions: string,
 	suppressCrashReporter: boolean,
 	crimebossInstallMode: string,

@@ -161,9 +161,6 @@ export const api = {
     async setGamePath(gamePath: string | null, gameId: string): Promise<void> {
         await commands.configureGamePath(gameId, gamePath)
     },
-    setLauncher(launcher: string, gameId: string): Promise<void> {
-        return commands.setLauncher(gameId, launcher)
-    },
     async selectGameInstall(gameId: string, launcher: string, gamePath: string): Promise<void> {
         await commands.selectGameInstall(gameId, launcher, gamePath)
     },

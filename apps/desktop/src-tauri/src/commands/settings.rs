@@ -40,6 +40,14 @@ pub struct GameSettings {
     // game is not installed), so these two stay Option.
     pub game_path: Option<String>,
     pub launcher: Option<String>,
+    // Whether which copy of the game to use has been settled. A game owned on two stores
+    // has two installs that share nothing, so re-detection must not move between them
+    // behind the user's back once one is in use. False on every settings file written
+    // before this existed, which is what lets those re-settle once against the mod list
+    // on disk rather than staying on whichever store was found first.
+    #[serde(default, deserialize_with = "null_default")]
+    #[specta(type = bool)]
+    pub install_pinned: bool,
     // deserialize_with only ever narrows null to the same wire type (see null_default).
     // #[specta(type)] tells specta that, since it cannot infer through a custom deserializer.
     #[serde(default, deserialize_with = "null_default")]
@@ -67,6 +75,7 @@ impl Default for GameSettings {
         Self {
             game_path: None,
             launcher: None,
+            install_pinned: false,
             launch_options: String::new(),
             suppress_crash_reporter: false,
             crimeboss_install_mode: default_crimeboss_mode(),
@@ -374,18 +383,6 @@ pub fn get_game_settings(app: AppHandle, game_id: String) -> GameSettings {
         .and_then(|g| g.get(&game_id))
         .cloned()
         .unwrap_or_default()
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn set_launcher(app: AppHandle, game_id: String, launcher: String) {
-    update_settings(&app, |s| {
-        s.games
-            .get_or_insert_with(HashMap::new)
-            .entry(game_id)
-            .or_default()
-            .launcher = Some(launcher);
-    });
 }
 
 #[tauri::command]

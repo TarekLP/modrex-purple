@@ -11,7 +11,9 @@ pub(crate) use types::GameDef;
 use types::Launcher;
 use xbox::Xbox;
 
-use crate::commands::mods::{backup_dir, engine_for_game, mods_base};
+use crate::commands::mods::{
+    backup_dir, engine_for_game, get_state_path, mods_base, read_state, ModEngineConfig,
+};
 use crate::commands::settings::{game_settings, read_settings, update_settings, GameSettings};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -35,33 +37,81 @@ fn game_def_for_id(game_id: &str) -> Result<&'static GameDef, String> {
         .ok_or_else(|| format!("unknown game id '{game_id}'"))
 }
 
-// The launcher the user settled on is probed first so that re-detection, which only runs
-// once the saved path has gone stale, cannot move someone who owns the game on two stores
-// back to the copy that happens to come first in the fixed order.
-fn probe_order(preferred: Option<&str>) -> [&'static dyn Launcher; 3] {
-    let mut order = all_launchers();
-    if let Some(index) = order.iter().position(|l| Some(l.id()) == preferred) {
-        order.swap(0, index);
-    }
-    order
-}
-
 // A stalled find_game leaves no trace in Modrex.log without the probe line before it.
-fn detect_game(game: &'static GameDef, preferred: Option<&str>) -> Option<DetectedInstall> {
-    for launcher in probe_order(preferred) {
+fn probe_installs(game: &'static GameDef) -> Vec<DetectedInstall> {
+    let mut found = Vec::new();
+    for launcher in all_launchers() {
         if !launcher.is_installed() {
             continue;
         }
         log::info!("probing {} for {}", launcher.id(), game.name);
-        if let Some(path) = launcher.find_game(game) {
-            log::info!("found {} via {}: {path}", game.name, launcher.id());
-            return Some(DetectedInstall {
+        if let Some(game_path) = launcher.find_game(game) {
+            log::info!("found {} via {}: {game_path}", game.name, launcher.id());
+            found.push(DetectedInstall {
                 launcher: launcher.id().to_string(),
-                game_path: path,
+                game_path,
             });
         }
     }
-    None
+    found
+}
+
+fn probe_one(game: &'static GameDef, launcher_id: &str) -> Option<String> {
+    let launcher = all_launchers()
+        .into_iter()
+        .find(|l| l.id() == launcher_id)?;
+    if !launcher.is_installed() {
+        return None;
+    }
+    log::info!("probing {} for {}", launcher.id(), game.name);
+    let path = launcher.find_game(game)?;
+    log::info!("found {} via {}: {path}", game.name, launcher.id());
+    Some(path)
+}
+
+/// How many mods a copy tracks. Counted rather than testing for the mod list file, because
+/// save_state creates that file in whichever copy is pointed at, even briefly and even when
+/// it finds nothing: a copy that was selected by mistake for one session comes out of that
+/// looking exactly like the one being modded.
+fn tracked_mod_count(game_path: &str, cfg: &ModEngineConfig) -> usize {
+    let live = read_state(&get_state_path(game_path, cfg)).mods.len();
+    if live > 0 {
+        return live;
+    }
+    // Launching without mods renames the whole folder for pak games, so until the next
+    // launch restores it the list lives inside the backup instead.
+    read_state(&backup_dir(game_path, cfg.primary()).join(cfg.state_filename))
+        .mods
+        .len()
+}
+
+/// The copy to settle on when nothing has been settled yet. Copies from two stores share no
+/// files, so choosing the wrong one makes an installed mod list read as empty, and the only
+/// thing that says which one is in use is how much each one tracks. Ties, and the case where
+/// nothing is modded anywhere, fall back to the launcher already recorded, then to
+/// registration order.
+fn pick_install(
+    installs: &[DetectedInstall],
+    cfg: &ModEngineConfig,
+    recorded: Option<&str>,
+) -> Option<DetectedInstall> {
+    let counts: Vec<usize> = installs
+        .iter()
+        .map(|install| tracked_mod_count(&install.game_path, cfg))
+        .collect();
+    let most = counts.iter().copied().max().unwrap_or(0);
+    let candidates: Vec<&DetectedInstall> = installs
+        .iter()
+        .zip(&counts)
+        .filter(|(_, count)| most == 0 || **count == most)
+        .map(|(install, _)| install)
+        .collect();
+
+    candidates
+        .iter()
+        .find(|install| Some(install.launcher.as_str()) == recorded)
+        .or_else(|| candidates.first())
+        .map(|install| (*install).clone())
 }
 
 // ── OS helpers ────────────────────────────────────────────────────────────────
@@ -192,7 +242,7 @@ fn maybe_suppress_crash_reporter(game_id: &str, settings: &GameSettings) {
 /// One store's copy of a game. A game owned on two stores has two of these, installed
 /// side by side and modded independently, so a launcher is only ever meaningful paired
 /// with the path it was found at.
-#[derive(Serialize, specta::Type)]
+#[derive(Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DetectedInstall {
     pub launcher: String,
@@ -210,24 +260,86 @@ pub struct DetectedInstall {
 #[specta::specta]
 pub async fn detected_installs(game_id: String) -> Result<Vec<DetectedInstall>, String> {
     let game = game_def_for_id(game_id.as_str())?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let mut found = Vec::new();
-        for launcher in all_launchers() {
-            if !launcher.is_installed() {
-                continue;
-            }
-            log::info!("probing {} for {}", launcher.id(), game.name);
-            if let Some(game_path) = launcher.find_game(game) {
-                found.push(DetectedInstall {
-                    launcher: launcher.id().to_string(),
-                    game_path,
-                });
+    tauri::async_runtime::spawn_blocking(move || probe_installs(game))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// What re-detection has to do for a game, decided before any store is probed so that the
+/// decision itself can be reasoned about without a machine's installs in the way.
+#[derive(Debug, PartialEq)]
+enum Resolution {
+    /// The settled copy is where it was recorded. Nothing is probed, which is the steady
+    /// state for every refresh once a game has been used once.
+    Keep,
+    /// The settled copy is not there. Look for it under its own launcher and nowhere else:
+    /// a relocated Steam library is still found, while a copy that is only mid-update
+    /// reports missing and is picked up again later instead of the game being handed to
+    /// another store.
+    Refind(String),
+    /// Settled on a copy that no store can be asked about, and it is gone. Reporting it
+    /// missing keeps the launcher, so nothing else can claim the game in the meantime.
+    Missing,
+    /// Not settled yet, including every game saved before copies were tracked at all.
+    /// Probe every store and choose once.
+    Settle,
+}
+
+fn is_store_launcher(id: &str) -> bool {
+    all_launchers().iter().any(|launcher| launcher.id() == id)
+}
+
+fn saved_path_valid(game_def: &GameDef, existing: &GameSettings) -> bool {
+    existing
+        .game_path
+        .as_deref()
+        .is_some_and(|path| game_def.is_installation(path))
+}
+
+fn plan_resolution(game_def: &GameDef, existing: &GameSettings) -> Resolution {
+    if !existing.install_pinned {
+        return Resolution::Settle;
+    }
+    if saved_path_valid(game_def, existing) {
+        return Resolution::Keep;
+    }
+    match existing.launcher.as_deref() {
+        Some(id) if is_store_launcher(id) => Resolution::Refind(id.to_string()),
+        _ => Resolution::Missing,
+    }
+}
+
+/// Which copy of the game to use, and whether that choice is now settled.
+fn resolve_install(
+    game_def: &'static GameDef,
+    cfg: &ModEngineConfig,
+    existing: &GameSettings,
+) -> (Option<String>, Option<String>, bool) {
+    match plan_resolution(game_def, existing) {
+        Resolution::Keep => {
+            // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
+            let launcher = existing.launcher.clone().or_else(|| {
+                existing
+                    .game_path
+                    .as_deref()
+                    .map(identify_launcher_for_path)
+            });
+            (existing.game_path.clone(), launcher, true)
+        }
+        Resolution::Refind(id) => (probe_one(game_def, &id), Some(id), true),
+        Resolution::Missing => (None, existing.launcher.clone(), true),
+        Resolution::Settle => {
+            let installs = probe_installs(game_def);
+            match pick_install(&installs, cfg, existing.launcher.as_deref()) {
+                Some(best) => (Some(best.game_path), Some(best.launcher), true),
+                // No store has it, but a folder picked by hand is still a usable copy.
+                None if saved_path_valid(game_def, existing) => {
+                    (existing.game_path.clone(), existing.launcher.clone(), true)
+                }
+                None => (None, None, false),
             }
         }
-        found
-    })
-    .await
-    .map_err(|e| e.to_string())
+    }
 }
 
 fn resolve_and_save_game_path(
@@ -236,10 +348,11 @@ fn resolve_and_save_game_path(
     game_path: Option<String>,
 ) -> Result<(), String> {
     let game_def = game_def_for_id(&game_id)?;
+    let cfg = engine_for_game(&game_id)?;
     // Path validation and detection can stall for seconds (SMB timeouts, wedged services),
     // so resolve first and take the settings lock only to apply the result. Sync commands
     // on the main thread must never wait behind a probe.
-    let (resolved_path, resolved_launcher) = if let Some(path) = game_path {
+    let (resolved_path, resolved_launcher, pinned) = if let Some(path) = game_path {
         // A hand-picked folder is checked here rather than accepted outright: the
         // auto-detect branch below re-validates every saved path on each refresh, so an
         // unvalidated wrong pick is dropped a moment later with nothing telling the user
@@ -251,31 +364,15 @@ fn resolve_and_save_game_path(
                 game_def.executables.join(" or ")
             ));
         }
+        // Choosing the folder is choosing the copy, so it settles the game the same way
+        // picking a launcher does.
         let launcher = identify_launcher_for_path(&path);
-        (Some(path), Some(launcher))
+        (Some(path), Some(launcher), true)
     } else {
         let existing = game_settings(&read_settings(app), &game_id)
             .cloned()
             .unwrap_or_default();
-        // Validate existing saved path before falling back to auto-detect.
-        let exe_exists = existing
-            .game_path
-            .as_deref()
-            .is_some_and(|p| game_def.is_installation(p));
-        if exe_exists {
-            // Re-running identify_launcher_for_path on every focus clobbers games without marker files.
-            let launcher = existing.launcher.or_else(|| {
-                existing
-                    .game_path
-                    .as_deref()
-                    .map(identify_launcher_for_path)
-            });
-            (existing.game_path, launcher)
-        } else if let Some(detected) = detect_game(game_def, existing.launcher.as_deref()) {
-            (Some(detected.game_path), Some(detected.launcher))
-        } else {
-            (None, None)
-        }
+        resolve_install(game_def, cfg, &existing)
     };
     update_settings(app, |s| {
         let entry = s
@@ -285,6 +382,7 @@ fn resolve_and_save_game_path(
             .or_default();
         entry.game_path = resolved_path;
         entry.launcher = resolved_launcher;
+        entry.install_pinned = pinned;
     });
     Ok(())
 }
@@ -344,6 +442,7 @@ pub async fn select_game_install(
                 .or_default();
             entry.game_path = Some(game_path);
             entry.launcher = Some(launcher);
+            entry.install_pinned = true;
         });
         Ok(())
     })

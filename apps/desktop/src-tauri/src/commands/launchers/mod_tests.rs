@@ -138,28 +138,220 @@ fn is_installation_without_xbox_release_matches_executables_only() {
     assert!(!PD2.is_installation(other.path().to_str().unwrap()));
 }
 
-// ── probe_order ───────────────────────────────────────────────────────────
+// ── dir_as_named_on_disk ──────────────────────────────────────────────────
 
-fn order_ids(preferred: Option<&str>) -> Vec<&'static str> {
-    probe_order(preferred).iter().map(|l| l.id()).collect()
+// A Microsoft Store folder spelled differently from the game name in the registry is
+// still found, and the path handed back has to read as the folder the user sees.
+#[cfg(target_os = "windows")]
+#[test]
+fn dir_as_named_on_disk_reports_the_spelling_on_disk() {
+    let dir = TempDir::new().unwrap();
+    std::fs::create_dir(dir.path().join("Payday 3")).unwrap();
+    assert_eq!(
+        super::xbox::dir_as_named_on_disk(dir.path(), "PAYDAY 3"),
+        dir.path().join("Payday 3")
+    );
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn dir_as_named_on_disk_falls_back_to_the_searched_name() {
+    let dir = TempDir::new().unwrap();
+    assert_eq!(
+        super::xbox::dir_as_named_on_disk(dir.path(), "PAYDAY 3"),
+        dir.path().join("PAYDAY 3")
+    );
+}
+
+// ── resolve_install ───────────────────────────────────────────────────────
+
+// A copy of PAYDAY 3 laid out the way one store installs it, tracking the given number of
+// mods. Zero still writes a mod list: that is what a copy the app was pointed at once, and
+// found nothing in, actually looks like on disk.
+fn make_pd3_copy(root: &Path, mod_count: usize) -> String {
+    use crate::commands::mods::{save_state, InstalledMod, ModsState, PD3_ENGINE};
+    touch(root.join("PAYDAY3.exe"));
+    let game_path = root.to_string_lossy().into_owned();
+    let mods = (0..mod_count)
+        .map(|i| InstalledMod {
+            uid: i.to_string(),
+            filename: format!("{i}.pak"),
+            ..InstalledMod::default()
+        })
+        .collect();
+    save_state(
+        &get_state_path(&game_path, &PD3_ENGINE),
+        &ModsState {
+            mods,
+            folders: vec![],
+        },
+    );
+    game_path
+}
+
+// A copy with no mod list at all, which is what an untouched second install looks like.
+fn make_bare_pd3_copy(root: &Path) -> String {
+    touch(root.join("PAYDAY3.exe"));
+    root.to_string_lossy().into_owned()
+}
+
+fn install(launcher: &str, game_path: &str) -> DetectedInstall {
+    DetectedInstall {
+        launcher: launcher.to_string(),
+        game_path: game_path.to_string(),
+    }
+}
+
+// The whole point of the preference: a Steam copy installed later must not take the game
+// away from the Microsoft Store copy that holds the mods, however the probe orders them.
+#[test]
+fn pick_prefers_the_copy_tracking_the_most_mods() {
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let steam_path = make_bare_pd3_copy(steam.path());
+    let xbox_path = make_pd3_copy(xbox.path(), 142);
+    let installs = vec![install("steam", &steam_path), install("xbox", &xbox_path)];
+
+    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, None).unwrap();
+    assert_eq!(picked.launcher, "xbox");
+    assert_eq!(picked.game_path, xbox_path);
+}
+
+// The shape this actually takes in the wild: the game was handed to the Steam copy for a
+// few days, so that copy has a mod list of its own. Its existence must not outweigh the
+// 142 mods still sitting in the copy the user was modding.
+#[test]
+fn pick_ignores_a_mod_list_left_behind_by_a_copy_that_was_only_pointed_at() {
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let installs = vec![
+        install("steam", &make_pd3_copy(steam.path(), 0)),
+        install("xbox", &make_pd3_copy(xbox.path(), 142)),
+    ];
+
+    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, None).unwrap();
+    assert_eq!(picked.launcher, "xbox");
+}
+
+// Mods hidden by "launch without mods" are in the backup, not the mods folder, and that
+// copy is still the one being modded.
+#[test]
+fn pick_counts_mods_hidden_in_a_backup() {
+    use crate::commands::mods::{save_state, InstalledMod, ModsState, PD3_ENGINE};
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let steam_path = make_pd3_copy(steam.path(), 0);
+    let xbox_path = make_bare_pd3_copy(xbox.path());
+    let backup = backup_dir(&xbox_path, PD3_ENGINE.primary()).join(PD3_ENGINE.state_filename);
+    std::fs::create_dir_all(backup.parent().unwrap()).unwrap();
+    save_state(
+        &backup,
+        &ModsState {
+            mods: vec![InstalledMod::default()],
+            folders: vec![],
+        },
+    );
+
+    let installs = vec![install("steam", &steam_path), install("xbox", &xbox_path)];
+    let picked = pick_install(&installs, &PD3_ENGINE, None).unwrap();
+    assert_eq!(picked.launcher, "xbox");
 }
 
 #[test]
-fn probe_order_defaults_to_registration_order() {
-    assert_eq!(order_ids(None), vec!["steam", "epic", "xbox"]);
+fn pick_falls_back_to_the_recorded_launcher_when_no_copy_has_mods() {
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let installs = vec![
+        install("steam", &make_bare_pd3_copy(steam.path())),
+        install("xbox", &make_bare_pd3_copy(xbox.path())),
+    ];
+
+    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, Some("xbox")).unwrap();
+    assert_eq!(picked.launcher, "xbox");
+}
+
+// Equally modded copies are a real tie, so the one already recorded keeps the game.
+#[test]
+fn pick_keeps_the_recorded_launcher_when_both_copies_are_equally_modded() {
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let installs = vec![
+        install("steam", &make_pd3_copy(steam.path(), 3)),
+        install("xbox", &make_pd3_copy(xbox.path(), 3)),
+    ];
+
+    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, Some("xbox")).unwrap();
+    assert_eq!(picked.launcher, "xbox");
 }
 
 #[test]
-fn probe_order_puts_the_chosen_launcher_first() {
-    assert_eq!(order_ids(Some("xbox")), vec!["xbox", "epic", "steam"]);
-    assert_eq!(order_ids(Some("epic")), vec!["epic", "steam", "xbox"]);
+fn pick_falls_back_to_the_first_copy_when_nothing_else_decides() {
+    let steam = TempDir::new().unwrap();
+    let xbox = TempDir::new().unwrap();
+    let installs = vec![
+        install("steam", &make_bare_pd3_copy(steam.path())),
+        install("xbox", &make_bare_pd3_copy(xbox.path())),
+    ];
+
+    let picked = pick_install(&installs, &crate::commands::mods::PD3_ENGINE, None).unwrap();
+    assert_eq!(picked.launcher, "steam");
+    assert!(pick_install(&[], &crate::commands::mods::PD3_ENGINE, None).is_none());
 }
 
-// A hand-picked folder saves "manual", which is not a store, and must not reorder or
-// drop any probe.
+fn settled_on(path: &str, launcher: &str) -> GameSettings {
+    GameSettings {
+        game_path: Some(path.to_string()),
+        launcher: Some(launcher.to_string()),
+        install_pinned: true,
+        ..Default::default()
+    }
+}
+
 #[test]
-fn probe_order_ignores_a_launcher_that_is_not_a_store() {
-    assert_eq!(order_ids(Some("manual")), vec!["steam", "epic", "xbox"]);
+fn plan_keeps_a_settled_copy_that_is_still_there() {
+    let dir = TempDir::new().unwrap();
+    let path = make_pd3_copy(dir.path(), 3);
+    assert_eq!(
+        plan_resolution(&PD3, &settled_on(&path, "xbox")),
+        Resolution::Keep
+    );
+}
+
+// The copy is not where it was: mid-update, or on a drive that is not awake yet. Looking
+// under its own launcher is what stops the other store's copy taking the game over.
+#[test]
+fn plan_refinds_a_settled_copy_under_its_own_launcher_only() {
+    let dir = TempDir::new().unwrap();
+    let gone = dir.path().join("gone").to_string_lossy().into_owned();
+    assert_eq!(
+        plan_resolution(&PD3, &settled_on(&gone, "xbox")),
+        Resolution::Refind("xbox".to_string())
+    );
+}
+
+// A hand-picked folder belongs to no store, so there is nothing to re-probe.
+#[test]
+fn plan_reports_a_missing_hand_picked_folder_rather_than_probing() {
+    let dir = TempDir::new().unwrap();
+    let gone = dir.path().join("gone").to_string_lossy().into_owned();
+    assert_eq!(
+        plan_resolution(&PD3, &settled_on(&gone, "manual")),
+        Resolution::Missing
+    );
+}
+
+// Every settings file written before copies were tracked arrives unpinned, which is what
+// makes an existing install re-choose once against the mod list on disk.
+#[test]
+fn plan_settles_a_game_that_was_never_pinned_even_with_a_valid_path() {
+    let dir = TempDir::new().unwrap();
+    let path = make_bare_pd3_copy(dir.path());
+    let existing = GameSettings {
+        game_path: Some(path),
+        launcher: Some("steam".to_string()),
+        ..Default::default()
+    };
+    assert_eq!(plan_resolution(&PD3, &existing), Resolution::Settle);
 }
 
 // ── identify_launcher_for_path ────────────────────────────────────────────

@@ -49,7 +49,6 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             // settings
             commands::settings::get_settings,
             commands::settings::get_game_settings,
-            commands::settings::set_launcher,
             commands::settings::set_launch_options,
             commands::settings::set_crimeboss_install_mode,
             commands::settings::set_suppress_crash_reporter,

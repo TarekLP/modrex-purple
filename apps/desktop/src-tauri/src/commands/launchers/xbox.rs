@@ -77,6 +77,23 @@ fn fixed_drive_roots() -> Vec<PathBuf> {
         .collect()
 }
 
+// Windows compares paths case-insensitively, so a folder is found whatever its real
+// spelling is and the name the search was built from is what ends up saved and shown.
+// Reading the name back off disk is what makes the stored path match the user's folder.
+// Runs only once a game has been found, so the scan itself costs no extra directory reads.
+#[cfg(target_os = "windows")]
+pub(super) fn dir_as_named_on_disk(parent: &Path, name: &str) -> PathBuf {
+    fs::read_dir(parent)
+        .ok()
+        .and_then(|entries| {
+            entries
+                .flatten()
+                .find(|entry| entry.file_name().eq_ignore_ascii_case(name))
+        })
+        .map(|entry| entry.path())
+        .unwrap_or_else(|| parent.join(name))
+}
+
 #[cfg(target_os = "windows")]
 fn find_in_drives(game_name: &str, xbox_executable: &str) -> Option<String> {
     for drive_root in fixed_drive_roots() {
@@ -90,7 +107,8 @@ fn find_in_drives(game_name: &str, xbox_executable: &str) -> Option<String> {
             }
             let candidate = entry.path().join(game_name).join("Content");
             if candidate.join(xbox_executable).exists() {
-                return Some(candidate.to_string_lossy().into_owned());
+                let found = dir_as_named_on_disk(&entry.path(), game_name).join("Content");
+                return Some(found.to_string_lossy().into_owned());
             }
         }
     }

@@ -253,6 +253,22 @@ fn pre_upgrade_settings_with_explicit_nulls_still_parses() {
     assert!(s.analytics_enabled);
 }
 
+// Every settings file written before copies were tracked lacks this field, and reading it
+// back as false is the whole of the repair: it is what makes an existing install re-choose
+// its copy once, against the mod list on disk, instead of staying wherever it was pointed.
+#[test]
+fn settings_written_before_copies_were_tracked_arrive_unpinned() {
+    let s: Settings = serde_json::from_str(PRE_UPGRADE_SETTINGS_JSON).unwrap();
+    assert!(!s.games.as_ref().unwrap().get("pd3").unwrap().install_pinned);
+
+    // An explicit null must read the same way, since that is what the older writer emitted
+    // for absent per-game values.
+    let nulled: GameSettings =
+        serde_json::from_str(r#"{"gamePath":null,"launcher":null,"installPinned":null}"#)
+            .expect("must parse despite an explicit null");
+    assert!(!nulled.install_pinned);
+}
+
 #[test]
 fn recover_legacy_analytics_consent_from_explicit_bool() {
     let mut s: Settings = serde_json::from_str(PRE_UPGRADE_SETTINGS_JSON).unwrap();

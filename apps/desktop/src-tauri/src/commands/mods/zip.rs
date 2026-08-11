@@ -168,7 +168,8 @@ pub(crate) fn copy_capped<R: Read + ?Sized, W: std::io::Write + ?Sized>(
     budget: &mut u64,
 ) -> Result<(), String> {
     // Reading one byte past the budget is what distinguishes "exactly fits" from "overruns".
-    let written = std::io::copy(&mut reader.take(*budget + 1), writer).map_err(|e| e.to_string())?;
+    let written =
+        std::io::copy(&mut reader.take(*budget + 1), writer).map_err(|e| e.to_string())?;
     if written > *budget {
         return Err(format!(
             "archive expands to more than {} GiB, or over {}x its own size; refusing to extract",

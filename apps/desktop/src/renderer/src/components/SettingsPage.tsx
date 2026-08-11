@@ -52,10 +52,6 @@ const LAUNCHER_LABELS: Record<string, { labelKey: Parameters<typeof t>[0]; icon?
     manual: { labelKey: 'settings.launcher.manual' },
 }
 
-// Not a store, so no probe ever reports it: it is what a hand-picked folder saves when
-// the folder carries none of the stores' marker files.
-const MANUAL_LAUNCHER = 'manual'
-
 type SettingsTab = 'game' | 'application' | 'advanced' | 'about'
 
 const GAME_TAB_KEY = 'modrex:settings-tab'
@@ -129,15 +125,11 @@ interface Props {
     globalOnly?: boolean
 }
 
+// Display only. The launcher belongs to the copy the backend settled on, so it is shown as
+// saved even when that copy is not among the ones detected right now — a copy that is mid
+// update is missing from the probe but is still the one being modded.
 function effectiveLauncher(gs: GameSettings, installs: DetectedInstall[]): string {
-    const saved = gs.launcher ?? installs[0]?.launcher ?? 'steam'
-    // A hand-picked folder is a copy no store knows about, so it is kept as chosen
-    // rather than snapped to whichever store also happens to have the game — that
-    // would launch the store's copy while Modrex mods the picked one.
-    if (saved === MANUAL_LAUNCHER) return saved
-    return installs.length > 0 && !installs.some((i) => i.launcher === saved)
-        ? installs[0].launcher
-        : saved
+    return gs.launcher ?? installs[0]?.launcher ?? 'steam'
 }
 
 export function SettingsPage({
@@ -264,15 +256,15 @@ export function SettingsPage({
         }
     }, [activeGame])
 
-    // Only reconciles the saved launcher once both halves above have landed,
-    // installs is an empty array both while loading and when genuinely empty, so
-    // installsReady is what tells those two states apart.
+    // Only shows the launcher once both halves above have landed, installs is an empty
+    // array both while loading and when genuinely empty, so installsReady is what tells
+    // those two states apart. This never writes the launcher back: the saved launcher and
+    // the saved game path name one copy together, and correcting one of them here would
+    // leave Modrex modding one copy while launching another.
     useEffect(() => {
         if (!settings || !installsReady) return
         setSettingsCache(activeGame, { settings, installs })
-        const effective = effectiveLauncher(settings, installs)
-        setLauncher(effective)
-        if (effective !== settings.launcher) api.setLauncher(effective, activeGame)
+        setLauncher(effectiveLauncher(settings, installs))
     }, [settings, installs, installsReady, activeGame])
 
     useEffect(() => {
@@ -315,11 +307,12 @@ export function SettingsPage({
         }
     }, [])
 
-    // One option per copy actually on disk, plus the current choice when it is a
-    // hand-picked folder, which no probe can report.
+    // One option per copy actually on disk, plus the current one when no probe reports it:
+    // a hand-picked folder belongs to no store, and a copy being updated is missing from
+    // the probe while still being the copy in use.
     const launcherOptions = useMemo(() => {
         const ids = installs.map((install) => install.launcher)
-        if (launcher === MANUAL_LAUNCHER) ids.push(MANUAL_LAUNCHER)
+        if (!ids.includes(launcher)) ids.push(launcher)
         return ids.map((id) => {
             const spec = LAUNCHER_LABELS[id]
             return { value: id, label: spec ? t(spec.labelKey) : id, icon: spec?.icon }
@@ -369,8 +362,8 @@ export function SettingsPage({
     // launcher alone leaves Modrex modding one copy while launching the other, since the
     // two stores install side by side and share nothing.
     async function handleLauncherChange(value: string) {
-        // Only the already-selected hand-picked folder has no install behind it, so
-        // re-selecting it is the one no-op this can be called with.
+        // The only option without a detected copy behind it is the one already selected,
+        // so re-selecting it is the one no-op this can be called with.
         const install = installs.find((i) => i.launcher === value)
         if (!install) return
         const previous = launcher
