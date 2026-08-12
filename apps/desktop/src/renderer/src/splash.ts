@@ -1,14 +1,15 @@
 import { api, type StartupPhase } from './api'
+import { getLocale, t, type StringKey } from './i18n'
 
 const phases: Exclude<StartupPhase, 'error'>[] = ['prepare', 'interface', 'game', 'mods', 'ready']
 
-const labels: Record<StartupPhase, string> = {
-    prepare: 'Preparing application data',
-    interface: 'Loading interface',
-    game: 'Detecting game installation',
-    mods: 'Reading installed mods',
-    ready: 'Opening Modrex',
-    error: 'Startup could not finish',
+const labels: Record<StartupPhase, StringKey> = {
+    prepare: 'splash.prepare',
+    interface: 'splash.interface',
+    game: 'splash.game',
+    mods: 'splash.mods',
+    ready: 'splash.ready',
+    error: 'splash.error',
 }
 
 const splash = document.querySelector<HTMLElement>('.splash')!
@@ -20,6 +21,9 @@ const version = document.getElementById('version')!
 let opening = false
 
 version.textContent = 'VERSION ' + import.meta.env.VITE_APP_VERSION
+document.title = t('splash.title')
+document.documentElement.lang = getLocale()
+recovery.textContent = t('splash.open')
 
 async function openModrex() {
     if (opening) return
@@ -35,7 +39,7 @@ async function openModrex() {
 }
 
 function renderPhase(phase: StartupPhase) {
-    status.textContent = labels[phase]
+    status.textContent = t(labels[phase])
     splash.dataset.status = phase
 
     if (phase === 'error') return

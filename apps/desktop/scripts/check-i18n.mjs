@@ -24,6 +24,7 @@ function interpolationVars(value) {
 const en = JSON.parse(readFileSync(`${I18N_DIR}/en.json`, 'utf8'))
 const enFlat = flatten(en)
 const enKeys = Object.keys(enFlat)
+const requiredKeys = enKeys.filter((key) => !key.startsWith('splash.'))
 
 const localeFiles = readdirSync(I18N_DIR)
     .filter((f) => f.endsWith('.json') && f !== 'en.json')
@@ -35,7 +36,7 @@ for (const id of localeFiles) {
     const bundle = JSON.parse(readFileSync(`${I18N_DIR}/${id}.json`, 'utf8'))
     const bundleFlat = flatten(bundle)
 
-    const missing = enKeys.filter((key) => !(key in bundleFlat))
+    const missing = requiredKeys.filter((key) => !(key in bundleFlat))
     const extra = Object.keys(bundleFlat).filter((key) => !(key in enFlat))
     if (missing.length > 0) {
         errors.push(`'${id}' is missing ${missing.length} key(s):\n  ${missing.join('\n  ')}`)

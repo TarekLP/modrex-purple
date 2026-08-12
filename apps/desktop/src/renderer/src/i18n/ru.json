@@ -34,6 +34,16 @@
         "updateViewOnGithub": "Посмотреть на GitHub",
         "updateLater": "Позже"
     },
+    "splash": {
+        "title": "Запуск Modrex",
+        "open": "Открыть Modrex",
+        "prepare": "Подготовка данных приложения",
+        "interface": "Загрузка интерфейса",
+        "game": "Поиск установки игры",
+        "mods": "Чтение установленных модов",
+        "ready": "Запуск Modrex",
+        "error": "Не удалось завершить запуск"
+    },
     "errorBoundary": {
         "close": "Закрыть",
         "message": "Что-то пошло не так."

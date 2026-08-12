@@ -34,6 +34,16 @@
         "updateViewOnGithub": "View on GitHub",
         "updateLater": "Later"
     },
+    "splash": {
+        "title": "Starting Modrex",
+        "open": "Open Modrex",
+        "prepare": "Preparing application data",
+        "interface": "Loading interface",
+        "game": "Detecting game installation",
+        "mods": "Reading installed mods",
+        "ready": "Opening Modrex",
+        "error": "Startup could not finish"
+    },
     "errorBoundary": {
         "close": "Close",
         "message": "Something went wrong."
