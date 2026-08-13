@@ -67,7 +67,7 @@ Or grab a specific package:
 
 - Every supported game behind a searchable picker, with your install detected automatically (Steam, Epic Games Store, Xbox App)
 - Launch modded or vanilla, per game
-- Interface in English and Russian
+- Interface in multiple community-maintained languages
 - Discord Rich Presence shows the active game on your profile
 - Automatic update checks with one-click in-app updates
 
@@ -94,7 +94,30 @@ If something goes wrong, attach your log file to a [bug report](https://github.c
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, commands and commit style.
+Choose the guide that matches what you want to contribute:
+
+- [Translate Modrex or add a language](TRANSLATING.md)
+- [Contribute code or documentation](CONTRIBUTING.md)
+- [Report a bug](https://github.com/modrexio/modrex/issues/new?template=bug_report.yml) or
+  [request a feature](https://github.com/modrexio/modrex/issues/new?template=feature_request.yml)
+
+## Translations
+
+Coverage is the share of English source keys currently present in each locale. It does not measure linguistic quality. Contributors are derived from locale history and are not ranked.
+
+<!-- TRANSLATION_STATUS_START -->
+
+<!-- prettier-ignore -->
+| Language | Coverage | Contributors |
+| --- | ---: | --- |
+| English (en) | 100% | - |
+| Deutsch (de) | 98.1% | [TarekLP](https://github.com/TarekLP) |
+| Русский (ru) | 100% | [ShulhaOleh](https://github.com/ShulhaOleh) |
+
+<!-- TRANSLATION_STATUS_END -->
+
+To improve an existing language or add a new one, follow the
+[translation guide](TRANSLATING.md).
 
 ## License
 

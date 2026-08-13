@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import en from './i18n/en.json'
-import { LOCALE_IDS, RAW_BUNDLES, isLocaleId, type LocaleId } from './locales'
+import { LOCALE_IDS, RAW_BUNDLES, isLocaleId, matchLocale, type LocaleId } from './locales'
 
 type DotPaths<T> = T extends string
     ? never
@@ -18,12 +18,12 @@ type DeepPartial<T> = T extends string ? T : { [K in keyof T]?: DeepPartial<T[K]
 
 type LocaleBundle = DeepPartial<typeof en>
 
-// RAW_BUNDLES is discovered at build time via import.meta.glob (locales.ts), so its
-// per-file shape cannot be checked against en.json at compile time, so pnpm check-i18n
-// (pre-commit + CI) is what actually enforces that every locale matches en.json's keys.
+// RAW_BUNDLES is discovered at build time via import.meta.glob, so pnpm check-i18n
+// validates each translated subset against en.json before it reaches the app.
 const BUNDLES = RAW_BUNDLES as Record<LocaleId, LocaleBundle>
 
 const LOCALE_STORAGE_KEY = 'modrex:locale'
+const UNTRANSLATED_PREFIX = '! '
 
 function detectLocale(): LocaleId {
     if (typeof localStorage === 'undefined') return 'en'
@@ -34,8 +34,8 @@ function detectLocale(): LocaleId {
     if (typeof navigator === 'undefined') return 'en'
 
     for (const lang of navigator.languages ?? [navigator.language]) {
-        const primary = lang.split('-')[0]
-        if (isLocaleId(primary)) return primary
+        const locale = matchLocale(lang, LOCALE_IDS)
+        if (locale) return locale
     }
 
     return 'en'
@@ -77,7 +77,12 @@ function get(key: StringKey): string {
         }
         cur = (cur as Record<string, unknown>)[part]
     }
-    if (typeof cur === 'string') return cur
+    if (
+        typeof cur === 'string' &&
+        (activeLocale === 'en' || !cur.startsWith(UNTRANSLATED_PREFIX))
+    ) {
+        return cur
+    }
 
     let fallback: unknown = en
     for (const part of parts) {

@@ -2,6 +2,9 @@
 
 Thanks for taking the time to contribute! Every bug report, suggestion, and pull request helps make Modrex better for the whole community.
 
+If you want to improve an existing translation or add a language, use the dedicated
+[translation guide](TRANSLATING.md). It does not require the development setup below.
+
 ## Development setup
 
 | Command                  | Description                                     |
@@ -98,24 +101,32 @@ Neither side of a cross-language pair can see the other, so `pnpm check-games` a
 `pnpm check-sources` diff them in CI. See `CLAUDE.md` for how they fit together before
 starting.
 
-## Adding a language
+## Translations
 
-The desktop app's interface strings live in `apps/desktop/src/renderer/src/i18n/en.json`.
-Translating them into another language is **one new file — nothing else to register or wire up**:
+English is the source language for product development:
 
-1. Copy `en.json` to a new file in the same folder, named after the language's code, e.g.
-   `uk.json`, `de.json`, `pt-BR.json`.
-2. Translate the values only — never change the keys, and never remove or reorder them.
-3. Leave every `{name}`, `{count}`, etc. token exactly as written; just place it wherever it reads
-   naturally in the sentence.
-4. There's no plural-forms system — a few strings come in manual pairs for singular/plural
-   (`modCount` / `modCountSingle`, `updatesAvailable` / `updatesAvailableSingle`, `installed` /
-   `installedSingle`). Translate both halves of each pair.
-5. Run `pnpm check-i18n` (from `apps/desktop/`, or `pnpm --dir apps/desktop check-i18n` from the
-   repo root). It fails on any key your file is missing, any extra key it shouldn't have, or a
-   `{var}` token that doesn't match `en.json` — fix everything it reports before opening the PR.
-   This also runs automatically in pre-commit and CI.
+- Feature and bug-fix contributions add or change source strings in
+  `apps/desktop/src/renderer/src/i18n/en.json`. Do not add unmarked English copies to non-English
+  files. Translators can use `pnpm i18n:create <locale>` for a new language or
+  `pnpm i18n:fill <locale>` for an existing language when they want marked source text for IDE
+  editing.
+- Keep translation-only pull requests focused when practical. Developers may include relevant
+  human-written translations with a product change.
+- Missing translated keys are valid and fall back to English in the app.
 
-When opening the pull request, use the "New language" template
-(`?template=new_language.md` on the compare/PR-create URL, or pick it from the template
-dropdown GitHub shows above the PR description box).
+AI agents must not create or update non-English translations unless the user explicitly requests
+translation for specific named locales.
+
+The translator-focused workflow, optional commands, locale rules, and new-language steps are in
+[TRANSLATING.md](TRANSLATING.md). Local tooling is optional; CI can perform validation without
+pnpm, application dependencies, Rust, Tauri, or launching Modrex.
+
+Maintainers can preview or verify the generated README without modifying it:
+
+| Command                                                     | Description                                                   |
+| ----------------------------------------------------------- | ------------------------------------------------------------- |
+| `node apps/desktop/scripts/update-i18n-readme.mjs --stdout` | Print the generated README without modifying `README.md`.     |
+| `node apps/desktop/scripts/update-i18n-readme.mjs --check`  | Exit non-zero when the checked-in translation table is stale. |
+
+After locale changes reach `main`, GitHub Actions regenerates contributor attribution and the
+README table. Locale files remain the source for language discovery and coverage.
