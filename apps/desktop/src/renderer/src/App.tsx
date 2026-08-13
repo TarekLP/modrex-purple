@@ -84,7 +84,10 @@ export default function App() {
     const locale = useLocale()
     const [view, setView] = useState<View>(getInitialView)
     const [settingsGlobalOnly, setSettingsGlobalOnly] = useState(false)
-    const inPicker = view === 'welcome' || (view === 'settings' && settingsGlobalOnly)
+    // activeGame still holds the last opened game on both game-less screens, so anything
+    // game-scoped has to gate on this rather than on view.
+    const gameInScope = view !== 'welcome' && !(view === 'settings' && settingsGlobalOnly)
+    const showAppBanners = view !== 'welcome'
     const [prevView, setPrevView] = useState<'browse' | 'installed'>('browse')
     const [activeGame, setActiveGame] = useState<GameId>(() => {
         const saved = localStorage.getItem('modrex:active-game')
@@ -164,8 +167,8 @@ export default function App() {
         void api.setDiscordPresenceEnabled(enabled)
     }, [])
     useEffect(() => {
-        void api.updateDiscordPresence(inPicker ? '' : GAMES[activeGame].name)
-    }, [activeGame, inPicker])
+        void api.updateDiscordPresence(gameInScope ? GAMES[activeGame].name : '')
+    }, [activeGame, gameInScope])
 
     // undefined = not yet loaded; null = path not found this session.
     const gamePathCache = useRef<Partial<Record<GameId, string | null>>>({})
@@ -500,7 +503,7 @@ export default function App() {
     } = useFileDropInstall({
         gamePath,
         activeGame,
-        enabled: view !== 'welcome',
+        enabled: gameInScope,
         onRefreshInstalled: refreshInstalled,
     })
 
@@ -554,9 +557,9 @@ export default function App() {
                                 : null
                         }
                         onDismissUpdate={() => setUpdate(null)}
-                        hideGameActions={inPicker}
+                        hideGameActions={!gameInScope}
                     />
-                    {view !== 'welcome' && modsHidden && (
+                    {gameInScope && modsHidden && (
                         <div className="shrink-0 flex items-center justify-between gap-4 px-4 py-2 bg-warning/10 border-b border-warning/30 text-xs text-warning">
                             <span>{t('app.modsHidden')}</span>
                             <div className="flex items-center gap-3 shrink-0">
@@ -572,10 +575,10 @@ export default function App() {
                             </div>
                         </div>
                     )}
-                    {nexusSessionExpired && view !== 'welcome' && (
+                    {nexusSessionExpired && showAppBanners && (
                         <NexusSessionBanner onDismiss={() => setNexusSessionExpired(false)} />
                     )}
-                    {showSupportPrompt && view !== 'welcome' && (
+                    {showSupportPrompt && showAppBanners && (
                         <SupportPromptBanner onClose={() => setShowSupportPrompt(false)} />
                     )}
                     <div className="flex flex-1 overflow-hidden">
@@ -584,7 +587,7 @@ export default function App() {
                             onViewChange={handleSidebarChange}
                             activeGame={activeGame}
                             onShowWelcome={handleShowWelcome}
-                            mode={inPicker ? 'picker' : 'app'}
+                            mode={gameInScope ? 'app' : 'picker'}
                         />
                         {/* Pages are stacked absolute panes toggled with visibility, not
                                 display:none — un-hiding a display:none subtree re-layouts it
