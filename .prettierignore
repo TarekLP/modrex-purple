@@ -12,4 +12,5 @@ AGENTS.md
 .agents/
 src/shared/bindings.ts
 apps/desktop/src/shared/bindings.ts
+apps/desktop/translation-contributors.generated.json
 apps/site/
