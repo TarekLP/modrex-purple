@@ -8,6 +8,11 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Added German as a language option for the app's interface.
 
+### Changed
+
+- Mods and news articles without a picture now show a placeholder icon instead of the words "No image".
+- Mod pages now keep the banner area for mods that have no image, instead of collapsing it.
+
 ### Fixed
 
 - Fixed Settings opened from the game picker still showing the "Restore mods" notice and installing dragged-in mod files into the last opened game.

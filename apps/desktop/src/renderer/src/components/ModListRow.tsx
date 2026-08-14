@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from './ui/Button'
-import { Trash2, RotateCcw } from 'lucide-react'
+import { Trash2, RotateCcw, Image as ImageIcon } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { t } from '../i18n'
@@ -70,12 +70,18 @@ export function ModListRow({
                             onLoad={() => setThumbLoaded(true)}
                             className={`w-full h-full object-cover transition-[filter,opacity] ${thumbLoaded ? '' : 'opacity-0'} ${!installed.enabled ? 'grayscale group-hover:grayscale-0' : 'group-hover:brightness-110'}`}
                         />
-                    ) : installed.source === 'nexus' ? (
-                        <div className="w-full h-full flex items-center justify-center">
-                            <NexusIcon className="w-6 h-6 text-text-subtle" />
-                        </div>
                     ) : (
-                        <div className="w-full h-full" />
+                        <div className="w-full h-full flex items-center justify-center">
+                            {installed.source === 'nexus' ? (
+                                <NexusIcon className="w-6 h-6 text-text-subtle" />
+                            ) : (
+                                <ImageIcon
+                                    className="w-6 h-6 text-text-subtle"
+                                    aria-hidden="true"
+                                />
+                            )}
+                            <span className="sr-only">{t('common.noImage')}</span>
+                        </div>
                     )}
                     {installed.source === 'nexus' && (
                         <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-surface-raised/80 border border-border text-[10px] text-text-subtle pointer-events-none flex items-center gap-1">

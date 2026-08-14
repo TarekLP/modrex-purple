@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, Heart, Eye, Clock, Trash2, RotateCcw } from 'lucide-react'
+import { Download, Heart, Eye, Clock, Trash2, RotateCcw, Image as ImageIcon } from 'lucide-react'
 import { Toggle } from './Toggle'
 import type { InstalledMod, ModSummary } from '../../../shared/types'
 import { t } from '../i18n'
@@ -80,8 +80,9 @@ export function ModCard({
                         {installed?.source === 'nexus' ? (
                             <NexusIcon className="w-8 h-8 text-text-subtle" />
                         ) : (
-                            <span className="text-text-subtle text-xs">{t('common.noImage')}</span>
+                            <ImageIcon className="w-8 h-8 text-text-subtle" aria-hidden="true" />
                         )}
+                        <span className="sr-only">{t('common.noImage')}</span>
                     </div>
                 )}
                 {installedCount !== undefined && installedCount > 1 && (

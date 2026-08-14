@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
-import { RefreshCw, ExternalLink } from 'lucide-react'
+import { RefreshCw, ExternalLink, Image as ImageIcon } from 'lucide-react'
 import { api } from '../api'
 import { t } from '../i18n'
 import { GAMES } from '../../../shared/types'
@@ -53,7 +53,8 @@ function NewsCard({ item }: { item: NewsItem }) {
                 />
             ) : (
                 <div className="w-full h-36 bg-surface-hover flex items-center justify-center">
-                    <span className="text-text-subtle text-xs">{t('common.noImage')}</span>
+                    <ImageIcon className="w-8 h-8 text-text-subtle" aria-hidden="true" />
+                    <span className="sr-only">{t('common.noImage')}</span>
                 </div>
             )}
             <div className="px-3 pt-3 pb-1 flex flex-col gap-1 flex-1">

@@ -12,6 +12,7 @@ import {
     X,
     AlertTriangle,
     Tag as TagIcon,
+    Image as ImageIcon,
     CalendarDays,
     Clock,
     Users,
@@ -863,17 +864,29 @@ export function ModDetailPage({
 
             {!loading && !error && mod && (
                 <div className="flex-1 overflow-y-auto">
-                    {(detail?.banner ?? mod.thumbnail) &&
-                        (bannerSrc ? (
-                            <img
-                                src={bannerSrc}
-                                alt={mod.name}
-                                loading="lazy"
-                                className="w-full aspect-[4/1] max-h-72 object-cover"
-                            />
-                        ) : (
-                            <div className="w-full aspect-[4/1] max-h-72 bg-surface-raised" />
-                        ))}
+                    {/* The banner slot is always rendered, including for mods that ship no
+                        image. Dropping it moves the title, tabs and info card up by the
+                        banner's full height, and the loading skeleton reserves the same box,
+                        so nothing shifts once data arrives. The icon marks a mod that has no
+                        image at all, and waits for the detail fetch so it never flashes in
+                        front of a banner that is still on its way. */}
+                    {bannerSrc ? (
+                        <img
+                            src={bannerSrc}
+                            alt={mod.name}
+                            loading="lazy"
+                            className="w-full aspect-[4/1] max-h-72 object-cover"
+                        />
+                    ) : (
+                        <div className="w-full aspect-[4/1] max-h-72 bg-surface-raised flex items-center justify-center">
+                            {!(detail?.banner ?? mod.thumbnail) && !detailsLoading && (
+                                <ImageIcon
+                                    className="w-8 h-8 text-text-subtle"
+                                    aria-hidden="true"
+                                />
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex items-start gap-6 px-6">
                         <div className="min-w-0 flex-1">
