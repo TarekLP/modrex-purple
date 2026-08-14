@@ -7,6 +7,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added German as a language option for the app's interface.
+- Added a Theme setting in Settings: the app's accent colour now follows the active game automatically, with each game having a preset colour, and an option to override it with a fixed colour instead.
 
 ### Changed
 

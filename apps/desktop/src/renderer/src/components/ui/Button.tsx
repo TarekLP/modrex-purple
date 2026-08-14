@@ -10,7 +10,7 @@ const buttonVariants = cva(
                 secondary: 'border border-border bg-surface-hover hover:bg-surface-active',
                 danger: 'bg-danger hover:bg-danger-hover',
                 // For actions sitting inside a warning surface, where the accent fill
-                // would put a second, unrelated orange next to the warning tint.
+                // would compete with the warning tint.
                 warning: 'bg-warning/20 hover:bg-warning/30 text-warning',
                 ghost: 'text-text-subtle hover:text-text hover:bg-surface-hover',
                 'ghost-accent': 'text-accent hover:text-accent-bright hover:bg-surface-hover',

@@ -368,6 +368,17 @@
             "title": "Sprache",
             "description": "Die in der gesamten App verwendete Sprache."
         },
+        "theme": {
+            "title": "Farbthema",
+            "description": "Akzentfarben die zur dekoration der App verwendet werden. Jedes Spiel hat standardmäßig eine eigene Farbe.",
+            "automatic": "Automatisch",
+            "purple": "Lila",
+            "orange": "Orage",
+            "green": "Grün",
+            "blue": "Blau",
+            "red": "Rot",
+            "darkRed": "Dunkelrot"
+        },
         "gamePath": {
             "title": "Spielpfad",
             "description": "Pfad zu deiner {game}-Installation. Wird automatisch von deinen installierten Launchern erkannt, falls nicht manuell festgelegt.",
