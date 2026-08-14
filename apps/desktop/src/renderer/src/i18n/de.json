@@ -34,6 +34,16 @@
         "updateViewOnGithub": "Auf GitHub ansehen",
         "updateLater": "Update ignorieren"
     },
+    "splash": {
+        "title": "Modrex wird gestartet...",
+        "open": "Öffne Modrex...",
+        "prepare": "App-Dateien werden vorbereitet...",
+        "interface": "Interface wird geladen...",
+        "game": "Spiel Installation wird erfasst...",
+        "mods": "Installierte Mods werden ausgelesen...",
+        "ready": "Öffne Moderex...",
+        "error": "Etwas lief schief, weswegen der Start abgebrochen wurde."
+    },
     "errorBoundary": {
         "close": "Schließen",
         "message": "Etwas lief schief."
