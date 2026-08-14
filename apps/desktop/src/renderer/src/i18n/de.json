@@ -180,6 +180,18 @@
             "updateSelected": "Ausgewählte aktualisieren ({count})",
             "error": "Aktualisierung fehlgeschlagen. Überprüfe deine Verbindung und versuche es erneut."
         },
+        "pakViewer": {
+            "title": "Inhalte dieser PAK-Datei",
+            "open": "PAK-Datei öffnene",
+            "searchPlaceholder": "PAK-Datei durchsuchen",
+            "assetCount": "{count} Dateien",
+            "matchCount": "{count} von {total} Gesamtassets",
+            "loading": "PAK wird ausgelesen...",
+            "empty": "Keine Assets gefunden",
+            "noMatches": "Keine Assets gefunden mit \"{query}\"",
+            "error": "PAK-Datei konnte nicht ausgelesen werden.",
+            "aesHint": "Verschlüssselte PAK-Dateien brauchen einen AES-Schlüssel — Stelle oder überschreibe ihn in den Einstellungen."
+        },
         "modMenu": {
             "open": "Optionen",
             "manageFiles": "Dateien verwalten",
@@ -373,7 +385,7 @@
             "description": "Akzentfarben die zur dekoration der App verwendet werden. Jedes Spiel hat standardmäßig eine eigene Farbe.",
             "automatic": "Automatisch",
             "purple": "Lila",
-            "orange": "Orage",
+            "orange": "Orange",
             "green": "Grün",
             "blue": "Blau",
             "red": "Rot",
@@ -413,6 +425,17 @@
         "crashReporter": {
             "title": "Bereinigung des Absturzberichterstatters",
             "description": "Umgehe ein leeres Absturzbericht-Fenster bei Spielen mit fehlerhaftem Berichterstatter, indem dessen Dateien vor dem Start entfernt werden. Dies ist standardmäßig deaktiviert und wird möglicherweise nicht für jedes Spiel benötigt."
+        },
+        "pakViewer": {
+            "title": "PAK-Datei Veranschaulicher",
+            "description": "Optionen zum anschauen einer PAK-Datei.  Alle Spiele werden  mit einem eingebauten AES Schlüssel veröffentlicht; Überschreibe ihn hier falls ein Spiel ein anderen benutzt.",
+            "aesKey": "AES Schlüssel",
+            "aesBundled": "Vorgegebener Schlüssel",
+            "aesCustom": "Eigener Schlüssel",
+            "aesPlaceholder": "64-character hex Schlüssel (leert die Überschreibung)",
+            "save": "Speichern",
+            "reset": "Zurücksetzen",
+            "usmapPlaceholder": "Pfad zu einer .usmap-mapping datei (optional)"
         },
         "updates": {
             "title": "Updates",

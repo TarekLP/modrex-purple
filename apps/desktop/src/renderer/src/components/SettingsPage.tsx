@@ -27,7 +27,7 @@ import { SkeletonBar } from './Skeleton'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { StorageSettings } from './StorageSettings'
 import { api } from '../api'
-import type { DetectedInstall, GameSettings } from '../api'
+import type { DetectedInstall, GameSettings, PakViewerConfig } from '../api'
 import { getSettingsCache, setSettingsCache, patchSettingsCache } from '../settingsCache'
 import type { GameId } from '../../../shared/types'
 import { GAMES } from '../../../shared/types'
@@ -173,6 +173,11 @@ export function SettingsPage({
     const [suppressCrashReporter, setSuppressCrashReporter] = useState(
         () => getSettingsCache(activeGame)?.settings.suppressCrashReporter === true
     )
+    const [pakConfig, setPakConfig] = useState<PakViewerConfig | null>(null)
+    const [aesKey, setAesKey] = useState('')
+    const [aesError, setAesError] = useState<string | null>(null)
+    const [usmapPath, setUsmapPath] = useState('')
+    const [usmapError, setUsmapError] = useState<string | null>(null)
     const [showAnalyticsDetails, setShowAnalyticsDetails] = useState(false)
     const [activeTab, setActiveTabState] = useState<SettingsTab>(() => readSavedTab(globalOnly))
     const [nexusSignedIn, setNexusSignedIn] = useState<boolean | null>(null)
@@ -284,6 +289,24 @@ export function SettingsPage({
             setInstallsReady(true)
         })
 
+        return () => {
+            cancelled = true
+        }
+    }, [activeGame])
+
+    // The pak-viewer section only exists for the Unreal-pak games; get_pak_viewer_config
+    // rejects any other game, so the fetch is gated to the same set the section renders for.
+    useEffect(() => {
+        if (activeGame !== 'pd3' && activeGame !== 'cb') return
+        let cancelled = false
+        setAesKey('')
+        setAesError(null)
+        setUsmapError(null)
+        api.getPakViewerConfig(activeGame).then((cfg) => {
+            if (cancelled) return
+            setPakConfig(cfg)
+            setUsmapPath(cfg.usmapPath ?? '')
+        })
         return () => {
             cancelled = true
         }
@@ -424,6 +447,36 @@ export function SettingsPage({
         setSuppressCrashReporter(value)
         patchSettingsCache(activeGame, { suppressCrashReporter: value })
         await api.setSuppressCrashReporter(value, activeGame)
+    }
+
+    async function handleSaveAes() {
+        setAesError(null)
+        try {
+            await api.setPakAesKey(activeGame, aesKey)
+            setAesKey('')
+            setPakConfig(await api.getPakViewerConfig(activeGame))
+        } catch (e) {
+            setAesError(String(e))
+        }
+    }
+
+    async function handleResetAes() {
+        setAesError(null)
+        await api.setPakAesKey(activeGame, '')
+        setAesKey('')
+        setPakConfig(await api.getPakViewerConfig(activeGame))
+    }
+
+    async function handleSaveUsmap() {
+        setUsmapError(null)
+        try {
+            const path = usmapPath.trim()
+            await api.setPakUsmapPath(activeGame, path || null)
+            setUsmapPath(path)
+            setPakConfig(await api.getPakViewerConfig(activeGame))
+        } catch (e) {
+            setUsmapError(String(e))
+        }
     }
 
     function handleNexusSignIn() {
@@ -634,6 +687,95 @@ export function SettingsPage({
                                                 className="text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed mt-1"
                                             />
                                         </Section>
+
+                                        {(activeGame === 'pd3' || activeGame === 'cb') && (
+                                            <Section
+                                                title={t('settings.pakViewer.title')}
+                                                description={t('settings.pakViewer.description')}
+                                            >
+                                                <div className="flex items-center gap-3 mt-1">
+                                                    <span className="text-sm flex-1 text-text-muted">
+                                                        {t('settings.pakViewer.aesKey')}
+                                                    </span>
+                                                    {pakConfig !== null && (
+                                                        <span
+                                                            className={`px-1.5 py-0.5 rounded text-[10px] border ${
+                                                                pakConfig.hasAesOverride
+                                                                    ? 'bg-accent/20 border-accent/40 text-accent-bright'
+                                                                    : 'bg-surface-active border-border text-text-subtle'
+                                                            }`}
+                                                        >
+                                                            {pakConfig.hasAesOverride
+                                                                ? t('settings.pakViewer.aesCustom')
+                                                                : t(
+                                                                      'settings.pakViewer.aesBundled'
+                                                                  )}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={aesKey}
+                                                        onChange={(e) => {
+                                                            setAesKey(e.target.value)
+                                                            setAesError(null)
+                                                        }}
+                                                        placeholder={t(
+                                                            'settings.pakViewer.aesPlaceholder'
+                                                        )}
+                                                        className="flex-1 text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent"
+                                                    />
+                                                    <Button
+                                                        variant="accent"
+                                                        size="sm"
+                                                        onClick={handleSaveAes}
+                                                    >
+                                                        {t('settings.pakViewer.save')}
+                                                    </Button>
+                                                    {pakConfig?.hasAesOverride && (
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            onClick={handleResetAes}
+                                                        >
+                                                            {t('settings.pakViewer.reset')}
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                {aesError && (
+                                                    <p className="text-xs text-danger-text">
+                                                        {aesError}
+                                                    </p>
+                                                )}
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <input
+                                                        type="text"
+                                                        value={usmapPath}
+                                                        onChange={(e) => {
+                                                            setUsmapPath(e.target.value)
+                                                            setUsmapError(null)
+                                                        }}
+                                                        placeholder={t(
+                                                            'settings.pakViewer.usmapPlaceholder'
+                                                        )}
+                                                        className="flex-1 text-sm font-mono px-3 py-2 rounded-lg bg-surface-hover border border-border text-text placeholder:text-text-subtle focus:outline-none focus:border-accent"
+                                                    />
+                                                    <Button
+                                                        variant="accent"
+                                                        size="sm"
+                                                        onClick={handleSaveUsmap}
+                                                    >
+                                                        {t('settings.pakViewer.save')}
+                                                    </Button>
+                                                </div>
+                                                {usmapError && (
+                                                    <p className="text-xs text-danger-text">
+                                                        {usmapError}
+                                                    </p>
+                                                )}
+                                            </Section>
+                                        )}
                                     </>
                                 )}
 

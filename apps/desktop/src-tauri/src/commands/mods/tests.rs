@@ -3592,3 +3592,115 @@ fn read_state_migrates_legacy_version_sentinels() {
     assert_eq!(state.mods[2].update_status, UpdateStatus::Known);
     assert_eq!(state.mods[2].version, "2.11");
 }
+
+// ── resolve_pak_path (pak viewer) ───────────────────────────────────────────
+
+fn pak_entry(filename: &str, location: Option<&str>) -> InstalledMod {
+    InstalledMod {
+        uid: filename.to_string(),
+        filename: filename.to_string(),
+        location: location.map(String::from),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn resolve_pak_path_pd3_active_file() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let pak = mods_dir(game, cfg.primary()).join("004_Skys_NoClip.pak");
+    fs::create_dir_all(pak.parent().unwrap()).unwrap();
+    fs::write(&pak, b"").unwrap();
+
+    let resolved = resolve_pak_path(game, cfg, &[], &pak_entry("004_Skys_NoClip.pak", None)).unwrap();
+    assert_eq!(resolved, pak);
+}
+
+#[test]
+fn resolve_pak_path_pd3_disabled_file() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let dis = disabled_dir(game, cfg.primary()).join("004_Skys_NoClip.pak.disabled");
+    fs::create_dir_all(dis.parent().unwrap()).unwrap();
+    fs::write(&dis, b"").unwrap();
+
+    let resolved =
+        resolve_pak_path(game, cfg, &[], &pak_entry("004_Skys_NoClip.pak", None)).unwrap();
+    assert_eq!(resolved, dis);
+}
+
+#[test]
+fn resolve_pak_path_cb_directory_active_finds_pak_in_skeleton() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let pak = mods_dir(game, cfg.primary())
+        .join("MyMod")
+        .join("Content")
+        .join("Paks")
+        .join("WindowsNoEditor")
+        .join("MyMod-CrimeBoss-WindowsNoEditor.pak");
+    fs::create_dir_all(pak.parent().unwrap()).unwrap();
+    fs::write(&pak, b"").unwrap();
+
+    let resolved = resolve_pak_path(game, cfg, &[], &pak_entry("MyMod", None)).unwrap();
+    assert_eq!(resolved, pak);
+}
+
+#[test]
+fn resolve_pak_path_cb_directory_disabled_finds_pak_inside_disabled_folder() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let pak = disabled_dir(game, cfg.primary())
+        .join("MyMod")
+        .join("Content")
+        .join("Paks")
+        .join("WindowsNoEditor")
+        .join("MyMod-CrimeBoss-WindowsNoEditor.pak");
+    fs::create_dir_all(pak.parent().unwrap()).unwrap();
+    fs::write(&pak, b"").unwrap();
+
+    let resolved = resolve_pak_path(game, cfg, &[], &pak_entry("MyMod", None)).unwrap();
+    assert_eq!(resolved, pak);
+}
+
+#[test]
+fn resolve_pak_path_cb_legacy_paks_target() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("cb").unwrap();
+    let target = cfg.target_for(Some("paks"));
+    let pak = mods_dir(game, target).join("001_Foo.pak");
+    fs::create_dir_all(pak.parent().unwrap()).unwrap();
+    fs::write(&pak, b"").unwrap();
+
+    let resolved = resolve_pak_path(game, cfg, &[], &pak_entry("001_Foo.pak", Some("paks"))).unwrap();
+    assert_eq!(resolved, pak);
+}
+
+#[test]
+fn resolve_pak_path_none_for_ue4ss_submods_and_host_packs() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    for location in ["ue4ss_mods", "host:17160:Menu Backgrounds"] {
+        let m = pak_entry("Whatever", Some(location));
+        assert_eq!(
+            resolve_pak_path(game, cfg, &[], &m),
+            None,
+            "location {location:?} must never resolve to a pak"
+        );
+    }
+}
+
+#[test]
+fn resolve_pak_path_none_when_mod_missing_on_disk() {
+    let tmp = TempDir::new().unwrap();
+    let game = tmp.path().to_str().unwrap();
+    let cfg = engine_for_game("pd3").unwrap();
+    let resolved = resolve_pak_path(game, cfg, &[], &pak_entry("Nope.pak", None));
+    assert_eq!(resolved, None);
+}

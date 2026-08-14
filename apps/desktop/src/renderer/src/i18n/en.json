@@ -180,6 +180,18 @@
             "updateSelected": "Update Selected ({count})",
             "error": "Update failed. Check your connection and try again."
         },
+        "pakViewer": {
+            "title": "Pak contents",
+            "open": "View pak contents",
+            "searchPlaceholder": "Search assets…",
+            "assetCount": "{count} assets",
+            "matchCount": "{count} of {total} assets",
+            "loading": "Reading pak…",
+            "empty": "No assets found",
+            "noMatches": "No assets match \"{query}\"",
+            "error": "Couldn't read the pak.",
+            "aesHint": "Encrypted paks need this game's AES key — set or override it in Settings."
+        },
         "modMenu": {
             "open": "Options",
             "manageFiles": "Manage files",
@@ -413,6 +425,17 @@
         "crashReporter": {
             "title": "Crash reporter cleanup",
             "description": "Work around an empty crash-report window for games that ship a buggy reporter by removing its crash reporter files before launch. This is off by default and may not be needed for every game."
+        },
+        "pakViewer": {
+            "title": "Pak viewer",
+            "description": "Options for inspecting a mod's pak contents. Both games ship a baked-in AES key; override it here only if a mod uses a different one.",
+            "aesKey": "AES key",
+            "aesBundled": "Bundled key",
+            "aesCustom": "Custom key",
+            "aesPlaceholder": "64-character hex key (empty clears the override)",
+            "save": "Save",
+            "reset": "Reset",
+            "usmapPlaceholder": "Path to a .usmap mapping file (optional)"
         },
         "updates": {
             "title": "Updates",

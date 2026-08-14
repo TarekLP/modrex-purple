@@ -8,6 +8,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Added German as a language option for the app's interface.
 - Added a Theme setting in Settings: the app's accent colour now follows the active game automatically, with each game having a preset colour, and an option to override it with a fixed colour instead.
+- Added a way to inspect a mod's pak contents from its options menu on PAYDAY 3 and Crime Boss, with an expandable file tree and an asset search box.
 
 ### Changed
 

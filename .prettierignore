@@ -13,4 +13,5 @@ AGENTS.md
 src/shared/bindings.ts
 apps/desktop/src/shared/bindings.ts
 apps/desktop/translation-contributors.generated.json
+apps/desktop/pakviewer/
 apps/site/

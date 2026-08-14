@@ -1,3 +1,4 @@
+use super::crimeboss_settings::find_pak_in_dir;
 use super::engine::{
     backup_dir as engine_backup_dir, disabled_dir, mods_dir, state_path as engine_state_path,
     ModEngineConfig, ModUnit, ScanTarget,
@@ -168,6 +169,47 @@ pub fn disabled_mod_path(
             disabled_suffix, ..
         } => base.join(format!("{}{}", filename, disabled_suffix)),
         ModUnit::Directory { .. } => base.join(filename),
+    }
+}
+
+/// The on-disk pak holding a tracked mod's contents, for the pak viewer. None for mods the
+/// viewer never shows: UE4SS script sub-mods have no pak, and host-pack sets are loose files
+/// inside a host mod rather than a pak of their own. The active file wins over the disabled
+/// one (Directory-unit disables move the whole folder, File-unit ones rename to
+/// .pak.disabled, which the sidecar opens by pak magic). For a Directory-unit mod the pak is
+/// found inside Modrex's synthesized Content/Paks/WindowsNoEditor skeleton.
+pub(crate) fn resolve_pak_path(
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
+    m: &InstalledMod,
+) -> Option<PathBuf> {
+    let location = m.location.as_deref();
+    if location == Some("ue4ss_mods") || location.is_some_and(|l| l.starts_with("host:")) {
+        return None;
+    }
+    let target = cfg.target_for(location);
+    let rel = get_folder_path(folders, m.folder_id.as_deref());
+    if target.is_directory_unit() {
+        let active = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+        let dir = if active.exists() {
+            active
+        } else {
+            let disabled = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+            if !disabled.exists() {
+                return None;
+            }
+            disabled
+        };
+        // Modrex's synthesized skeleton nests the pak under Content/Paks/WindowsNoEditor.
+        find_pak_in_dir(&dir.join("Content").join("Paks").join("WindowsNoEditor"))
+    } else {
+        let active = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+        if active.exists() {
+            return Some(active);
+        }
+        let disabled = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+        disabled.exists().then_some(disabled)
     }
 }
 

@@ -26,6 +26,7 @@ fn roundtrip_all_fields_set() {
             launcher: Some("steam".to_string()),
             launch_options: "-fileopenlog".to_string(),
             suppress_crash_reporter: true,
+            pak_usmap_path: Some("C:\\Mappings\\pd3.usmap".to_string()),
             ..Default::default()
         },
     );
@@ -40,6 +41,7 @@ fn roundtrip_all_fields_set() {
         games: Some(games),
         skip_file_open_log_warning: true,
         dismissed_deps_warnings: vec![1, 2, 3],
+        pak_aes_overrides: HashMap::from([("pd3".to_string(), "0123456789abcdef".to_string())]),
         ..Default::default()
     };
     write_to(f.path(), &original);
@@ -49,10 +51,18 @@ fn roundtrip_all_fields_set() {
     assert_eq!(pd3.launcher.as_deref(), Some("steam"));
     assert_eq!(pd3.launch_options, "-fileopenlog");
     assert!(pd3.suppress_crash_reporter);
+    assert_eq!(
+        pd3.pak_usmap_path.as_deref(),
+        Some("C:\\Mappings\\pd3.usmap")
+    );
     let cb = loaded.games.as_ref().unwrap().get("cb").unwrap();
     assert_eq!(cb.crimeboss_install_mode, "ask");
     assert!(loaded.skip_file_open_log_warning);
     assert_eq!(loaded.dismissed_deps_warnings, vec![1, 2, 3]);
+    assert_eq!(
+        loaded.pak_aes_overrides.get("pd3").map(String::as_str),
+        Some("0123456789abcdef")
+    );
 }
 
 #[test]
@@ -66,12 +76,23 @@ fn roundtrip_defaults_when_absent() {
     assert_eq!(loaded.launcher, None);
     assert_eq!(loaded.launch_options, None);
     assert_eq!(loaded.analytics_id, None);
+    assert_eq!(loaded.pak_aes_overrides, HashMap::new());
     // Everything else has a real default and must never be null on disk.
     assert!(!loaded.skip_file_open_log_warning);
     assert!(loaded.dismissed_deps_warnings.is_empty());
     assert!(!loaded.analytics_consent_asked);
     assert!(!loaded.analytics_enabled);
     assert!(loaded.discord_rich_presence_enabled);
+}
+
+#[test]
+fn pak_aes_overrides_absent_and_null_parse_to_empty() {
+    // Absent field (any file written before pak_aes_overrides existed).
+    let s: Settings = serde_json::from_str(r#"{"skipFileOpenLogWarning":false}"#).unwrap();
+    assert!(s.pak_aes_overrides.is_empty());
+    // Explicit null must read the same way, since older writers emitted nulls.
+    let s: Settings = serde_json::from_str(r#"{"pakAesOverrides":null}"#).unwrap();
+    assert!(s.pak_aes_overrides.is_empty());
 }
 
 #[test]

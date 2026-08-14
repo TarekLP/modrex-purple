@@ -64,6 +64,11 @@ pub struct GameSettings {
     )]
     #[specta(type = String)]
     pub crimeboss_install_mode: String,
+    // Optional path to a UE name-mapping (.usmap) used to decode pak asset names when the
+    // pak viewer lists a mod's contents. Absent means unmapped: classes resolve to the raw
+    // UObject export type. None needed for Crime Boss; PD3 benefits from a basegame mapping.
+    #[serde(default)]
+    pub pak_usmap_path: Option<String>,
 }
 
 fn default_crimeboss_mode() -> String {
@@ -79,6 +84,7 @@ impl Default for GameSettings {
             launch_options: String::new(),
             suppress_crash_reporter: false,
             crimeboss_install_mode: default_crimeboss_mode(),
+            pak_usmap_path: None,
         }
     }
 }
@@ -104,6 +110,11 @@ pub struct Settings {
     // modworkshop mod ids only; ids from other sources must not land here.
     #[serde(default, deserialize_with = "null_default")]
     pub dismissed_deps_warnings: Vec<i32>,
+    // Per-game AES keys for the pak viewer, keyed by game id. An absent entry means the
+    // game's baked-in default key (PD3) or no key at all (Crime Boss). Never transmitted
+    // back to the renderer; get_pak_viewer_config only reports whether an override exists.
+    #[serde(default, deserialize_with = "null_default")]
+    pub pak_aes_overrides: HashMap<String, String>,
     // analytics_consent_asked distinguishes "never shown the first-run consent dialog"
     // from "shown it, and this is their answer". Its own bool keeps that state without
     // the dialog either nagging forever or the saved choice reading as "never asked".
@@ -149,6 +160,7 @@ impl Default for Settings {
             games: None,
             skip_file_open_log_warning: false,
             dismissed_deps_warnings: Vec::new(),
+            pak_aes_overrides: HashMap::new(),
             analytics_consent_asked: false,
             analytics_enabled: false,
             analytics_id: None,

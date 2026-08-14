@@ -156,3 +156,6 @@ out/
 apps/index/index.db*
 apps/index/builder-state.db*
 apps/index/index-stats.json
+/apps/desktop/pakviewer/bin/
+/apps/desktop/pakviewer/obj/
+/apps/desktop/pakviewer/dist/

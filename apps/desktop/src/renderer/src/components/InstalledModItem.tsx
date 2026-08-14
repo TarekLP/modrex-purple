@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { MoreVertical } from 'lucide-react'
+import { MoreVertical, FileArchive } from 'lucide-react'
 import { t } from '../i18n'
 import type { InstalledMod } from '../../../shared/types'
 import { ModCard } from './ModCard'
@@ -9,6 +9,8 @@ import { SkeletonListRow } from './SkeletonListRow'
 import { syntheticMod, detailNavArgs, isIdentified } from '../hooks/installedUtils'
 import { useInstalledContext } from './InstalledContext'
 import { ManageFilesModal } from './ManageFilesModal'
+import { PakViewerModal } from './PakViewerModal'
+import { Tooltip } from './Tooltip'
 import { hasSource } from '../sources'
 
 export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
@@ -35,6 +37,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     } = useInstalledContext()
 
     const [menuOpen, setMenuOpen] = useState(false)
+    const [pakViewerKey, setPakViewerKey] = useState<string | null>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -54,6 +57,7 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     // Stable across file deletions, unlike repUid, whose file can be the one deleted.
     const groupKey = isIdentified(ins) ? `id:${id}` : `uid:${repUid}`
     const showManageFiles = manageFilesKey === groupKey
+    const showPakViewer = pakViewerKey === groupKey
     const apiMod = modData.get(id)
     const isBusy = mods.some((m) => loadingMod === m.uid)
     const isDragging = dragItem?.kind === 'mod' && dragItem.uid === repUid
@@ -84,6 +88,14 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
     // anything. RAID has no Nexus presence at all.
     const canIdentifyViaNexus =
         !isIdentified(ins) && !combined.missing && hasSource(activeGame, 'nexus')
+
+    // Only the Unreal-pak games have paks to inspect; ue4ss_mods (Lua) and host-content
+    // packs are not pak mods. A missing file is never inspectable either.
+    const canViewPak =
+        (activeGame === 'pd3' || activeGame === 'cb') &&
+        combined.location !== 'ue4ss_mods' &&
+        !combined.location?.startsWith('host:') &&
+        !combined.missing
 
     function renderMenuButton(dropdownSide: 'right' | 'left') {
         return (
@@ -182,6 +194,14 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                         onClose={() => setManageFilesKey(null)}
                     />
                 )}
+                {showPakViewer && (
+                    <PakViewerModal
+                        modName={mod.name}
+                        uid={repUid}
+                        gameId={activeGame}
+                        onClose={() => setPakViewerKey(null)}
+                    />
+                )}
                 <ModListRow
                     mod={mod}
                     installed={combined}
@@ -194,7 +214,14 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     onEnable={() => handleEnable(mods)}
                     onDisable={() => handleDisable(mods)}
                     onReinstall={() => handleReinstall(mods)}
-                    optionsButton={renderMenuButton('left')}
+                    optionsButton={
+                        <>
+                            {canViewPak && (
+                                <PakViewerButton onClick={() => setPakViewerKey(groupKey)} />
+                            )}
+                            {renderMenuButton('left')}
+                        </>
+                    }
                 />
             </div>
         )
@@ -212,7 +239,8 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
             {dropTarget?.kind === 'after-mod' && dropTarget.uid === repUid && (
                 <div className="absolute top-0 bottom-0 right-0 w-1 bg-accent z-10 pointer-events-none rounded-r-lg" />
             )}
-            <div ref={menuRef} className="absolute top-2 right-2 z-20">
+            <div ref={menuRef} className="absolute top-2 right-2 z-20 flex items-center gap-1.5">
+                {canViewPak && <PakViewerButton onClick={() => setPakViewerKey(groupKey)} />}
                 <button
                     onClick={(e) => {
                         e.stopPropagation()
@@ -277,6 +305,14 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                     onClose={() => setManageFilesKey(null)}
                 />
             )}
+            {showPakViewer && (
+                <PakViewerModal
+                    modName={mod.name}
+                    uid={repUid}
+                    gameId={activeGame}
+                    onClose={() => setPakViewerKey(null)}
+                />
+            )}
             <ModCard
                 mod={mod}
                 installed={combined}
@@ -291,5 +327,21 @@ export function InstalledModItem({ mods }: { mods: InstalledMod[] }) {
                 onReinstall={() => handleReinstall(mods)}
             />
         </div>
+    )
+}
+
+function PakViewerButton({ onClick }: { onClick: () => void }) {
+    return (
+        <Tooltip content={t('installed.pakViewer.open')}>
+            <button
+                onClick={(e) => {
+                    e.stopPropagation()
+                    onClick()
+                }}
+                className="flex items-center justify-center w-6 h-6 rounded border border-border text-text-subtle hover:text-text hover:border-accent/60 transition-colors bg-surface-raised/80"
+            >
+                <FileArchive className="w-3.5 h-3.5" />
+            </button>
+        </Tooltip>
     )
 }

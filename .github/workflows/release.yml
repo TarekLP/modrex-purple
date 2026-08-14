@@ -89,6 +89,10 @@ jobs:
               with:
                   workspaces: apps/desktop/src-tauri
 
+            - uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: 10.0.x
+
             - run: pnpm install --frozen-lockfile
             - run: pnpm typecheck
             - run: pnpm build:signed
@@ -214,6 +218,10 @@ jobs:
             - uses: swatinem/rust-cache@v2
               with:
                   workspaces: apps/desktop/src-tauri
+
+            - uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: 10.0.x
 
             - run: pnpm install --frozen-lockfile
             - run: pnpm typecheck
