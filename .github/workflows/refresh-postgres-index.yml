@@ -78,7 +78,7 @@ jobs:
                   pnpm --dir apps/index verify:postgres-catalog
                   pnpm --dir apps/index sync:postgres-listings
                   if [ "${GAME}" = auto ]; then
-                      GAME="$(pnpm --dir apps/index exec tsx postgres/report-coverage.ts --next)"
+                      GAME="$(pnpm --dir apps/index exec tsx postgres/select-game.ts)"
                       if [ -z "${GAME}" ]; then
                           GAME=none
                       fi

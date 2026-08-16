@@ -67,6 +67,10 @@ atomically updates `catalog/latest.json`. The manual migration, sync, process, e
 and publish workflows remain available for recovery and diagnosis. They need
 `INDEX_DATABASE_URL` plus the R2 credentials configured as repository secrets.
 
+**Which game a `game: auto` run processes** is decided by `postgres/select-game.ts` over the pure rule in `postgres/game-schedule.ts`; `report-coverage.ts` only reports. A run processes one game, so this decides which games stay indexable at all. Candidates (`pending > 0`) rank in three tiers: never selected, then gone `SERVICE_CEILING` turns without service, then largest raw `pending`. The middle tier is the point — `pending` counts deferred listings, so a game whose off-site links are permanently dead ranks high forever, and a plain largest-pending rule pins the scheduler to it (production, 2026-08-16: pd2's 27 dead links held the selector for 19 consecutive runs while a new PD3 listing went unprocessed). What the ceiling guarantees is a **processing opportunity within `SERVICE_CEILING + GAME_IDS.length - 1` auto-selection runs** — not successful indexing, and not a wall-clock bound, since the 30-minute cadence comes from an external dispatcher. A game keeps `1 - (GAME_IDS.length - 1) / (SERVICE_CEILING + 1)` of the turns only for as long as it stays the largest pending count; comparable backlogs self-balance through the greedy tier instead. `pnpm test:game-schedule` asserts both.
+
+Each selection persists `content_last_turn:<slug>` in `metadata` **before** processing, so a failed run spends the turn it was granted rather than letting a game whose processing keeps failing hold the queue. Only `game: auto` writes it: explicit `game:` dispatches and the standalone `Process Postgres index content` workflow do not, which at worst costs a later redundant auto turn. Making `pending` exclude not-yet-due deferrals is a separate change and is not what this scheduler does.
+
 **Legacy builder run modes** (CLI flags):
 
 - _default_ — incremental and **time-windowed**: `listModsSince(lastRunAt)` only examines mods updated since the previous run, and skips files already in `files`.

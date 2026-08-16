@@ -28,13 +28,6 @@ const rows = (await sql`
 `) as CoverageRow[]
 
 const coverageByGame = new Map(rows.map((row) => [row.slug, row]))
-if (process.argv.includes('--next')) {
-    const next = rows
-        .map((row) => ({ game: row.slug, pending: Number(row.pending) }))
-        .sort((left, right) => right.pending - left.pending)[0]
-    if (next && next.pending > 0) process.stdout.write(next.game)
-    process.exit(0)
-}
 
 for (const game of GAME_IDS) {
     const coverage = coverageByGame.get(game)
