@@ -11,6 +11,7 @@
         "report:postgres-coverage": "tsx postgres/report-coverage.ts",
         "sync:postgres-listings": "tsx postgres/sync-listings.ts",
         "verify:postgres-catalog": "tsx postgres/verify-catalog.ts",
+        "test:export-determinism": "tsx test-export-determinism.ts",
         "test:marker-archive": "tsx test-marker-archive.ts",
         "test:marker-contract": "tsx test-marker-contract.ts",
         "test:process-failure": "tsx test-process-failure.ts",
