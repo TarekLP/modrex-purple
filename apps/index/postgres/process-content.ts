@@ -2,6 +2,13 @@ import { neon } from '@neondatabase/serverless'
 
 import { extractContentEntries, type ContentEntry } from './content-archive.js'
 import { extractMarkerEntry, extractPdmodEntry } from './marker-archive.js'
+import {
+    TransientFetchError,
+    UnusableDownloadError,
+    downloadArchive,
+    extractMarkerEntry,
+    extractPdmodEntry,
+} from './marker-archive.js'
 
 interface Listing {
     source_id: string
@@ -153,6 +160,10 @@ async function extractEntries(url: string, type: string): Promise<ContentEntry[]
     if (!response.ok) throw new Error(`download ${response.status}`)
     const fallbackName = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '')
     return extractContentEntries(Buffer.from(await response.arrayBuffer()), fallbackName)
+    const archive = await downloadArchive(url)
+    if (!archive) return []
+    const fallbackName = decodeURIComponent(new URL(url).pathname.split('/').pop() ?? '')
+    return extractContentEntries(archive, fallbackName)
 }
 
 // downloadId is what files.remote_id holds: a positive ModWorkshop file id, or a negated
@@ -215,36 +226,88 @@ async function recordCheck(listing: Listing, fileIds: number[]): Promise<void> {
     `
 }
 
-const failures: string[] = []
-for (const listing of listings) {
-    try {
-        let files: ModFile[]
-        try {
-            files = await listFiles(listing.remote_id)
-        } catch (error) {
-            if (error instanceof ModWorkshopApiError && error.status === 404) {
-                await recordCheck(listing, [])
-                continue
-            }
-            throw error
-        }
-        const indexedFileIds: number[] = []
-        let failed = false
+// A download that could not be turned into entries either got an answer or did not. An answer
+// is part of evaluating the listing, so it is only worth a log line. Anything else leaves the
+// listing pending, and anything that is neither is a bug or an outage and ends the run.
+function classifyDownloadFailure(error: unknown, subject: string): 'deferred' | 'nothing-to-index' {
+    if (error instanceof TransientFetchError) {
+        console.warn(`${subject} deferred: ${error.message}`)
+        return 'deferred'
+    }
+    if (error instanceof UnusableDownloadError) {
+        console.warn(`${subject} has nothing to index: ${error.message}`)
+        return 'nothing-to-index'
+    }
+    throw error
+}
 
-        for (const file of files) {
-            if (!shouldDownload(file.type)) continue
+let indexed = 0
+let deferred = 0
+for (const listing of listings) {
+    let files: ModFile[]
+    try {
+        files = await listFiles(listing.remote_id)
+    } catch (error) {
+        if (error instanceof ModWorkshopApiError && error.status === 404) {
+            await recordCheck(listing, [])
+            continue
+        }
+        // ModWorkshop is the source of truth rather than one of the hosts a mod page points
+        // at, and every listing goes through it before any download, so an outage there ends
+        // the run instead of quietly recording thousands of listings as holding nothing.
+        throw error
+    }
+
+    const indexedFileIds: number[] = []
+    let pending = false
+
+    for (const file of files) {
+        if (!shouldDownload(file.type)) continue
+        try {
+            const entries = await extractEntries(file.download_url, file.type)
+            if (entries.length === 0) continue
+            await storeEntries(listing, file.id, file.version || listing.version, entries)
+            indexedFileIds.push(file.id)
+        } catch (error) {
+            const outcome = classifyDownloadFailure(
+                error,
+                `${game} mod ${listing.remote_id} file ${file.id}`
+            )
+            pending ||= outcome === 'deferred'
+        }
+    }
+
+    // A mod can publish its download as a link to another host, and then the files endpoint
+    // above is empty and nothing about the mod is recorded at all. Marker games only: their
+    // extractor reads a few hundred kilobytes over Range and gives up on anything that is
+    // not an archive, so an author-supplied URL stays bounded and self-validating, which
+    // the whole-archive path the Unreal games use is not.
+    if (!isUnrealGame && !pending && indexedFileIds.length === 0) {
+        for (const link of await listLinks(listing.remote_id)) {
             try {
                 const entries = await extractEntries(file.download_url, file.type)
                 if (entries.length === 0) continue
                 await storeEntries(listing, file.id, file.version || listing.version, entries)
                 indexedFileIds.push(file.id)
+                const entries = await extractEntries(link.url, '')
+                if (entries.length === 0) continue
+                // Negated, because modrex-main groups installed mods by file id across
+                // the whole install (installedUtils.ts findSuspectDuplicateGroups) and
+                // that only holds while ids are unique game-wide. ModWorkshop numbers
+                // links in their own sequence, so a link id can equal some other mod's
+                // file id; negating keeps the two kinds in disjoint ranges and marks a
+                // row as "no downloadable ModWorkshop file" at the same time.
+                await storeEntries(listing, -link.id, listing.version, entries)
+                indexedFileIds.push(-link.id)
             } catch (error) {
-                failed = true
-                failures.push(
-                    `${game} mod ${listing.remote_id} file ${file.id}: ${error instanceof Error ? error.message : String(error)}`
+                const outcome = classifyDownloadFailure(
+                    error,
+                    `${game} mod ${listing.remote_id} link ${link.id}`
                 )
+                pending ||= outcome === 'deferred'
             }
         }
+    }
 
         // A mod can publish its download as a link to another host, and then the files endpoint
         // above is empty and nothing about the mod is recorded at all. Marker games only: their
@@ -280,8 +343,20 @@ for (const listing of listings) {
         failures.push(
             `${game} mod ${listing.remote_id}: ${error instanceof Error ? error.message : String(error)}`
         )
+    // Recording the check is what stops a listing being selected again. A listing every one of
+    // whose downloads has been answered is finished, whether or not any of them yielded a file:
+    // the author's off-site link is optional content, and a mod page that offers nothing this
+    // pipeline can read is a fact about the mod, not a failure to establish one. Only a pending
+    // download leaves it unrecorded, so a host that was briefly unreachable is tried again.
+    if (pending) {
+        deferred++
+        continue
     }
+    await recordCheck(listing, indexedFileIds)
+    if (indexedFileIds.length > 0) indexed++
 }
 
-console.log(`Processed ${listings.length} ${game} listings`)
-if (failures.length > 0) throw new Error(failures.join('\n'))
+console.log(
+    `Processed ${listings.length} ${game} listings: ${indexed} indexed, ` +
+        `${listings.length - indexed - deferred} with nothing to index, ${deferred} deferred`
+)

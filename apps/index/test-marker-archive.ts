@@ -18,6 +18,13 @@ const guardedPass = process.argv.includes('--guarded')
 if (!guardedPass) process.env.MODREX_INDEX_ALLOW_LOOPBACK_FETCH = '1'
 
 const { assertFetchableUrl, extractMarkerEntry } = await import('./postgres/marker-archive.js')
+const {
+    assertFetchableUrl,
+    extractMarkerEntry,
+    isTransientStatus,
+    TransientFetchError,
+    UnusableDownloadError,
+} = await import('./postgres/marker-archive.js')
 
 const loopbackUrls = [
     'http://localhost:8080/mod.zip',
@@ -134,6 +141,51 @@ const server = createServer((request, response) => {
         return
     }
 
+    // Answers that settle the listing: the host has told us there is nothing to read here.
+    if (path === '/gone.zip') {
+        response.writeHead(410).end()
+        return
+    }
+    if (path === '/unsatisfiable.zip') {
+        if (request.method === 'HEAD') {
+            response.writeHead(200, { 'content-length': String(archive.length) }).end()
+            return
+        }
+        response.writeHead(416).end()
+        return
+    }
+
+    // Answers that settle nothing: something in front of the host is refusing, not the file.
+    if (path === '/forbidden.zip') {
+        response.writeHead(403, { 'content-type': 'text/html' }).end('<html>blocked</html>')
+        return
+    }
+    if (path === '/unavailable.zip') {
+        response.writeHead(503).end()
+        return
+    }
+    if (path === '/throttled.zip') {
+        response.writeHead(429).end()
+        return
+    }
+    // GitLab's shape: an archive URL that serves fine once the address stops asking so often.
+    if (path === '/not-acceptable.zip') {
+        response.writeHead(406, { 'content-type': 'text/html' }).end()
+        return
+    }
+    if (path === '/reset.zip') {
+        request.socket.destroy()
+        return
+    }
+
+    // mega.nz's shape: HEAD is never answered at all, and the GET that follows serves the
+    // host's download page. The listing is settled by the page, not by the unanswered probe.
+    if (path === '/head-hangs-then-document.zip') {
+        if (request.method === 'HEAD') return
+        response.writeHead(200, { 'content-type': 'text/html' }).end('<html>download page</html>')
+        return
+    }
+
     response.writeHead(404).end()
 })
 
@@ -232,6 +284,88 @@ try {
         ),
         'too many redirects',
         'a redirect loop ends instead of spinning'
+        await extractMarkerEntry(url('/redirect-loop.zip'), null),
+        null,
+        'a redirect loop ends instead of spinning, and settles the listing'
+    )
+
+    // Whether a listing can be recorded as checked turns entirely on this split, so it is
+    // asserted on the status table itself rather than only through the hosts that motivated it.
+    for (const settled of [400, 401, 404, 405, 410, 415, 416, 451]) {
+        assert.equal(isTransientStatus(settled), false, `${settled} is an answer`)
+    }
+    // 403 belongs with the throttles, not with the refusals: it is what an anti-abuse layer in
+    // front of a host says, and recording an empty check on one would lose the mod for good.
+    for (const retryable of [403, 406, 408, 425, 429, 500, 502, 503, 504]) {
+        assert.equal(isTransientStatus(retryable), true, `${retryable} is not an answer yet`)
+    }
+
+    for (const settled of ['/gone.zip', '/unsatisfiable.zip']) {
+        assert.equal(
+            await extractMarkerEntry(url(settled), null),
+            null,
+            `${settled} indexes nothing rather than staying pending forever`
+        )
+    }
+
+    for (const retryable of [
+        '/unavailable.zip',
+        '/throttled.zip',
+        '/not-acceptable.zip',
+        '/forbidden.zip',
+        '/reset.zip',
+    ]) {
+        await assert.rejects(
+            extractMarkerEntry(url(retryable), null),
+            TransientFetchError,
+            `${retryable} stays retryable instead of being recorded as empty`
+        )
+    }
+
+    // A name that does not resolve reads as permanent and is not: domains lapse and come back,
+    // and a resolver on the runner can fail on its own. Nothing under .invalid ever resolves.
+    await assert.rejects(
+        extractMarkerEntry('https://mod-host.invalid/mod.zip', null),
+        TransientFetchError,
+        'a host that does not resolve stays retryable'
+    )
+
+    const startedAt = Date.now()
+    assert.equal(
+        await extractMarkerEntry(url('/head-hangs-then-document.zip'), null),
+        null,
+        'a host that never answers HEAD is settled by the page it serves over GET'
+    )
+    assert.ok(
+        Date.now() - startedAt < 60_000,
+        'an unanswered HEAD gives up long before the download timeout it stands in for'
+    )
+
+    // The batch as a whole: one link that cannot be read must leave the others exactly as they
+    // would have been, which is the property the export step depends on.
+    const batch = [
+        '/ranged.zip',
+        '/gone.zip',
+        '/unavailable.zip',
+        '/generated.zip',
+        '/generated.html',
+        '/reset.zip',
+    ]
+    const outcomes = await Promise.all(
+        batch.map(async (path) => {
+            try {
+                return (await extractMarkerEntry(url(path), null)) ? 'indexed' : 'nothing-to-index'
+            } catch (error) {
+                if (error instanceof TransientFetchError) return 'deferred'
+                if (error instanceof UnusableDownloadError) return 'nothing-to-index'
+                throw error
+            }
+        })
+    )
+    assert.deepEqual(
+        outcomes,
+        ['indexed', 'nothing-to-index', 'deferred', 'indexed', 'nothing-to-index', 'deferred'],
+        'a mixed batch keeps every successful extraction and defers only what it must'
     )
 
     console.log('marker archive extraction test passed')
