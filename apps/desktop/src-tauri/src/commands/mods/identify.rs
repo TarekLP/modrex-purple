@@ -11,21 +11,48 @@ use std::collections::HashMap;
 use tauri::AppHandle;
 use uuid::Uuid;
 
+/// The representative file of a mod that ships no marker: the one whose path relative to the
+/// mod folder sorts first by UTF-8 bytes. The indexer chooses the same file from the archive by
+/// the same rule, and the two are tested against one set of vectors
+/// (apps/index/marker-contract.json). Any other ordering disagrees somewhere - a
+/// directory-by-directory walk on the boundary between a file and a folder sharing its stem, a
+/// locale-aware comparison on punctuation - and a mod whose two sides disagree can never be
+/// identified by hash.
 fn first_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    let mut entries: Vec<_> = std::fs::read_dir(dir).ok()?.flatten().collect();
-    entries.sort_by_key(|e| e.file_name());
-    for entry in entries {
-        let ft = entry.file_type().ok()?;
-        if ft.is_file() {
-            return Some(entry.path());
+    let mut relative = Vec::new();
+    collect_relative_files(dir, "", &mut relative);
+    relative.sort();
+    relative.first().map(|path| dir.join(path))
+}
+
+fn collect_relative_files(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        // A name the filesystem holds outside UTF-8 cannot equal an archive entry, which is
+        // UTF-8 by definition, so a lossy name here can only ever fail to match.
+        let name = entry.file_name().to_string_lossy().into_owned();
+        // Explorer and Finder write these into a folder on their own, and they sort early
+        // enough to win the pick, but the copy here is rewritten locally and stops matching the
+        // archive the indexer read.
+        if matches!(
+            name.to_ascii_lowercase().as_str(),
+            "thumbs.db" | "desktop.ini" | ".ds_store"
+        ) {
+            continue;
         }
-        if ft.is_dir() {
-            if let Some(p) = first_file_in_dir(&entry.path()) {
-                return Some(p);
-            }
+        let path = if prefix.is_empty() {
+            name
+        } else {
+            format!("{prefix}/{name}")
+        };
+        match entry.file_type() {
+            Ok(kind) if kind.is_dir() => collect_relative_files(&entry.path(), &path, out),
+            Ok(kind) if kind.is_file() => out.push(path),
+            _ => {}
         }
     }
-    None
 }
 
 /// Recursively finds a .pak file inside dir, preferring it over first_file_in_dir's
@@ -53,9 +80,10 @@ fn first_pak_file_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
 }
 
 pub(crate) fn hashable_file_for_mod_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    // Marker preference mirrors modrex-index's selectMarkerPath so both sides hash the same
+    // Marker preference mirrors the indexer's chooseMarker so both sides hash the same
     // representative file: main.xml (BeardLib), then RAID's supermod.xml (RAID-SuperBLT) and
-    // mod.xml (legacy RaidBLT).
+    // mod.xml (legacy RaidBLT). The marker-less fallback below is the other half of that
+    // contract, tested against apps/index/marker-contract.json.
     for marker in ["main.xml", "supermod.xml", "mod.xml"] {
         let p = dir.join(marker);
         if p.exists() {
@@ -175,23 +203,27 @@ pub(crate) fn embedded_modworkshop_id(dir: &std::path::Path) -> Option<(i64, Opt
 /// momentarily stale index, stays "Unknown" until the user wipes state by hand.
 pub(crate) fn upgrade_negative_ids(
     app: &AppHandle,
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
     mods: &mut [InstalledMod],
-    game_id: &str,
-    game_name: &str,
 ) -> bool {
-    let Some(conn) = mod_index::open_index(app, game_id) else {
+    let Some(conn) = mod_index::open_index(app, cfg.game_id) else {
         return false;
     };
-    upgrade_negative_ids_with_conn(&conn, mods, game_name)
+    upgrade_negative_ids_with_conn(&conn, game_path, cfg, folders, mods)
 }
 
 // Split from upgrade_negative_ids so the identification logic is testable against an
 // in-memory index, the same way mod_index.rs's own query helpers are.
 pub(crate) fn upgrade_negative_ids_with_conn(
     conn: &rusqlite::Connection,
+    game_path: &str,
+    cfg: &ModEngineConfig,
+    folders: &[ModFolder],
     mods: &mut [InstalledMod],
-    game_name: &str,
 ) -> bool {
+    let game_name = cfg.index_game_name;
     let mut any = false;
     for m in mods {
         // remote_id is the one signal for "already identified", regardless of source or of
@@ -209,19 +241,46 @@ pub(crate) fn upgrade_negative_ids_with_conn(
             .as_deref()
             .and_then(|sha| mod_index::query_sha256(conn, sha, game_name))
         {
-            let remote_id = hit.mod_remote_id.to_string();
-            m.id = crate::commands::sources::source_native_local_id("modworkshop", &remote_id);
-            m.remote_id = Some(remote_id);
+            m.attach_catalog(
+                "modworkshop",
+                hit.mod_remote_id.to_string(),
+                IdentityEvidence::CatalogHash,
+            );
             m.name = hit.mod_name;
             m.version = hit.version;
             m.file_id = Some(hit.file_remote_id);
+            // The pass that failed to identify this entry left it Unknown, which makes
+            // useModData skip it for updates forever. The hash match hands over the index's
+            // own version, so the status has to move with it.
+            m.update_status = UpdateStatus::Known;
             any = true;
             continue;
         }
-        if let Some(remote_id) = mod_index::query_by_name(conn, &m.name, game_name) {
-            let remote_id_str = remote_id.to_string();
-            m.id = crate::commands::sources::source_native_local_id("modworkshop", &remote_id_str);
-            m.remote_id = Some(remote_id_str);
+        // m.name is the folder the mod sits in, which the author never chose for a mod
+        // downloaded as a GitHub source archive. Falling back to the name mod.txt declares
+        // costs one small read per still-unidentified mod and is what matches those installs.
+        let by_stored_name = mod_index::query_by_name(conn, &m.name, game_name);
+        let remote_id = by_stored_name.or_else(|| {
+            let target = cfg.target_for(m.location.as_deref());
+            if !target.is_directory_unit() {
+                return None;
+            }
+            let rel = get_folder_path(folders, m.folder_id.as_deref());
+            let dir = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
+            let dir = if dir.exists() {
+                dir
+            } else {
+                disabled_mod_path(game_path, &m.filename, rel.as_deref(), target)
+            };
+            let declared = identity::local_signals(cfg, &dir).declared_name?;
+            mod_index::query_by_name(conn, &declared, game_name)
+        });
+        if let Some(remote_id) = remote_id {
+            m.attach_catalog(
+                "modworkshop",
+                remote_id.to_string(),
+                IdentityEvidence::CatalogName,
+            );
             // The SHA256 check above just failed against the index's current file, so unlike
             // the embedded-id "no declared version" fallback (zero signal, deliberately reads
             // as up-to-date to avoid an endless false nag), the installed bytes are known
@@ -526,18 +585,29 @@ pub(crate) fn identify_untracked(
         // version drift, so prefer it over the fuzzy name fallback but below an exact hash
         // match, which also pins the precise file. Installed version comes from the mod's own
         // declaration, and the real display name is enriched from the index when present.
-        let embedded = if entry_target.is_directory_unit() {
-            let mod_dir = if *enabled {
+        let mod_dir = entry_target.is_directory_unit().then(|| {
+            if *enabled {
                 mods_base(game_path, entry_target).join(rel_path)
             } else {
                 disabled_base(game_path, entry_target).join(rel_path)
-            };
-            embedded_modworkshop_id(&mod_dir)
-        } else {
-            None
-        };
+            }
+        });
+        let embedded = mod_dir.as_deref().and_then(embedded_modworkshop_id);
         let resolve_embedded = |(mod_id, declared): (i64, Option<String>)| {
             let hit = index.and_then(|c| mod_index::query_mod_by_id(c, mod_id, gname));
+            // Authors copy each other's marker files, and some ship another project's id. When the index can adjudicate and the two names have nothing in
+            // common, the id is not this mod's, so fall through to the name match rather than
+            // hand the install a stranger's identity.
+            if let Some(hit) = hit.as_ref() {
+                let declared_name = mod_dir
+                    .as_deref()
+                    .and_then(|dir| identity::local_signals(cfg, dir).declared_name);
+                if let Some(declared_name) = declared_name {
+                    if !identity::names_are_compatible(&declared_name, &hit.mod_name) {
+                        return None;
+                    }
+                }
+            }
             let name = hit
                 .as_ref()
                 .map(|h| h.mod_name.clone())
@@ -550,7 +620,14 @@ pub(crate) fn identify_untracked(
                 Some(v) => (v, UpdateStatus::Known),
                 None => (String::new(), UpdateStatus::Unknown),
             };
-            (mod_id, name, None, version, status)
+            Some((
+                mod_id,
+                name,
+                None,
+                version,
+                status,
+                Some(IdentityEvidence::EmbeddedCatalogId),
+            ))
         };
 
         let by_name = || {
@@ -560,6 +637,15 @@ pub(crate) fn identify_untracked(
                     stripped_base
                         .as_deref()
                         .and_then(|b| index.and_then(|c| mod_index::query_by_name(c, b, gname)))
+                })
+                .or_else(|| {
+                    // The folder tells us nothing when the archive was a GitHub source zip,
+                    // whose name is the repository and branch. The mod's own declaration is
+                    // the title its page carries.
+                    let declared = mod_dir
+                        .as_deref()
+                        .and_then(|dir| identity::local_signals(cfg, dir).declared_name)?;
+                    index.and_then(|c| mod_index::query_by_name(c, &declared, gname))
                 })
                 .map(|remote_id| {
                     // A confirmed name hit after the SHA256 check above already missed means
@@ -573,18 +659,26 @@ pub(crate) fn identify_untracked(
                         None,
                         String::new(),
                         UpdateStatus::Outdated,
+                        Some(IdentityEvidence::CatalogName),
                     )
                 })
                 .or_else(|| {
-                    stripped.parse::<i64>().ok().map(|num_id| {
-                        (
-                            num_id,
-                            stripped.to_string(),
-                            None,
-                            String::new(),
-                            UpdateStatus::Unknown,
-                        )
-                    })
+                    // A folder or pak named after nothing but a mod id, which older Modrex
+                    // versions and hand-made installs both produce.
+                    stripped
+                        .parse::<i64>()
+                        .ok()
+                        .filter(|&num_id| num_id > 0)
+                        .map(|num_id| {
+                            (
+                                num_id,
+                                stripped.to_string(),
+                                None,
+                                String::new(),
+                                UpdateStatus::Unknown,
+                                Some(IdentityEvidence::CatalogName),
+                            )
+                        })
                 })
                 .unwrap_or_else(|| {
                     (
@@ -593,11 +687,12 @@ pub(crate) fn identify_untracked(
                         None,
                         String::new(),
                         UpdateStatus::Unknown,
+                        None,
                     )
                 })
         };
 
-        let (id, name, file_id, version, update_status) = match sha256
+        let (id, name, file_id, version, update_status, evidence) = match sha256
             .as_deref()
             .and_then(|sha| index.and_then(|c| mod_index::query_sha256(c, sha, gname)))
         {
@@ -607,9 +702,10 @@ pub(crate) fn identify_untracked(
                 Some(hit.file_remote_id),
                 hit.version,
                 UpdateStatus::Known,
+                Some(IdentityEvidence::CatalogHash),
             ),
-            None => match embedded {
-                Some(e) => resolve_embedded(e),
+            None => match embedded.and_then(resolve_embedded) {
+                Some(resolved) => resolved,
                 None => by_name(),
             },
         };
@@ -655,24 +751,19 @@ pub(crate) fn identify_untracked(
             None => strip_priority_prefix(&filename).to_string(),
         };
 
-        // id here is still a real modworkshop id (positive) or hash_filename's placeholder
-        // (always negative), so the sign check above is the one place it stays meaningful:
-        // it reads this match's own local result, not the stored InstalledMod.id. Past this
-        // point id is the opaque source-scoped key and remote_id carries the real one.
-        let (id, remote_id) = if id > 0 {
-            let remote_id = id.to_string();
-            (
-                crate::commands::sources::source_native_local_id("modworkshop", &remote_id),
-                Some(remote_id),
-            )
-        } else {
-            (id, None)
+        // Evidence is present exactly when this match produced a real modworkshop id; the
+        // fallbacks that did not carry hash_filename's placeholder id instead, which stays in
+        // InstalledMod.id as the opaque source-scoped key it always is.
+        let base = match evidence {
+            Some(evidence) => InstalledMod::from_catalog("modworkshop", id.to_string(), evidence),
+            None => InstalledMod {
+                id,
+                ..InstalledMod::default()
+            },
         };
 
         by_uid.entry(uid.clone()).or_insert(InstalledMod {
             uid,
-            id,
-            remote_id,
             name,
             version,
             filename: filename.clone(),
@@ -683,7 +774,7 @@ pub(crate) fn identify_untracked(
             folder_id,
             location: location_tag.clone(),
             update_status,
-            ..InstalledMod::default()
+            ..base
         });
     }
 

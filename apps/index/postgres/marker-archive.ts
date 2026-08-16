@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { lookup } from 'node:dns/promises'
 import {
     existsSync,
     mkdirSync,
@@ -10,6 +11,7 @@ import {
     statSync,
     writeFileSync,
 } from 'node:fs'
+import { isIP } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { inflateRawSync } from 'node:zlib'
@@ -23,13 +25,31 @@ interface CentralDirectoryEntry {
     compressionMethod: number
 }
 
-class MissingArchiveError extends Error {}
+// Every download ends one of two ways, and the processor needs to tell them apart. An answer,
+// including a host that will not serve the file at all, means the listing has been evaluated and
+// its check can be recorded. A failure that a later run could get a different answer to leaves
+// the listing pending instead. Anything outside these two is a bug or an outage and stays fatal.
+export class UnusableDownloadError extends Error {}
+export class TransientFetchError extends Error {}
+
+class MissingArchiveError extends UnusableDownloadError {}
+class BlockedUrlError extends UnusableDownloadError {}
 
 const maxFullArchiveBytes = 50 * 1024 * 1024
+const maxRedirects = 5
+// A HEAD only decides whether the ranged reads have a length to aim at, and every host that
+// answers it answers in well under a second. mega.nz never answers it at all, so the probe has
+// to give up long before the download it is only an optimization for.
+const headProbeTimeoutMs = 10_000
+// Read once at load so only the environment can set it, and it lifts the address check for
+// loopback alone: test-marker-archive.ts serves its fixtures from 127.0.0.1, while every other
+// blocked range stays refused in the same process the tests assert against. Nothing in CI or
+// the workflow sets this.
+const allowLoopbackFetch = process.env.MODREX_INDEX_ALLOW_LOOPBACK_FETCH === '1'
 const pdmodPassword = `0$45'5))66S2ixF51a<6}L2UK`
 const pdmodHashlistPath = join(import.meta.dirname, '..', 'pdmod_hashlist.txt')
 
-function chooseMarker(paths: string[]): string | null {
+export function chooseMarker(paths: string[]): string | null {
     const files = paths.filter((path) => !path.endsWith('/'))
     if (files.length === 0) return null
 
@@ -49,31 +69,183 @@ function chooseMarker(paths: string[]): string | null {
     const raidMarker = firstMatch(['supermod.xml']) ?? firstMatch(['mod.xml'])
     if (raidMarker) return raidMarker
 
-    const sorted = [...files].sort((left, right) => left.localeCompare(right))
+    // No marker, so the pick is positional, and it has to land on the same file modrex-main
+    // picks from the installed folder or the mod can never be identified by hash. Comparing
+    // UTF-8 bytes is the one ordering both languages express identically; localeCompare orders
+    // punctuation by ICU rules that Rust has no equivalent for. See marker-contract.json.
     const roots = [...new Set(files.map((path) => path.split('/')[0]))]
-    if (roots.length === 1 && roots[0] !== '') {
-        const prefix = `${roots[0]}/`
-        return (
-            sorted
-                .filter((path) => path.startsWith(prefix))
-                .map((path) => ({ path, relative: path.slice(prefix.length) }))
-                .sort((left, right) => left.relative.localeCompare(right.relative))[0]?.path ?? null
-        )
-    }
-
-    return sorted[0] ?? null
+    const prefix = roots.length === 1 && roots[0] !== '' ? `${roots[0]}/` : ''
+    return (
+        files
+            .filter((path) => path.startsWith(prefix) && !isRegeneratedByTheOs(path))
+            .map((path) => ({ path, relative: path.slice(prefix.length) }))
+            .sort((left, right) => compareBytes(left.relative, right.relative))[0]?.path ?? null
+    )
 }
 
+// Explorer and Finder write these into a folder on their own, and they sort early enough to win
+// the positional pick. The copy on a user's disk is rewritten locally, so a fingerprint taken
+// from one stops matching the archive it came from.
+function isRegeneratedByTheOs(path: string): boolean {
+    const name = path.split('/').pop()?.toLowerCase()
+    return name === 'thumbs.db' || name === 'desktop.ini' || name === '.ds_store'
+}
+
+function compareBytes(left: string, right: string): number {
+    return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
+}
+
+// Addresses no mod download can legitimately live behind, and that a URL on a mod page can
+// otherwise aim this worker at: loopback, the RFC1918 and unique-local ranges, and link-local
+// including the cloud metadata address.
+// The URL parser rewrites an IPv4-mapped IPv6 literal into hex groups, so ::ffff:127.0.0.1
+// arrives as ::ffff:7f00:1 and only reads as loopback once it is back in dotted form.
+function mappedIpv4(value: string): string | null {
+    if (!value.startsWith('::ffff:')) return null
+    const rest = value.slice('::ffff:'.length)
+    if (rest.includes('.')) return rest
+    const [high, low] = rest.split(':').map((group) => parseInt(group, 16))
+    if (!Number.isInteger(high) || !Number.isInteger(low)) return null
+    return `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`
+}
+
+function isLoopbackAddress(host: string): boolean {
+    const value = host.toLowerCase().replace(/^\[|]$/g, '')
+    const mapped = mappedIpv4(value)
+    if (mapped) return isLoopbackAddress(mapped)
+    return value === 'localhost' || value === '::1' || value.startsWith('127.')
+}
+
+function isBlockedAddress(host: string): boolean {
+    const value = host.toLowerCase().replace(/^\[|]$/g, '')
+    if (value === 'localhost' || value.endsWith('.localhost')) return true
+
+    if (isIP(value) === 6) {
+        const mapped = mappedIpv4(value)
+        if (mapped) return isBlockedAddress(mapped)
+        if (value === '::1' || value === '::') return true
+        const group = parseInt(value.split(':')[0] || '0', 16)
+        // fc00::/7 unique-local and fe80::/10 link-local.
+        return (group & 0xfe00) === 0xfc00 || (group & 0xffc0) === 0xfe80
+    }
+    if (isIP(value) !== 4) return false
+
+    const [a, b] = value.split('.').map(Number)
+    return (
+        a === 127 ||
+        a === 0 ||
+        a === 10 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 169 && b === 254)
+    )
+}
+
+// A link URL comes from a mod page, so it is attacker-chosen, and this worker runs in CI next
+// to the index database and R2 credentials. It reads the response but never stores or echoes
+// it beyond a SHA256 of ZIP-structured bytes, so the realistic risk is an outbound GET at an
+// address the runner can reach and nothing else. Both the URL and every redirect hop are
+// checked, and a name is resolved once before use. What this does not stop is a name that
+// resolves to a public address here and a private one when fetch resolves it again; pinning
+// the resolved address would need a custom dispatcher, which is only worth it if this ever
+// runs on a self-hosted runner inside a private network.
+export async function assertFetchableUrl(url: string): Promise<void> {
+    const { protocol, hostname } = new URL(url)
+    if (protocol !== 'https:' && protocol !== 'http:') {
+        throw new BlockedUrlError(`unsupported scheme ${protocol}`)
+    }
+    if (allowLoopbackFetch && isLoopbackAddress(hostname)) return
+    if (isBlockedAddress(hostname)) throw new BlockedUrlError(`blocked host ${hostname}`)
+    if (isIP(hostname.replace(/^\[|]$/g, '')) !== 0) return
+
+    const resolved = await lookup(hostname).catch(() => null)
+    if (resolved && isBlockedAddress(resolved.address)) {
+        throw new BlockedUrlError(`${hostname} resolves to ${resolved.address}`)
+    }
+}
+
+// Statuses a later run can get a different answer to. Load shedding is the obvious half, and
+// the rest is what sits in front of a host rather than the host itself. 406 and 403 are here on
+// measurement rather than on their meaning: GitLab answers archive requests with 406 once an
+// address has pulled enough of them and serves the same URL to the same client minutes later,
+// and 403 is what most anti-abuse layers say while doing the same thing. A settled status has
+// to be one the file itself produces, which leaves 400, 401, 404, 405, 410, 415, 416 and 451.
+export function isTransientStatus(status: number): boolean {
+    return (
+        status === 403 ||
+        status === 406 ||
+        status === 408 ||
+        status === 425 ||
+        status === 429 ||
+        status >= 500
+    )
+}
+
+// fetch reports every transport failure as one opaque TypeError, so the cause carries the
+// detail, and a timeout arrives as a DOMException instead of either. None of them settle
+// anything, including the two that look permanent: a name that does not resolve today resolves
+// once the domain is renewed or the runner's resolver recovers, and an expired certificate is
+// the kind of thing a host fixes within the day.
+function transportFailure(error: unknown): Error {
+    if (
+        error instanceof DOMException &&
+        (error.name === 'TimeoutError' || error.name === 'AbortError')
+    ) {
+        return new TransientFetchError(error.message)
+    }
+    if (!(error instanceof TypeError))
+        return error instanceof Error ? error : new Error(String(error))
+
+    const code = (error.cause as { code?: string } | undefined)?.code
+    return new TransientFetchError(code ?? error.message)
+}
+
+// A link on a mod page points at whatever the author pasted, and for several large hosts that
+// is the page you download from rather than the file. Those answer 200 with a document, so
+// reading the type is what separates them from an archive without downloading one.
+function isDocument(response: Response): boolean {
+    const type = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
+    return type === 'text/html' || type === 'application/xhtml+xml'
+}
+
+// Redirects are followed here rather than by fetch so every hop passes the check above.
 async function request(url: string, init: RequestInit): Promise<Response> {
-    return fetch(url, {
-        ...init,
-        headers: { 'User-Agent': 'modrex-index-builder', ...init.headers },
-        redirect: 'follow',
-    })
+    let target = url
+    for (let hop = 0; ; hop++) {
+        await assertFetchableUrl(target)
+        const response = await fetch(target, {
+            ...init,
+            headers: { 'User-Agent': 'modrex-index-builder', ...init.headers },
+            redirect: 'manual',
+        }).catch((error: unknown) => {
+            throw transportFailure(error)
+        })
+
+        const location = response.headers.get('location')
+        if (response.status >= 300 && response.status <= 399 && location) {
+            if (hop === maxRedirects) throw new UnusableDownloadError('too many redirects')
+            await response.body?.cancel()
+            target = new URL(location, target).toString()
+            continue
+        }
+
+        if (isTransientStatus(response.status)) {
+            await response.body?.cancel()
+            throw new TransientFetchError(`${target} returned ${response.status}`)
+        }
+        if (response.ok && isDocument(response)) {
+            await response.body?.cancel()
+            throw new UnusableDownloadError(`${target} serves a document, not an archive`)
+        }
+        return response
+    }
 }
 
 async function contentLength(url: string): Promise<number | null> {
-    const response = await request(url, { method: 'HEAD', signal: AbortSignal.timeout(30_000) })
+    const response = await request(url, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(headProbeTimeoutMs),
+    })
     if (!response.ok) return null
     const length = Number(response.headers.get('content-length'))
     return Number.isSafeInteger(length) && length > 0 ? length : null
@@ -86,7 +258,7 @@ async function rangeGet(url: string, start: number, end: number): Promise<Buffer
     })
     if (response.status === 404) throw new MissingArchiveError()
     if (response.status !== 200 && response.status !== 206) {
-        throw new Error(`range request returned ${response.status}`)
+        throw new UnusableDownloadError(`range request returned ${response.status}`)
     }
     return Buffer.from(await response.arrayBuffer())
 }
@@ -119,63 +291,143 @@ function parseCentralDirectory(buffer: Buffer): CentralDirectoryEntry[] {
     return entries
 }
 
-async function markerFromZip(url: string, size: number | null): Promise<ContentEntry | null> {
+function inflateEntry(compressionMethod: number, compressed: Buffer): Buffer | null {
+    if (compressionMethod === 0) return compressed
+    if (compressionMethod !== 8) return null
     try {
-        const archiveSize = size ?? (await contentLength(url))
-        if (!archiveSize || archiveSize < 22) return null
-
-        const tail = await rangeGet(url, Math.max(0, archiveSize - 65_557), archiveSize - 1)
-        const eocd = findEocd(tail)
-        if (!eocd) return null
-
-        const entries = parseCentralDirectory(
-            await rangeGet(url, eocd.offset, eocd.offset + eocd.size - 1)
-        )
-        const name = chooseMarker(entries.map((entry) => entry.name))
-        const entry = name ? entries.find((candidate) => candidate.name === name) : undefined
-        if (!entry || entry.compressedSize === 0) return null
-
-        const header = await rangeGet(url, entry.localOffset, entry.localOffset + 29)
-        if (header.readUInt32LE(0) !== 0x04034b50) return null
-        const dataStart = entry.localOffset + 30 + header.readUInt16LE(26) + header.readUInt16LE(28)
-        const compressed = await rangeGet(url, dataStart, dataStart + entry.compressedSize - 1)
-
-        let content: Buffer
-        if (entry.compressionMethod === 0) content = compressed
-        else if (entry.compressionMethod === 8) {
-            try {
-                content = inflateRawSync(compressed)
-            } catch {
-                return null
-            }
-        } else return null
-
-        return { sha256: createHash('sha256').update(content).digest('hex'), entryName: entry.name }
-    } catch (error) {
-        if (error instanceof MissingArchiveError) return null
-        if (error instanceof Error && error.message === 'range request returned 416') {
-            return null
-        }
-        throw error
+        // Deflate reaches about 1000x on repetitive data, so without a ceiling a crafted
+        // entry turns a few hundred kilobytes of download into tens of gigabytes of heap and
+        // kills the job. The archive cap is the ceiling: every real marker file is far under
+        // it, and anything above it was not going to be indexed whole either.
+        return inflateRawSync(compressed, { maxOutputLength: maxFullArchiveBytes })
+    } catch {
+        return null
     }
+}
+
+// Downloads a whole archive, giving up as soon as it passes the size cap rather than after
+// the fact, since a link points at a host ModWorkshop does not control and its length is not
+// always declared up front.
+async function downloadWithinCap(url: string): Promise<Buffer | null> {
+    const response = await request(url, { signal: AbortSignal.timeout(120_000) })
+    if (response.status === 404) return null
+    if (!response.ok) throw new UnusableDownloadError(`download returned ${response.status}`)
+    if (!response.body) return null
+
+    const declared = Number(response.headers.get('content-length'))
+    if (Number.isSafeInteger(declared) && declared > maxFullArchiveBytes) {
+        await response.body.cancel()
+        return null
+    }
+
+    const chunks: Buffer[] = []
+    let received = 0
+    for await (const chunk of response.body) {
+        received += chunk.length
+        // Leaving the loop early cancels the body through the iterator's own cleanup.
+        if (received > maxFullArchiveBytes) return null
+        chunks.push(Buffer.from(chunk))
+    }
+    return Buffer.concat(chunks)
+}
+
+// Reads an archive whole, for the callers that have to: a format with no random access, and the
+// Unreal games, whose content is every entry rather than one marker. Uncapped, because a PD3 pak
+// set legitimately runs past the marker games' ceiling and comes from ModWorkshop's own CDN.
+export async function downloadArchive(url: string): Promise<Buffer | null> {
+    const response = await request(url, { signal: AbortSignal.timeout(120_000) })
+    if (response.status === 404) return null
+    if (!response.ok) throw new UnusableDownloadError(`download returned ${response.status}`)
+    return Buffer.from(await response.arrayBuffer())
+}
+
+function markerFromBuffer(archive: Buffer): ContentEntry | null {
+    const eocd = findEocd(archive)
+    if (!eocd) return null
+
+    const entries = parseCentralDirectory(archive.subarray(eocd.offset, eocd.offset + eocd.size))
+    const name = chooseMarker(entries.map((entry) => entry.name))
+    const entry = name ? entries.find((candidate) => candidate.name === name) : undefined
+    if (!entry || entry.compressedSize === 0) return null
+
+    const header = archive.subarray(entry.localOffset, entry.localOffset + 30)
+    if (header.length < 30 || header.readUInt32LE(0) !== 0x04034b50) return null
+    const dataStart = entry.localOffset + 30 + header.readUInt16LE(26) + header.readUInt16LE(28)
+    const content = inflateEntry(
+        entry.compressionMethod,
+        archive.subarray(dataStart, dataStart + entry.compressedSize)
+    )
+    if (!content) return null
+
+    return { sha256: createHash('sha256').update(content).digest('hex'), entryName: entry.name }
+}
+
+async function markerFromZip(url: string, size: number | null): Promise<ContentEntry | null> {
+    let archiveSize = size
+    if (archiveSize === null) {
+        try {
+            archiveSize = await contentLength(url)
+        } catch (error) {
+            // Some hosts never answer HEAD at all: mega.nz holds the probe open until it times
+            // out and then serves its download page over GET. The probe only decides whether the
+            // ranged reads have a length to aim at, so an unanswered one is no length, and the
+            // whole read below is what actually answers for this URL.
+            if (!(error instanceof TransientFetchError)) throw error
+            archiveSize = null
+        }
+    }
+
+    // Hosts that build the archive per request, GitHub's source-archive endpoint being the
+    // common one, declare no length and serve no byte ranges, so the ranged reads below
+    // have nothing to aim at. Reading the whole archive is the only way to its marker.
+    if (archiveSize === null) {
+        const archive = await downloadWithinCap(url)
+        return archive ? markerFromBuffer(archive) : null
+    }
+    if (archiveSize < 22) return null
+
+    const tail = await rangeGet(url, Math.max(0, archiveSize - 65_557), archiveSize - 1)
+    const eocd = findEocd(tail)
+    if (!eocd) return null
+
+    const entries = parseCentralDirectory(
+        await rangeGet(url, eocd.offset, eocd.offset + eocd.size - 1)
+    )
+    const name = chooseMarker(entries.map((entry) => entry.name))
+    const entry = name ? entries.find((candidate) => candidate.name === name) : undefined
+    if (!entry || entry.compressedSize === 0) return null
+
+    const header = await rangeGet(url, entry.localOffset, entry.localOffset + 29)
+    if (header.readUInt32LE(0) !== 0x04034b50) return null
+    const dataStart = entry.localOffset + 30 + header.readUInt16LE(26) + header.readUInt16LE(28)
+    const compressed = await rangeGet(url, dataStart, dataStart + entry.compressedSize - 1)
+
+    const content = inflateEntry(entry.compressionMethod, compressed)
+    if (!content) return null
+
+    return { sha256: createHash('sha256').update(content).digest('hex'), entryName: entry.name }
 }
 
 async function markerFromFullArchive(
     url: string,
     extension: '.7z' | '.rar'
 ): Promise<ContentEntry | null> {
-    const response = await request(url, { signal: AbortSignal.timeout(120_000) })
-    if (response.status === 404) return null
-    if (!response.ok) throw new Error(`download returned ${response.status}`)
+    const downloaded = await downloadArchive(url)
+    if (!downloaded) return null
 
     const temporaryDirectory = mkdtempSync(join(tmpdir(), 'modrex-marker-'))
     try {
         const archive = join(temporaryDirectory, `archive${extension}`)
         const output = join(temporaryDirectory, 'out')
-        writeFileSync(archive, Buffer.from(await response.arrayBuffer()))
+        writeFileSync(archive, downloaded)
         try {
             execFileSync('7z', ['x', archive, `-o${output}`, '-y'], { stdio: 'ignore' })
         } catch {
+            // An archive this runner cannot open yields nothing, which is indistinguishable
+            // from an archive holding nothing, and the listing is then recorded as checked.
+            // Naming it keeps a missing codec visible in the run log: p7zip-full reads RAR5
+            // and needs p7zip-rar for RAR4.
+            console.warn(`7z could not open ${extension} archive: ${url}`)
             return null
         }
         if (!existsSync(output)) return null
@@ -195,13 +447,22 @@ export async function extractMarkerEntry(
     url: string,
     knownSize: number | null
 ): Promise<ContentEntry | null> {
-    const extension = new URL(url).pathname.toLowerCase()
-    if (extension.endsWith('.7z') || extension.endsWith('.rar')) {
-        const size = knownSize ?? (await contentLength(url))
-        if (size === null || size > maxFullArchiveBytes) return null
-        return markerFromFullArchive(url, extension.endsWith('.rar') ? '.rar' : '.7z')
+    try {
+        const extension = new URL(url).pathname.toLowerCase()
+        if (extension.endsWith('.7z') || extension.endsWith('.rar')) {
+            const size = knownSize ?? (await contentLength(url))
+            if (size === null || size > maxFullArchiveBytes) return null
+            return await markerFromFullArchive(url, extension.endsWith('.rar') ? '.rar' : '.7z')
+        }
+        return await markerFromZip(url, knownSize)
+    } catch (error) {
+        // Every one of these is the download answering: a blocked address, a missing file, a
+        // host refusing to serve it, a page where an archive should be. None of them can be
+        // turned into an entry by asking again, so they read the same as an archive holding
+        // nothing. A transient failure is not one of them and stays thrown.
+        if (error instanceof UnusableDownloadError) return null
+        throw error
     }
-    return markerFromZip(url, knownSize)
 }
 
 function mix64(a: bigint, b: bigint, c: bigint): [bigint, bigint, bigint] {
@@ -293,15 +554,14 @@ interface PdmodItem {
 }
 
 export async function extractPdmodEntry(url: string): Promise<ContentEntry | null> {
-    const response = await request(url, { signal: AbortSignal.timeout(120_000) })
-    if (response.status === 404) return null
-    if (!response.ok) throw new Error(`download returned ${response.status}`)
+    const downloaded = await downloadArchive(url)
+    if (!downloaded) return null
     const temporaryDirectory = mkdtempSync(join(tmpdir(), 'modrex-pdmod-'))
     try {
         const archive = join(temporaryDirectory, 'archive.pdmod')
         const output = join(temporaryDirectory, 'out')
         mkdirSync(output)
-        writeFileSync(archive, Buffer.from(await response.arrayBuffer()))
+        writeFileSync(archive, downloaded)
         try {
             execFileSync('7z', ['x', archive, `-p${pdmodPassword}`, `-o${output}`, '-y'], {
                 stdio: 'ignore',

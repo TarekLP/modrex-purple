@@ -10,11 +10,16 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Changed
 
+- Modrex now recognizes a mod from what its own files say, not only from whether ModWorkshop lists it. Mods published on an author's own site, a GitHub repository, or a service that has since shut down are recognized, listed under the name and version they declare rather than their folder name, and no longer appear under Health Check's "Unidentified".
 - Mods and news articles without a picture now show a placeholder icon instead of the words "No image".
 - Mod pages now keep the banner area for mods that have no image, instead of collapsing it.
 
 ### Fixed
 
+- Fixed PAYDAY 2, PAYDAY: The Heist and RAID mods whose ModWorkshop download is hosted elsewhere, such as GitHub or an author's own site, never being recognized.
+- Fixed some asset-replacement mods, the ones installed into `assets/mod_overrides`, never being recognized.
+- Fixed a mod being matched to an unrelated ModWorkshop page whose title merely ended with the mod's folder name, such as "Bag Contour" matching "Blue Bodybag Contour".
+- Fixed a mod that was recognized only after a later index update never being offered updates again.
 - Fixed Settings opened from the game picker still showing the "Restore mods" notice and installing dragged-in mod files into the last opened game.
 - Fixed Modrex using the wrong copy of a game installed on more than one store, which made installed mods look like they had vanished.
 - Fixed an expired Nexus Mods sign-in failing silently.
