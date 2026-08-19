@@ -111,9 +111,9 @@ Coverage is the share of English source keys currently present in each locale. I
 | Language | Coverage | Contributors |
 | --- | ---: | --- |
 | English (en) | 100% | - |
-| Deutsch (de) | 100% | [TarekLP](https://github.com/TarekLP) |
-| Русский (ru) | 100% | [ShulhaOleh](https://github.com/ShulhaOleh) |
-| Українська (uk) | 100% | [ShevRuslan1](https://github.com/ShevRuslan1), [ShulhaOleh](https://github.com/ShulhaOleh) |
+| Deutsch (de) | 99.5% | [TarekLP](https://github.com/TarekLP) |
+| Русский (ru) | 99.5% | [ShulhaOleh](https://github.com/ShulhaOleh) |
+| Українська (uk) | 99.5% | [ShevRuslan1](https://github.com/ShevRuslan1), [ShulhaOleh](https://github.com/ShulhaOleh) |
 
 <!-- TRANSLATION_STATUS_END -->
 
