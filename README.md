@@ -103,22 +103,24 @@ Choose the guide that matches what you want to contribute:
 
 ## Translations
 
-Coverage is the share of English source keys currently present in each locale. It does not measure linguistic quality. Contributors are derived from locale history and are not ranked.
+Translation is the share of English source keys for which target-language text currently exists in each locale. It does not measure linguistic quality. Contributors are derived from locale history and are not ranked.
 
 <!-- TRANSLATION_STATUS_START -->
 
 <!-- prettier-ignore -->
-| Language | Coverage | Contributors |
-| --- | ---: | --- |
-| English (en) | 100% | - |
-| Deutsch (de) | 99.5% | [TarekLP](https://github.com/TarekLP) |
-| Русский (ru) | 99.5% | [ShulhaOleh](https://github.com/ShulhaOleh) |
-| Українська (uk) | 99.5% | [ShevRuslan1](https://github.com/ShevRuslan1), [ShulhaOleh](https://github.com/ShulhaOleh) |
+| Language | Translation | Contributors |
+| --- | --- | --- |
+| [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 424 valid strings."> Complete | - |
+| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 420 accepted, 2 review, 2 missing; 99.5%."> 99.5% | [TarekLP](https://github.com/TarekLP) |
+| [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 420 accepted, 2 review, 2 missing; 99.5%."> 99.5% | [ShulhaOleh](https://github.com/ShulhaOleh) |
+| [Українська (uk)](apps/desktop/src/renderer/src/i18n/uk.json) | <img src="assets/i18n/status/uk.svg" alt="Українська (uk): 422 accepted, 0 review, 2 missing; 99.5%."> 99.5% | [ShevRuslan1](https://github.com/ShevRuslan1), [ShulhaOleh](https://github.com/ShulhaOleh) |
 
-<!-- TRANSLATION_STATUS_END -->
+<div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>
 
 To improve an existing language or add a new one, follow the
 [translation guide](TRANSLATING.md).
+
+<!-- TRANSLATION_STATUS_END -->
 
 ## License
 
