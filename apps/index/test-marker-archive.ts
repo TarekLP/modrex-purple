@@ -42,6 +42,14 @@ if (guardedPass) {
         )
         assert.equal(await extractMarkerEntry(blocked, null), null, `${blocked} indexes nothing`)
     }
+
+    // The test flag narrows the loopback exemption; it must not widen the scheme policy.
+    await assert.rejects(
+        assertFetchableUrl('http://172.32.0.1/mod.zip'),
+        /insecure scheme/,
+        'plain http: to a reachable, non-blocked address must be refused without the test flag'
+    )
+
     console.log('marker archive loopback guard test passed')
     process.exit(0)
 }
@@ -137,6 +145,12 @@ const server = createServer((request, response) => {
 
     if (path === '/redirect-loop.zip') {
         response.writeHead(302, { location: '/redirect-loop.zip' }).end()
+        return
+    }
+
+    // Redirects to a reachable, non-blocked address, but over http: instead of https:.
+    if (path === '/redirect-to-http.zip') {
+        response.writeHead(302, { location: 'http://172.32.0.1/mod.zip' }).end()
         return
     }
 
@@ -267,9 +281,21 @@ try {
     }
 
     // Addresses outside those ranges stay reachable, or the check would break real hosts.
-    for (const allowed of ['https://github.com/x/y/archive/main.zip', 'http://172.32.0.1/m.zip']) {
+    for (const allowed of ['https://github.com/x/y/archive/main.zip', 'https://172.32.0.1/m.zip']) {
         await assert.doesNotReject(assertFetchableUrl(allowed), `${allowed} must stay reachable`)
     }
+
+    await assert.rejects(
+        assertFetchableUrl('http://172.32.0.1/m.zip'),
+        /insecure scheme/,
+        'a reachable, non-blocked address must still be refused over http:'
+    )
+
+    assert.equal(
+        await extractMarkerEntry(url('/redirect-to-http.zip'), null),
+        null,
+        'a redirect to a plain http: target is stopped at the hop instead of being followed'
+    )
 
     assert.equal(
         await extractMarkerEntry(url('/redirect-to-metadata.zip'), null),

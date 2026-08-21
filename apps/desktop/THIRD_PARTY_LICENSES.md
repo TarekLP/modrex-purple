@@ -9109,7 +9109,7 @@ SOFTWARE.
 
 ## MIT License
 
-Used by: h2 0.4.14
+Used by: h2 0.4.18
 
 ```
 Copyright (c) 2017 h2 authors

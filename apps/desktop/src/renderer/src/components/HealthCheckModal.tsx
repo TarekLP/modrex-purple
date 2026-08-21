@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { Image as ImageIcon } from 'lucide-react'
 import { Button } from './ui/Button'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Dialog, DialogHeader } from './Dialog'
@@ -38,6 +39,7 @@ interface Props {
 
 function HealthRow({
     thumbnailFile,
+    source,
     name,
     secondary,
     clickable,
@@ -45,6 +47,7 @@ function HealthRow({
     action,
 }: {
     thumbnailFile?: string | null
+    source?: InstalledMod['source']
     name: string
     secondary?: string
     clickable?: boolean
@@ -54,8 +57,14 @@ function HealthRow({
     const thumbSrc = useThumbnail(thumbnailFile)
     return (
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors">
-            <div className="w-9 h-9 rounded shrink-0 bg-surface-active overflow-hidden">
-                {thumbSrc && <img src={thumbSrc} alt="" className="w-full h-full object-cover" />}
+            <div className="w-9 h-9 rounded shrink-0 bg-surface-active overflow-hidden flex items-center justify-center">
+                {thumbSrc ? (
+                    <img src={thumbSrc} alt="" className="w-full h-full object-cover" />
+                ) : source === 'nexus' ? (
+                    <NexusIcon className="w-4 h-4 text-text-subtle" />
+                ) : (
+                    <ImageIcon className="w-4 h-4 text-text-subtle" aria-hidden="true" />
+                )}
             </div>
             <button
                 disabled={!clickable}
@@ -92,8 +101,10 @@ function UpdateRow({
             <div className="w-9 h-9 rounded shrink-0 bg-surface-active overflow-hidden flex items-center justify-center">
                 {thumbSrc ? (
                     <img src={thumbSrc} alt="" className="w-full h-full object-cover" />
+                ) : ins.source === 'nexus' ? (
+                    <NexusIcon className="w-4 h-4 text-text-subtle" />
                 ) : (
-                    ins.source === 'nexus' && <NexusIcon className="w-4 h-4 text-text-subtle" />
+                    <ImageIcon className="w-4 h-4 text-text-subtle" aria-hidden="true" />
                 )}
             </div>
             <div className="min-w-0 flex-1">
@@ -324,6 +335,7 @@ export function HealthCheckModal({
                                     <HealthRow
                                         key={item.uid}
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
+                                        source={item.mods[0]?.source}
                                         name={item.name}
                                         secondary={t('installed.health.missingFileHint')}
                                         clickable={hasCatalogLink(item.mods[0])}
@@ -365,6 +377,7 @@ export function HealthCheckModal({
                                     <HealthRow
                                         key={item.uid}
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
+                                        source={item.mods[0]?.source}
                                         name={item.name}
                                         secondary={t('installed.health.brokenArchiveHint')}
                                         clickable={hasCatalogLink(item.mods[0])}
@@ -406,6 +419,7 @@ export function HealthCheckModal({
                                     <HealthRow
                                         key={item.uid}
                                         thumbnailFile={modData.get(item.id)?.thumbnail?.file}
+                                        source={item.mods[0]?.source}
                                         name={item.name}
                                         secondary={t('installed.health.outdatedHint')}
                                         clickable
@@ -436,6 +450,7 @@ export function HealthCheckModal({
                             unidentifiedItems.map((item) => (
                                 <HealthRow
                                     key={item.uid}
+                                    source={item.mods[0]?.source}
                                     name={item.name}
                                     secondary={t('installed.health.unidentifiedRowHint')}
                                 />

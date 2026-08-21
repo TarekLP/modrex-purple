@@ -7,6 +7,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 ### Added
 
 - Added German as a language option for the app's interface.
+- Added Ukrainian as a language option for the app's interface.
+- Added X and Bluesky links to the website and to app's Settings > About.
 
 ### Changed
 
@@ -18,6 +20,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 - Fixed PAYDAY 2, PAYDAY: The Heist and RAID mods whose ModWorkshop download is hosted elsewhere, such as GitHub or an author's own site, never being recognized.
 - Fixed some asset-replacement mods, the ones installed into `assets/mod_overrides`, never being recognized.
+- Fixed some PAYDAY 2 mods hosted as RAR archives on ModWorkshop failing to be recognized.
 - Fixed a mod being matched to an unrelated ModWorkshop page whose title merely ended with the mod's folder name, such as "Bag Contour" matching "Blue Bodybag Contour".
 - Fixed a mod that was recognized only after a later index update never being offered updates again.
 - Fixed Settings opened from the game picker still showing the "Restore mods" notice and installing dragged-in mod files into the last opened game.
@@ -25,6 +28,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed an expired Nexus Mods sign-in failing silently.
 - Fixed installed Nexus mods not recovering their details and update checks after signing in again, until the app was restarted.
 - Fixed Nexus Mods requests failing until the app was restarted when Nexus rejected a sign-in before it was due to expire.
+- Fixed oversized mod thumbnails in the Installed list view.
 
 ## 0.13.0
 

@@ -41,10 +41,9 @@ const maxRedirects = 5
 // answers it answers in well under a second. mega.nz never answers it at all, so the probe has
 // to give up long before the download it is only an optimization for.
 const headProbeTimeoutMs = 10_000
-// Read once at load so only the environment can set it, and it lifts the address check for
-// loopback alone: test-marker-archive.ts serves its fixtures from 127.0.0.1, while every other
-// blocked range stays refused in the same process the tests assert against. Nothing in CI or
-// the workflow sets this.
+// Read once at load so only the environment can set it, and it lifts both the address and
+// https-only checks for loopback alone, since test-marker-archive.ts serves its fixtures
+// over plain HTTP from 127.0.0.1. Nothing in CI or the workflow sets this.
 const allowLoopbackFetch = process.env.MODREX_INDEX_ALLOW_LOOPBACK_FETCH === '1'
 const pdmodPassword = `0$45'5))66S2ixF51a<6}L2UK`
 const pdmodHashlistPath = join(import.meta.dirname, '..', 'pdmod_hashlist.txt')
@@ -156,6 +155,9 @@ export async function assertFetchableUrl(url: string): Promise<void> {
     }
     if (allowLoopbackFetch && isLoopbackAddress(hostname)) return
     if (isBlockedAddress(hostname)) throw new BlockedUrlError(`blocked host ${hostname}`)
+    // Checked on every hop, not just the original URL, so a redirect cannot downgrade a
+    // request that started on https: to http: partway through.
+    if (protocol === 'http:') throw new BlockedUrlError('insecure scheme http:')
     if (isIP(hostname.replace(/^\[|]$/g, '')) !== 0) return
 
     const resolved = await lookup(hostname).catch(() => null)

@@ -5,13 +5,96 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { formatMissingReport, inspectLocales, runCheckI18n, runI18nCli } from './check-i18n.mjs'
 import {
-    buildTranslationTable,
+    parseSourceValue,
+    parseTargetValue,
+    placeholderContract,
+    TARGET_VALUE_KIND,
+} from '../src/shared/i18n-values.js'
+import {
     expectedReadme,
+    renderTranslationStatusReadme,
     readTranslationContributors,
     replaceTranslationTable,
     runReadmeCommand,
 } from './update-i18n-readme.mjs'
 import { collectTranslationContributors, localeJsonChanged } from './update-i18n-contributors.mjs'
+
+test('target values parse into accepted, scaffold, and pending states', () => {
+    assert.deepEqual(parseTargetValue('Hallo'), {
+        kind: TARGET_VALUE_KIND.ACCEPTED,
+        targetText: 'Hallo',
+        placeholderContract: [],
+    })
+    assert.deepEqual(parseTargetValue('! Hello'), {
+        kind: TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD,
+        sourceText: 'Hello',
+    })
+    assert.deepEqual(parseTargetValue('? Hallo'), {
+        kind: TARGET_VALUE_KIND.PENDING,
+        targetText: 'Hallo',
+        placeholderContract: [],
+    })
+})
+
+test('target markers require the exact prefix and ASCII space', () => {
+    for (const value of [
+        '!Hello',
+        '?Hallo',
+        '?! text',
+        '!? text',
+        ' ? text',
+        '!\tHello',
+        '?\tHallo',
+        '!\u00a0Hello',
+        '?\u00a0Hallo',
+    ]) {
+        assert.equal(parseTargetValue(value).kind, TARGET_VALUE_KIND.ACCEPTED)
+    }
+})
+
+test('target parsing preserves marker payload whitespace exactly', () => {
+    assert.equal(parseTargetValue(' Hallo ').targetText, ' Hallo ')
+    assert.equal(parseTargetValue('?  Hallo \n').targetText, ' Hallo \n')
+    assert.equal(parseTargetValue('!  Hello ').sourceText, ' Hello ')
+})
+
+test('target parsing rejects empty and nested pending payloads', () => {
+    assert.throws(() => parseTargetValue('! '), /scaffold payload must not be empty/)
+    assert.throws(() => parseTargetValue('? '), /target payload must not be empty/)
+    assert.throws(() => parseTargetValue('? ! text'), /must not begin with a workflow marker/)
+    assert.throws(() => parseTargetValue('? ? text'), /must not begin with a workflow marker/)
+})
+
+test('scaffolds retain raw English that begins with a reserved prefix', () => {
+    assert.deepEqual(parseTargetValue('! ? English question'), {
+        kind: TARGET_VALUE_KIND.UNTRANSLATED_SCAFFOLD,
+        sourceText: '? English question',
+    })
+})
+
+test('absent target values have their own state', () => {
+    assert.deepEqual(parseTargetValue(undefined), { kind: TARGET_VALUE_KIND.ABSENT })
+    assert.equal(parseTargetValue('').kind, TARGET_VALUE_KIND.ACCEPTED)
+})
+
+test('source parsing does not apply target workflow markers', () => {
+    assert.deepEqual(parseSourceValue('? English question'), {
+        kind: 'source',
+        sourceText: '? English question',
+        placeholderContract: [],
+    })
+})
+
+test('locale parsing preserves Unicode without normalization', () => {
+    const decomposed = 'Cafe\u0301'
+    assert.notEqual(decomposed, decomposed.normalize('NFC'))
+    assert.equal(parseSourceValue(decomposed).sourceText, decomposed)
+    assert.equal(parseTargetValue(`? ${decomposed}`).targetText, decomposed)
+})
+
+test('placeholder contracts retain duplicate names', () => {
+    assert.deepEqual(placeholderContract('{name} / {count} / {name}'), ['count', 'name', 'name'])
+})
 
 function withLocales(files, callback) {
     const directory = mkdtempSync(join(tmpdir(), 'modrex-i18n-'))
@@ -75,7 +158,220 @@ test('inspectLocales accepts partial translations and reports coverage', () => {
     )
 })
 
-test('marked English values remain missing without placeholder or plural errors', () => {
+test('pending values are translated but not accepted', () => {
+    withLocales(
+        {
+            'en.json': {
+                common: {
+                    compatible: 'Hello {name}',
+                    incompatible: 'Delete {count} files',
+                    missing: 'Missing',
+                },
+            },
+            'de.json': {
+                common: {
+                    compatible: '? Hallo {name}',
+                    incompatible: '? {name} löschen',
+                    missing: '! Missing',
+                },
+            },
+        },
+        (directory) => {
+            const locale = inspectLocales(directory).locales[0]
+            assert.deepEqual(locale.errors, [])
+            assert.equal(locale.acceptedCount, 0)
+            assert.equal(locale.pendingCount, 2)
+            assert.equal(locale.pendingPlaceholderIncompatibleCount, 1)
+            assert.equal(locale.translatedCount, 2)
+            assert.equal(locale.missingCount, 1)
+            assert.equal(
+                locale.acceptedCount + locale.pendingCount + locale.missingCount,
+                locale.totalCount
+            )
+            assert.deepEqual(locale.pendingPlaceholderIncompatibleKeys, ['common.incompatible'])
+            assert.equal(locale.reviewNotices[0].type, 'pending-placeholder')
+        }
+    )
+})
+
+test('100% translated status still exposes pending review and fallback', () => {
+    withLocales(
+        {
+            'en.json': { common: { one: 'One', two: 'Two {count}' } },
+            'de.json': { common: { one: '? Eins', two: '? Zwei {name}' } },
+        },
+        (directory) => {
+            const stdout = captureStream()
+            const status = runCheckI18n(['--status'], {
+                i18nDir: directory,
+                stdout: stdout.stream,
+            })
+
+            assert.equal(status, 0)
+            assert.match(stdout.value(), /Deutsch \(de\): 100%; 2 review, fallback=1/)
+            assert.doesNotMatch(stdout.value(), /uses English fallback/)
+        }
+    )
+})
+
+test('pending placeholder mismatch is nonblocking but accepted mismatch fails', () => {
+    withLocales(
+        {
+            'en.json': { action: 'Delete {count} files' },
+            'de.json': { action: '? {name} löschen' },
+        },
+        (directory) => {
+            const stdout = captureStream()
+            const pendingStatus = runCheckI18n(['--locale', 'de'], {
+                i18nDir: directory,
+                stdout: stdout.stream,
+            })
+            assert.equal(pendingStatus, 0)
+            assert.match(stdout.value(), /runtime uses English/)
+
+            writeFileSync(
+                join(directory, 'de.json'),
+                `${JSON.stringify({ action: '{name} löschen' }, null, 4)}\n`
+            )
+            const stderr = captureStream()
+            const acceptedStatus = runCheckI18n(['--locale', 'de'], {
+                i18nDir: directory,
+                stderr: stderr.stream,
+            })
+            assert.equal(acceptedStatus, 1)
+            assert.match(stderr.value(), /placeholder mismatch/)
+        }
+    )
+})
+
+test('partial singular and plural states are independently valid', () => {
+    for (const locale of [
+        { count: '{count} Mods', countSingle: '! {count} mod' },
+        { count: '! {count} mods', countSingle: '{count} Mod' },
+        { count: '? {count} Mods', countSingle: '{count} Mod' },
+        { count: '{count} Mods' },
+    ]) {
+        withLocales(
+            {
+                'en.json': { count: '{count} mods', countSingle: '{count} mod' },
+                'de.json': locale,
+            },
+            (directory) => assert.deepEqual(inspectLocales(directory).errors, [])
+        )
+    }
+})
+
+test('stale scaffolds and malformed pending markers are blocking', () => {
+    withLocales(
+        {
+            'en.json': { stale: 'Current', malformed: 'Current target' },
+            'de.json': { stale: '! Previous', malformed: '? ! nested' },
+        },
+        (directory) => {
+            const errors = inspectLocales(directory).errors.join('\n')
+            assert.match(errors, /stale untranslated scaffold/)
+            assert.match(errors, /invalid workflow marker syntax/)
+        }
+    )
+})
+
+test('current-file validation rejects whitespace-only marker payloads', () => {
+    withLocales(
+        {
+            'en.json': { pending: 'Pending source', scaffold: 'Scaffold source' },
+            'de.json': { pending: '?   ', scaffold: '!   ' },
+        },
+        (directory) => {
+            const inspection = inspectLocales(directory)
+            assert.equal(
+                inspection.locales[0].issues.filter(({ type }) => type === 'empty-marker').length,
+                2
+            )
+            assert.match(inspection.errors.join('\n'), /empty workflow marker payload/)
+        }
+    )
+})
+
+test('a scaffold may contain raw English beginning with a reserved prefix', () => {
+    withLocales(
+        {
+            'en.json': { question: '? English question', exclamation: '! English exclamation' },
+            'de.json': {
+                question: '! ? English question',
+                exclamation: '! ! English exclamation',
+            },
+        },
+        (directory) => assert.deepEqual(inspectLocales(directory).errors, [])
+    )
+})
+
+test('Unicode diagnostics distinguish errors, warnings, and English-only style', () => {
+    withLocales(
+        {
+            'en.json': {
+                warning: 'Cafe\u0301 …',
+                hard: 'Unsafe\u0000source',
+            },
+            'de.json': {
+                warning: 'Café\u200b',
+                hard: 'Sicher',
+            },
+        },
+        (directory) => {
+            const inspection = inspectLocales(directory)
+            assert.match(inspection.errors.join('\n'), /'en' key 'hard' contains U\+0000/)
+            assert.ok(
+                inspection.sourceWarnings.some(
+                    ({ description }) => description === 'text is not NFC-normalized'
+                )
+            )
+            assert.ok(
+                inspection.sourceWarnings.some(({ description }) =>
+                    description.includes("prefer '...'")
+                )
+            )
+            assert.ok(
+                inspection.locales[0].warnings.some(({ codePoint }) => codePoint === 'U+200B')
+            )
+        }
+    )
+})
+
+test('Unicode and English style warnings keep check successful', () => {
+    withLocales(
+        {
+            'en.json': { source: 'Open…' },
+            'de.json': { source: 'Öffnen\u200b' },
+        },
+        (directory) => {
+            const stdout = captureStream()
+            const status = runCheckI18n([], { i18nDir: directory, stdout: stdout.stream })
+            assert.equal(status, 0)
+            assert.match(stdout.value(), /en: 1 warning/)
+            assert.match(stdout.value(), /de:.*1 warning/s)
+        }
+    )
+})
+
+test('target Unicode hard errors fail current-file validation', () => {
+    withLocales(
+        {
+            'en.json': { unsafe: 'Safe source' },
+            'de.json': { unsafe: 'Unsicher\ufffd' },
+        },
+        (directory) => {
+            const stderr = captureStream()
+            const status = runCheckI18n(['--locale', 'de'], {
+                i18nDir: directory,
+                stderr: stderr.stream,
+            })
+            assert.equal(status, 1)
+            assert.match(stderr.value(), /U\+FFFD \(replacement character\)/)
+        }
+    )
+})
+
+test('current scaffolds remain missing without placeholder or plural errors', () => {
     withLocales(
         {
             'en.json': {
@@ -83,7 +379,7 @@ test('marked English values remain missing without placeholder or plural errors'
                 mods: { count: '{count} mods', countSingle: '{count} mod' },
             },
             'de.json': {
-                launch: { game: '! Old English text' },
+                launch: { game: '! Launch {game}' },
                 mods: { count: '! {count} mods', countSingle: '! {count} mod' },
             },
         },
@@ -100,7 +396,7 @@ test('marked English values remain missing without placeholder or plural errors'
     )
 })
 
-test('inspectLocales rejects invalid values, changed placeholders, and incomplete pairs', () => {
+test('inspectLocales rejects invalid values, unknown keys, and changed placeholders', () => {
     withLocales(
         {
             'en.json': {
@@ -130,7 +426,7 @@ test('inspectLocales rejects invalid values, changed placeholders, and incomplet
                 errors,
                 /key 'common\.by' has interpolation vars \[user\], expected \[name\]/
             )
-            assert.match(errors, /'common\.count' and 'common\.countSingle' together/)
+            assert.doesNotMatch(errors, /translate.*together/i)
         }
     )
 })
@@ -168,6 +464,32 @@ test('missing report lists nested keys, English text, placeholders, and coverage
     )
 })
 
+test('missing includes scaffolds and absence but excludes pending and accepted', () => {
+    withLocales(
+        {
+            'en.json': {
+                accepted: 'Accepted source',
+                pending: 'Pending source',
+                scaffold: 'Current scaffold source',
+                absent: 'Current absent source',
+            },
+            'de.json': {
+                accepted: 'Akzeptiert',
+                pending: '? Ausstehend',
+                scaffold: '! Current scaffold source',
+            },
+        },
+        (directory) => {
+            const inspection = inspectLocales(directory)
+            assert.deepEqual(inspection.locales[0].missingKeys, ['scaffold', 'absent'])
+            const report = formatMissingReport(inspection, 'de')
+            assert.match(report, /scaffold\n  English: "Current scaffold source"/)
+            assert.match(report, /absent\n  English: "Current absent source"/)
+            assert.doesNotMatch(report, /accepted\n|pending\n/)
+        }
+    )
+})
+
 test('translator commands reject an unknown locale clearly', () => {
     withLocales(
         {
@@ -183,7 +505,7 @@ test('translator commands reject an unknown locale clearly', () => {
                     stdout: stdout.stream,
                     stderr: stderr.stream,
                 })
-                assert.equal(status, 1)
+                assert.equal(status, 2)
                 assert.equal(stdout.value(), '')
                 assert.match(
                     stderr.value(),
@@ -208,14 +530,14 @@ test('status command lists every locale with human-readable coverage', () => {
                 stdout: stdout.stream,
             })
             assert.equal(status, 0)
-            assert.match(stdout.value(), /English \(en\)\s+100%/)
-            assert.match(stdout.value(), /Deutsch \(de\)\s+50%/)
-            assert.match(stdout.value(), /Русский \(ru\)\s+100%/)
+            assert.match(stdout.value(), /English \(en\): Complete; source=2/)
+            assert.match(stdout.value(), /Deutsch \(de\): 50%; 1 accepted, 1 missing/)
+            assert.match(stdout.value(), /Русский \(ru\): Complete; 2 accepted/)
         }
     )
 })
 
-test('locale command reports actionable placeholder and plural-pair errors', () => {
+test('locale command reports placeholder errors without rejecting partial pairs', () => {
     withLocales(
         {
             'en.json': {
@@ -234,13 +556,12 @@ test('locale command reports actionable placeholder and plural-pair errors', () 
                 stderr: stderr.stream,
             })
             assert.equal(status, 1)
-            assert.match(stderr.value(), /^de\.json\n2 validation problems/)
+            assert.match(stderr.value(), /^de\.json\n1 validation problem/)
             assert.match(stderr.value(), /launch\.game:\n  placeholder mismatch/)
             assert.match(stderr.value(), /English: "Launch \{game\}"/)
             assert.match(stderr.value(), /Deutsch: "Spiel starten"/)
             assert.match(stderr.value(), /Missing placeholder: \{game\}/)
-            assert.match(stderr.value(), /mods\.count \/ mods\.countSingle:/)
-            assert.match(stderr.value(), /Translate both keys together\./)
+            assert.doesNotMatch(stderr.value(), /singular\/plural pair/)
         }
     )
 })
@@ -261,6 +582,26 @@ test('locale command accepts a valid partial translation', () => {
             assert.match(stdout.value(), /^de\.json\nValid/)
             assert.match(stdout.value(), /Coverage: 1\/2 translated \(50%\)/)
             assert.match(stdout.value(), /Missing: 1 key/)
+        }
+    )
+})
+
+test('locale command validates the English source directly', () => {
+    withLocales(
+        {
+            'en.json': { source: 'Open…' },
+            'de.json': { source: 'Öffnen' },
+        },
+        (directory) => {
+            const stdout = captureStream()
+            const status = runCheckI18n(['--locale', 'en'], {
+                i18nDir: directory,
+                stdout: stdout.stream,
+            })
+            assert.equal(status, 0)
+            assert.match(stdout.value(), /^en\.json\nValid/)
+            assert.match(stdout.value(), /horizontal ellipsis/)
+            assert.match(stdout.value(), /Source strings: 1/)
         }
     )
 })
@@ -289,10 +630,19 @@ test('help presents the translator-facing pnpm commands', async () => {
 
     assert.equal(status, 0)
     assert.match(stdout.value(), /pnpm i18n:help/)
-    assert.match(stdout.value(), /pnpm i18n:check <locale>/)
+    assert.match(stdout.value(), /pnpm i18n:check \[locale\]/)
     assert.match(stdout.value(), /pnpm i18n:fill <locale>/)
     assert.match(stdout.value(), /pnpm i18n:translate <locale>/)
+    assert.match(stdout.value(), /pnpm i18n:review <locale>/)
+    assert.match(stdout.value(), /pnpm i18n:sync/)
     assert.doesNotMatch(stdout.value(), /node apps\/desktop\/scripts/)
+})
+
+test('invalid CLI usage exits 2', async () => {
+    const stderr = captureStream()
+    const status = await runI18nCli(['--missing'], { stderr: stderr.stream })
+    assert.equal(status, 2)
+    assert.match(stderr.value(), /Modrex translation CLI/)
 })
 
 test('fill updates the locale file in place for IDE translation', async () => {
@@ -325,8 +675,97 @@ test('fill updates the locale file in place for IDE translation', async () => {
             const locale = inspectLocales(directory).locales[0]
             assert.equal(locale.translatedCount, 1)
             assert.deepEqual(locale.missingKeys, ['first.missing', 'second.stale'])
-            assert.match(stdout.value(), /2 marked English fallbacks/)
+            assert.match(stdout.value(), /Scaffolds added: 1/)
+            assert.match(stdout.value(), /Scaffolds refreshed: 1/)
             assert.match(stdout.value(), /Coverage remains 33\.3%/)
+        }
+    )
+})
+
+test('fill preserves accepted and pending text while repairing structure', async () => {
+    await withLocalesAsync(
+        {
+            'en.json': {
+                first: 'First',
+                second: 'Second {count}',
+                third: 'Third',
+            },
+            'de.json': {
+                obsolete: '! Removed source',
+                second: '? Zweite {name}  ',
+                first: 'Erste',
+            },
+        },
+        async (directory) => {
+            const stdout = captureStream()
+            const status = await runI18nCli(['--fill', 'de'], {
+                i18nDir: directory,
+                stdout: stdout.stream,
+            })
+
+            assert.equal(status, 0)
+            assert.equal(
+                readFileSync(join(directory, 'de.json'), 'utf8'),
+                `${JSON.stringify(
+                    {
+                        first: 'Erste',
+                        second: '? Zweite {name}  ',
+                        third: '! Third',
+                    },
+                    null,
+                    4
+                )}\n`
+            )
+            assert.match(stdout.value(), /Scaffolds added: 1/)
+            assert.match(stdout.value(), /Obsolete scaffolds removed: 1/)
+            assert.match(stdout.value(), /Target-language text preserved\./)
+        }
+    )
+})
+
+test('fill refuses obsolete accepted or pending target content before writing', async () => {
+    for (const obsolete of ['Alte Übersetzung', '? Alte Übersetzung']) {
+        await withLocalesAsync(
+            {
+                'en.json': { current: 'Current', missing: 'Missing' },
+                'de.json': { current: 'Aktuell', obsolete },
+            },
+            async (directory) => {
+                const path = join(directory, 'de.json')
+                const before = readFileSync(path, 'utf8')
+                const stderr = captureStream()
+                const status = await runI18nCli(['--fill', 'de'], {
+                    i18nDir: directory,
+                    stderr: stderr.stream,
+                })
+
+                assert.equal(status, 1)
+                assert.equal(readFileSync(path, 'utf8'), before)
+                assert.match(stderr.value(), /obsolete key contains target-language content/)
+                assert.doesNotMatch(readFileSync(path, 'utf8'), /! Missing/)
+            }
+        )
+    }
+})
+
+test('fill reports an already canonical locale without rewriting state', async () => {
+    await withLocalesAsync(
+        {
+            'en.json': { translated: 'Translated', missing: 'Missing' },
+            'de.json': { translated: 'Übersetzt', missing: '! Missing' },
+        },
+        async (directory) => {
+            const path = join(directory, 'de.json')
+            const before = readFileSync(path, 'utf8')
+            const stdout = captureStream()
+            const status = await runI18nCli(['--fill', 'de'], {
+                i18nDir: directory,
+                stdout: stdout.stream,
+            })
+
+            assert.equal(status, 0)
+            assert.equal(readFileSync(path, 'utf8'), before)
+            assert.match(stdout.value(), /is already canonical/)
         }
     )
 })
@@ -358,17 +797,17 @@ test('translation commands distinguish existing, new, and invalid locales', asyn
             'de.json': {},
         },
         async (directory) => {
-            for (const [args, expected] of [
-                [['--translate', 'uk'], /Locale 'uk' does not exist.*i18n:create uk/s],
-                [['--create', 'de'], /Locale 'de' already exists.*i18n:fill de/s],
-                [['--create', 'pt-br'], /must use canonical casing 'pt-BR\.json'/],
+            for (const [args, expectedStatus, expected] of [
+                [['--translate', 'uk'], 1, /Locale 'uk' does not exist.*i18n:create uk/s],
+                [['--create', 'de'], 1, /Locale 'de' already exists.*i18n:fill de/s],
+                [['--create', 'pt-br'], 2, /must use canonical casing 'pt-BR\.json'/],
             ]) {
                 const stderr = captureStream()
                 const status = await runI18nCli(args, {
                     i18nDir: directory,
                     stderr: stderr.stream,
                 })
-                assert.equal(status, 1)
+                assert.equal(status, expectedStatus)
                 assert.match(stderr.value(), expected)
             }
         }
@@ -380,7 +819,7 @@ test('create immediately scaffolds and discovers an IDE-ready locale', async () 
         {
             'en.json': {
                 first: { one: 'One', two: 'Two' },
-                second: { three: 'Three' },
+                second: { three: 'Three', reserved: '? English source' },
             },
         },
         async (directory) => {
@@ -397,7 +836,7 @@ test('create immediately scaffolds and discovers an IDE-ready locale', async () 
                 `${JSON.stringify(
                     {
                         first: { one: '! One', two: '! Two' },
-                        second: { three: '! Three' },
+                        second: { three: '! Three', reserved: '! ? English source' },
                     },
                     null,
                     4
@@ -415,8 +854,10 @@ test('create immediately scaffolds and discovers an IDE-ready locale', async () 
                 'first.one',
                 'first.two',
                 'second.three',
+                'second.reserved',
             ])
-            assert.match(stdout.value(), /Created .*uk\.json with 3 marked English fallbacks/)
+            assert.match(stdout.value(), /Created .*uk\.json/)
+            assert.match(stdout.value(), /Scaffolds added: 4/)
         }
     )
 })
@@ -443,6 +884,52 @@ test('translate preserves existing values and restores English key order', async
     )
 })
 
+test('translate ignores pending entries and prompts only untranslated work', async () => {
+    await withLocalesAsync(
+        {
+            'en.json': { pending: 'Current English', missing: 'Missing' },
+            'de.json': { pending: '? Vorhanden' },
+        },
+        async (directory) => {
+            const status = await runI18nCli(['--translate', 'de'], {
+                ask: promptAnswers('Fehlend'),
+                i18nDir: directory,
+                stdout: captureStream().stream,
+            })
+
+            assert.equal(status, 0)
+            assert.deepEqual(JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')), {
+                pending: '? Vorhanden',
+                missing: 'Fehlend',
+            })
+        }
+    )
+})
+
+test('translate prompts one missing plural member with its counterpart for context', async () => {
+    await withLocalesAsync(
+        {
+            'en.json': { count: '{count} mods', countSingle: '{count} mod' },
+            'de.json': { count: '{count} Mods' },
+        },
+        async (directory) => {
+            const stdout = captureStream()
+            const status = await runI18nCli(['--translate', 'de'], {
+                ask: promptAnswers('{count} Mod'),
+                i18nDir: directory,
+                stdout: stdout.stream,
+            })
+
+            assert.equal(status, 0)
+            assert.match(stdout.value(), /Existing counterpart \(count\):\n  \{count\} Mods/)
+            assert.deepEqual(JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')), {
+                count: '{count} Mods',
+                countSingle: '{count} Mod',
+            })
+        }
+    )
+})
+
 test('translate retries placeholder mismatches before writing', async () => {
     await withLocalesAsync(
         {
@@ -461,6 +948,29 @@ test('translate retries placeholder mismatches before writing', async () => {
             assert.match(stdout.value(), /Invalid translation:\n  Missing placeholder: \{game\}/)
             assert.deepEqual(JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')), {
                 launch: { game: 'Spiel {game} starten' },
+            })
+        }
+    )
+})
+
+test('translate does not turn entered workflow syntax into persisted state', async () => {
+    await withLocalesAsync(
+        {
+            'en.json': { greeting: 'Hello' },
+            'de.json': {},
+        },
+        async (directory) => {
+            const stdout = captureStream()
+            const status = await runI18nCli(['--translate', 'de'], {
+                ask: promptAnswers('? Hallo', '! Hallo', 'Hallo'),
+                i18nDir: directory,
+                stdout: stdout.stream,
+            })
+
+            assert.equal(status, 0)
+            assert.match(stdout.value(), /must not begin with the reserved/)
+            assert.deepEqual(JSON.parse(readFileSync(join(directory, 'de.json'), 'utf8')), {
+                greeting: 'Hallo',
             })
         }
     )
@@ -554,35 +1064,53 @@ test('translate exits cleanly without prompting when a locale is complete', asyn
 })
 
 test('translation table renders compact deterministic coverage and contributors', () => {
-    const inspection = {
-        sourceLocale: 'en',
-        totalCount: 3,
-        locales: [
-            { id: 'de', translatedCount: 2, totalCount: 3 },
-            { id: 'ru', translatedCount: 3, totalCount: 3 },
-        ],
-    }
     const contributors = {
         de: ['TarekLP', 'AnotherTranslator'],
         ru: ['ShulhaOleh'],
     }
-    const table = buildTranslationTable(inspection, contributors)
+    const table = renderTranslationStatusReadme({
+        summaries: {
+            source: { kind: 'source', locale: 'en', total: 3 },
+            targets: [
+                {
+                    kind: 'target',
+                    locale: 'de',
+                    total: 3,
+                    accepted: 1,
+                    pendingCompatible: 1,
+                    pendingPlaceholderIncompatible: 0,
+                    missing: 1,
+                },
+                {
+                    kind: 'target',
+                    locale: 'ru',
+                    total: 3,
+                    accepted: 3,
+                    pendingCompatible: 0,
+                    pendingPlaceholderIncompatible: 0,
+                    missing: 0,
+                },
+            ],
+        },
+        names: { en: 'English', de: 'Deutsch', ru: 'Русский' },
+        contributors,
+    })
     assert.equal(
         table,
         [
-            '| Language | Coverage | Contributors |',
-            '| --- | ---: | --- |',
-            '| English (en) | 100% | - |',
-            '| Deutsch (de) | 66.7% | [AnotherTranslator](https://github.com/AnotherTranslator), [TarekLP](https://github.com/TarekLP) |',
-            '| Русский (ru) | 100% | [ShulhaOleh](https://github.com/ShulhaOleh) |',
+            '| Language | Translation | Contributors |',
+            '| --- | --- | --- |',
+            '| [English (en)](apps/desktop/src/renderer/src/i18n/en.json) | <img src="assets/i18n/status/en.svg" alt="English source: 3 valid strings."> Complete | - |',
+            '| [Deutsch (de)](apps/desktop/src/renderer/src/i18n/de.json) | <img src="assets/i18n/status/de.svg" alt="Deutsch (de): 1 accepted, 1 review, 1 missing; 66.7%."> 66.7% | [AnotherTranslator](https://github.com/AnotherTranslator), [TarekLP](https://github.com/TarekLP) |',
+            '| [Русский (ru)](apps/desktop/src/renderer/src/i18n/ru.json) | <img src="assets/i18n/status/ru.svg" alt="Русский (ru): 3 accepted, 0 review, 0 missing; Complete."> Complete | [ShulhaOleh](https://github.com/ShulhaOleh) |',
+            '',
+            '<div class="i18n-status-legend"><img src="assets/i18n/status/legend/accepted.svg" alt=""> Accepted <img src="assets/i18n/status/legend/review.svg" alt=""> Review <img src="assets/i18n/status/legend/missing.svg" alt=""> Missing</div>',
+            '',
+            'To improve an existing language or add a new one, follow the',
+            '[translation guide](TRANSLATING.md).',
         ].join('\n')
     )
     assert.doesNotMatch(table, /\(\d+\/\d+\)/)
-    assert.equal(buildTranslationTable(inspection, contributors), table)
-    assert.throws(
-        () => buildTranslationTable(inspection, { fr: ['Translator'] }),
-        /unknown locale 'fr'/
-    )
 
     const readme = [
         '# Project',
@@ -592,7 +1120,7 @@ test('translation table renders compact deterministic coverage and contributors'
     ].join('\n')
     assert.match(
         replaceTranslationTable(readme, table),
-        /<!-- prettier-ignore -->\n\| Language \| Coverage \| Contributors \|/
+        /<!-- prettier-ignore -->\n\| Language \| Translation \| Contributors \|/
     )
 })
 
@@ -686,7 +1214,7 @@ test('semantic locale comparison counts additions, value changes, and deletions'
         localeJsonChanged('{"common":{"open":"Open"}}', '{"common":{"open":"Öffnen"}}', 'de'),
         true
     )
-    assert.equal(localeJsonChanged('{"common":{"open":"Öffnen"}}', '{"common":{}}', 'de'), true)
+    assert.equal(localeJsonChanged('{"common":{"open":"Öffnen"}}', '{"common":{}}', 'de'), false)
 })
 
 test('temporary contributor API failures abort attribution generation', async () => {
