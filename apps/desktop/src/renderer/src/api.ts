@@ -276,6 +276,9 @@ export const api = {
     setDiscordPresenceEnabled(enabled: boolean): Promise<void> {
         return commands.setDiscordPresenceEnabled(enabled)
     },
+    setAutoLaunchSisr(enabled: boolean): Promise<void> {
+        return commands.setAutoLaunchSisr(enabled)
+    },
     updateDiscordPresence(game: string): Promise<void> {
         return commands.updateDiscordPresence(game)
     },

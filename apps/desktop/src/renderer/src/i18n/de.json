@@ -426,6 +426,10 @@
             "title": "Bereinigung des Absturzberichterstatters",
             "description": "Umgehe ein leeres Absturzbericht-Fenster bei Spielen mit fehlerhaftem Berichterstatter, indem dessen Dateien vor dem Start entfernt werden. Dies ist standardmäßig deaktiviert und wird möglicherweise nicht für jedes Spiel benötigt."
         },
+        "sisr": {
+            "title": "Automatischer Start von SISR",
+            "description": "Starte SISR (Steam Input System Redirector) bevor dem Spiel wenn es noch nicht läuft, so das Steam Input Controller außerhalb von Steam Spielen funktionieren."
+        },
         "pakViewer": {
             "title": "PAK-Datei Veranschaulicher",
             "description": "Optionen zum anschauen einer PAK-Datei.  Alle Spiele werden  mit einem eingebauten AES Schlüssel veröffentlicht; Überschreibe ihn hier falls ein Spiel ein anderen benutzt.",
@@ -472,7 +476,11 @@
             "modkitMods": "ModKit-Mods",
             "legacyPaks": "Legacy-Paks",
             "overrides": "Asset-Überschreibungen",
-            "ue4ssMods": "UE4SS-Mods"
+            "ue4ssMods": "UE4SS-Mods",
+            "smlMods": "! SML mods",
+            "paks": "! Paks",
+            "logicMods": "! Logic mods",
+            "luaMods": "! Lua mods"
         },
         "storage": {
             "title": "Speicher",

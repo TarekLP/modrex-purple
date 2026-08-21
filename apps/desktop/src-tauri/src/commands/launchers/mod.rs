@@ -5,7 +5,7 @@ mod types;
 mod xbox;
 
 use epic::Epic;
-pub(crate) use games::{CRIMEBOSS, PD2, PD3, PDTH, RAID};
+pub(crate) use games::{CRIMEBOSS, HCE, ITR2, PD2, PD3, PDTH, RAID};
 use steam::Steam;
 pub(crate) use types::GameDef;
 use types::Launcher;
@@ -234,6 +234,45 @@ fn maybe_suppress_crash_reporter(game_id: &str, settings: &GameSettings) {
 
     if let Some(game_path) = settings.game_path.as_deref() {
         remove_pd3_xbox_crash_reporter_files(game_path);
+    }
+}
+
+// SISR (Steam Input System Redirector) installs its executable here by default.
+fn sisr_executable() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        let local = std::env::var_os("LOCALAPPDATA")?;
+        let exe = Path::new(&local).join("SISR").join("SISR.exe");
+        exe.exists().then_some(exe)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        None
+    }
+}
+
+// The Steam Controller only works in non-Steam games while SISR is running, so when the
+// setting is on and it isn't, start it before the game so the controller is live by the
+// time the game polls input. A missing install is a logged no-op, never a launch failure:
+// SISR is a convenience, not a prerequisite for the game.
+fn maybe_auto_launch_sisr(settings: &crate::commands::settings::Settings) {
+    if !settings.auto_launch_sisr {
+        return;
+    }
+    if refresh_process_list()
+        .processes()
+        .values()
+        .any(|p| process_matches(p, "SISR"))
+    {
+        return;
+    }
+    let Some(exe) = sisr_executable() else {
+        log::warn!("auto-launch SISR enabled but SISR.exe not found under %LOCALAPPDATA%\\SISR");
+        return;
+    };
+    match std::process::Command::new(&exe).spawn() {
+        Ok(_) => log::info!("auto-launched SISR from {exe:?}"),
+        Err(e) => log::warn!("failed to auto-launch SISR from {exe:?}: {e}"),
     }
 }
 
@@ -544,6 +583,7 @@ pub fn launch_game(app: AppHandle, game_id: String) -> Result<(), String> {
     let cfg = engine_for_game(game_id)?;
     let _ = do_restore(game_path, cfg);
     maybe_suppress_crash_reporter(game_id, gs);
+    maybe_auto_launch_sisr(&s);
     crate::commands::analytics::track(
         &app,
         "game_launched",
@@ -627,6 +667,7 @@ pub fn launch_without_mods(app: AppHandle, game_id: String) -> Result<(), String
         serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
     );
     maybe_suppress_crash_reporter(game_id, gs);
+    maybe_auto_launch_sisr(&s);
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
         game_def_for_id(game_id)?,

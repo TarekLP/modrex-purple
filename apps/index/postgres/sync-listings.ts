@@ -1,4 +1,4 @@
-import { GAME_IDS, GAMES } from '@modrex/games'
+import { MODWORKSHOP_GAME_IDS, MODWORKSHOP_GAMES } from '../modworkshop-games.js'
 import { neon } from '@neondatabase/serverless'
 
 interface ModListing {
@@ -124,10 +124,10 @@ async function storePage(slug: string, listings: ModListing[]): Promise<void> {
     }
 }
 
-for (const slug of GAME_IDS) {
+for (const slug of MODWORKSHOP_GAME_IDS) {
     const lastListedAt = await getLastListedAt(slug)
     const threshold = lastListedAt ? new Date(lastListedAt.getTime() - sinceBufferMs) : null
-    const game = GAMES[slug]
+    const game = MODWORKSHOP_GAMES[slug]
     let page = 1
     let lastPage = 1
     let stored = 0

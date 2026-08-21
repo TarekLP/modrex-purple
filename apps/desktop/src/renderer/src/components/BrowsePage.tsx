@@ -222,7 +222,9 @@ export function BrowsePage({
     const [categoryId, setCategoryId] = useState<number | undefined>()
     const [includeTags, setIncludeTags] = useState<number[]>([])
     const [excludeTags, setExcludeTags] = useState<number[]>([])
-    const workshopId = GAMES[activeGame].workshopId
+    // BrowsePage mounts only for games modworkshop serves (App.tsx gates on hasSource),
+    // and a game has a workshopId exactly when modworkshop serves it (check-sources).
+    const workshopId = GAMES[activeGame].workshopId!
     const initialSort = getSavedSort(activeGame)
     const [sort, setSort] = useState<SortOption>(initialSort)
     const initialCache = getBrowseCache(workshopId, 1, '', initialSort, undefined)

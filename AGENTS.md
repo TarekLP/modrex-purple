@@ -11,6 +11,9 @@ Translation is separate work. When a task needs localized strings, edit only
 for named locales. Never create, update, synchronize, or backfill a non-English locale during
 another task. See `CLAUDE.md` for the canonical translation ownership policy.
 
+Whenever you add or change keys in `en.json`, run `pnpm i18n:fill de` afterward so the new
+keys land as marked English fallbacks in `de.json` instead of being silently untranslated.
+
 ## Top priority
 
 Before finishing any code change, check the five dangerous AI patterns:
@@ -48,3 +51,22 @@ Use `comment-audit` after AI-assisted edits, large refactors, or any change that
 Use `deslop` before finishing any AI-assisted change.
 
 Use `ai-review` before proposing a PR, commit, or final summary for a non-trivial code change.
+
+
+
+## Development setup
+
+| Command                  | Description                                     |
+| ------------------------ | ----------------------------------------------- |
+| `pnpm install`           | Install dependencies                            |
+| `pnpm dev`               | Start with hot reload                           |
+| `pnpm build`             | Production build                                |
+| `pnpm typecheck`         | Type-check renderer                             |
+| `pnpm format`            | Format all files with Prettier                  |
+| `pnpm lint`              | Lint renderer source                            |
+| `pnpm test`              | Run all tests (Rust + renderer)                 |
+| `pnpm checks`            | Run the full CI gate locally                    |
+| `pnpm generate-licenses` | Regenerate apps/desktop/THIRD_PARTY_LICENSES.md |
+
+`pnpm checks` is the one to run before opening a pull request: it runs everything CI does
+(formatting, lint, typecheck, tests, and the consistency checks below) in one pass.

@@ -34,7 +34,8 @@ import {
 } from 'fs'
 import { execFileSync } from 'child_process'
 import { tmpdir } from 'os'
-import { GAME_IDS, GAMES, type GameId } from '@modrex/games'
+import { GAMES, type GameId } from '@modrex/games'
+import { MODWORKSHOP_GAME_IDS, MODWORKSHOP_GAMES } from './modworkshop-games.js'
 
 const BASE = process.env.MODWORKSHOP_API_BASE ?? 'https://api.modworkshop.net'
 const USER_AGENT = 'modrex-indexer/1.0'
@@ -54,7 +55,8 @@ const RECHECK_ALL = process.argv.includes('--recheck-all')
 const STAGED_REBUILD = process.argv.includes('--staged-rebuild')
 const FINALIZE_REBUILD = process.argv.includes('--finalize-rebuild')
 const SELECTED_GAME = process.argv.find((a) => a.startsWith('--game='))?.split('=')[1] ?? null
-const VALID_GAMES = GAME_IDS
+// ModWorkshop-served games only; the index has no Nexus (itr2) source.
+const VALID_GAMES = MODWORKSHOP_GAME_IDS
 type GameSlug = GameId
 const MAX_RUNTIME_MINUTES = parseFloat(
     process.argv.find((a) => a.startsWith('--max-runtime-minutes='))?.split('=')[1] ?? '0'
@@ -1253,11 +1255,11 @@ async function main(): Promise<void> {
                 console.log(`  ${mods.length} ${label} mods to process\n`)
                 return mods
             }
-            const pd3Mods = await list('pd3', GAMES.pd3.workshopId, 'PD3')
-            const pd2Mods = await list('pd2', GAMES.pd2.workshopId, 'PD2')
-            const pdthMods = await list('pdth', GAMES.pdth.workshopId, 'PDTH')
-            const cbMods = await list('cb', GAMES.cb.workshopId, 'Crime Boss')
-            const raidMods = await list('raid', GAMES.raid.workshopId, 'RAID')
+            const pd3Mods = await list('pd3', MODWORKSHOP_GAMES.pd3.workshopId, 'PD3')
+            const pd2Mods = await list('pd2', MODWORKSHOP_GAMES.pd2.workshopId, 'PD2')
+            const pdthMods = await list('pdth', MODWORKSHOP_GAMES.pdth.workshopId, 'PDTH')
+            const cbMods = await list('cb', MODWORKSHOP_GAMES.cb.workshopId, 'Crime Boss')
+            const raidMods = await list('raid', MODWORKSHOP_GAMES.raid.workshopId, 'RAID')
             return { pd3Mods, pd2Mods, pdthMods, cbMods, raidMods }
         }
     )

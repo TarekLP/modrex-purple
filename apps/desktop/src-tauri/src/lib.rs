@@ -53,6 +53,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::set_crimeboss_install_mode,
             commands::settings::set_suppress_crash_reporter,
             commands::settings::set_skip_fileopenlog_warning,
+            commands::settings::set_auto_launch_sisr,
             commands::settings::dismiss_deps_warning,
             commands::settings::record_successful_install,
             commands::settings::get_analytics_consent,

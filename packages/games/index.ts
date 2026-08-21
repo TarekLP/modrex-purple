@@ -1,7 +1,8 @@
 export const LAUNCHERS = ['Steam', 'Epic Games', 'Xbox App'] as const
 
 export type LauncherName = (typeof LAUNCHERS)[number]
-export type ModTargetId = 'mods' | 'paks' | 'ue4ss_mods' | 'mod_overrides'
+export type ModTargetId =
+    'mods' | 'paks' | 'ue4ss_mods' | 'mod_overrides' | 'sml' | 'logicmods' | 'lua_mods'
 
 export interface ModTarget {
     id: ModTargetId
@@ -11,7 +12,9 @@ export interface ModTarget {
 export interface GameSpec {
     name: string
     shortName: string
-    workshopId: number
+    // modworkshop id for this game. Absent for games with no modworkshop presence (ITR2),
+    // whose browse source is Nexus.
+    workshopId?: number
     // Nexus's domain slug for this game, e.g. "payday3". Absent for games with no
     // Nexus presence (RAID). Cross-checked against the Rust SOURCE_REGISTRY by
     // check-sources.mjs, same as workshopId.
@@ -86,6 +89,34 @@ const GAME_SPECS = {
         hasNews: false,
         launchers: ['Steam'],
         modTargets: [{ id: 'mods', path: 'mods' }],
+    },
+    itr2: {
+        name: 'Into the Radius 2',
+        shortName: 'ITR2',
+        // No modworkshop presence — Nexus is the browse source.
+        nexusDomain: 'intotheradius2',
+        storageKey: 'itr2',
+        hasNews: false,
+        launchers: ['Steam'],
+        modTargets: [
+            { id: 'sml', path: 'IntoTheRadius2/Content/Mods' },
+            { id: 'paks', path: 'IntoTheRadius2/Content/Paks/Mods' },
+            { id: 'logicmods', path: 'IntoTheRadius2/Content/Paks/LogicMods' },
+            { id: 'lua_mods', path: 'IntoTheRadius2/Content/Paks/LuaMods' },
+        ],
+    },
+    hce: {
+        name: 'Halo: Campaign Evolved',
+        shortName: 'HCE',
+        // No modworkshop presence — Nexus is the browse source.
+        nexusDomain: 'halocampaignevolved',
+        storageKey: 'hce',
+        hasNews: false,
+        launchers: ['Steam', 'Xbox App'],
+        modTargets: [
+            { id: 'paks', path: 'Meteorite/Content/Paks/~mods' },
+            { id: 'ue4ss_mods', path: 'Meteorite/Binaries/Win64/ue4ss/Mods' },
+        ],
     },
 } satisfies Record<string, GameSpec>
 

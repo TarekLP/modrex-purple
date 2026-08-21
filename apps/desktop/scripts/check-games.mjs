@@ -28,13 +28,23 @@ const gameFiles = {
     pdth: 'pdth',
     cb: 'crimeboss',
     raid: 'raid',
+    itr2: 'itr2',
+    hce: 'hce',
 }
 const launcherFields = [
     ['Steam', 'steam'],
     ['Epic Games', 'epic'],
     ['Xbox App', 'xbox'],
 ]
-const engineNames = { pd3: 'PD3', pd2: 'PD2', pdth: 'PDTH', cb: 'CRIMEBOSS', raid: 'RAID' }
+const engineNames = {
+    pd3: 'PD3',
+    pd2: 'PD2',
+    pdth: 'PDTH',
+    cb: 'CRIMEBOSS',
+    raid: 'RAID',
+    itr2: 'ITR2',
+    hce: 'HCE',
+}
 const engineSource = readFileSync('src-tauri/src/commands/mods/engine.rs', 'utf8')
 
 const missingInTs = rustIds.filter((id) => !tsIds.includes(id))

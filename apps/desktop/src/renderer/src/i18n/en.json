@@ -426,6 +426,10 @@
             "title": "Crash reporter cleanup",
             "description": "Work around an empty crash-report window for games that ship a buggy reporter by removing its crash reporter files before launch. This is off by default and may not be needed for every game."
         },
+        "sisr": {
+            "title": "Auto-launch SISR",
+            "description": "Start SISR (Steam Input System Redirector) before launching a game when it is not already running, so Steam Input controllers work with games launched outside Steam."
+        },
         "pakViewer": {
             "title": "Pak viewer",
             "description": "Options for inspecting a mod's pak contents. Both games ship a baked-in AES key; override it here only if a mod uses a different one.",
@@ -472,7 +476,11 @@
             "modkitMods": "ModKit mods",
             "legacyPaks": "Legacy paks",
             "overrides": "Asset overrides",
-            "ue4ssMods": "UE4SS mods"
+            "ue4ssMods": "UE4SS mods",
+            "smlMods": "SML mods",
+            "paks": "Paks",
+            "logicMods": "Logic mods",
+            "luaMods": "Lua mods"
         },
         "storage": {
             "title": "Storage",

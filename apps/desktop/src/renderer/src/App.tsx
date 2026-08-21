@@ -13,7 +13,7 @@ import { X, ExternalLink, Download } from 'lucide-react'
 import type { InstalledMod, ModFolder, GameId, ModSummary } from '../../shared/types'
 import { GAMES, isGameId } from '../../shared/types'
 import { loadLoaderRegistry } from './loaders'
-import { loadSourceRegistry, hasSource } from './sources'
+import { loadSourceRegistry, hasSource, sourcesForGame } from './sources'
 import { syncThemeForGame } from './theme'
 import { t, useLocale } from './i18n'
 import { MarkdownContent } from './components/MarkdownContent'
@@ -63,11 +63,14 @@ function reportStartupPhase(phase: StartupPhase) {
         .catch((error) => logError('Failed to report startup phase: ' + String(error)))
 }
 
-// Falls back to modworkshop whenever the saved source is not one this game offers, which
-// also covers a game that has no Nexus presence at all.
+// Falls back to the first source the game offers whenever the saved source is not one this
+// game offers, which also covers a game that has no modworkshop presence at all (ITR2's
+// only source is Nexus) and a game that has no Nexus presence (RAID, whose only source is
+// modworkshop).
 function readBrowseSource(gameId: string): string {
     const saved = localStorage.getItem(`modrex:${gameId}:browse-source`)
-    return saved && hasSource(gameId, saved) ? saved : 'modworkshop'
+    if (saved && hasSource(gameId, saved)) return saved
+    return sourcesForGame(gameId)[0]?.id ?? 'modworkshop'
 }
 
 function getInitialView(): View {
@@ -166,6 +169,11 @@ export default function App() {
     const handleDiscordPresenceEnabled = useCallback((enabled: boolean) => {
         setDiscordPresenceEnabled(enabled)
         void api.setDiscordPresenceEnabled(enabled)
+    }, [])
+    const [autoLaunchSisr, setAutoLaunchSisr] = useState(false)
+    const handleAutoLaunchSisr = useCallback((enabled: boolean) => {
+        setAutoLaunchSisr(enabled)
+        void api.setAutoLaunchSisr(enabled)
     }, [])
     useEffect(() => {
         void api.updateDiscordPresence(gameInScope ? GAMES[activeGame].name : '')
@@ -612,19 +620,26 @@ export default function App() {
                             <div
                                 className={`absolute inset-0 ${view === 'browse' && browseSource === 'modworkshop' ? '' : 'invisible pointer-events-none'}`}
                             >
-                                <BrowsePageMemo
-                                    key={activeGame}
-                                    activeGame={activeGame}
-                                    isActive={view === 'browse' && browseSource === 'modworkshop'}
-                                    source={browseSource}
-                                    onSourceChange={handleSourceChange}
-                                    gamePath={gamePath}
-                                    gamePathReady={gamePathReady}
-                                    installed={installed}
-                                    onRefreshInstalled={refreshInstalled}
-                                    onOpenDetail={openDetailFromBrowse}
-                                    onGoToSettings={goToSettings}
-                                />
+                                {/* Mounted only for games modworkshop serves: a game with no
+                                    modworkshop presence (ITR2) never shows this pane, and the
+                                    page's effects would otherwise call listMods with no id. */}
+                                {hasSource(activeGame, 'modworkshop') && (
+                                    <BrowsePageMemo
+                                        key={activeGame}
+                                        activeGame={activeGame}
+                                        isActive={
+                                            view === 'browse' && browseSource === 'modworkshop'
+                                        }
+                                        source={browseSource}
+                                        onSourceChange={handleSourceChange}
+                                        gamePath={gamePath}
+                                        gamePathReady={gamePathReady}
+                                        installed={installed}
+                                        onRefreshInstalled={refreshInstalled}
+                                        onOpenDetail={openDetailFromBrowse}
+                                        onGoToSettings={goToSettings}
+                                    />
+                                )}
                             </div>
                             <div
                                 className={`absolute inset-0 ${view === 'browse' && browseSource === 'nexus' ? '' : 'invisible pointer-events-none'}`}
@@ -677,6 +692,8 @@ export default function App() {
                                     onAnalyticsConsent={handleAnalyticsConsent}
                                     discordPresenceEnabled={discordPresenceEnabled}
                                     onDiscordPresenceEnabled={handleDiscordPresenceEnabled}
+                                    autoLaunchSisr={autoLaunchSisr}
+                                    onAutoLaunchSisr={handleAutoLaunchSisr}
                                     globalOnly={settingsGlobalOnly}
                                 />
                             </div>

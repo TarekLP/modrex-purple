@@ -66,6 +66,20 @@ fn roundtrip_all_fields_set() {
 }
 
 #[test]
+fn auto_launch_sisr_roundtrips_and_parses_null() {
+    let f = NamedTempFile::new().unwrap();
+    let original = Settings {
+        auto_launch_sisr: true,
+        ..Default::default()
+    };
+    write_to(f.path(), &original);
+    assert!(read_from(f.path()).auto_launch_sisr);
+    // Explicit null must read the same way as absent, since older writers emit nulls.
+    let s: Settings = serde_json::from_str(r#"{"autoLaunchSisr":null}"#).unwrap();
+    assert!(!s.auto_launch_sisr);
+}
+
+#[test]
 fn roundtrip_defaults_when_absent() {
     let f = NamedTempFile::new().unwrap();
     let original = Settings::default();
@@ -83,6 +97,7 @@ fn roundtrip_defaults_when_absent() {
     assert!(!loaded.analytics_consent_asked);
     assert!(!loaded.analytics_enabled);
     assert!(loaded.discord_rich_presence_enabled);
+    assert!(!loaded.auto_launch_sisr);
 }
 
 #[test]

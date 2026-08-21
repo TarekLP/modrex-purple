@@ -24,11 +24,19 @@ struct Ue4ssDescriptor {
     binaries_subpath: &'static [&'static str],
 }
 
+/// Halo: Campaign Evolved (UE4SS distributed as Nexus mod 9, UE 5.5.x so the experimental
+/// build is required): proxy dwmapi.dll into Meteorite/Binaries/Win64, the game's nested
+/// binaries folder. Only Steam is verified; the Xbox Game Pass build uses WinGDK binaries
+/// with an unverified proxy DLL, so it is unsupported rather than guessed.
 fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssDescriptor> {
     match (game_id, launcher) {
         ("cb", Some("steam")) => Some(Ue4ssDescriptor {
             proxy_dlls: &["dwmapi.dll"],
             binaries_subpath: &["CrimeBoss", "Binaries", "Win64"],
+        }),
+        ("hce", Some("steam")) => Some(Ue4ssDescriptor {
+            proxy_dlls: &["dwmapi.dll"],
+            binaries_subpath: &["Meteorite", "Binaries", "Win64"],
         }),
         ("pd3", Some("steam")) | ("pd3", Some("epic")) => Some(Ue4ssDescriptor {
             proxy_dlls: &["xinput1_3.dll", "dxgi.dll"],

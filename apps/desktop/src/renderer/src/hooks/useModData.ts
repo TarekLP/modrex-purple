@@ -15,7 +15,7 @@ function isModworkshopSourced(m: InstalledMod): boolean {
 
 export function useModData(
     installed: InstalledMod[],
-    workshopId: number,
+    workshopId: number | undefined,
     gameId: GameId
 ): {
     modData: Map<number, ModSummary>
@@ -123,6 +123,8 @@ export function useModData(
             const t = fetchedAt.current.get(m.id)
             return t === undefined || now - t >= INSTALLED_META_TTL_MS
         })
+        // stale only holds modworkshop-sourced mods, which can only exist for a game
+        // modworkshop serves — exactly the games with a workshopId (check-sources).
         if (stale.length > 0) {
             const insIdByRemoteId = new Map<number, number>()
             for (const m of stale) {
@@ -131,7 +133,7 @@ export function useModData(
                     insIdByRemoteId.set(remoteId, m.id)
                 }
             }
-            fetchInstalledModsMeta(workshopId, [...insIdByRemoteId.keys()]).then(
+            fetchInstalledModsMeta(workshopId!, [...insIdByRemoteId.keys()]).then(
                 ({ mods, failedIds: failed }) => {
                     const fetchedNow = Date.now()
                     for (const m of stale) fetchedAt.current.set(m.id, fetchedNow)

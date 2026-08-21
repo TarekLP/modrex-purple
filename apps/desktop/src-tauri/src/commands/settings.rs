@@ -126,6 +126,12 @@ pub struct Settings {
     pub analytics_id: Option<String>,
     #[serde(default = "default_true", deserialize_with = "null_or_true")]
     pub discord_rich_presence_enabled: bool,
+    // Auto-launch SISR (Steam Input System Redirector) ahead of a game launch when it is
+    // not already running, so Steam Input (and thus a Steam Controller) reaches games
+    // launched outside Steam. Global, not per-game: SISR works at the OS input layer and
+    // a single instance serves every game Modrex launches.
+    #[serde(default, deserialize_with = "null_default")]
+    pub auto_launch_sisr: bool,
     // OAuth credentials are persisted only in local settings and sent only to
     // Nexus's OAuth and API endpoints.
     pub nexus_oauth: Option<NexusOAuthTokens>,
@@ -165,6 +171,7 @@ impl Default for Settings {
             analytics_enabled: false,
             analytics_id: None,
             discord_rich_presence_enabled: true,
+            auto_launch_sisr: false,
             nexus_oauth: None,
             successful_installs: 0,
             first_install_at: 0,
@@ -437,6 +444,12 @@ pub fn set_suppress_crash_reporter(app: AppHandle, game_id: String, suppress: bo
 #[specta::specta]
 pub fn set_skip_fileopenlog_warning(app: AppHandle, skip: bool) {
     update_settings(&app, |s| s.skip_file_open_log_warning = skip);
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_auto_launch_sisr(app: AppHandle, enabled: bool) {
+    update_settings(&app, |s| s.auto_launch_sisr = enabled);
 }
 
 /// Current analytics consent: None = not yet asked, Some(true/false) = chosen.

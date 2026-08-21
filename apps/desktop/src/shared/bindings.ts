@@ -48,6 +48,7 @@ export const commands = {
 	setCrimebossInstallMode: (mode: string) => __TAURI_INVOKE<void>("set_crimeboss_install_mode", { mode }),
 	setSuppressCrashReporter: (gameId: string, suppress: boolean) => __TAURI_INVOKE<void>("set_suppress_crash_reporter", { gameId, suppress }),
 	setSkipFileopenlogWarning: (skip: boolean) => __TAURI_INVOKE<void>("set_skip_fileopenlog_warning", { skip }),
+	setAutoLaunchSisr: (enabled: boolean) => __TAURI_INVOKE<void>("set_auto_launch_sisr", { enabled }),
 	dismissDepsWarning: (modId: number) => __TAURI_INVOKE<void>("dismiss_deps_warning", { modId }),
 	/**
 	 *  Counts a successful mod install toward the one-time "star us on GitHub" prompt. When

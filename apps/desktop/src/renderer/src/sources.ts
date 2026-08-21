@@ -11,9 +11,10 @@ export async function loadSourceRegistry(): Promise<void> {
 }
 
 /**
- * The sources a game offers. modworkshop covers every game; Nexus has no RAID presence,
- * so this is empty of Nexus for RAID only. Order follows the registry, which puts
- * modworkshop first, so callers can treat the first entry as the default.
+ * The sources a game offers. Nexus has no RAID presence and modworkshop has no ITR2
+ * presence, so those games offer a single source; every other game offers both. Order
+ * follows the registry, which puts modworkshop first, so callers can treat the first
+ * entry as the default.
  */
 export function sourcesForGame(gameId: string): SourceInfo[] {
     return registry.filter((s) => s.games.some((g) => g.gameId === gameId))

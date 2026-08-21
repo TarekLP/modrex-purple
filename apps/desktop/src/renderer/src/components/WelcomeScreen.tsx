@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
 import { Search } from 'lucide-react'
 import type { GameId } from '../../../shared/types'
@@ -7,6 +7,7 @@ import { t } from '../i18n'
 import { api } from '../api'
 import { Toggle } from './Toggle'
 import { SearchClearButton } from './ui/SearchClearButton'
+import { GAME_THEMES, THEMES } from '../theme'
 
 const INSTALLED_ONLY_KEY = 'modrex:show-installed-games-only'
 
@@ -16,6 +17,8 @@ const CDN_URLS: Record<GameId, string> = {
     pdth: 'https://cdn.akamai.steamstatic.com/steam/apps/24240/library_600x900.jpg',
     cb: 'https://cdn.akamai.steamstatic.com/steam/apps/2933080/library_600x900.jpg',
     raid: 'https://cdn.akamai.steamstatic.com/steam/apps/414740/library_600x900.jpg',
+    itr2: 'https://cdn.akamai.steamstatic.com/steam/apps/2307350/library_600x900.jpg',
+    hce: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2806050/712eb45cff910f317c1a7e8fc5f487f26f83c195/library_capsule_2x.jpg',
 }
 
 const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }> = {
@@ -26,6 +29,14 @@ const FALLBACK_STYLES: Record<GameId, { background: string; nameColor: string }>
     raid: {
         background: 'linear-gradient(135deg, #131806 0%, #333d0f 100%)',
         nameColor: '#a9c34f',
+    },
+    itr2: {
+        background: 'linear-gradient(135deg, #12081c 0%, #2a1245 100%)',
+        nameColor: '#c08bf2',
+    },
+    hce: {
+        background: 'linear-gradient(135deg, #06110c 0%, #0f2b1c 100%)',
+        nameColor: '#6ee7a0',
     },
 }
 
@@ -115,7 +126,12 @@ export function WelcomeScreen({ onSelectGame }: Props) {
                                     key={g}
                                     onClick={() => onSelectGame(g)}
                                     aria-label={GAMES[g].name}
-                                    className="group relative aspect-[2/3] overflow-hidden rounded-lg border border-border bg-surface-raised transition-all duration-200 hover:scale-[1.03] hover:border-accent/60 focus-visible:outline-none focus-visible:border-accent/60"
+                                    style={
+                                        {
+                                            '--game-accent': THEMES[GAME_THEMES[g]].accent,
+                                        } as CSSProperties
+                                    }
+                                    className="group relative aspect-[2/3] overflow-hidden rounded-lg border border-border bg-surface-raised transition-all duration-200 hover:scale-[1.03] hover:border-(--game-accent)/60 focus-visible:outline-none focus-visible:border-(--game-accent)/60"
                                 >
                                     {showFallback ? (
                                         <div

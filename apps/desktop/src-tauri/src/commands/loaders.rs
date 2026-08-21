@@ -14,6 +14,13 @@ use crate::commands::mods::{extract_archive_flat, extract_entry};
 pub enum DetectStrategy {
     /// Any one of these files sitting in the game root means the loader is installed.
     RootFiles(&'static [&'static str]),
+    /// Any one of these files in a fixed subpath under the game root. Loaders that hook
+    /// next to the executable (rather than the game root) use this — e.g. the Ultimate ASI
+    /// Loader's proxy DLL, which sits in the game's Binaries folder, not the root.
+    FilesInDir {
+        subpath: &'static [&'static str],
+        files: &'static [&'static str],
+    },
     /// UE4SS resolves its proxy DLL and destination per (game, launcher) and lives in a
     /// nested Binaries dir, so detection delegates to ue4ss's verified descriptor table
     /// rather than flattening into a root-file list.
@@ -28,6 +35,13 @@ pub enum InstallStrategy {
     ExtractEntries {
         url: &'static str,
         entries: &'static [&'static str],
+    },
+    /// Same, but into a fixed subpath under the game root rather than the root itself
+    /// (e.g. the ASI loader's proxy DLL into the game's Binaries folder).
+    ExtractEntriesInto {
+        url: &'static str,
+        entries: &'static [&'static str],
+        subpath: &'static [&'static str],
     },
     /// Extract the whole archive flat into the game root. Used when the package ships
     /// support files the loader needs (DAHM's framework modules, RAID's Lua basemod).
@@ -131,6 +145,28 @@ pub static LOADER_REGISTRY: &[LoaderSpec] = &[
         detect: DetectStrategy::Ue4ssProxy,
         install: InstallStrategy::ViaModFlow,
     },
+    LoaderSpec {
+        id: "asi",
+        // The Ultimate ASI Loader is hosted on GitHub (ThirteenAG/Ultimate-ASI-Loader),
+        // with no modworkshop page, so no modworkshop ids. HCE's Input Latency Fix mod
+        // instructs installing it as version.dll or winmm.dll next to the executable.
+        modworkshop_ids: &[],
+        games: &["hce"],
+        // Either proxy name counts, so which one a user dropped in does not matter
+        // (mirrors PD3 UE4SS's dual-DLL detection). Lives in the game's Binaries folder,
+        // next to HaloCampaignEvolved.exe, not the game root.
+        detect: DetectStrategy::FilesInDir {
+            subpath: &["Meteorite", "Binaries", "Win64"],
+            files: &["version.dll", "winmm.dll"],
+        },
+        // The version-x64 release zip contains exactly version.dll (the dynamic x64-latest
+        // tag is the URL the releases page points at).
+        install: InstallStrategy::ExtractEntriesInto {
+            url: "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/x64-latest/version-x64.zip",
+            entries: &["version.dll"],
+            subpath: &["Meteorite", "Binaries", "Win64"],
+        },
+    },
 ];
 
 pub fn loader_spec(loader_id: &str) -> Option<&'static LoaderSpec> {
@@ -205,6 +241,13 @@ pub fn is_loader_installed(
             let dir = std::path::Path::new(game_path);
             files.iter().any(|f| dir.join(f).is_file())
         }
+        DetectStrategy::FilesInDir { subpath, files } => {
+            let dir = subpath.iter().fold(
+                std::path::Path::new(game_path).to_path_buf(),
+                |acc, part| acc.join(part),
+            );
+            files.iter().any(|f| dir.join(f).is_file())
+        }
         DetectStrategy::Ue4ssProxy => {
             crate::commands::ue4ss::is_installed(game_id, game_path, launcher)
         }
@@ -218,9 +261,14 @@ pub async fn install_loader_package(
     app: &AppHandle,
     game_path: &str,
 ) -> Result<(), String> {
-    let (url, entries) = match spec.install {
-        InstallStrategy::ExtractEntries { url, entries } => (url, Some(entries)),
-        InstallStrategy::ExtractAllFlat { url } => (url, None),
+    let (url, entries, dest_subpath) = match spec.install {
+        InstallStrategy::ExtractEntries { url, entries } => (url, Some(entries), &[][..]),
+        InstallStrategy::ExtractEntriesInto {
+            url,
+            entries,
+            subpath,
+        } => (url, Some(entries), subpath),
+        InstallStrategy::ExtractAllFlat { url } => (url, None, &[][..]),
         InstallStrategy::ViaModFlow => {
             return Err(format!(
                 "loader '{}' installs through the normal mod flow, not a direct download",
@@ -231,7 +279,11 @@ pub async fn install_loader_package(
 
     let download_id = format!("loader:{}", spec.id);
     let zip_path = download_file(app, url, "zip", &download_id).await?;
-    let dest_dir = std::path::Path::new(game_path).to_path_buf();
+    let mut dest_dir = std::path::Path::new(game_path).to_path_buf();
+    for part in dest_subpath {
+        dest_dir = dest_dir.join(part);
+    }
+    std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
 
     let result = match entries {
         Some(entries) => {
@@ -285,6 +337,7 @@ mod tests {
             "dahm",
             "raid_superblt",
             "ue4ss",
+            "asi",
         ] {
             assert!(loader_spec(id).is_some(), "{id} is not in LOADER_REGISTRY");
         }
@@ -358,6 +411,32 @@ mod tests {
     fn dahm_detects_its_hook() {
         assert!(detects("dahm", &["lightfx.dll"]));
         assert!(!detects("dahm", &["WSOCK32.dll"]));
+    }
+
+    /// The ASI loader's proxy DLL sits in the game's Binaries folder, not the game root,
+    /// and either accepted name counts. A file at the root must not be mistaken for it.
+    #[test]
+    fn asi_detects_either_proxy_dll_in_the_binaries_folder() {
+        let tmp = TempDir::new().unwrap();
+        let binaries = tmp.path().join("Meteorite").join("Binaries").join("Win64");
+        fs::create_dir_all(&binaries).unwrap();
+        let path = tmp.path().to_str().unwrap();
+        let spec = loader_spec("asi").unwrap();
+
+        assert!(!is_loader_installed(spec, "hce", path, None));
+        fs::write(binaries.join("version.dll"), b"").unwrap();
+        assert!(is_loader_installed(spec, "hce", path, None));
+        fs::write(binaries.join("winmm.dll"), b"").unwrap();
+        assert!(is_loader_installed(spec, "hce", path, None));
+
+        let root_only = TempDir::new().unwrap();
+        fs::write(root_only.path().join("version.dll"), b"").unwrap();
+        assert!(!is_loader_installed(
+            spec,
+            "hce",
+            root_only.path().to_str().unwrap(),
+            None
+        ));
     }
 
     #[test]

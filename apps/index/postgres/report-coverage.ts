@@ -1,4 +1,4 @@
-import { GAME_IDS } from '@modrex/games'
+import { MODWORKSHOP_GAME_IDS } from '../modworkshop-games.js'
 import { neon } from '@neondatabase/serverless'
 
 interface CoverageRow {
@@ -36,7 +36,7 @@ if (process.argv.includes('--next')) {
     process.exit(0)
 }
 
-for (const game of GAME_IDS) {
+for (const game of MODWORKSHOP_GAME_IDS) {
     const coverage = coverageByGame.get(game)
     const downloadable = Number(coverage?.downloadable ?? 0)
     const pending = Number(coverage?.pending ?? 0)

@@ -1,11 +1,11 @@
-import { GAME_IDS, GAMES } from '@modrex/games'
+import { MODWORKSHOP_GAME_IDS, MODWORKSHOP_GAMES } from '../modworkshop-games.js'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 
 const MODWORKSHOP_API_BASE = 'https://api.modworkshop.net'
 
 export async function bootstrapCatalog(sql: NeonQueryFunction<false, false>): Promise<void> {
-    for (const slug of GAME_IDS) {
-        const game = GAMES[slug]
+    for (const slug of MODWORKSHOP_GAME_IDS) {
+        const game = MODWORKSHOP_GAMES[slug]
         const rows = (await sql`
             INSERT INTO games (name, slug)
             VALUES (${game.name}, ${slug})

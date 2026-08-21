@@ -18,8 +18,8 @@ mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
 pub use self::engine::{
-    backup_dir, engine_for_game, ModEngineConfig, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE,
-    PDTH_ENGINE, RAID_ENGINE,
+    backup_dir, engine_for_game, ModEngineConfig, CRIMEBOSS_ENGINE, HCE_ENGINE, ITR2_ENGINE,
+    PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE, RAID_ENGINE,
 };
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
@@ -47,9 +47,7 @@ pub(crate) use self::install::{
     uninstall_mod_op,
 };
 pub(crate) use self::naming::{hash_filename, pak_filename, strip_priority_prefix};
-pub(crate) use self::paths::{
-    active_mod_path, disabled_base, disabled_mod_path, resolve_pak_path,
-};
+pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path, resolve_pak_path};
 pub(crate) use self::reorder::{
     move_mod_to_folder_op, reorder_children_op, reorder_mods_in_folder_op,
 };
@@ -78,8 +76,9 @@ pub(crate) use self::ue4ss_modstxt::{
 };
 #[cfg(test)]
 pub(crate) use self::zip::{
-    classify_archive_dirs, copy_capped, detect_archive, extract_budget, has_ue4ss_loader_signature,
-    is_unplaceable_pack, is_zip, safe_dest, ArchiveFormat, MIN_EXTRACT_BUDGET,
+    classify_archive_dirs, classify_intotheradius, copy_capped, detect_archive, extract_budget,
+    has_ue4ss_loader_signature, is_unplaceable_pack, is_zip, safe_dest, ArchiveFormat,
+    MIN_EXTRACT_BUDGET,
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};

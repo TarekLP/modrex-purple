@@ -41,7 +41,11 @@ fn pak_viewer_game(game_id: &str) -> Result<(), String> {
 /// The sidecar binary: the bundled copy beside the app in production, or the local
 /// pakviewer/dist build under the repo in dev.
 fn pakviewer_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let exe = if cfg!(windows) { "pakviewer.exe" } else { "pakviewer" };
+    let exe = if cfg!(windows) {
+        "pakviewer.exe"
+    } else {
+        "pakviewer"
+    };
     let bundled = app
         .path()
         .resource_dir()
@@ -81,8 +85,7 @@ pub async fn list_pak_assets(
 ) -> Result<Vec<PakAsset>, String> {
     pak_viewer_game(&game_id)?;
     let settings = read_settings(&app);
-    let Some(game_path) = game_settings(&settings, &game_id)
-        .and_then(|gs| gs.game_path.clone())
+    let Some(game_path) = game_settings(&settings, &game_id).and_then(|gs| gs.game_path.clone())
     else {
         return Err(format!("{game_id} has no configured game path"));
     };

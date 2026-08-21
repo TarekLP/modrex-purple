@@ -123,6 +123,8 @@ interface Props {
     onAnalyticsConsent: (enabled: boolean) => void
     discordPresenceEnabled: boolean
     onDiscordPresenceEnabled: (enabled: boolean) => void
+    autoLaunchSisr: boolean
+    onAutoLaunchSisr: (enabled: boolean) => void
     globalOnly?: boolean
 }
 
@@ -143,6 +145,8 @@ export function SettingsPage({
     onAnalyticsConsent,
     discordPresenceEnabled,
     onDiscordPresenceEnabled,
+    autoLaunchSisr,
+    onAutoLaunchSisr,
     globalOnly = false,
 }: Props) {
     const [settings, setSettings] = useState<GameSettings | null>(
@@ -196,6 +200,10 @@ export function SettingsPage({
             legacyPaks: t('settings.folders.legacyPaks'),
             overrides: t('settings.folders.overrides'),
             ue4ssMods: t('settings.folders.ue4ssMods'),
+            smlMods: t('settings.folders.smlMods'),
+            paks: t('settings.folders.paks'),
+            logicMods: t('settings.folders.logicMods'),
+            luaMods: t('settings.folders.luaMods'),
         }),
         []
     )
@@ -861,6 +869,19 @@ export function SettingsPage({
                                                 <Toggle
                                                     checked={discordPresenceEnabled}
                                                     onChange={onDiscordPresenceEnabled}
+                                                />
+                                            </div>
+                                        </Section>
+
+                                        <Section title={t('settings.sisr.title')}>
+                                            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-border mt-1">
+                                                <span className="text-sm text-text-muted pr-4">
+                                                    {t('settings.sisr.description')}
+                                                </span>
+                                                <Toggle
+                                                    checked={autoLaunchSisr}
+                                                    onChange={onAutoLaunchSisr}
+                                                    title={t('settings.sisr.title')}
                                                 />
                                             </div>
                                         </Section>

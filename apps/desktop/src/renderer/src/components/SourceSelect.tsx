@@ -101,7 +101,10 @@ async function fetchCount(gameId: GameId, sourceId: string): Promise<number | nu
         const page = await api.nexusSearchMods(gameId, '', 'downloads', 0)
         return page.meta.total
     }
-    const page = await api.listMods(GAMES[gameId].workshopId, { limit: 1 })
+    // The modworkshop branch is only reached for games the switcher offers modworkshop
+    // to (ensureCount runs for sourcesForGame, which is multi-source only), so the id
+    // modworkshop knows the game by is defined — a game has one iff modworkshop serves it.
+    const page = await api.listMods(GAMES[gameId].workshopId!, { limit: 1 })
     return page.meta.total
 }
 
