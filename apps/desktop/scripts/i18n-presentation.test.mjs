@@ -662,15 +662,36 @@ test('status success uses stdout and rich English output has only source semanti
     }
 })
 
+// Coverage changes with every contribution, so the real-locale tests below derive what they
+// expect from the inspection the renderer is given and assert how it is presented.
 test('current real status uses compact one-row semantics without recommendations', () => {
     const stream = outputStream({ isTTY: true, columns: 100 })
     const stderr = outputStream()
     assert.equal(runI18nStatus({ stdout: stream.stream, stderr: stderr.stream, env: {} }), 0)
     const text = stripAnsi(stream.value())
-    assert.match(text, /English \(en\).*Complete.*424 source/u)
-    assert.match(text, /Deutsch \(de\).*99\.5%.*420 accepted, 2 review, 2 missing/u)
-    assert.match(text, /Русский \(ru\).*99\.5%.*420 accepted, 2 review, 2 missing/u)
-    assert.match(text, /Українська \(uk\).*99\.5%.*422 accepted, 2 missing/u)
+    const summaries = buildStatusSummaries(inspectLocales())
+
+    const rows = text.split('\n').filter((line) => line.length > 0)
+    assert.equal(rows.length, summaries.targets.length + 1)
+    assert.match(
+        text,
+        new RegExp(`English \\(en\\).*Complete.*${summaries.source.total} source`, 'u')
+    )
+
+    for (const target of summaries.targets) {
+        const status = deriveTargetStatus(target)
+        const row = rows.find((line) => line.includes(`(${target.locale})`))
+        assert.ok(row, `no row for ${target.locale}`)
+        assert.ok(row.includes(status.label), `${target.locale} row omits ${status.label}: ${row}`)
+
+        // A row names only the segments it has. Dropping the zero ones is what keeps every
+        // locale to a single line.
+        const segments = [`${status.accepted} accepted`]
+        if (status.pending > 0) segments.push(`${status.pending} review`)
+        if (status.missing > 0) segments.push(`${status.missing} missing`)
+        assert.ok(row.endsWith(segments.join(', ')), `${target.locale} row: ${row}`)
+    }
+
     assert.doesNotMatch(text, /Next:|0 missing|0 review/u)
     assert.equal(stderr.value(), '')
 })
@@ -683,7 +704,7 @@ test('current real rich rows never exceed the declared terminal width', () => {
         const lines = stripAnsi(stream.value())
             .split('\n')
             .filter((line) => line.length > 0)
-        assert.equal(lines.length, 4)
+        assert.equal(lines.length, inspectLocales().locales.length + 1)
         for (const line of lines) {
             assert.ok(
                 line.length <= columns,

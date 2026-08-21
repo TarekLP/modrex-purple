@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import test from 'node:test'
+import { inspectLocales, SOURCE_LOCALE } from './i18n-inspection.mjs'
 import {
     expectedReadme,
     materializeReadme,
@@ -48,24 +49,27 @@ test('materialized README owns the generated block and resolves every local stat
     const imagePaths = [...generated.matchAll(/src="(assets\/i18n\/status\/[^"?]+\.svg)"/gu)].map(
         ([, path]) => path
     )
-    assert.deepEqual([...new Set(imagePaths)].sort(), [
-        'assets/i18n/status/de.svg',
-        'assets/i18n/status/en.svg',
-        'assets/i18n/status/legend/accepted.svg',
-        'assets/i18n/status/legend/missing.svg',
-        'assets/i18n/status/legend/review.svg',
-        'assets/i18n/status/ru.svg',
-        'assets/i18n/status/uk.svg',
-    ])
+    const targetIds = inspectLocales().locales.map((locale) => locale.id)
+    assert.deepEqual(
+        [...new Set(imagePaths)].sort(),
+        [
+            `assets/i18n/status/${SOURCE_LOCALE}.svg`,
+            ...targetIds.map((id) => `assets/i18n/status/${id}.svg`),
+            'assets/i18n/status/legend/accepted.svg',
+            'assets/i18n/status/legend/missing.svg',
+            'assets/i18n/status/legend/review.svg',
+        ].sort()
+    )
     for (const path of imagePaths) assert.ok(readFileSync(resolve(ROOT, path)))
     assert.match(generated, /\| Language \| Translation \| Contributors \|/u)
-    assert.match(generated, /en\.svg[^\n]*> Complete/u)
-    assert.match(generated, /de\.svg[^\n]*> 99\.5%/u)
-    assert.doesNotMatch(generated, /de\.svg[^\n]*Complete/u)
-    assert.match(generated, /ru\.svg[^\n]*> 99\.5%/u)
-    assert.doesNotMatch(generated, /ru\.svg[^\n]*Complete/u)
-    assert.match(generated, /uk\.svg[^\n]*> 99\.5%/u)
-    assert.doesNotMatch(generated, /uk\.svg[^\n]*Complete/u)
+    assert.match(generated, new RegExp(`${SOURCE_LOCALE}\\.svg[^\\n]*> Complete`, 'u'))
+
+    // Complete belongs to the source row alone. A translated locale always shows a
+    // percentage, because keys awaiting review leave it short of complete even at 100%.
+    for (const id of targetIds) {
+        assert.match(generated, new RegExp(`${id}\\.svg[^\\n]*> \\d{1,3}(?:\\.\\d)?%`, 'u'))
+        assert.doesNotMatch(generated, new RegExp(`${id}\\.svg[^\\n]*Complete`, 'u'))
+    }
     assert.match(generated, /<img src="assets\/i18n\/status\/en\.svg"/u)
     assert.doesNotMatch(generated, /\[<img|<a [^>]*><img/u)
     assert.match(generated, /accepted\.svg[^>]+> Accepted /u)
