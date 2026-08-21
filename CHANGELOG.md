@@ -26,6 +26,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed an expired Nexus Mods sign-in failing silently.
 - Fixed installed Nexus mods not recovering their details and update checks after signing in again, until the app was restarted.
 - Fixed Nexus Mods requests failing until the app was restarted when Nexus rejected a sign-in before it was due to expire.
+- Fixed oversized mod thumbnails in the Installed list view.
 
 ## 0.13.0
 

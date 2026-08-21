@@ -57,7 +57,7 @@ export function ModListRow({
             >
                 <div
                     onClick={onOpen}
-                    className="relative shrink-0 w-28 bg-surface-hover cursor-pointer"
+                    className="relative shrink-0 w-28 h-24 bg-surface-hover cursor-pointer"
                 >
                     {thumbSrc ? (
                         <img
