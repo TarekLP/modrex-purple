@@ -151,6 +151,7 @@ out/
 !.claude/rules/
 !.claude/hooks/
 !.claude/settings.json
+docs/plans/
 
 # Mod index build artifacts
 apps/index/index.db*
