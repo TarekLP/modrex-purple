@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, Tag, Download, Clock, ExternalLink, Trash2 } from 'lucide-react'
+import {
+    AlertTriangle,
+    Tag,
+    Download,
+    Clock,
+    ExternalLink,
+    Trash2,
+    Image as ImageIcon,
+} from 'lucide-react'
 import { Button } from '../ui/Button'
 import type {
     ModFile,
@@ -236,7 +244,12 @@ export function DownloadsTab({
                                 className="w-14 h-14 rounded-lg object-cover"
                             />
                         ) : (
-                            <div className="w-14 h-14 rounded-lg bg-surface-active" />
+                            <div className="w-14 h-14 rounded-lg bg-surface-active flex items-center justify-center">
+                                <ImageIcon
+                                    className="w-5 h-5 text-text-subtle"
+                                    aria-hidden="true"
+                                />
+                            </div>
                         )}
                     </div>
                 )}
@@ -513,7 +526,12 @@ export function DownloadsTab({
                                             className="w-14 h-14 rounded-lg object-cover"
                                         />
                                     ) : (
-                                        <div className="w-14 h-14 rounded-lg bg-surface-active" />
+                                        <div className="w-14 h-14 rounded-lg bg-surface-active flex items-center justify-center">
+                                            <ImageIcon
+                                                className="w-5 h-5 text-text-subtle"
+                                                aria-hidden="true"
+                                            />
+                                        </div>
                                     )}
                                 </div>
                                 <div className="min-w-0 flex-1">

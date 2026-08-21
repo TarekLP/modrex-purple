@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Download, ExternalLink } from 'lucide-react'
+import { Download, ExternalLink, Image as ImageIcon } from 'lucide-react'
 import { Button } from '../ui/Button'
 import type {
     ModDependency,
@@ -289,7 +289,9 @@ function DepRow({
                     className="w-10 h-10 rounded object-cover shrink-0"
                 />
             ) : (
-                <div className="w-10 h-10 rounded bg-surface-active shrink-0" />
+                <div className="w-10 h-10 rounded bg-surface-active shrink-0 flex items-center justify-center">
+                    <ImageIcon className="w-4 h-4 text-text-subtle" aria-hidden="true" />
+                </div>
             )}
             <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{mod.name}</div>

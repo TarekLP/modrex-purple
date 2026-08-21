@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Image as ImageIcon } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Dialog, DialogHeader } from './Dialog'
 import { t } from '../i18n'
@@ -84,8 +85,10 @@ function UpdateModalRow({
                     <img src={thumbSrc} alt="" className="w-9 h-9 rounded object-cover shrink-0" />
                 ) : (
                     <div className="w-9 h-9 rounded bg-surface-active shrink-0 flex items-center justify-center">
-                        {ins.source === 'nexus' && (
+                        {ins.source === 'nexus' ? (
                             <NexusIcon className="w-4 h-4 text-text-subtle" />
+                        ) : (
+                            <ImageIcon className="w-4 h-4 text-text-subtle" aria-hidden="true" />
                         )}
                     </div>
                 )}
