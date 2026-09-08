@@ -1,4 +1,6 @@
 mod commands;
+mod game_package;
+mod games;
 
 #[cfg(windows)]
 mod windows_fullscreen;
@@ -53,6 +55,8 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::set_crimeboss_install_mode,
             commands::settings::set_suppress_crash_reporter,
             commands::settings::set_skip_fileopenlog_warning,
+            commands::sisr::get_sisr_status,
+            commands::sisr::set_auto_launch_sisr,
             commands::settings::dismiss_deps_warning,
             commands::settings::record_successful_install,
             commands::settings::get_analytics_consent,
@@ -67,7 +71,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::mods::install_from_zip_entry,
             commands::mods::install_cb_flat_archive,
             commands::mods::install_host_pack,
-            commands::mods::delete_temp_file,
+            commands::mods::discard_staged_archive,
             commands::mods::uninstall_mod,
             commands::mods::enable_mod,
             commands::mods::disable_mod,
@@ -90,6 +94,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::loaders::install_loader,
             // launchers & system
             commands::launchers::detected_installs,
+            commands::launchers::detect_installed_games,
             commands::launchers::configure_game_path,
             commands::launchers::select_game_install,
             commands::launchers::pick_folder,
@@ -99,7 +104,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::launchers::is_game_running,
             commands::launchers::stop_game,
             commands::launchers::shell_open_external,
-            commands::launchers::shell_open_path,
+            commands::launchers::open_game_folder,
             commands::launchers::open_log_file,
             commands::launchers::open_data_folder,
             commands::launchers::open_app_folder,
@@ -121,6 +126,7 @@ fn ipc_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::storage::clear_index_cache,
             commands::storage::clear_news_cache,
             commands::settings::reset_app_settings,
+            commands::pak_viewer::list_pak_assets,
         ])
 }
 
@@ -177,15 +183,21 @@ pub fn run() {
         )
         .setup(|app| {
             log::info!("Modrex started");
+            // The one staged-archive registry this application owns. Commands reach it
+            // through managed state, so nothing has to consult a process global.
+            app.manage(commands::mods::StagingRegistry::new());
             #[cfg(windows)]
             if let Some(window) = app.get_webview_window("main") {
                 windows_fullscreen::install(&window)?;
             }
 
             #[cfg(desktop)]
-            {
-                app.deep_link().register("nxm")?;
-                app.deep_link().register("modrex")?;
+            for scheme in ["nxm", "modrex"] {
+                // Linux registration shells out to xdg-mime and update-desktop-database,
+                // which are not on every system. Losing deep links beats refusing to start.
+                if let Err(e) = app.deep_link().register(scheme) {
+                    log::warn!("could not register the {scheme} scheme: {e}");
+                }
             }
 
             let handle = app.handle().clone();
@@ -225,6 +237,7 @@ pub fn run() {
 
     commands::settings::migrate_from_old_identifier(app.handle());
     commands::settings::migrate_from_electron(app.handle());
+    commands::analytics::start(app.handle());
 
     let games_configured = commands::settings::read_settings(app.handle())
         .games
@@ -261,13 +274,25 @@ pub fn run() {
         });
     }
 
-    app.run(|_, _| {});
+    // Archives still waiting on a prompt when the app exits are removed through the plans
+    // the registry holds for them, so a closed window does not leave them behind. Nothing is
+    // recovered after a crash: an artifact whose ownership cannot be proven is left alone.
+    app.run(|app_handle, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            commands::mods::discard_all_staged_archives(app_handle);
+        }
+    });
 }
 
 /// Regenerates src/shared/bindings.ts from the command registry. CI asserts the result
 /// matches the committed file. Driven by tests/export_bindings.rs, deliberately an
 /// integration test: referencing ipc_builder() links the whole command surface, including
 /// rfd's comctl32 v6 dialog imports, which need the manifest build.rs embeds only in tests.
+#[doc(hidden)]
+pub fn export_game_catalog() {
+    games::catalog::export_catalog();
+}
+
 #[doc(hidden)]
 pub fn export_typescript_bindings() {
     ipc_builder()

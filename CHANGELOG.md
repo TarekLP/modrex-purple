@@ -6,6 +6,34 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Added
 
+- Added Italian as a language option for the app's interface.
+- Added Simplified Chinese as a language option for the app's interface.
+- Added a viewer for browsing the contents of installed Unreal Engine pak mods.
+- Added an optional Windows setting to start SISR before games launched from Modrex, with setup and launch-failure warnings.
+- Added a setting to choose the app's accent color.
+
+### Changed
+
+- Startup no longer runs the Microsoft Store lookup for a game more than once at a time.
+- The game picker no longer changes which copy of a game is selected while working out which games are installed.
+
+### Fixed
+
+- Fixed installing a file from the Manage Files list picking the wrong one when a mod's archive holds two files with the same name in different folders.
+- Fixed installing the wrong file from an archive that contains two entries whose names look the same, such as a mod packaged with both forward and back slashes in its paths. Each entry you pick now installs its own contents.
+- Archives waiting on a choice, such as picking which files to install, are now tracked by Modrex itself rather than by a file path passed back from the interface, so only the archive Modrex staged can be opened or removed.
+- Opening the log from Settings now opens the log file itself instead of writing a copy to a predictable name in the system temporary folder, which another program could have redirected at one of your own files.
+- Fixed cleanup after installing a .pdmod file or a loose non-archive file being able to target the system temporary folder instead of only the files Modrex had staged there.
+- Fixed Nexus Mods sign-in and website mod downloads not reaching Modrex on Linux.
+- Fixed enabling or disabling a mod being reported as done when its files could not be moved, such as while the game is running.
+- Fixed a mod being left split between folders when its .ucas or .utoc file could not be moved with its pak.
+- Fixed mod folders and load order being lost when Modrex could not read its saved mod list.
+- Fixed dragging a mod's archive onto Modrex moving that mod out of the folder it was filed in, unlike installing it from its page.
+
+## 0.14.0
+
+### Added
+
 - Added German as a language option for the app's interface.
 - Added Ukrainian as a language option for the app's interface.
 - Added X and Bluesky links to the website and to app's Settings > About.
@@ -29,6 +57,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed installed Nexus mods not recovering their details and update checks after signing in again, until the app was restarted.
 - Fixed Nexus Mods requests failing until the app was restarted when Nexus rejected a sign-in before it was due to expire.
 - Fixed oversized mod thumbnails in the Installed list view.
+- Fixed the Linux AppImage showing a black window instead of the app on systems with newer graphics drivers.
+- Fixed Modrex not starting on Linux systems that do not have xdg-utils or desktop-file-utils installed.
+- Fixed the browser, Steam and other programs opened from Modrex's Linux AppImage failing to start.
 
 ## 0.13.0
 

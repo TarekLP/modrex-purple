@@ -1,8 +1,12 @@
 [package]
 name = "modrex"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 license = "MIT"
+
+# The contract crate is a member so one cargo invocation formats, lints and locks both.
+[workspace]
+members = ["game-package"]
 
 [lib]
 name = "modrex_lib"
@@ -10,12 +14,15 @@ crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+modrex-game-package = { path = "game-package", features = ["codegen"] }
+toml = "1"
 
 [dependencies]
 tauri = { version = "2", features = [] }
 percent-encoding = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+modrex-game-package = { path = "game-package" }
 reqwest = { version = "0.13", default-features = false, features = [
     "rustls-no-provider",
     "charset",
@@ -53,6 +60,10 @@ tauri-plugin-deep-link = "2"
 rand = "0.10"
 base64 = "0.23"
 keyring = "4"
+aes = "0.8"
+repak = { git = "https://github.com/trumank/repak.git", version = "=0.2.3" }
+# retoc follows jmap's moving branch; Cargo.lock keeps it on the compatible 0.1.0 revision.
+retoc = { git = "https://github.com/trumank/retoc.git", tag = "v0.1.5" }
 specta = { version = "=2.0.0-rc.25", features = ["derive", "function", "serde_json"] }
 specta-typescript = "=0.0.12"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
@@ -61,6 +72,8 @@ tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [dev-dependencies]
+toml = "1"
+modrex-game-package = { path = "game-package", features = ["codegen"] }
 tempfile = "3"
 filetime = "0.2"
 tokio = { version = "1", features = ["rt", "macros"] }

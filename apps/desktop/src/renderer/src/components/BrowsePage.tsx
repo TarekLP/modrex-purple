@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo, startTransition } from 'react'
 import { TITLE_ROW_MIN_H } from './pageHeader'
-import { Search, LayoutGrid, ArrowDownUp } from 'lucide-react'
+import { Search, LayoutGrid, ArrowDownUp, X } from 'lucide-react'
 import type {
     Mod,
     ModFile,
@@ -49,11 +49,13 @@ import { useLoaderState } from '../hooks/useLoaderState'
 import { resolveDepCheck } from '../installDepCheck'
 import { t } from '../i18n'
 import { api } from '../api'
+import { runBulkAction } from '../bulkAction'
 import { trackSearch } from '../lib/analytics/events'
 import { markForegroundActivity, waitForForegroundClear } from '../requestPriority'
 
 interface Props {
     activeGame: GameId
+    workshopId: number
     isActive: boolean
     gamePath: string | null
     gamePathReady: boolean
@@ -207,6 +209,7 @@ function getSavedSort(game: GameId): SortOption {
 
 export function BrowsePage({
     activeGame,
+    workshopId,
     isActive,
     source,
     onSourceChange,
@@ -222,7 +225,6 @@ export function BrowsePage({
     const [categoryId, setCategoryId] = useState<number | undefined>()
     const [includeTags, setIncludeTags] = useState<number[]>([])
     const [excludeTags, setExcludeTags] = useState<number[]>([])
-    const workshopId = GAMES[activeGame].workshopId
     const initialSort = getSavedSort(activeGame)
     const [sort, setSort] = useState<SortOption>(initialSort)
     const initialCache = getBrowseCache(workshopId, 1, '', initialSort, undefined)
@@ -237,6 +239,9 @@ export function BrowsePage({
         ReadonlyMap<string, { downloaded: number; total: number }>
     >(new Map())
     const [error, setError] = useState<string | null>(null)
+    // Enable, disable and uninstall report separately from a failed listing fetch: the grid
+    // stays usable, so hiding it behind the fetch error would be wrong.
+    const [actionError, setActionError] = useState<string | null>(null)
     const [depsWarning, setDepsWarning] = useState<{
         modId: number
         allDeps: ModDependency[]
@@ -609,8 +614,14 @@ export function BrowsePage({
             if (uids.length === 0) return
             addInstalling(modId)
             try {
-                for (const uid of uids) await api.enableMod(uid, gamePath, activeGame)
-                await onRefreshInstalled()
+                setActionError(
+                    await runBulkAction(
+                        uids,
+                        (uid) => installed.find((m) => m.uid === uid)?.name ?? '',
+                        (uid) => api.enableMod(uid, gamePath, activeGame),
+                        onRefreshInstalled
+                    )
+                )
             } finally {
                 removeInstalling(modId)
             }
@@ -630,8 +641,14 @@ export function BrowsePage({
             if (uids.length === 0) return
             addInstalling(modId)
             try {
-                for (const uid of uids) await api.disableMod(uid, gamePath, activeGame)
-                await onRefreshInstalled()
+                setActionError(
+                    await runBulkAction(
+                        uids,
+                        (uid) => installed.find((m) => m.uid === uid)?.name ?? '',
+                        (uid) => api.disableMod(uid, gamePath, activeGame),
+                        onRefreshInstalled
+                    )
+                )
             } finally {
                 removeInstalling(modId)
             }
@@ -838,6 +855,18 @@ export function BrowsePage({
                     />
                 </div>
             </div>
+
+            {actionError && (
+                <div className="mx-6 mt-4 px-4 py-3 bg-danger/30 border border-danger-hover rounded text-sm text-danger-text flex items-center justify-between gap-3">
+                    <span className="truncate">{actionError}</span>
+                    <button
+                        onClick={() => setActionError(null)}
+                        className="shrink-0 hover:opacity-70 transition-opacity"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
 
             {error &&
                 (isRateLimitError(error) ? (

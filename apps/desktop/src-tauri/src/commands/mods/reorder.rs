@@ -1,7 +1,8 @@
 use super::engine::ModEngineConfig;
+use super::naming::log_name;
 use super::naming::{apply_priority_prefix, strip_priority_prefix};
 use super::paths::{active_mod_path, disabled_base, disabled_mod_path, mods_base};
-use super::state::{get_folder_path, read_state, save_state};
+use super::state::{get_folder_path, read_state, save_error, save_state};
 use super::types::{InstalledMod, TopLevelItem};
 use std::fs;
 use std::path::Path;
@@ -12,8 +13,8 @@ pub fn reorder_mods_in_folder_op(
     folder_id: Option<&str>,
     ordered_uids: &[String],
     cfg: &ModEngineConfig,
-) {
-    let mut state = read_state(state_path);
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let folder_rel = get_folder_path(&state.folders, folder_id);
     let total = ordered_uids.len() as i64;
 
@@ -44,7 +45,7 @@ pub fn reorder_mods_in_folder_op(
             };
             if old.exists() {
                 if let Err(e) = fs::rename(&old, &new) {
-                    log::warn!("reorder: rename {old:?} -> {new:?}: {e}");
+                    log::warn!("reorder: rename {}: {e}", log_name(&old));
                 }
             }
             m.filename = new_filename;
@@ -52,7 +53,8 @@ pub fn reorder_mods_in_folder_op(
         m.priority = Some(priority);
     }
 
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }
 
 pub fn move_mod_to_folder_op(
@@ -62,13 +64,13 @@ pub fn move_mod_to_folder_op(
     target_folder_id: Option<String>,
     target_position: usize,
     cfg: &ModEngineConfig,
-) {
-    let mut state = read_state(state_path);
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let Some(moving) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
-        return;
+        return Ok(());
     };
     if moving.location.is_some() {
-        return;
+        return Ok(());
     }
 
     let src_rel = get_folder_path(&state.folders, moving.folder_id.as_deref());
@@ -130,7 +132,7 @@ pub fn move_mod_to_folder_op(
             };
             if old.exists() {
                 if let Err(e) = fs::rename(&old, &new) {
-                    log::warn!("move_to_folder: rename {old:?} -> {new:?}: {e}");
+                    log::warn!("move_to_folder: rename {}: {e}", log_name(&old));
                 }
             }
         }
@@ -140,7 +142,8 @@ pub fn move_mod_to_folder_op(
         m.folder_id = target_folder_id.clone();
     }
 
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }
 
 pub fn reorder_children_op(
@@ -149,8 +152,8 @@ pub fn reorder_children_op(
     parent_id: Option<&str>,
     items: &[TopLevelItem],
     cfg: &ModEngineConfig,
-) {
-    let mut state = read_state(state_path);
+) -> Result<(), String> {
+    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
     let parent_rel = get_folder_path(&state.folders, parent_id);
     let mods_dir = match &parent_rel {
         Some(r) => mods_base(game_path, cfg.primary()).join(r),
@@ -274,7 +277,7 @@ pub fn reorder_children_op(
         };
         if old_path.exists() {
             if let Err(e) = fs::rename(&old_path, &new_path) {
-                log::warn!("reorder_children: mod rename {old_path:?} -> {new_path:?}: {e}");
+                log::warn!("reorder_children: mod rename {}: {e}", log_name(&old_path));
             }
         }
     }
@@ -304,5 +307,6 @@ pub fn reorder_children_op(
         }
     }
 
-    save_state(state_path, &state);
+    save_state(state_path, &state).map_err(save_error)?;
+    Ok(())
 }

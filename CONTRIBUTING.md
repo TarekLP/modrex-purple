@@ -88,18 +88,28 @@ Common types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`.
 
 Open a pull request against `main`. Run `pnpm checks` first, it runs the same gate CI does.
 
-Adding support for a new game, mod loader, or mod source is mostly a matter of adding an
-entry to the relevant registry rather than editing call sites:
+## Games, sources and loaders
 
-| What you're adding | Registry                                                                                            |
-| ------------------ | --------------------------------------------------------------------------------------------------- |
-| Game               | `apps/desktop/src-tauri/src/commands/games.rs` + `GAME_SPECS` in `apps/desktop/src/shared/types.ts` |
-| Mod loader         | `apps/desktop/src-tauri/src/commands/loaders.rs`                                                    |
-| Mod source         | `apps/desktop/src-tauri/src/commands/sources.rs`                                                    |
+A supported game is one directory holding a `package.toml` under
+`apps/desktop/src-tauri/src/games/`. The desktop build script reads every directory there, so
+no other desktop file lists the games and there is no registry to add one to. It parses and validates
+each manifest before the crate compiles, which makes `cargo test` inside `apps/desktop/src-tauri`
+the authoritative check. That same run rewrites the generated TypeScript catalog, and CI fails
+when the committed copy is stale.
 
-Neither side of a cross-language pair can see the other, so `pnpm check-games` and
-`pnpm check-sources` diff them in CI. See `CLAUDE.md` for how they fit together before
-starting.
+The manifests use TOML 1.1 multiline inline tables. Taplo 0.9 and other TOML 1.0 tools report
+false syntax errors on that syntax, so do not run an incompatible TOML formatter over
+`apps/desktop/src-tauri/src/games/*/package.toml`.
+
+| What you are adding                                              | Start at                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| A game that fits mechanisms Modrex already has                   | [docs/contributing/adding-a-game.md](docs/contributing/adding-a-game.md) |
+| A binding to an existing source, loader, storefront or decoder   | [docs/contributing/integrations.md](docs/contributing/integrations.md)   |
+| A source, loader, storefront or decoder Modrex does not have yet | [docs/contributing/integrations.md](docs/contributing/integrations.md)   |
+| A manifest field you need to look up                             | [docs/reference/game-package.md](docs/reference/game-package.md)         |
+
+[docs/architecture/game-packages.md](docs/architecture/game-packages.md) explains how discovery,
+the typed contract and the generated artifacts fit together. `docs/README.md` routes the rest.
 
 ## Translations
 
@@ -121,12 +131,26 @@ The translator-focused workflow, optional commands, locale rules, and new-langua
 [TRANSLATING.md](TRANSLATING.md). Local tooling is optional; CI can perform validation without
 pnpm, application dependencies, Rust, Tauri, or launching Modrex.
 
+### Who owns what
+
+| Actor                | Owns                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| Product contributor  | English source strings in `en.json`, and nothing else about translation                       |
+| Language contributor | Translated text and explicit review decisions                                                 |
+| CI                   | Whether the tree is valid translation data, judged against Git history                        |
+| Bot                  | Mechanical `!` and `?` markers, contributor attribution, the README table and the status SVGs |
+
+Changing English alone is a complete change. CI does not ask a product contributor to touch
+another locale, and it does not ask a language contributor to regenerate a badge. The
+translation-status workflow performs every mechanical update after the change reaches `main`,
+and verifies its own output before committing, so derived files may lag briefly in between.
+
 Maintainers can verify or regenerate the README translation table and per-locale status SVGs:
 
 | Command                        | Description                                                                                |
 | ------------------------------ | ------------------------------------------------------------------------------------------ |
 | `pnpm i18n:presentation-check` | Exit non-zero when the README translation table or a status SVG is stale, without writing. |
 | `pnpm i18n:presentation-write` | Materialize the README translation table and status SVGs from current locale state.        |
+| `pnpm i18n:check-sync`         | Exit non-zero when derived locale markers are stale. The bot's check, not a contributor's. |
 
-After locale changes reach `main`, GitHub Actions regenerates contributor attribution and the
-README table. Locale files remain the source for language discovery and coverage.
+Locale files remain the source for language discovery and coverage.

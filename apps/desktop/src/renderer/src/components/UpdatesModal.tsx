@@ -75,7 +75,7 @@ function UpdateModalRow({
                 checked={checked}
                 disabled={isLoading}
                 onChange={onToggle}
-                className="accent-[oklch(0.65_0.18_47)] w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                className="w-4 h-4 shrink-0 cursor-pointer disabled:cursor-not-allowed"
             />
             <button
                 onClick={onOpenDetail}
@@ -167,7 +167,7 @@ export function UpdatesModal({
             const zipData = outcome.needsPicker as unknown as ZipMultiPakPayload
             if (gamePath) {
                 const autoEntries = computeAutoUpdateSelection(zipData, installed)
-                const entriesToInstall = autoEntries ?? zipData.entries
+                const entriesToInstall = autoEntries ?? zipData.entries.map((_, pos) => pos)
                 try {
                     await installZipPickerEntries(
                         zipData,

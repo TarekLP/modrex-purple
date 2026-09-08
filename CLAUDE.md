@@ -45,6 +45,13 @@ Translation-only contributions should stay focused when practical. Human contrib
 include relevant translations with product changes; this does not change the AI restriction
 above.
 
+The one exception to the restriction is the translation-status workflow, which writes `!`
+scaffolds and `?` review markers into non-English locales. Those are mechanical: they copy
+English or re-mark existing translated text, and they never invent a translation. A change to
+`en.json` alone is complete and passes CI on its own; the bot materializes the markers, the
+contributor table, the README block and the status SVGs afterwards. See
+docs/architecture/i18n-ownership.md.
+
 ## Permanent compatibility contracts
 
 - Bare vX.Y.Z tags and GitHub Releases belong to the desktop application.
@@ -57,4 +64,6 @@ above.
 - Never run a git command that touches a remote. Write the command for the owner instead.
 - Never commit unless the owner explicitly approves the reviewed step.
 
-See docs/architecture/monorepo-migration.md for migration order and invariants.
+See docs/architecture/public-contracts.md for what each contract protects, and
+docs/architecture/game-packages.md for how game packages are discovered and loaded.
+docs/README.md routes the rest of the contributor documentation.

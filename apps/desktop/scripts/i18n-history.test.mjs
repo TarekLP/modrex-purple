@@ -737,24 +737,22 @@ test('repaired intermediate malformed workflow values fail at the malformed revi
     }
 })
 
-test('a scaffold containing marker-like English must still match the current source', () => {
+test('a historical scaffold quoting superseded English replays as Missing', () => {
     withRepo((dir) => {
         const baseline = commitLocales(dir, { en: { a: 'A' }, de: { a: 'X' } }, 'baseline')
-        const malformedRevision = commitLocales(
+        const staleRevision = commitLocales(
             dir,
             { en: { a: 'A' }, de: { a: '! ? X' } },
             'stale scaffold'
         )
         commitLocales(dir, { en: { a: 'A' }, de: { a: 'X' } }, 'repair')
 
-        assert.throws(
-            () => analyze(dir, baseline),
-            (error) =>
-                error instanceof I18nHistoryStateError &&
-                error.revision === malformedRevision &&
-                error.locale === 'de' &&
-                error.key === 'a'
-        )
+        // The payload is still compared against English rather than parsed as a nested
+        // marker, so this revision holds one unrefreshed scaffold: Missing, no lineage.
+        const stale = analyze(dir, baseline, { revision: staleRevision })
+        assert.equal(entryOf(stale, 'de', 'a').state, 'scaffold')
+        assert.equal(entryOf(stale, 'de', 'a').checkpoint, null)
+        assert.equal(entryOf(analyze(dir, baseline), 'de', 'a').state, 'accepted')
     })
 })
 
@@ -1202,8 +1200,11 @@ const withoutRealHistory = realHistory.available
     ? false
     : `authoritative history through ${I18N_HISTORY_BASELINE} is unavailable here`
 
+// Which keys are translated, and how many, changes with every contribution, so these assert
+// invariants that hold at any revision rather than today's content. Exact reconstruction is
+// proven against the synthetic repositories above, where the content is fixed.
 test(
-    'the real repository reconstructs exactly the four explicit review requests',
+    'the real repository agrees between its review-request events and its entry states',
     {
         skip: withoutRealHistory,
     },
@@ -1211,52 +1212,63 @@ test(
         const history = analyzeCommittedHistory({ cwd: REPO_ROOT })
         assert.equal(history.baseline, I18N_HISTORY_BASELINE)
 
+        // Resolving a review accepts the entry, so a requested entry is pending or accepted
+        // depending on the revision. Only the lineage a request proves holds in both states.
         const requests = explicitReviewRequests(history)
-        const byLocale = new Map()
-        for (const event of requests) {
-            byLocale.set(event.locale, [...(byLocale.get(event.locale) ?? []), event.key].sort())
-        }
-
-        assert.equal(requests.length, 4)
-        assert.deepEqual(byLocale.get('de'), [
-            'installed.health.unidentifiedHint',
-            'installed.health.unidentifiedRowHint',
-        ])
-        assert.deepEqual(byLocale.get('ru'), [
-            'installed.health.unidentifiedHint',
-            'installed.health.unidentifiedRowHint',
-        ])
-        assert.equal(byLocale.get('uk'), undefined)
-
         for (const event of requests) {
             assert.equal(event.sourceChanged, false)
             assert.equal(event.canonicalChanged, false)
             const entry = entryOf(history, event.locale, event.key)
-            assert.equal(entry.state, 'pending')
-            assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
             assert.equal(entry.hasAcceptedLineage, true)
             assert.equal(entry.acceptedPairSeen, true)
-            assert.equal(entry.checkpoint.revision, I18N_HISTORY_BASELINE)
+            if (entry.state !== 'pending') continue
+            assert.equal(entry.pendingProvenance, PENDING_PROVENANCE.EXPLICIT_REQUEST)
+        }
+
+        // Containment runs one way only. A resolved request stays in the log while its entry
+        // stops being flagged, so equality between the two sets breaks on the first review.
+        const summary = summarizeHistory(history)
+        const requested = new Set(requests.map((event) => entryId(event.locale, event.key)))
+        for (const [localeId, locale] of summary.locales) {
+            for (const [key, entry] of locale.entries) {
+                if (entry.pendingProvenance !== PENDING_PROVENANCE.EXPLICIT_REQUEST) continue
+                assert.ok(
+                    requested.has(entryId(localeId, key)),
+                    `${entryId(localeId, key)} is flagged as an explicit request with no logged request`
+                )
+            }
         }
     }
 )
 
 test(
-    'the real repository reports its current accepted and pending totals',
+    'the real repository reports totals that match its per-entry states',
     {
         skip: withoutRealHistory,
     },
     () => {
-        const summary = summarizeHistory(analyzeCommittedHistory({ cwd: REPO_ROOT }))
-        assert.deepEqual(
-            [...summary.locales]
-                .map(([id, locale]) => [id, locale.accepted, locale.pending])
-                .sort(),
-            [
-                ['de', 420, 2],
-                ['ru', 420, 2],
-                ['uk', 422, 0],
-            ]
-        )
+        const history = analyzeCommittedHistory({ cwd: REPO_ROOT })
+        const summary = summarizeHistory(history)
+        const sourceKeys = history.snapshot.source.size
+
+        assert.ok(sourceKeys > 0)
+        assert.ok(summary.locales.size > 0)
+        for (const [localeId, locale] of summary.locales) {
+            const states = [...locale.entries.values()].map((entry) => entry.state)
+            assert.equal(
+                locale.accepted,
+                states.filter((state) => state === 'accepted').length,
+                `${localeId} accepted total`
+            )
+            assert.equal(
+                locale.pending,
+                states.filter((state) => state === 'pending').length,
+                `${localeId} pending total`
+            )
+            assert.ok(
+                locale.accepted + locale.pending <= sourceKeys,
+                `${localeId} counts no more entries than the source has keys`
+            )
+        }
     }
 )

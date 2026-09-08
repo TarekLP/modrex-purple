@@ -115,6 +115,8 @@ pub struct Settings {
     pub analytics_id: Option<String>,
     #[serde(default = "default_true", deserialize_with = "null_or_true")]
     pub discord_rich_presence_enabled: bool,
+    #[serde(default, deserialize_with = "null_default")]
+    pub auto_launch_sisr: bool,
     // OAuth credentials are persisted only in local settings and sent only to
     // Nexus's OAuth and API endpoints.
     pub nexus_oauth: Option<NexusOAuthTokens>,
@@ -153,6 +155,7 @@ impl Default for Settings {
             analytics_enabled: false,
             analytics_id: None,
             discord_rich_presence_enabled: true,
+            auto_launch_sisr: false,
             nexus_oauth: None,
             successful_installs: 0,
             first_install_at: 0,
@@ -199,7 +202,7 @@ pub fn read_settings(app: &AppHandle) -> Settings {
     let mut s: Settings = match serde_json::from_str(&content) {
         Ok(s) => s,
         Err(e) => {
-            log::warn!("read_settings: parse {path:?}: {e}; falling back to defaults");
+            log::warn!("read_settings: parse failed: {e}; falling back to defaults");
             Settings::default()
         }
     };
@@ -237,11 +240,11 @@ pub(crate) fn write_settings(app: &AppHandle, settings: &Settings) {
         &tmp,
         serde_json::to_string_pretty(settings).unwrap_or_default(),
     ) {
-        log::warn!("write_settings: write {tmp:?}: {e}");
+        log::warn!("write_settings: write failed: {e}");
         return;
     }
     if let Err(e) = std::fs::rename(&tmp, &path) {
-        log::warn!("write_settings: rename {tmp:?} -> {path:?}: {e}");
+        log::warn!("write_settings: rename failed: {e}");
     }
 }
 
@@ -442,13 +445,22 @@ pub fn get_analytics_consent(app: AppHandle) -> Option<bool> {
 #[tauri::command]
 #[specta::specta]
 pub fn set_analytics_consent(app: AppHandle, enabled: bool) {
-    update_settings(&app, |s| {
+    let changed = update_settings(&app, |s| {
+        let changed = s.analytics_enabled != enabled;
         s.analytics_consent_asked = true;
         s.analytics_enabled = enabled;
         if enabled && s.analytics_id.is_none() {
             s.analytics_id = Some(uuid::Uuid::new_v4().to_string());
         }
+        changed
     });
+    if !changed {
+        return;
+    }
+    crate::commands::analytics::reset_activity();
+    if enabled {
+        crate::commands::analytics::track(&app, "consent_granted", serde_json::json!({}));
+    }
 }
 
 /// Returns the persisted anonymous analytics ID, generating and persisting one if absent.

@@ -42,11 +42,26 @@ function canonicalTargetContent(value, localeId) {
     return entries
 }
 
-export function localeJsonChanged(previous, current, localeId, revision) {
+// A locale file that does not parse as JSON reached main once, and history cannot be rewritten to
+// remove it. Such a revision is uncomparable rather than fatal, so the caller counts it as a change.
+const UNPARSEABLE = Symbol('unparseable')
+
+function parseHistoricalJson(source) {
     try {
-        const previousBundle = previous === undefined ? {} : JSON.parse(previous)
+        return JSON.parse(source)
+    } catch {
+        return UNPARSEABLE
+    }
+}
+
+export function localeJsonChanged(previous, current, localeId, revision) {
+    const previousBundle = previous === undefined ? {} : parseHistoricalJson(previous)
+    const currentBundle = parseHistoricalJson(current)
+    if (previousBundle === UNPARSEABLE || currentBundle === UNPARSEABLE) return true
+
+    try {
         const previousContent = canonicalTargetContent(previousBundle, localeId)
-        const currentContent = canonicalTargetContent(JSON.parse(current), localeId)
+        const currentContent = canonicalTargetContent(currentBundle, localeId)
         for (const [key, value] of currentContent) {
             if (!isDeepStrictEqual(previousContent.get(key), value)) return true
         }
@@ -76,6 +91,7 @@ export async function collectTranslationContributors(
     changesLocaleJson = commitChangesLocaleJson
 ) {
     const contributors = {}
+    const creators = {}
 
     for (const localeId of localeIds) {
         const usernames = new Set()
@@ -95,13 +111,18 @@ export async function collectTranslationContributors(
                 if (await changesLocaleJson(localeId, commit)) usernames.add(username)
             }
 
-            if (commits.length < PER_PAGE) break
+            if (commits.length < PER_PAGE) {
+                // GitHub returns newest first, so the final entry created the locale.
+                const oldest = commits.at(-1)
+                if (oldest?.author?.type === 'User') creators[localeId] = oldest.author.login
+                break
+            }
         }
 
         if (usernames.size > 0) contributors[localeId] = [...usernames].sort()
     }
 
-    return contributors
+    return { contributors, creators }
 }
 
 async function fetchGitHubCommits(repository, token, localeId, page) {
@@ -123,6 +144,56 @@ async function fetchGitHubCommits(repository, token, localeId, page) {
     return response.json()
 }
 
+// A squash merge names the merging maintainer as author, which history cannot tell apart from
+// translation. Creating a locale is the one act that is unambiguously the translator's.
+export function applyMaintainerAttribution(contributors, maintainers, creators) {
+    const filtered = {}
+    for (const [localeId, usernames] of Object.entries(contributors)) {
+        const kept = usernames.filter(
+            (username) => !maintainers.has(username) || creators[localeId] === username
+        )
+        if (kept.length > 0) filtered[localeId] = kept
+    }
+    return filtered
+}
+
+// Trusted translators hold push access and org membership, so admin is the only boundary that
+// does not strip their credit. Listing collaborators needs only Metadata read.
+async function fetchMaintainers(repository, token) {
+    const maintainers = new Set()
+    for (let page = 1; ; page += 1) {
+        const url = new URL(`https://api.github.com/repos/${repository}/collaborators`)
+        url.searchParams.set('permission', 'admin')
+        url.searchParams.set('per_page', String(PER_PAGE))
+        url.searchParams.set('page', String(page))
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                'X-GitHub-Api-Version': '2022-11-28',
+            },
+        })
+        if (!response.ok) {
+            throw new Error(
+                `GitHub collaborator request failed with status ${response.status}. ` +
+                    'Without the maintainer list every maintainer would be credited as a translator.'
+            )
+        }
+        const collaborators = await response.json()
+        if (!Array.isArray(collaborators)) {
+            throw new Error('GitHub returned invalid collaborator data')
+        }
+        for (const collaborator of collaborators) {
+            if (typeof collaborator?.login !== 'string') {
+                throw new Error('GitHub returned a collaborator without a login')
+            }
+            maintainers.add(collaborator.login)
+        }
+        if (collaborators.length < PER_PAGE) return maintainers
+    }
+}
+
 async function updateTranslationContributors() {
     const repository = process.env.GITHUB_REPOSITORY
     const token = process.env.GITHUB_TOKEN
@@ -138,10 +209,13 @@ async function updateTranslationContributors() {
     }
 
     const localeIds = inspection.locales.map((locale) => locale.id)
-    const contributors = await collectTranslationContributors(localeIds, (localeId, page) =>
-        fetchGitHubCommits(repository, token, localeId, page)
+    const { contributors, creators } = await collectTranslationContributors(
+        localeIds,
+        (localeId, page) => fetchGitHubCommits(repository, token, localeId, page)
     )
-    writeFileSync(CONTRIBUTORS_PATH, `${JSON.stringify(contributors, null, 4)}\n`)
+    const maintainers = await fetchMaintainers(repository, token)
+    const credited = applyMaintainerAttribution(contributors, maintainers, creators)
+    writeFileSync(CONTRIBUTORS_PATH, `${JSON.stringify(credited, null, 4)}\n`)
     process.stdout.write('update-i18n-contributors: updated contributor metadata\n')
 }
 

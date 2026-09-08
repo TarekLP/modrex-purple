@@ -1,66 +1,163 @@
-//! The one table a game registers in: id to engine config plus storefront definition.
-//! engine_for_game and game_def_for_id derive from it, so a family-conforming new game
-//! is one GameSpec line here plus its launchers/games/<id>.rs file and engine config.
+//! Resolves a game id to the engine config, storefront definition and package reader its
+//! package declares.
 
-use crate::commands::launchers::{GameDef, CRIMEBOSS, PD2, PD3, PDTH, RAID};
-use crate::commands::mods::{
-    ModEngineConfig, CRIMEBOSS_ENGINE, PD2_ENGINE, PD3_ENGINE, PDTH_ENGINE, RAID_ENGINE,
-};
+use crate::commands::launchers::{EpicDef, GameDef, SteamDef, XboxDef};
+use crate::commands::mods::{ModEngineConfig, ModUnit, ScanTarget};
+use crate::game_package::{self as package, GamePackage};
+use std::sync::LazyLock;
 
 pub struct GameSpec {
     pub id: &'static str,
     pub engine: &'static ModEngineConfig,
     pub def: &'static GameDef,
+    /// Borrowed from the package rather than copied, so the key has one home. None for a game
+    /// whose manifest declares no reader.
+    pub package_reader: Option<&'static package::PackageReaderBinding>,
 }
 
-pub static GAME_REGISTRY: &[GameSpec] = &[
+pub static GAME_REGISTRY: LazyLock<Vec<GameSpec>> = LazyLock::new(|| {
+    crate::games::discovered()
+        .iter()
+        .map(|(_, pkg)| spec_from(pkg))
+        .collect()
+});
+
+// ModEngineConfig, ScanTarget and GameDef borrow for 'static because every consumer holds
+// them for the life of the process. Their text points into the cached package, so only the
+// slices and the two structs are allocated, once per package.
+fn spec_from(pkg: &'static GamePackage) -> GameSpec {
+    let engine = Box::leak(Box::new(ModEngineConfig {
+        game_id: &pkg.id,
+        index_game_name: &pkg.name,
+        mod_metadata: pkg.mod_metadata,
+        decoders: &pkg.decoders,
+        targets: own_slice(pkg.targets.iter().map(scan_target).collect()),
+    }));
+    let mut def = GameDef {
+        name: &pkg.name,
+        executables: text_slice(&pkg.install.executables),
+        process_names: text_slice(&pkg.install.processes),
+        steam: None,
+        epic: None,
+        xbox: None,
+    };
+    for store in &pkg.install.stores {
+        match store {
+            package::StoreBinding::Steam { app_id, folder } => {
+                def.steam = Some(SteamDef {
+                    app_id: *app_id,
+                    folder_name: folder,
+                })
+            }
+            package::StoreBinding::Epic { name } => def.epic = Some(EpicDef { display_name: name }),
+            package::StoreBinding::Xbox {
+                product_id,
+                executable,
+            } => {
+                def.xbox = Some(XboxDef {
+                    product_id,
+                    executable,
+                })
+            }
+        }
+    }
     GameSpec {
-        id: "pd3",
-        engine: &PD3_ENGINE,
-        def: &PD3,
-    },
-    GameSpec {
-        id: "pd2",
-        engine: &PD2_ENGINE,
-        def: &PD2,
-    },
-    GameSpec {
-        id: "pdth",
-        engine: &PDTH_ENGINE,
-        def: &PDTH,
-    },
-    GameSpec {
-        id: "cb",
-        engine: &CRIMEBOSS_ENGINE,
-        def: &CRIMEBOSS,
-    },
-    GameSpec {
-        id: "raid",
-        engine: &RAID_ENGINE,
-        def: &RAID,
-    },
-];
+        id: &pkg.id,
+        engine,
+        def: Box::leak(Box::new(def)),
+        package_reader: pkg.package_reader.as_ref(),
+    }
+}
+
+fn scan_target(target: &'static package::Target) -> ScanTarget {
+    ScanTarget {
+        tag: &target.tag,
+        label_key: target.label.key(),
+        unit: match &target.unit {
+            package::Unit::File {
+                family,
+                disabled_suffix,
+            } => ModUnit::File {
+                extension: &family.extension,
+                disabled_suffix,
+                priority_prefix: prefixes_filenames(target),
+            },
+            package::Unit::Directory {
+                discovery,
+                ignore_preset,
+                ..
+            } => ModUnit::Directory {
+                entry_markers: markers(discovery, package::MarkerMode::Archive),
+                scan_markers: markers(discovery, package::MarkerMode::Scan),
+                index_gated_markers: markers(discovery, package::MarkerMode::IndexGated),
+                excluded_names: ignore_preset
+                    .map(package::NamePreset::names)
+                    .unwrap_or_default(),
+                priority_prefix: prefixes_filenames(target),
+            },
+        },
+        companions: match &target.unit {
+            package::Unit::File { family, .. } => text_slice(&family.companions),
+            package::Unit::Directory { contains, .. } => contains
+                .as_ref()
+                .map(|family| text_slice(&family.companions))
+                .unwrap_or_default(),
+        },
+        contained_extension: match &target.unit {
+            package::Unit::File { .. } => None,
+            package::Unit::Directory { contains, .. } => {
+                contains.as_ref().map(|family| family.extension.as_str())
+            }
+        },
+        enabled_state: target.activation,
+        mods_subpath: text_slice(&target.path),
+        disabled_subpath: own_slice(
+            target
+                .path
+                .iter()
+                .map(String::as_str)
+                .chain(std::iter::once("disabled"))
+                .collect(),
+        ),
+        backup_subpath: text_slice(&target.backup),
+    }
+}
+
+/// The scan reads one flat list per mode, so a rule naming several modes lands in each of
+/// them. An all_directories policy contributes nothing, which is what makes every folder a
+/// mod (see mods/paths.rs).
+fn markers(
+    discovery: &'static package::Discovery,
+    wanted: package::MarkerMode,
+) -> &'static [&'static str] {
+    let package::Discovery::Markers { markers } = discovery else {
+        return &[];
+    };
+    own_slice(
+        markers
+            .iter()
+            .filter(|rule| rule.modes.contains(&wanted))
+            .map(|rule| rule.file.as_str())
+            .collect(),
+    )
+}
+
+fn prefixes_filenames(target: &package::Target) -> bool {
+    target.load_order == package::LoadOrder::FilenamePrefix
+}
+
+fn text_slice(values: &'static [String]) -> &'static [&'static str] {
+    own_slice(values.iter().map(String::as_str).collect())
+}
+
+fn own_slice<T>(values: Vec<T>) -> &'static [T] {
+    Box::leak(values.into_boxed_slice())
+}
 
 pub fn game_spec(game_id: &str) -> Option<&'static GameSpec> {
     GAME_REGISTRY.iter().find(|s| s.id == game_id)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn spec_ids_match_their_engine_game_ids() {
-        for spec in GAME_REGISTRY {
-            assert_eq!(spec.id, spec.engine.game_id);
-        }
-    }
-
-    #[test]
-    fn spec_ids_are_unique() {
-        let mut ids: Vec<&str> = GAME_REGISTRY.iter().map(|s| s.id).collect();
-        ids.sort_unstable();
-        ids.dedup();
-        assert_eq!(ids.len(), GAME_REGISTRY.len());
-    }
-}
+#[path = "games_tests.rs"]
+mod tests;

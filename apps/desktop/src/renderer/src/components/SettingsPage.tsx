@@ -19,12 +19,14 @@ import type { LucideIcon } from 'lucide-react'
 import { siGithub, siDiscord, siX, siBluesky } from 'simple-icons'
 import { t, getLocale, setLocale } from '../i18n'
 import { LOCALE_IDS, localeLabel, type LocaleId } from '../locales'
+import { ACCENT_COLORS, setAccentColor, useAccentColor, type AccentColor } from '../accentColor'
 import { Select } from './Select'
 import { Dialog, DialogHeader } from './Dialog'
 import { Toggle } from './Toggle'
 import { SkeletonBar } from './Skeleton'
 import { TelemetryConsentDialog } from './TelemetryConsentDialog'
 import { StorageSettings } from './StorageSettings'
+import { SisrSettings } from './SisrSettings'
 import { api } from '../api'
 import type { DetectedInstall, GameSettings } from '../api'
 import { getSettingsCache, setSettingsCache, patchSettingsCache } from '../settingsCache'
@@ -40,7 +42,7 @@ const APP_VERSION = import.meta.env.DEV ? 'v-dev' : `v${import.meta.env.VITE_APP
 
 const GITHUB_URL = 'https://github.com/modrexio/modrex'
 const SPONSOR_URL = 'https://github.com/sponsors/modrexio'
-const DISCORD_URL = 'https://discord.gg/tenzpx8JRM'
+const DISCORD_URL = 'https://discord.gg/QM2rDgy43Y'
 const X_URL = 'https://x.com/modrexio'
 const BLUESKY_URL = 'https://bsky.app/profile/modrex.net'
 const WEBSITE_URL = 'https://modrex.net/'
@@ -193,6 +195,22 @@ export function SettingsPage({
             overrides: t('settings.folders.overrides'),
             ue4ssMods: t('settings.folders.ue4ssMods'),
         }),
+        []
+    )
+
+    const accentColor = useAccentColor()
+    const accentColorOptions = useMemo(
+        () =>
+            (Object.keys(ACCENT_COLORS) as AccentColor[]).map((color) => ({
+                value: color,
+                label: t(`settings.accentColor.${color}`),
+                icon: (
+                    <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: ACCENT_COLORS[color].swatch }}
+                    />
+                ),
+            })),
         []
     )
 
@@ -624,6 +642,21 @@ export function SettingsPage({
                                             </div>
                                         </Section>
 
+                                        <Section
+                                            title={t('settings.accentColor.title')}
+                                            description={t('settings.accentColor.description')}
+                                        >
+                                            <div className="mt-1">
+                                                <Select
+                                                    value={accentColor}
+                                                    onChange={(value) =>
+                                                        setAccentColor(value as AccentColor)
+                                                    }
+                                                    options={accentColorOptions}
+                                                />
+                                            </div>
+                                        </Section>
+
                                         <Section title={t('settings.updates.title')}>
                                             <div className="flex items-center gap-3 mt-1">
                                                 <Button
@@ -802,6 +835,8 @@ export function SettingsPage({
 
                                 {activeTab === 'advanced' && (
                                     <>
+                                        <SisrSettings isActive={isActive} />
+
                                         <Section
                                             title={t('settings.logs.title')}
                                             description={t('settings.logs.description')}
@@ -925,7 +960,9 @@ export function SettingsPage({
                                                         <Button
                                                             variant="secondary"
                                                             size="md"
-                                                            onClick={() => api.openPath(gamePath)}
+                                                            onClick={() =>
+                                                                api.openGameFolder(activeGame)
+                                                            }
                                                         >
                                                             <FolderOpen className="w-3.5 h-3.5" />
                                                             {t('settings.folders.gameFolder')}

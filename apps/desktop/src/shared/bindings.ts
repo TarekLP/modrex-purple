@@ -48,6 +48,8 @@ export const commands = {
 	setCrimebossInstallMode: (mode: string) => __TAURI_INVOKE<void>("set_crimeboss_install_mode", { mode }),
 	setSuppressCrashReporter: (gameId: string, suppress: boolean) => __TAURI_INVOKE<void>("set_suppress_crash_reporter", { gameId, suppress }),
 	setSkipFileopenlogWarning: (skip: boolean) => __TAURI_INVOKE<void>("set_skip_fileopenlog_warning", { skip }),
+	getSisrStatus: () => __TAURI_INVOKE<SisrStatus>("get_sisr_status"),
+	setAutoLaunchSisr: (enabled: boolean) => __TAURI_INVOKE<null>("set_auto_launch_sisr", { enabled }),
 	dismissDepsWarning: (modId: number) => __TAURI_INVOKE<void>("dismiss_deps_warning", { modId }),
 	/**
 	 *  Counts a successful mod install toward the one-time "star us on GitHub" prompt. When
@@ -99,9 +101,14 @@ export const commands = {
 	 *  so unlike install_from_zip_entry there's no entry to pick: the whole archive is extracted flat
 	 *  and installed as a single mods/<name> folder named from the mod's display name.
 	 */
-	installCbFlatArchive: (zipPath: string, modId: number, modName: string, fileId: number, fileType: string, modVersion: string, gamePath: string, folderId: string | null) => __TAURI_INVOKE<null>("install_cb_flat_archive", { zipPath, modId, modName, fileId, fileType, modVersion, gamePath, folderId }),
+	installCbFlatArchive: (archiveHandle: string, modId: number, modName: string, fileId: number, fileType: string, modVersion: string, gamePath: string, folderId: string | null) => __TAURI_INVOKE<null>("install_cb_flat_archive", { archiveHandle, modId, modName, fileId, fileType, modVersion, gamePath, folderId }),
 	installHostPack: (args: InstallHostPackArgs) => __TAURI_INVOKE<null>("install_host_pack", { args }),
-	deleteTempFile: (path: string) => __TAURI_INVOKE<void>("delete_temp_file", { path }),
+	/**
+	 *  Discards a staged archive the renderer was offered a prompt for. Takes the handle from
+	 *  that prompt rather than a path, so the only file this can remove is one the backend
+	 *  registered, and only once.
+	 */
+	discardStagedArchive: (token: string) => __TAURI_INVOKE<void>("discard_staged_archive", { token }),
 	uninstallMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("uninstall_mod", { gamePath, uid, gameId }),
 	enableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("enable_mod", { gamePath, uid, gameId }),
 	disableMod: (gamePath: string, uid: string, gameId: string) => __TAURI_INVOKE<null>("disable_mod", { gamePath, uid, gameId }),
@@ -130,6 +137,11 @@ export const commands = {
 	checkLoader: (loaderId: string, gameId: string, gamePath: string) => __TAURI_INVOKE<boolean>("check_loader", { loaderId, gameId, gamePath }),
 	installLoader: (loaderId: string, gamePath: string) => __TAURI_INVOKE<null>("install_loader", { loaderId, gamePath }),
 	detectedInstalls: (gameId: string) => __TAURI_INVOKE<DetectedInstall[]>("detected_installs", { gameId }),
+	/**
+	 *  Which games have a copy on this machine. Read-only, unlike configure_game_path:
+	 *  greying out a card must not settle which copy a game uses.
+	 */
+	detectInstalledGames: () => __TAURI_INVOKE<string[]>("detect_installed_games"),
 	configureGamePath: (gameId: string, gamePath: string | null) => __TAURI_INVOKE<null>("configure_game_path", { gameId, gamePath }),
 	/**
 	 *  Points a game at one specific store's copy, moving the game path and the launcher
@@ -143,13 +155,18 @@ export const commands = {
 	 */
 	selectGameInstall: (gameId: string, launcher: string, gamePath: string) => __TAURI_INVOKE<null>("select_game_install", { gameId, launcher, gamePath }),
 	pickFolder: (title: string, defaultPath: string | null) => __TAURI_INVOKE<string | null>("pick_folder", { title, defaultPath }),
-	launchGame: (gameId: string) => __TAURI_INVOKE<null>("launch_game", { gameId }),
-	launchWithoutMods: (gameId: string) => __TAURI_INVOKE<null>("launch_without_mods", { gameId }),
+	launchGame: (gameId: string) => __TAURI_INVOKE<"unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed" | null>("launch_game", { gameId }),
+	launchWithoutMods: (gameId: string) => __TAURI_INVOKE<"unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed" | null>("launch_without_mods", { gameId }),
 	restoreMods: (gameId: string) => __TAURI_INVOKE<null>("restore_mods", { gameId }),
 	isGameRunning: (gameId: string) => __TAURI_INVOKE<boolean>("is_game_running", { gameId }),
 	stopGame: (gameId: string) => __TAURI_INVOKE<null>("stop_game", { gameId }),
 	shellOpenExternal: (url: string) => __TAURI_INVOKE<void>("shell_open_external", { url }),
-	shellOpenPath: (path: string) => __TAURI_INVOKE<void>("shell_open_path", { path }),
+	/**
+	 *  Opens the configured install folder for one game. Takes a game id rather than a path:
+	 *  the renderer names which game it means and Rust looks the folder up, so no caller can
+	 *  ask for a location Modrex has not already recorded for itself.
+	 */
+	openGameFolder: (gameId: string) => __TAURI_INVOKE<null>("open_game_folder", { gameId }),
 	openLogFile: () => __TAURI_INVOKE<void>("open_log_file"),
 	openDataFolder: () => __TAURI_INVOKE<void>("open_data_folder"),
 	openAppFolder: () => __TAURI_INVOKE<void>("open_app_folder"),
@@ -187,13 +204,24 @@ export const commands = {
 	 *  preferences. Does not touch installed mods, game files, or the on-disk caches.
 	 */
 	resetAppSettings: () => __TAURI_INVOKE<void>("reset_app_settings"),
+	listPakAssets: (gameId: string, uid: string) => __TAURI_INVOKE<PakAsset[]>("list_pak_assets", { gameId, uid }),
 };
 
 /* Types */
+/**
+ *  Identifies one entry of a staged archive. Issued while enumerating, so it survives
+ *  display names that normalize onto each other.
+ */
+export type ArchiveEntryId = number;
+
 export type CbFlatPayload = CbFlatPayload_Serialize | CbFlatPayload_Deserialize;
 
 export type CbFlatPayload_Deserialize = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	modId?: number | null,
 	modName?: string | null,
 	fileId?: number | null,
@@ -202,7 +230,11 @@ export type CbFlatPayload_Deserialize = {
 };
 
 export type CbFlatPayload_Serialize = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	modId?: number | null,
 	modName?: string | null,
 	fileId?: number | null,
@@ -280,7 +312,11 @@ export type GameSettings_Serialize = {
 export type HostPackPayload = HostPackPayload_Serialize | HostPackPayload_Deserialize;
 
 export type HostPackPayload_Deserialize = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	entries: string[],
 	hostModId: number,
 	hostName: string,
@@ -293,7 +329,11 @@ export type HostPackPayload_Deserialize = {
 };
 
 export type HostPackPayload_Serialize = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	entries: string[],
 	hostModId: number,
 	hostName: string,
@@ -355,8 +395,13 @@ export type IndexModFile = {
 };
 
 export type InstallFromZipEntryArgs = {
-	zipPath: string,
-	entryName: string,
+	/**
+	 *  Backend-issued handle for the staged archive. The renderer never receives the
+	 *  path, so it cannot point this at another local archive.
+	 */
+	archiveHandle: string,
+	/**  Which entry of that archive to install, as issued when it was listed. */
+	entryId: ArchiveEntryId,
 	modId: number,
 	modName: string,
 	fileId: number,
@@ -375,7 +420,11 @@ export type InstallFromZipEntryArgs = {
  *  HOST_MOD_PACK sentinel; the zip is left in place for multi-set installs (caller deletes it).
  */
 export type InstallHostPackArgs = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for the staged archive. The renderer never receives the
+	 *  path, so it cannot point this at another local archive.
+	 */
+	archiveHandle: string,
 	entryName: string,
 	modId: number,
 	modName: string,
@@ -471,12 +520,26 @@ export type InstalledResponse_Deserialize = {
 	mods: InstalledMod_Deserialize[],
 	folders: ModFolder[],
 	modsHidden: boolean,
+	/**
+	 *  The mod list on disk could not be loaded, so this response was rebuilt from a scan and
+	 *  nothing was written back. Everything shown is real, but Modrex's own record of folders,
+	 *  order and per-mod metadata is not in it, and no operation may replace that record until
+	 *  the file is readable again.
+	 */
+	stateUnreadable: boolean,
 };
 
 export type InstalledResponse_Serialize = {
 	mods: InstalledMod_Serialize[],
 	folders: ModFolder[],
 	modsHidden: boolean,
+	/**
+	 *  The mod list on disk could not be loaded, so this response was rebuilt from a scan and
+	 *  nothing was written back. Everything shown is real, but Modrex's own record of folders,
+	 *  order and per-mod metadata is not in it, and no operation may replace that record until
+	 *  the file is readable again.
+	 */
+	stateUnreadable: boolean,
 };
 
 export type InstructsTemplate = {
@@ -509,6 +572,10 @@ export type ListModsParams = {
 export type LoaderInfo = {
 	id: string,
 	modworkshopIds: number[],
+	/**
+	 *  The one game this entry is scoped to. Its ids mean nothing for any other game, so a
+	 *  consumer must select by game before reading the ids.
+	 */
 	games: string[],
 	/**
 	 *  No direct download, so the renderer must route installs through the normal mod
@@ -766,6 +833,20 @@ export type PageMeta = {
 	total: number,
 };
 
+export type PakAsset = {
+	path: string,
+};
+
+export type SisrLaunchIssue = "unsupported" | "notInstalled" | "setupRequired" | "startFailed" | "startUnconfirmed";
+
+export type SisrStatus = {
+	supported: boolean,
+	installed: boolean,
+	running: boolean,
+	setupComplete: boolean,
+	autoLaunch: boolean,
+};
+
 export type SourceGameInfo = {
 	gameId: string,
 	nativeId: string,
@@ -838,8 +919,17 @@ export type ZipMultiPakPayload = ZipMultiPakPayload_Serialize | ZipMultiPakPaylo
  *  command knows which mod the archive belongs to.
  */
 export type ZipMultiPakPayload_Deserialize = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	entries: string[],
+	/**
+	 *  Identity of each listed entry, parallel to entries. Display names can normalize onto
+	 *  each other; these cannot.
+	 */
+	entryIds: ArchiveEntryId[],
 	targetTag: string | null,
 	entryTags?: (string | null)[] | null,
 	entryKind?: string | null,
@@ -857,8 +947,17 @@ export type ZipMultiPakPayload_Deserialize = {
  *  command knows which mod the archive belongs to.
  */
 export type ZipMultiPakPayload_Serialize = {
-	zipPath: string,
+	/**
+	 *  Backend-issued handle for this staged archive. The renderer never learns
+	 *  the path, so it cannot name a different archive for the install to open.
+	 */
+	archiveHandle: string,
 	entries: string[],
+	/**
+	 *  Identity of each listed entry, parallel to entries. Display names can normalize onto
+	 *  each other; these cannot.
+	 */
+	entryIds: ArchiveEntryId[],
 	targetTag: string | null,
 	entryTags?: (string | null)[] | null,
 	entryKind?: string | null,

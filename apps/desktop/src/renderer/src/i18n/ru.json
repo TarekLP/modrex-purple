@@ -26,6 +26,7 @@
     },
     "app": {
         "modsHidden": "Моды скрыты — игра была запущена без модов и, возможно, ещё работает.",
+        "stateUnreadable": "! Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
         "restoreMods": "Восстановить моды",
         "updateAction": "Обновить",
         "updateInstall": "Перезапустить и установить",
@@ -63,6 +64,13 @@
             "bodyPre": "рекомендуется для корректной работы большинства модов. Добавьте его в",
             "location": "Настройки → Параметры запуска",
             "launchAnyway": "Запустить всё равно"
+        },
+        "sisr": {
+            "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
+            "notInstalled": "! SISR was not found. The game was launched without it.",
+            "setupRequired": "! SISR needs its first-run setup before controller redirection will work. The game was launched anyway.",
+            "startFailed": "! SISR failed to start. The game was launched without it.",
+            "startUnconfirmed": "! Modrex could not confirm that SISR started. The game was launched anyway."
         }
     },
     "sidebar": {
@@ -144,6 +152,9 @@
         "filterPlaceholder": "Поиск модов…",
         "filterEmpty": "Нет модов, соответствующих запросу «{query}»",
         "reinstallFailed": "Не удалось переустановить: {error}",
+        "actionFailed": "! {name} could not be changed: {error}",
+        "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
+        "refreshFailed": "! The installed mod list could not be refreshed: {error}",
         "updatesAvailable": "Доступны обновления для {count} модов",
         "updatesAvailableSingle": "Доступно обновление для {count} мода",
         "reviewUpdates": "Просмотреть обновления",
@@ -180,6 +191,18 @@
             "updateSelected": "Обновить выбранное ({count})",
             "error": "Не удалось обновить. Проверьте подключение и повторите попытку."
         },
+        "pakViewer": {
+            "title": "! Pak contents",
+            "open": "! View pak contents",
+            "searchPlaceholder": "! Search assets",
+            "assetCount": "! {count} assets",
+            "matchCount": "! {count} of {total} assets",
+            "loading": "! Reading pak",
+            "empty": "! No assets found",
+            "noMatches": "! No assets match \"{query}\"",
+            "error": "! Couldn't read the pak.",
+            "aesHint": "! Encrypted paks need this game's AES key."
+        },
         "modMenu": {
             "open": "Параметры",
             "manageFiles": "Управление файлами",
@@ -214,7 +237,7 @@
             "brokenArchivesCount": "Повреждённые архивы ({count})",
             "outdatedCount": "Устаревшие ({count})",
             "unidentifiedCount": "Неопознанные ({count})",
-            "unidentifiedHint": "? Не распознано на ModWorkshop — может быть определено позже после обновления индекса модов.",
+            "unidentifiedHint": "Modrex не смог определить моды. Они могут быть распознаны позже, после обновления индекса модов.",
             "updatesCount": "Обновления ({count})",
             "dependenciesCount": "Зависимости ({count})",
             "noMissingFiles": "Отсутствующих файлов нет.",
@@ -226,7 +249,7 @@
             "missingFileHint": "Файл отсутствует на диске",
             "brokenArchiveHint": "Архив не удалось проверить",
             "outdatedHint": "Рекомендуется переустановка",
-            "unidentifiedRowHint": "? Не найдено на ModWorkshop",
+            "unidentifiedRowHint": "Не распознано",
             "missingDepsHint": "Отсутствуют: {deps}",
             "installDep": "Установить",
             "installAllDeps": "Установить все зависимости",
@@ -368,6 +391,16 @@
             "title": "Язык",
             "description": "Язык, используемый во всём приложении."
         },
+        "accentColor": {
+            "title": "! Accent color",
+            "description": "! Accent color used throughout the app.",
+            "orange": "! Orange",
+            "purple": "! Purple",
+            "green": "! Green",
+            "blue": "! Blue",
+            "red": "! Red",
+            "gray": "! Gray"
+        },
         "gamePath": {
             "title": "Путь к игре",
             "description": "Путь к установленной {game}. Определяется автоматически по установленным лаунчерам, если не задан вручную.",
@@ -402,6 +435,17 @@
         "crashReporter": {
             "title": "Очистка окна сбоев",
             "description": "Устраняет проблему с пустым окном отчёта о сбое для игр с нестабильным механизмом отчётов, удаляя его файлы перед запуском. По умолчанию отключено и может не требоваться для каждой игры."
+        },
+        "sisr": {
+            "title": "! Auto-launch SISR",
+            "description": "! Start SISR (Steam Input System Redirector) before launching a game when it is not already running, so Steam Input controllers work with games launched outside Steam.",
+            "running": "! SISR is running.",
+            "notRunning": "! SISR is not running. It will start when you launch a game.",
+            "notInstalled": "! SISR was not found in its default installation location.",
+            "setupRequired": "! Complete SISR's first-run Steam setup before using auto-launch.",
+            "setup": "! Set up SISR",
+            "finishSetup": "! Finish setup",
+            "failed": "! SISR setting failed: {error}"
         },
         "updates": {
             "title": "Обновления",
@@ -486,8 +530,8 @@
             "sponsor": "Спонсировать",
             "communityTitle": "Сообщество",
             "discord": "Присоединиться к Discord",
-            "x": "! Follow on X",
-            "bluesky": "! Follow on Bluesky",
+            "x": "Подписаться в X",
+            "bluesky": "Подписаться в Bluesky",
             "website": "modrex.net",
             "disclaimer": "Modrex — проект сообщества и не связан с разработчиками или издателями поддерживаемых игр."
         },

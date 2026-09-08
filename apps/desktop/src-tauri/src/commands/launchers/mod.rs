@@ -1,14 +1,12 @@
 mod epic;
-mod games;
 mod steam;
 mod types;
 mod xbox;
 
 use epic::Epic;
-pub(crate) use games::{CRIMEBOSS, PD2, PD3, PDTH, RAID};
 use steam::Steam;
-pub(crate) use types::GameDef;
 use types::Launcher;
+pub(crate) use types::{EpicDef, GameDef, SteamDef, XboxDef};
 use xbox::Xbox;
 
 use crate::commands::mods::{
@@ -18,7 +16,7 @@ use crate::commands::settings::{game_settings, read_settings, update_settings, G
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
 static STEAM: Steam = Steam;
@@ -46,7 +44,7 @@ fn probe_installs(game: &'static GameDef) -> Vec<DetectedInstall> {
         }
         log::info!("probing {} for {}", launcher.id(), game.name);
         if let Some(game_path) = launcher.find_game(game) {
-            log::info!("found {} via {}: {game_path}", game.name, launcher.id());
+            log::info!("found {} via {}", game.name, launcher.id());
             found.push(DetectedInstall {
                 launcher: launcher.id().to_string(),
                 game_path,
@@ -65,7 +63,7 @@ fn probe_one(game: &'static GameDef, launcher_id: &str) -> Option<String> {
     }
     log::info!("probing {} for {}", launcher.id(), game.name);
     let path = launcher.find_game(game)?;
-    log::info!("found {} via {}: {path}", game.name, launcher.id());
+    log::info!("found {} via {}", game.name, launcher.id());
     Some(path)
 }
 
@@ -73,16 +71,43 @@ fn probe_one(game: &'static GameDef, launcher_id: &str) -> Option<String> {
 /// save_state creates that file in whichever copy is pointed at, even briefly and even when
 /// it finds nothing: a copy that was selected by mistake for one session comes out of that
 /// looking exactly like the one being modded.
-fn tracked_mod_count(game_path: &str, cfg: &ModEngineConfig) -> usize {
-    let live = read_state(&get_state_path(game_path, cfg)).mods.len();
+/// None when a copy's mod list exists but cannot be read. Counting that as zero would let a
+/// copy holding mods lose the comparison below and hand the game to another store for good.
+fn tracked_mod_count(game_path: &str, cfg: &ModEngineConfig) -> Option<usize> {
+    let count = |path: std::path::PathBuf| match read_state(&path) {
+        Ok(state) => Some(state.mods.len()),
+        Err(e) => {
+            log::warn!("tracked mod count for {}: {e}", cfg.game_id);
+            None
+        }
+    };
+    let live = count(get_state_path(game_path, cfg))?;
     if live > 0 {
-        return live;
+        return Some(live);
     }
     // Launching without mods renames the whole folder for pak games, so until the next
     // launch restores it the list lives inside the backup instead.
-    read_state(&backup_dir(game_path, cfg.primary()).join(cfg.state_filename))
-        .mods
-        .len()
+    count(backup_dir(game_path, cfg.primary()).join(crate::commands::mods::STATE_FILENAME))
+}
+
+/// What the tracked-mod comparison could conclude about which copy to settle on.
+enum Pick {
+    Chosen(DetectedInstall),
+    NoneFound,
+    /// A copy's mod list could not be read, so the comparison that decides between copies is
+    /// unsound. Settling now could pin the wrong copy permanently, so this run settles
+    /// nothing and the next one decides with a readable list.
+    Unknown,
+}
+
+impl Pick {
+    #[cfg(test)]
+    fn chosen(self) -> Option<DetectedInstall> {
+        match self {
+            Pick::Chosen(install) => Some(install),
+            Pick::NoneFound | Pick::Unknown => None,
+        }
+    }
 }
 
 /// The copy to settle on when nothing has been settled yet. Copies from two stores share no
@@ -94,11 +119,18 @@ fn pick_install(
     installs: &[DetectedInstall],
     cfg: &ModEngineConfig,
     recorded: Option<&str>,
-) -> Option<DetectedInstall> {
-    let counts: Vec<usize> = installs
+) -> Pick {
+    // One copy needs no comparison, so an unreadable mod list cannot mislead it.
+    if let [only] = installs {
+        return Pick::Chosen(only.clone());
+    }
+    let Some(counts) = installs
         .iter()
         .map(|install| tracked_mod_count(&install.game_path, cfg))
-        .collect();
+        .collect::<Option<Vec<usize>>>()
+    else {
+        return Pick::Unknown;
+    };
     let most = counts.iter().copied().max().unwrap_or(0);
     let candidates: Vec<&DetectedInstall> = installs
         .iter()
@@ -111,7 +143,8 @@ fn pick_install(
         .iter()
         .find(|install| Some(install.launcher.as_str()) == recorded)
         .or_else(|| candidates.first())
-        .map(|install| (*install).clone())
+        .map(|install| Pick::Chosen((*install).clone()))
+        .unwrap_or(Pick::NoneFound)
 }
 
 // ── OS helpers ────────────────────────────────────────────────────────────────
@@ -153,6 +186,19 @@ pub(super) fn run_bounded(
     }
 }
 
+/// Strips the loader overrides an AppImage run leaves in the environment. AppRun points
+/// LD_LIBRARY_PATH at the libraries inside the mounted image, and users working around
+/// graphics bugs add LD_PRELOAD on top. Anything spawned from here inherits both and loads
+/// our copies instead of its own, which is how a browser or Steam launched from Modrex
+/// fails to start at all.
+pub(crate) fn outside_bundle(cmd: &mut std::process::Command) -> &mut std::process::Command {
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some() {
+        cmd.env_remove("LD_LIBRARY_PATH").env_remove("LD_PRELOAD");
+    }
+    cmd
+}
+
 pub(super) fn open_url(url: &str) {
     // Never route this through cmd /c start: cmd re-parses its command line,
     // so a & in a query string truncates the URL there and executes what
@@ -162,18 +208,22 @@ pub(super) fn open_url(url: &str) {
     // includes query strings. rundll32's FileProtocolHandler takes the URL as
     // one argument and hands it to the shell's URL handler unmodified.
     #[cfg(target_os = "windows")]
-    let _ = std::process::Command::new("rundll32")
+    let spawned = std::process::Command::new("rundll32")
         .args(["url.dll,FileProtocolHandler", url])
         .spawn();
     #[cfg(not(target_os = "windows"))]
-    let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+    let spawned = outside_bundle(std::process::Command::new("xdg-open").arg(url)).spawn();
+    // A missing xdg-open otherwise looks exactly like a dead button in the UI.
+    if let Err(e) = spawned {
+        log::warn!("could not hand a url to the system opener: {e}");
+    }
 }
 
 fn open_path_on_system(path: &str) {
     #[cfg(target_os = "windows")]
     let _ = std::process::Command::new("explorer").arg(path).spawn();
     #[cfg(not(target_os = "windows"))]
-    let _ = std::process::Command::new("xdg-open").arg(path).spawn();
+    let _ = outside_bundle(std::process::Command::new("xdg-open").arg(path)).spawn();
 }
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
@@ -198,8 +248,8 @@ fn launch_with(launcher_id: &str, game: &'static GameDef, game_path: &str, opts:
         let args: Vec<&str> = opts
             .map(|o| o.split_whitespace().collect())
             .unwrap_or_default();
-        if let Err(e) = std::process::Command::new(&exe).args(&args).spawn() {
-            log::warn!("launch_game: spawn {exe:?}: {e}");
+        if let Err(e) = outside_bundle(std::process::Command::new(&exe).args(&args)).spawn() {
+            log::warn!("launch_game: spawn failed: {e}");
         }
     }
 }
@@ -218,8 +268,8 @@ fn remove_pd3_xbox_crash_reporter_files(game_path: &str) {
             continue;
         }
         match fs::remove_file(&file) {
-            Ok(()) => log::info!("removed PAYDAY 3 Xbox crash reporter file {file:?}"),
-            Err(e) => log::warn!("remove PAYDAY 3 Xbox crash reporter file {file:?}: {e}"),
+            Ok(()) => log::info!("removed a PAYDAY 3 Xbox crash reporter file"),
+            Err(e) => log::warn!("remove PAYDAY 3 Xbox crash reporter file: {e}"),
         }
     }
 }
@@ -263,6 +313,30 @@ pub async fn detected_installs(game_id: String) -> Result<Vec<DetectedInstall>, 
     tauri::async_runtime::spawn_blocking(move || probe_installs(game))
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Which games have a copy on this machine. Read-only, unlike configure_game_path:
+/// greying out a card must not settle which copy a game uses.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_installed_games(app: AppHandle) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let settings = read_settings(&app);
+        crate::commands::games::GAME_REGISTRY
+            .iter()
+            .filter(|spec| {
+                let existing = game_settings(&settings, spec.id)
+                    .cloned()
+                    .unwrap_or_default();
+                resolve_install(spec.def, spec.engine, &existing)
+                    .0
+                    .is_some()
+            })
+            .map(|spec| spec.id.to_string())
+            .collect()
+    })
+    .await
+    .map_err(|e| format!("installed-game detection failed to run: {e}"))
 }
 
 /// What re-detection has to do for a game, decided before any store is probed so that the
@@ -331,12 +405,14 @@ fn resolve_install(
         Resolution::Settle => {
             let installs = probe_installs(game_def);
             match pick_install(&installs, cfg, existing.launcher.as_deref()) {
-                Some(best) => (Some(best.game_path), Some(best.launcher), true),
+                Pick::Chosen(best) => (Some(best.game_path), Some(best.launcher), true),
                 // No store has it, but a folder picked by hand is still a usable copy.
-                None if saved_path_valid(game_def, existing) => {
+                Pick::NoneFound if saved_path_valid(game_def, existing) => {
                     (existing.game_path.clone(), existing.launcher.clone(), true)
                 }
-                None => (None, None, false),
+                Pick::NoneFound => (None, None, false),
+                // Keep what is saved and stay unsettled rather than pin a guess.
+                Pick::Unknown => (existing.game_path.clone(), existing.launcher.clone(), false),
             }
         }
     }
@@ -532,18 +608,22 @@ fn do_restore(game_path: &str, cfg: &crate::commands::mods::ModEngineConfig) -> 
 
 #[tauri::command]
 #[specta::specta]
-pub fn launch_game(app: AppHandle, game_id: String) -> Result<(), String> {
+pub async fn launch_game(
+    app: AppHandle,
+    game_id: String,
+) -> Result<Option<crate::commands::sisr::SisrLaunchIssue>, String> {
     let game_id = game_id.as_str();
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
-        return Ok(());
+        return Ok(None);
     };
     let Some(ref game_path) = gs.game_path else {
-        return Ok(());
+        return Ok(None);
     };
     let cfg = engine_for_game(game_id)?;
     let _ = do_restore(game_path, cfg);
     maybe_suppress_crash_reporter(game_id, gs);
+    let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
     crate::commands::analytics::track(
         &app,
         "game_launched",
@@ -555,19 +635,22 @@ pub fn launch_game(app: AppHandle, game_id: String) -> Result<(), String> {
         game_path,
         Some(gs.launch_options.as_str()),
     );
-    Ok(())
+    Ok(sisr_issue)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn launch_without_mods(app: AppHandle, game_id: String) -> Result<(), String> {
+pub async fn launch_without_mods(
+    app: AppHandle,
+    game_id: String,
+) -> Result<Option<crate::commands::sisr::SisrLaunchIssue>, String> {
     let game_id = game_id.as_str();
     let s = read_settings(&app);
     let Some(gs) = game_settings(&s, game_id) else {
-        return Ok(());
+        return Ok(None);
     };
     let Some(ref game_path) = gs.game_path else {
-        return Ok(());
+        return Ok(None);
     };
 
     let cfg = engine_for_game(game_id)?;
@@ -627,13 +710,14 @@ pub fn launch_without_mods(app: AppHandle, game_id: String) -> Result<(), String
         serde_json::json!({ "game": game_id, "launcher": gs.launcher.as_deref().unwrap_or("steam") }),
     );
     maybe_suppress_crash_reporter(game_id, gs);
+    let sisr_issue = crate::commands::sisr::prepare_for_game_launch(s.auto_launch_sisr).await;
     launch_with(
         gs.launcher.as_deref().unwrap_or("steam"),
         game_def_for_id(game_id)?,
         game_path,
         Some(gs.launch_options.as_str()),
     );
-    Ok(())
+    Ok(sisr_issue)
 }
 
 #[tauri::command]
@@ -729,10 +813,24 @@ pub fn shell_open_external(url: String) {
     }
 }
 
+/// Opens the configured install folder for one game. Takes a game id rather than a path:
+/// the renderer names which game it means and Rust looks the folder up, so no caller can
+/// ask for a location Modrex has not already recorded for itself.
 #[tauri::command]
 #[specta::specta]
-pub fn shell_open_path(path: String) {
-    open_path_on_system(&path);
+pub fn open_game_folder(app: AppHandle, game_id: String) -> Result<(), String> {
+    let gid = game_id.as_str();
+    crate::commands::games::game_spec(gid).ok_or_else(|| format!("unknown game '{gid}'"))?;
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, gid).and_then(|gs| gs.game_path.clone()) else {
+        return Ok(());
+    };
+    let dir = PathBuf::from(&game_path);
+    match resolve_under(&dir, &dir, OpenKind::Directory) {
+        Some(dir) => open_path_on_system(&dir.to_string_lossy()),
+        None => log::warn!("open_game_folder {gid}: the configured path is not a usable directory"),
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -743,14 +841,45 @@ pub fn open_log_file(app: AppHandle) {
         return;
     };
     let log_file = log_dir.join(format!("{}.log", app.package_info().name));
-    if let Ok(content) = std::fs::read_to_string(&log_file) {
-        let snapshot = std::env::temp_dir().join("modrex_log.txt");
-        if std::fs::write(&snapshot, content).is_ok() {
-            open_url(&snapshot.to_string_lossy());
-            return;
-        }
+    // The log itself when it is a real file we own, otherwise the directory holding it.
+    // Nothing is written on this path: copying the log to a predictable name in the shared
+    // temp directory let anything that could pre-create that name have the copy written
+    // through its link instead.
+    match resolve_under(&log_dir, &log_file, OpenKind::File) {
+        Some(file) => open_path_on_system(&file.to_string_lossy()),
+        None => match resolve_under(&log_dir, &log_dir, OpenKind::Directory) {
+            Some(dir) => open_path_on_system(&dir.to_string_lossy()),
+            None => log::warn!("open_log_file: no usable log directory"),
+        },
     }
-    open_path_on_system(&log_dir.to_string_lossy());
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OpenKind {
+    File,
+    Directory,
+}
+
+/// Resolves target and proves it is root or something inside it, of the expected kind.
+///
+/// Canonicalizing both sides is what makes the comparison meaningful: it resolves .. and
+/// symlinks and normalizes Windows casing and verbatim prefixes, so this is not a string
+/// prefix test. A link is refused before that, because opening one hands the shell a
+/// destination Modrex never validated. Anything unresolvable is refused rather than opened.
+pub(crate) fn resolve_under(root: &Path, target: &Path, kind: OpenKind) -> Option<PathBuf> {
+    let meta = std::fs::symlink_metadata(target).ok()?;
+    if meta.file_type().is_symlink() {
+        return None;
+    }
+    let root = root.canonicalize().ok()?;
+    let target = target.canonicalize().ok()?;
+    if !target.starts_with(&root) {
+        return None;
+    }
+    match kind {
+        OpenKind::File => target.is_file().then_some(target),
+        OpenKind::Directory => target.is_dir().then_some(target),
+    }
 }
 
 #[tauri::command]

@@ -26,6 +26,7 @@
     },
     "app": {
         "modsHidden": "Mods sind versteckt — Das Spiel wurde unmodifiziert gestartet und läuft vielleicht noch.",
+        "stateUnreadable": "! Modrex could not read its own mod list for this game, so the mods below were found by scanning the folder and no changes are being saved. Details are in the log.",
         "restoreMods": "Mods wiederherstellen",
         "updateAction": "Aktualisieren",
         "updateInstall": "Neustart & Installation",
@@ -63,6 +64,13 @@
             "bodyPre": "wird empfohlen damit die meisten Mods korrekt laufen. Füge es hinzu",
             "location": "Einstellungen → Startargumente",
             "launchAnyway": "Spiel trotzdem starten"
+        },
+        "sisr": {
+            "unsupported": "Der automatische Start von SISR wird nicht auf diesem Betriebssystem unterstützt. Das Spiel wurde ohne SISR gestartet.",
+            "notInstalled": "SISR wurde nicht gefunden. Das Spiel wurde ohne SISR gestartet.",
+            "setupRequired": "SISR muss zuerst zum ersten mal gestartet werden  bevor der Controller funktioniert. Das Spiel wurde trotzdem gestartet.",
+            "startFailed": "SISR hat einen Fehler erfahren und konnte deswegen nicht gestartet werden. Das Spiel wurde ohne SISR gestartet.",
+            "startUnconfirmed": "Modrex konnte nicht bestätigen das SISR gestartet wurde. Das Spiel wurde trotzdem gestartet."
         }
     },
     "sidebar": {
@@ -144,6 +152,9 @@
         "filterPlaceholder": "Mods durchsuchen…",
         "filterEmpty": "Keine Mods stimmen mit „{query}“ überein",
         "reinstallFailed": "Erneute Installation fehlgeschlagen: {error}",
+        "actionFailed": "! {name} could not be changed: {error}",
+        "actionFailedSome": "! {count} mods could not be changed ({names}): {error}",
+        "refreshFailed": "! The installed mod list could not be refreshed: {error}",
         "updatesAvailable": "{count} Mods können aktualisiert werden",
         "updatesAvailableSingle": "{count} Mod kann aktualisiert werden",
         "reviewUpdates": "Updates überprüfen",
@@ -180,6 +191,18 @@
             "updateSelected": "Ausgewählte aktualisieren ({count})",
             "error": "Aktualisierung fehlgeschlagen. Überprüfe deine Verbindung und versuche es erneut."
         },
+        "pakViewer": {
+            "title": "Inhalte dieser PAK-Datei",
+            "open": "PAK-Datei öffnene",
+            "searchPlaceholder": "Assets durchsuchen",
+            "assetCount": "{count} Dateien",
+            "matchCount": "{count} von {total} Gesamtassets",
+            "loading": "PAK wird gelesen",
+            "empty": "Keine Assets gefunden",
+            "noMatches": "Keine Assets gefunden mit \"{query}\"",
+            "error": "PAK-Datei konnte nicht ausgelesen werden.",
+            "aesHint": "Verschlüsselte PAK-Dateien brauchen einen AES Schlüssel für dieses Spiel."
+        },
         "modMenu": {
             "open": "Optionen",
             "manageFiles": "Dateien verwalten",
@@ -214,7 +237,7 @@
             "brokenArchivesCount": "Fehlerhafte Archive ({count})",
             "outdatedCount": "Veraltet ({count})",
             "unidentifiedCount": "Nicht identifiziert ({count})",
-            "unidentifiedHint": "? Auf ModWorkshop nicht erkannt – wird möglicherweise nach einem Mod-Index-Update identifiziert.",
+            "unidentifiedHint": "Modrex konnte nicht herausfinden welche ID dem Mod zusteht. Dies könnte sich nach einem Modindex Update ändern.",
             "updatesCount": "Updates ({count})",
             "dependenciesCount": "Abhängigkeiten ({count})",
             "noMissingFiles": "Keine fehlenden Dateien.",
@@ -226,7 +249,7 @@
             "missingFileHint": "Datei auf der Festplatte nicht gefunden",
             "brokenArchiveHint": "Archiv konnte nicht verifiziert werden",
             "outdatedHint": "Empfohlene Neuinstallation",
-            "unidentifiedRowHint": "? Nicht auf ModWorkshop gefunden",
+            "unidentifiedRowHint": "Nicht erkannt",
             "missingDepsHint": "Fehlend: {deps}",
             "installDep": "Installieren",
             "installAllDeps": "Alle Abhängigkeiten installieren",
@@ -368,6 +391,16 @@
             "title": "Sprache",
             "description": "Die in der gesamten App verwendete Sprache."
         },
+        "accentColor": {
+            "title": "Akzentfarbe",
+            "description": "Die Akzentfarbe die in der App verwendet wird.",
+            "orange": "Orange",
+            "purple": "Lila",
+            "green": "Grün",
+            "blue": "Blau",
+            "red": "Rot",
+            "gray": "Grau"
+        },
         "gamePath": {
             "title": "Spielpfad",
             "description": "Pfad zu deiner {game}-Installation. Wird automatisch von deinen installierten Launchern erkannt, falls nicht manuell festgelegt.",
@@ -402,6 +435,17 @@
         "crashReporter": {
             "title": "Bereinigung des Absturzberichterstatters",
             "description": "Umgehe ein leeres Absturzbericht-Fenster bei Spielen mit fehlerhaftem Berichterstatter, indem dessen Dateien vor dem Start entfernt werden. Dies ist standardmäßig deaktiviert und wird möglicherweise nicht für jedes Spiel benötigt."
+        },
+        "sisr": {
+            "title": "Automatischer Start von SISR",
+            "description": "Starte SISR (Steam Input System Redirector) bevor dem Spiel wenn es noch nicht läuft, so das Steam Input Controller außerhalb von Steam Spielen funktionieren.",
+            "running": "SISR läuft.",
+            "notRunning": "SISR läuft noch nicht. Es wird gestartet sobald das Spiel läuft.",
+            "notInstalled": "Es konnte nicht festgestellt werden ob SISR installiert ist.",
+            "setupRequired": "Beende das First-Time Setup bevor du SISR benutzen kannst.",
+            "setup": "SISR einstellen.",
+            "finishSetup": "Setup beenden",
+            "failed": "SISR Einstellung hat einen Fehler: {error}"
         },
         "updates": {
             "title": "Updates",
