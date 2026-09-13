@@ -4,6 +4,11 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Added
+
+- ModWorkshop mod links inside a mod's description, changelog, file notes and instructions now open that mod's page in Modrex instead of the browser.
+- The back mouse button, Alt+Left and the keyboard Back key now leave a mod's page.
+
 ## 0.15.0
 
 ### Added

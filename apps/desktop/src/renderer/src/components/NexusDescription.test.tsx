@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, fireEvent } from '@testing-library/react'
 import { NexusDescription } from './NexusDescription'
+import { api } from '../api'
+
+vi.mock('../api', () => ({ api: { openExternal: vi.fn() } }))
 
 describe('NexusDescription', () => {
     it('renders bold, italic, underline and strike', () => {
@@ -103,6 +106,21 @@ describe('NexusDescription', () => {
         const a = getByText('click')
         expect(a.tagName).toBe('A')
         expect(a.getAttribute('href')).toBe('https://x.test')
+        fireEvent.click(a)
+        expect(vi.mocked(api.openExternal)).toHaveBeenCalledWith('https://x.test')
+    })
+
+    it('intercepts modworkshop mod links and calls onOpenDetail', () => {
+        const onOpenDetail = vi.fn()
+        const { getByText } = render(
+            <NexusDescription
+                text="[url=https://modworkshop.net/mod/54321]view mod[/url]"
+                onOpenDetail={onOpenDetail}
+            />
+        )
+        const a = getByText('view mod')
+        fireEvent.click(a)
+        expect(onOpenDetail).toHaveBeenCalledWith(54321)
     })
 
     // Tag.getContent() always HTML-escapes its text, so a bare-URL image or link with

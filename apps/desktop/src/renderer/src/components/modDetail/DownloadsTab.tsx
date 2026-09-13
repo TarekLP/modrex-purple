@@ -114,6 +114,7 @@ export function DownloadsTab({
     downloadMap,
     activeGame,
     onRefreshInstalled,
+    onOpenDetail,
     nexusUrl,
     isNexus = false,
 }: {
@@ -128,6 +129,7 @@ export function DownloadsTab({
     downloadMap: ReadonlyMap<string, { downloaded: number; total: number }>
     activeGame: GameId
     onRefreshInstalled: () => Promise<void>
+    onOpenDetail?: (modId: number) => void
     // Set when files is still empty because nothing has resolved yet (fetch pending or
     // failed), so an empty list here reads as "not loaded", never "genuinely no files".
     // Points the user at the site instead of showing a bare "no files" message.
@@ -268,7 +270,7 @@ export function DownloadsTab({
                     </div>
                     {file.desc && (
                         <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
-                            <MarkdownContent text={file.desc} />
+                            <MarkdownContent text={file.desc} onOpenDetail={onOpenDetail} />
                         </div>
                     )}
                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
@@ -553,7 +555,10 @@ export function DownloadsTab({
                                     </span>
                                     {link.desc && (
                                         <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
-                                            <MarkdownContent text={link.desc} />
+                                            <MarkdownContent
+                                                text={link.desc}
+                                                onOpenDetail={onOpenDetail}
+                                            />
                                         </div>
                                     )}
                                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
