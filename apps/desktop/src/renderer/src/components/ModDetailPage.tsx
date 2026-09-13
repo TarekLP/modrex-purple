@@ -429,19 +429,53 @@ export function ModDetailPage({
 
     useEffect(() => {
         if (!isActive) return
+
         function onKey(e: KeyboardEvent) {
             if (lightboxIndex !== null) {
-                if (e.key === 'Escape') setLightboxIndex(null)
-                else if (e.key === 'ArrowLeft')
+                if (
+                    e.key === 'Escape' ||
+                    (e.altKey && e.key === 'ArrowLeft') ||
+                    e.key === 'BrowserBack'
+                ) {
+                    e.preventDefault()
+                    e.stopImmediatePropagation()
+                    setLightboxIndex(null)
+                } else if (e.key === 'ArrowLeft') {
                     setLightboxIndex((i) => (i! > 0 ? i! - 1 : images.length - 1))
-                else if (e.key === 'ArrowRight')
+                } else if (e.key === 'ArrowRight') {
                     setLightboxIndex((i) => (i! < images.length - 1 ? i! + 1 : 0))
+                }
                 return
             }
-            if (e.key === 'Escape') onBack()
+            if (
+                e.key === 'Escape' ||
+                (e.altKey && e.key === 'ArrowLeft') ||
+                e.key === 'BrowserBack'
+            ) {
+                e.preventDefault()
+                e.stopImmediatePropagation()
+                onBack()
+            }
         }
+
+        function onMouseUp(e: MouseEvent) {
+            if (e.button === 3) {
+                e.preventDefault()
+                e.stopImmediatePropagation()
+                if (lightboxIndex !== null) {
+                    setLightboxIndex(null)
+                    return
+                }
+                onBack()
+            }
+        }
+
         window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
+        window.addEventListener('mouseup', onMouseUp)
+        return () => {
+            window.removeEventListener('keydown', onKey)
+            window.removeEventListener('mouseup', onMouseUp)
+        }
     }, [isActive, lightboxIndex, images.length, onBack])
 
     async function handleInstall() {
@@ -993,16 +1027,23 @@ export function ModDetailPage({
                                     className="py-5 focus:outline-none"
                                 >
                                     {isNexus ? (
-                                        <NexusDescription text={mod.desc} />
+                                        <NexusDescription
+                                            text={mod.desc}
+                                            onOpenDetail={onOpenDetail}
+                                        />
                                     ) : (
-                                        <DescriptionTab mod={mod} />
+                                        <DescriptionTab mod={mod} onOpenDetail={onOpenDetail} />
                                     )}
                                 </Tabs.Content>
                                 <Tabs.Content value="changelog" className="py-5 focus:outline-none">
-                                    {detail && <ChangelogTab mod={detail} />}
+                                    {detail && (
+                                        <ChangelogTab mod={detail} onOpenDetail={onOpenDetail} />
+                                    )}
                                 </Tabs.Content>
                                 <Tabs.Content value="license" className="py-5 focus:outline-none">
-                                    {detail && <LicenseTab mod={detail} />}
+                                    {detail && (
+                                        <LicenseTab mod={detail} onOpenDetail={onOpenDetail} />
+                                    )}
                                 </Tabs.Content>
                                 <Tabs.Content value="images" className="py-5 focus:outline-none">
                                     <ImagesTab
@@ -1024,6 +1065,7 @@ export function ModDetailPage({
                                         downloadMap={downloadMap}
                                         activeGame={activeGame}
                                         onRefreshInstalled={onRefreshInstalled}
+                                        onOpenDetail={onOpenDetail}
                                         nexusUrl={
                                             isNexus && nexusDomain
                                                 ? `https://www.nexusmods.com/${nexusDomain}/mods/${mod.id}?tab=files`

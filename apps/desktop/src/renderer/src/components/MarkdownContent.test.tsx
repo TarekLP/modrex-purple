@@ -11,7 +11,10 @@ vi.mock('../api', () => ({ api: { openExternal: vi.fn() } }))
 // rehype-sanitize (schema) and the component-level gates (scheme allowlist, embed
 // host allowlist).
 describe('MarkdownContent sanitization', () => {
-    afterEach(cleanup)
+    afterEach(() => {
+        cleanup()
+        vi.clearAllMocks()
+    })
 
     it('strips <script> elements while keeping surrounding text', () => {
         const { container, getByText } = render(
@@ -62,6 +65,45 @@ describe('MarkdownContent sanitization', () => {
         expect(anchor?.getAttribute('href')).toBeNull()
         fireEvent.click(anchor!)
         expect(vi.mocked(api.openExternal)).toHaveBeenCalledWith('https://example.com/')
+    })
+
+    it('intercepts modworkshop mod links and triggers onOpenDetail in-app', () => {
+        const onOpenDetail = vi.fn()
+        const { getByText } = render(
+            <MarkdownContent
+                text={'[another mod](https://modworkshop.net/mod/45678)'}
+                onOpenDetail={onOpenDetail}
+            />
+        )
+        const anchor = getByText('another mod')
+        fireEvent.click(anchor)
+        expect(onOpenDetail).toHaveBeenCalledWith(45678)
+        expect(vi.mocked(api.openExternal)).not.toHaveBeenCalled()
+    })
+
+    it('intercepts relative /mod/:id links and triggers onOpenDetail in-app', () => {
+        const onOpenDetail = vi.fn()
+        const { getByText } = render(
+            <MarkdownContent text={'[another mod](/mod/98765)'} onOpenDetail={onOpenDetail} />
+        )
+        const anchor = getByText('another mod')
+        fireEvent.click(anchor)
+        expect(onOpenDetail).toHaveBeenCalledWith(98765)
+        expect(vi.mocked(api.openExternal)).not.toHaveBeenCalled()
+    })
+
+    it('routes non-mod modworkshop links through api.openExternal', () => {
+        const onOpenDetail = vi.fn()
+        const { getByText } = render(
+            <MarkdownContent
+                text={'[game page](https://modworkshop.net/game/1)'}
+                onOpenDetail={onOpenDetail}
+            />
+        )
+        const anchor = getByText('game page')
+        fireEvent.click(anchor)
+        expect(onOpenDetail).not.toHaveBeenCalled()
+        expect(vi.mocked(api.openExternal)).toHaveBeenCalledWith('https://modworkshop.net/game/1')
     })
 
     it('drops iframes from hosts outside the embed allowlist', () => {

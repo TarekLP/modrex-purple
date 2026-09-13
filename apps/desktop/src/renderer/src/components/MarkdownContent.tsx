@@ -9,7 +9,11 @@ const Impl = lazy(() =>
 // warm the chunk during startup idle so the null fallback window rarely ever shows
 setTimeout(() => void import('./MarkdownContentImpl'), 2000)
 
-export function MarkdownContent(props: { text: string; embeds?: EmbedDef[] }) {
+export function MarkdownContent(props: {
+    text: string
+    embeds?: EmbedDef[]
+    onOpenDetail?: (modId: number) => void
+}) {
     return (
         <Suspense fallback={<SkeletonText />}>
             <Impl {...props} />

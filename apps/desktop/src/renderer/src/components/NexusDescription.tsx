@@ -1,9 +1,42 @@
-import { Children, cloneElement, isValidElement, type ReactNode } from 'react'
+import {
+    Children,
+    cloneElement,
+    isValidElement,
+    createContext,
+    useContext,
+    type ReactNode,
+} from 'react'
 import * as bbcode from 'bbcode-to-react'
 import { api } from '../api'
+import { parseModworkshopModId } from '../modLinks'
 import { YOUTUBE_EMBED } from '../embeds'
 import { t } from '../i18n'
 import { EmbedPlayer } from './EmbedPlayer'
+
+const NexusNavContext = createContext<((modId: number) => void) | undefined>(undefined)
+
+function NexusAnchor({ href, children }: { href: string; children: ReactNode }) {
+    const onOpenDetail = useContext(NexusNavContext)
+    const modId = onOpenDetail ? parseModworkshopModId(href) : null
+
+    return (
+        // eslint-disable-next-line no-restricted-syntax -- gated: scheme allowlisted, click routed through onOpenDetail or api.openExternal
+        <a
+            href={href}
+            onClick={(e) => {
+                e.preventDefault()
+                if (modId !== null && onOpenDetail) {
+                    onOpenDetail(modId)
+                } else {
+                    api.openExternal(href)
+                }
+            }}
+            className="text-accent-bright underline cursor-pointer"
+        >
+            {children}
+        </a>
+    )
+}
 
 // Nexus mod descriptions are BBCode. Parsed here with the actual bbcode-to-react
 // library, the same one Nexus's own mod manager Vortex uses (Nexus-Mods/Vortex,
@@ -201,20 +234,7 @@ class LinkTag extends Tag {
         if (!url.length) return Children.toArray(this.getComponents())
         if (this.name === 'email') url = `mailto:${url}`
         if (!/^(https?|mailto):/i.test(url)) return Children.toArray(this.getComponents())
-        const href = url
-        return (
-            // eslint-disable-next-line no-restricted-syntax -- gated: scheme allowlisted above, click routed through api.openExternal
-            <a
-                href={href}
-                onClick={(e) => {
-                    e.preventDefault()
-                    api.openExternal(href)
-                }}
-                className="text-accent-bright underline cursor-pointer"
-            >
-                {Children.toArray(this.getComponents())}
-            </a>
-        )
+        return <NexusAnchor href={url}>{this.getComponents()}</NexusAnchor>
     }
 }
 
@@ -334,7 +354,17 @@ function normalizeNodes(nodes: ReactNode[]): ReactNode[] {
     return stripRedundantBreaks(nodes.map(normalizeNode))
 }
 
-export function NexusDescription({ text }: { text: string }) {
+export function NexusDescription({
+    text,
+    onOpenDetail,
+}: {
+    text: string
+    onOpenDetail?: (modId: number) => void
+}) {
     const nodes = Children.toArray(parser.toReact(preprocess(text)))
-    return <div className="nexus-description">{normalizeNodes(nodes)}</div>
+    return (
+        <NexusNavContext.Provider value={onOpenDetail}>
+            <div className="nexus-description">{normalizeNodes(nodes)}</div>
+        </NexusNavContext.Provider>
+    )
 }

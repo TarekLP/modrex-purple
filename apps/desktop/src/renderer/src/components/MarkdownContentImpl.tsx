@@ -10,6 +10,7 @@ import { t } from '../i18n'
 import { detectEmbed, EMBEDS, type Embed, type EmbedDef } from '../embeds'
 import 'highlight.js/styles/github-dark.css'
 import { api } from '../api'
+import { parseModworkshopModId } from '../modLinks'
 import { EmbedPlayer } from './EmbedPlayer'
 
 const InsidePreContext = createContext(false)
@@ -165,7 +166,7 @@ function Code({ children }: { children?: ReactNode }) {
     )
 }
 
-function makeMdComponents(defs: EmbedDef[]): Components {
+function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => void): Components {
     return {
         p: ({ children }) => (
             <div className="text-sm text-text-muted leading-relaxed mb-2">{children}</div>
@@ -190,7 +191,23 @@ function makeMdComponents(defs: EmbedDef[]): Components {
         ),
         li: ({ children }) => <li className="mb-0.5">{children}</li>,
         a: ({ href, children }) => {
-            if (!href || !/^(https?|mailto):/i.test(href)) return <>{children}</>
+            if (!href) return <>{children}</>
+            const modId = onOpenDetail ? parseModworkshopModId(href) : null
+            if (modId !== null && onOpenDetail) {
+                return (
+                    // eslint-disable-next-line no-restricted-syntax -- internal mod link navigation routed to onOpenDetail
+                    <a
+                        onClick={(e) => {
+                            e.preventDefault()
+                            onOpenDetail(modId)
+                        }}
+                        className="text-accent-bright underline cursor-pointer"
+                    >
+                        {children}
+                    </a>
+                )
+            }
+            if (!/^(https?|mailto):/i.test(href)) return <>{children}</>
             return (
                 // eslint-disable-next-line no-restricted-syntax -- gated markdown link: scheme allowlisted above; click routed through api.openExternal (shell_open_external)
                 <a
@@ -268,8 +285,16 @@ function makeMdComponents(defs: EmbedDef[]): Components {
     }
 }
 
-export function MarkdownContent({ text, embeds = EMBEDS }: { text: string; embeds?: EmbedDef[] }) {
-    const components = useMemo(() => makeMdComponents(embeds), [embeds])
+export function MarkdownContent({
+    text,
+    embeds = EMBEDS,
+    onOpenDetail,
+}: {
+    text: string
+    embeds?: EmbedDef[]
+    onOpenDetail?: (modId: number) => void
+}) {
+    const components = useMemo(() => makeMdComponents(embeds, onOpenDetail), [embeds, onOpenDetail])
     const normalized = text.replace(/\r\n/g, '\n')
     const parts = splitParts(parseColorTags(normalized), embeds)
 
