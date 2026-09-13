@@ -9,8 +9,6 @@
  * - https://modworkshop.net/mod/12345?tab=images
  * - https://modworkshop.net/mod/12345#description
  * - https://modworkshop.net/mod/12345/comments
- * - /mod/12345
- * - /mod/12345/
  *
  * Returns `null` for non-mod URLs, non-ModWorkshop URLs, or malformed inputs.
  */
@@ -19,18 +17,10 @@ export function parseModworkshopModId(url: string | null | undefined): number | 
     const trimmed = url.trim()
     if (!trimmed) return null
 
-    try {
-        let parsed: URL
-        if (trimmed.startsWith('/')) {
-            parsed = new URL(trimmed, 'https://modworkshop.net')
-        } else if (/^https?:\/\//i.test(trimmed)) {
-            parsed = new URL(trimmed)
-        } else if (/^(?:www\.)?modworkshop\.net\//i.test(trimmed)) {
-            parsed = new URL(`https://${trimmed}`)
-        } else {
-            return null
-        }
+    if (!/^https?:\/\//i.test(trimmed)) return null
 
+    try {
+        const parsed = new URL(trimmed)
         const hostname = parsed.hostname.replace(/^www\./i, '').toLowerCase()
         if (hostname !== 'modworkshop.net') return null
 

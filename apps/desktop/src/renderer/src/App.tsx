@@ -443,23 +443,22 @@ export default function App() {
         [openDetail]
     )
 
-    const pushDetail = useCallback((modId: number, source?: 'nexus') => {
+    const pushDetail = useCallback((modId: number) => {
         setDetailStack((prev) => {
-            const existingIndex = prev.findIndex((d) => d.modId === modId && d.source === source)
+            const existingIndex = prev.findIndex((d) => d.modId === modId && !d.source)
             if (existingIndex !== -1) return prev.slice(0, existingIndex + 1)
-            return [...prev, { modId, source }]
+            return [...prev, { modId }]
         })
     }, [])
 
-    const closeDetail = useCallback(() => {
-        setDetailStack((prev) => {
-            if (prev.length > 1) {
-                return prev.slice(0, -1)
-            }
-            setView(prevView)
-            return []
-        })
-    }, [prevView])
+    function closeDetail() {
+        if (detailStack.length > 1) {
+            setDetailStack((prev) => prev.slice(0, -1))
+            return
+        }
+        setView(prevView)
+        setDetailStack([])
+    }
 
     const handleSidebarChange = useCallback(
         (v: 'browse' | 'installed' | 'news' | 'settings') => {
@@ -476,39 +475,6 @@ export default function App() {
         },
         [setSettingsGlobalOnly]
     )
-
-    useEffect(() => {
-        function onMouseUp(e: MouseEvent) {
-            if (e.button === 3) {
-                if (viewRef.current === 'detail') {
-                    e.preventDefault()
-                    closeDetail()
-                } else if (viewRef.current === 'settings') {
-                    e.preventDefault()
-                    handleSidebarChange(prevView)
-                }
-            }
-        }
-
-        function onKeyDown(e: KeyboardEvent) {
-            if ((e.altKey && e.key === 'ArrowLeft') || e.key === 'BrowserBack') {
-                if (viewRef.current === 'detail') {
-                    e.preventDefault()
-                    closeDetail()
-                } else if (viewRef.current === 'settings') {
-                    e.preventDefault()
-                    handleSidebarChange(prevView)
-                }
-            }
-        }
-
-        window.addEventListener('mouseup', onMouseUp)
-        window.addEventListener('keydown', onKeyDown)
-        return () => {
-            window.removeEventListener('mouseup', onMouseUp)
-            window.removeEventListener('keydown', onKeyDown)
-        }
-    }, [closeDetail, handleSidebarChange, prevView])
 
     const openDetailFromBrowse = useCallback(
         (modId: number, initialMod?: ModSummary) => openDetail(modId, 'browse', initialMod),

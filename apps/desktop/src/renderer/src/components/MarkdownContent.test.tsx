@@ -81,17 +81,6 @@ describe('MarkdownContent sanitization', () => {
         expect(vi.mocked(api.openExternal)).not.toHaveBeenCalled()
     })
 
-    it('intercepts relative /mod/:id links and triggers onOpenDetail in-app', () => {
-        const onOpenDetail = vi.fn()
-        const { getByText } = render(
-            <MarkdownContent text={'[another mod](/mod/98765)'} onOpenDetail={onOpenDetail} />
-        )
-        const anchor = getByText('another mod')
-        fireEvent.click(anchor)
-        expect(onOpenDetail).toHaveBeenCalledWith(98765)
-        expect(vi.mocked(api.openExternal)).not.toHaveBeenCalled()
-    })
-
     it('routes non-mod modworkshop links through api.openExternal', () => {
         const onOpenDetail = vi.fn()
         const { getByText } = render(

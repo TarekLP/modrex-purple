@@ -18,23 +18,10 @@ describe('parseModworkshopModId', () => {
         expect(parseModworkshopModId('https://modworkshop.net/mod/12345/comments')).toBe(12345)
     })
 
-    it('parses relative /mod/:id paths', () => {
-        expect(parseModworkshopModId('/mod/12345')).toBe(12345)
-        expect(parseModworkshopModId('/mod/12345/')).toBe(12345)
-        expect(parseModworkshopModId('/mod/12345?tab=images')).toBe(12345)
-    })
-
-    it('parses scheme-less modworkshop.net/mod/:id strings', () => {
-        expect(parseModworkshopModId('modworkshop.net/mod/12345')).toBe(12345)
-        expect(parseModworkshopModId('www.modworkshop.net/mod/12345')).toBe(12345)
-    })
-
     it('returns null for non-mod ModWorkshop paths', () => {
         expect(parseModworkshopModId('https://modworkshop.net/game/1')).toBeNull()
         expect(parseModworkshopModId('https://modworkshop.net/user/456')).toBeNull()
         expect(parseModworkshopModId('https://modworkshop.net/')).toBeNull()
-        expect(parseModworkshopModId('/game/1')).toBeNull()
-        expect(parseModworkshopModId('/user/456')).toBeNull()
     })
 
     it('returns null for non-ModWorkshop URLs', () => {
@@ -49,6 +36,8 @@ describe('parseModworkshopModId', () => {
         expect(parseModworkshopModId(null)).toBeNull()
         expect(parseModworkshopModId(undefined)).toBeNull()
         expect(parseModworkshopModId('not a url')).toBeNull()
+        expect(parseModworkshopModId('/mod/12345')).toBeNull()
+        expect(parseModworkshopModId('modworkshop.net/mod/12345')).toBeNull()
         expect(parseModworkshopModId('https://modworkshop.net/mod/not-a-number')).toBeNull()
         expect(parseModworkshopModId('https://modworkshop.net/mod/0')).toBeNull()
         expect(parseModworkshopModId('https://modworkshop.net/mod/-5')).toBeNull()
