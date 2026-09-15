@@ -445,7 +445,7 @@ export default function App() {
 
     const pushDetail = useCallback((modId: number) => {
         setDetailStack((prev) => {
-            const existingIndex = prev.findIndex((d) => d.modId === modId)
+            const existingIndex = prev.findIndex((d) => d.modId === modId && !d.source)
             if (existingIndex !== -1) return prev.slice(0, existingIndex + 1)
             return [...prev, { modId }]
         })

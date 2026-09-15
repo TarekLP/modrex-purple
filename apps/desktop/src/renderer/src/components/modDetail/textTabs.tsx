@@ -2,11 +2,17 @@ import type { Mod, ModSummary } from '../../../../shared/types'
 import { MarkdownContent } from '../MarkdownContent'
 import { t } from '../../i18n'
 
-export function DescriptionTab({ mod }: { mod: ModSummary }) {
+export function DescriptionTab({
+    mod,
+    onOpenDetail,
+}: {
+    mod: ModSummary
+    onOpenDetail?: (modId: number) => void
+}) {
     return (
         <div>
             {mod.desc ? (
-                <MarkdownContent text={mod.desc} />
+                <MarkdownContent text={mod.desc} onOpenDetail={onOpenDetail} />
             ) : (
                 <p className="text-sm text-text-subtle">{t('detail.description.noDescription')}</p>
             )}
@@ -14,18 +20,30 @@ export function DescriptionTab({ mod }: { mod: ModSummary }) {
     )
 }
 
-export function ChangelogTab({ mod }: { mod: Mod }) {
+export function ChangelogTab({
+    mod,
+    onOpenDetail,
+}: {
+    mod: Mod
+    onOpenDetail?: (modId: number) => void
+}) {
     return (
         <div>
-            <MarkdownContent text={mod.changelog!} />
+            <MarkdownContent text={mod.changelog!} onOpenDetail={onOpenDetail} />
         </div>
     )
 }
 
-export function LicenseTab({ mod }: { mod: Mod }) {
+export function LicenseTab({
+    mod,
+    onOpenDetail,
+}: {
+    mod: Mod
+    onOpenDetail?: (modId: number) => void
+}) {
     return (
         <div>
-            <MarkdownContent text={mod.license!} />
+            <MarkdownContent text={mod.license!} onOpenDetail={onOpenDetail} />
         </div>
     )
 }

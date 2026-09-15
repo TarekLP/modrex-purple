@@ -84,11 +84,14 @@ export function DepsTab({
                         {t('detail.deps.instructions')}
                     </h2>
                     {instructsTemplate?.instructions && (
-                        <MarkdownContent text={instructsTemplate.instructions} />
+                        <MarkdownContent
+                            text={instructsTemplate.instructions}
+                            onOpenDetail={onOpenDetail}
+                        />
                     )}
                     {instructions && (
                         <div className="mt-3">
-                            <MarkdownContent text={instructions} />
+                            <MarkdownContent text={instructions} onOpenDetail={onOpenDetail} />
                         </div>
                     )}
                 </section>
