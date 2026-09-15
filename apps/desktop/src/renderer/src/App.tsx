@@ -35,6 +35,7 @@ import { useFileDropInstall } from './hooks/useFileDropInstall'
 import { ZipPickerModal } from './components/ZipPickerModal'
 import { HostPackModal } from './components/HostPackModal'
 import { CrimeBossFlatArchiveModal } from './components/CrimeBossFlatArchiveModal'
+import { Ue4ssReplaceModal } from './components/Ue4ssReplaceModal'
 import { useModIdentificationTracking } from './lib/analytics/useModIdentificationTracking'
 import { getSettingsCache, setSettingsCache } from './settingsCache'
 import { Dialog } from './components/Dialog'
@@ -444,7 +445,7 @@ export default function App() {
 
     const pushDetail = useCallback((modId: number) => {
         setDetailStack((prev) => {
-            const existingIndex = prev.findIndex((d) => d.modId === modId)
+            const existingIndex = prev.findIndex((d) => d.modId === modId && !d.source)
             if (existingIndex !== -1) return prev.slice(0, existingIndex + 1)
             return [...prev, { modId }]
         })
@@ -554,6 +555,15 @@ export default function App() {
                 {dropSentinel?.kind === 'cb' && gamePath && (
                     <CrimeBossFlatArchiveModal
                         payload={dropSentinel.payload}
+                        gamePath={gamePath}
+                        onRefreshInstalled={refreshInstalled}
+                        onClose={resolveSentinel}
+                    />
+                )}
+                {dropSentinel?.kind === 'loader' && gamePath && (
+                    <Ue4ssReplaceModal
+                        payload={dropSentinel.payload}
+                        gameId={activeGame}
                         gamePath={gamePath}
                         onRefreshInstalled={refreshInstalled}
                         onClose={resolveSentinel}

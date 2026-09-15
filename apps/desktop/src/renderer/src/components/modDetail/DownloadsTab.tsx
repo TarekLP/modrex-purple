@@ -32,6 +32,8 @@ import { HostPackModal } from '../HostPackModal'
 import type { HostPackPayload } from '../HostPackModal'
 import { CrimeBossFlatArchiveModal } from '../CrimeBossFlatArchiveModal'
 import type { CbFlatArchivePayload } from '../CrimeBossFlatArchiveModal'
+import { Ue4ssReplaceModal } from '../Ue4ssReplaceModal'
+import type { LoaderReplacePayload } from '../Ue4ssReplaceModal'
 import { UnrecognizedArchiveModal } from '../UnrecognizedArchiveModal'
 import { NonPakConfirmModal } from '../NonPakConfirmModal'
 import { formatBytes, formatDate } from './format'
@@ -112,6 +114,7 @@ export function DownloadsTab({
     downloadMap,
     activeGame,
     onRefreshInstalled,
+    onOpenDetail,
     nexusUrl,
     isNexus = false,
 }: {
@@ -126,6 +129,7 @@ export function DownloadsTab({
     downloadMap: ReadonlyMap<string, { downloaded: number; total: number }>
     activeGame: GameId
     onRefreshInstalled: () => Promise<void>
+    onOpenDetail?: (modId: number) => void
     // Set when files is still empty because nothing has resolved yet (fetch pending or
     // failed), so an empty list here reads as "not loaded", never "genuinely no files".
     // Points the user at the site instead of showing a bare "no files" message.
@@ -143,6 +147,7 @@ export function DownloadsTab({
     const [hostPackData, setHostPackData] = useState<HostPackPayload | null>(null)
     const [unrecognizedModId, setUnrecognizedModId] = useState<number | null>(null)
     const [cbFlatArchiveData, setCbFlatArchiveData] = useState<CbFlatArchivePayload | null>(null)
+    const [loaderReplaceData, setLoaderReplaceData] = useState<LoaderReplacePayload | null>(null)
     const crimeBossInstallTarget = useCrimeBossInstallTarget(
         activeGame ?? 'pd3',
         gamePath,
@@ -212,6 +217,7 @@ export function DownloadsTab({
                     onZipMultiPak: setZipPickerData,
                     onHostModPack: setHostPackData,
                     onCbFlatArchive: setCbFlatArchiveData,
+                    onLoaderReplace: setLoaderReplaceData,
                     onUnrecognizedArchive: () => setUnrecognizedModId(mod.id),
                 })
             ) {
@@ -264,7 +270,7 @@ export function DownloadsTab({
                     </div>
                     {file.desc && (
                         <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
-                            <MarkdownContent text={file.desc} />
+                            <MarkdownContent text={file.desc} onOpenDetail={onOpenDetail} />
                         </div>
                     )}
                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">
@@ -464,6 +470,15 @@ export function DownloadsTab({
                     onClose={() => setCbFlatArchiveData(null)}
                 />
             )}
+            {loaderReplaceData && gamePath && (
+                <Ue4ssReplaceModal
+                    payload={loaderReplaceData}
+                    gameId={activeGame}
+                    gamePath={gamePath}
+                    onRefreshInstalled={onRefreshInstalled}
+                    onClose={() => setLoaderReplaceData(null)}
+                />
+            )}
             {unrecognizedModId !== null && (
                 <UnrecognizedArchiveModal
                     modId={unrecognizedModId}
@@ -540,7 +555,10 @@ export function DownloadsTab({
                                     </span>
                                     {link.desc && (
                                         <div className="text-xs text-text-muted mt-1 [&_a]:text-accent-bright [&_a]:hover:underline">
-                                            <MarkdownContent text={link.desc} />
+                                            <MarkdownContent
+                                                text={link.desc}
+                                                onOpenDetail={onOpenDetail}
+                                            />
                                         </div>
                                     )}
                                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-text-subtle">

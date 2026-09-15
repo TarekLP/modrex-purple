@@ -59,12 +59,6 @@
         "maximize": "Massimizza",
         "restore": "Ripristina",
         "close": "Chiudi",
-        "missingLaunchOption": {
-            "title": "Opzione di avvio mancante",
-            "bodyPre": "È raccomandato per molte mod per caricarle correttamente. Aggiungilo",
-            "location": "Impostazioni > Impostazioni di avvio",
-            "launchAnyway": "Avvia comunque"
-        },
         "sisr": {
             "unsupported": "! SISR auto-launch is not supported on this operating system. The game was launched without it.",
             "notInstalled": "! SISR was not found. The game was launched without it.",
@@ -368,6 +362,24 @@
         "install": "Installa",
         "installing": "Installando..."
     },
+    "ue4ssReplace": {
+        "title": "! Replace the installed UE4SS?",
+        "body": "! {name} replaces the UE4SS that is already installed. The installed release is removed first: the two put their engine and settings in different places, so leaving it in place would load both.",
+        "removed": "! Removed",
+        "kept": "! Kept",
+        "nothingOfYours": "! You have no mods of your own in the loader's Mods folder.",
+        "modsListNote": "! Your own mods keep their entries in the loader's mod list.",
+        "replace": "! Replace",
+        "replacing": "! Replacing..."
+    },
+    "ue4ssRemove": {
+        "title": "! Remove UE4SS?",
+        "body": "! UE4SS is what loads Lua mods, so removing it stops them running until you install it again. Only the files it installed are deleted.",
+        "removed": "! Removed",
+        "kept": "! Kept",
+        "nothingOfYours": "! You have no mods of your own in the loader's Mods folder.",
+        "removing": "! Removing..."
+    },
     "depsWarning": {
         "title": "Dipendenze richieste mancanti",
         "body": "Questa mod richiede la seguente mod per essere installata:",
@@ -427,10 +439,8 @@
         },
         "launchOptions": {
             "title": "Opzioni di avvio",
-            "descriptionPre": "Argomenti aggiuntivi passati a PAYDAY 3 all'avvio.",
-            "descriptionPost": "È raccomandato per caricare le mod correttamente.",
-            "xboxNotePre": "le pzioni di avvio non sono disponibili sul microsoft store. Per abilitare l'avvio delle mod, aggiungi",
-            "xboxNotePost": "nella app xbox sotto PAYDAY 3 > Gestisci > Opzioni di lancio."
+            "description": "! {flag} is needed for most of this game's mods to load correctly.",
+            "xboxNote": "! Launch options are not supported on Microsoft Store."
         },
         "crashReporter": {
             "title": "Pulizia rapporto crash",

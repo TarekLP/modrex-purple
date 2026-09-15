@@ -64,10 +64,46 @@ pub struct GameSettings {
     )]
     #[specta(type = String)]
     pub crimeboss_install_mode: String,
+    /// What installed each mod loader, keyed by loader id.
+    ///
+    /// A loader is detected by the files it leaves next to the game, and those files say
+    /// nothing about which page they came from or what version they are. Several pages
+    /// distribute the same loader, so without this a user cannot tell which one they have or
+    /// whether it is current, and every page reads as installed at once.
+    #[serde(default, deserialize_with = "null_default")]
+    #[specta(type = HashMap<String, LoaderInstall>)]
+    pub loaders: HashMap<String, LoaderInstall>,
+}
+
+/// The mod page a loader was installed from, recorded because the installed files carry no
+/// identity of their own. Absent for a loader installed outside Modrex or before this was
+/// recorded, which reads as present-but-unknown rather than absent.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LoaderInstall {
+    /// Which catalogue the ids below belong to. ModWorkshop and Nexus number their mods
+    /// independently, so a bare id says nothing without it.
+    #[serde(default = "default_source")]
+    #[specta(type = String)]
+    pub source: String,
+    pub remote_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<i64>,
+    #[serde(default, deserialize_with = "null_default")]
+    #[specta(type = String)]
+    pub version: String,
+    #[serde(default, deserialize_with = "null_default")]
+    #[specta(type = String)]
+    pub installed_at: String,
 }
 
 fn default_crimeboss_mode() -> String {
     "auto".to_string()
+}
+
+/// Records written before a loader carried its source came only from ModWorkshop.
+fn default_source() -> String {
+    "modworkshop".to_string()
 }
 
 impl Default for GameSettings {
@@ -79,6 +115,7 @@ impl Default for GameSettings {
             launch_options: String::new(),
             suppress_crash_reporter: false,
             crimeboss_install_mode: default_crimeboss_mode(),
+            loaders: HashMap::new(),
         }
     }
 }
@@ -320,47 +357,6 @@ pub fn migrate_from_old_identifier(app: &AppHandle) {
     }
 }
 
-pub fn migrate_from_electron(app: &AppHandle) {
-    let new_settings = settings_path(app);
-    if new_settings.exists() {
-        return;
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let Ok(appdata) = std::env::var("APPDATA") else {
-            return;
-        };
-        let old_dir = PathBuf::from(appdata).join("PD3 Mod Manager");
-        let new_dir = new_settings.parent().unwrap();
-        let _ = std::fs::create_dir_all(new_dir);
-        if old_dir.join("settings.json").exists() {
-            let _ = std::fs::copy(old_dir.join("settings.json"), &new_settings);
-        }
-        let old_index = old_dir.join("mod-index.db");
-        let new_index = new_dir.join("mod-index.db");
-        if old_index.exists() && !new_index.exists() {
-            let _ = std::fs::copy(old_index, new_index);
-        }
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let Ok(home) = std::env::var("HOME") else {
-            return;
-        };
-        let old_dir = PathBuf::from(home).join(".config").join("pd3-mod-manager");
-        let new_dir = new_settings.parent().unwrap();
-        let _ = std::fs::create_dir_all(new_dir);
-        if old_dir.join("settings.json").exists() {
-            let _ = std::fs::copy(old_dir.join("settings.json"), &new_settings);
-        }
-        let old_index = old_dir.join("mod-index.db");
-        let new_index = new_dir.join("mod-index.db");
-        if old_index.exists() && !new_index.exists() {
-            let _ = std::fs::copy(old_index, new_index);
-        }
-    }
-}
-
 /// Returns a backwards-compatible flat view of PD3 settings for the renderer. New callers
 /// take get_game_settings instead, which is per-game rather than pinned to pd3.
 #[tauri::command]
@@ -524,6 +520,32 @@ pub fn dismiss_deps_warning(app: AppHandle, mod_id: i32) {
         if !s.dismissed_deps_warnings.contains(&mod_id) {
             s.dismissed_deps_warnings.push(mod_id);
         }
+    });
+}
+
+/// Records which mod page installed a loader for a game, or forgets the previous one when the
+/// install had no page behind it.
+///
+/// A dropped archive replaces the files without saying where they came from, so keeping the
+/// previous record would attribute someone else's release to a page it never came from. Only
+/// ever called once the files are in place.
+pub fn record_loader_install(
+    app: &AppHandle,
+    game_id: &str,
+    loader_id: &str,
+    record: Option<LoaderInstall>,
+) {
+    update_settings(app, |s| {
+        let loaders = &mut s
+            .games
+            .get_or_insert_with(HashMap::new)
+            .entry(game_id.to_string())
+            .or_default()
+            .loaders;
+        match record {
+            Some(record) => loaders.insert(loader_id.to_string(), record),
+            None => loaders.remove(loader_id),
+        };
     });
 }
 
