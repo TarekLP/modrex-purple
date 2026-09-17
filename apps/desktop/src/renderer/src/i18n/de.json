@@ -102,6 +102,7 @@
         "tagFilterEmpty": "Keine Tags gefunden",
         "noMods": "Keine Mods gefunden",
         "loadFailed": "Mods konnten nicht geladen werden",
+        "filterLoadFailed": "! Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop hat ein Anfragen-Limit. Versuche es gleich nochmal.",
         "modCount": "{total} Mods",
         "sort": {

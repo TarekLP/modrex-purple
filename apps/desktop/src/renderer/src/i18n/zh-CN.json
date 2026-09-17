@@ -102,6 +102,7 @@
         "tagFilterEmpty": "未找到标签",
         "noMods": "未找到模组",
         "loadFailed": "无法加载模组",
+        "filterLoadFailed": "! Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop 当前正在限制请求频率。请稍后再试。",
         "modCount": "{total} 个模组",
         "sort": {

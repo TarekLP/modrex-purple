@@ -102,6 +102,7 @@
         "tagFilterEmpty": "Тегів не знайдено",
         "noMods": "Модів не знайдено",
         "loadFailed": "Не вдалося завантажити моди",
+        "filterLoadFailed": "! Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop наразі обмежує частоту запитів. Спробуйте ще раз за мить.",
         "modCount": "Модів: {total}",
         "sort": {

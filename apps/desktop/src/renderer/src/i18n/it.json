@@ -102,6 +102,7 @@
         "tagFilterEmpty": "Nessuna etichetta trovata",
         "noMods": "Nessuna mod trovata",
         "loadFailed": "Impossibile caricare le mod",
+        "filterLoadFailed": "! Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop sta limitando la frequenza della richieste. Riprova tra un momento.",
         "modCount": "{total} mod",
         "sort": {

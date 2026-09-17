@@ -102,6 +102,7 @@
         "tagFilterEmpty": "Теги не найдены",
         "noMods": "Моды не найдены",
         "loadFailed": "Не удалось загрузить моды",
+        "filterLoadFailed": "! Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop сейчас ограничивает количество запросов. Повторите попытку через некоторое время.",
         "modCount": "{total} модов",
         "sort": {
