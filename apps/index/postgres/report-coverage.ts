@@ -52,7 +52,7 @@ const rows = (await sql`
                       )
                   )
             )
-        )::TEXT AS pending,
+        ))::TEXT AS pending,
         COALESCE((SELECT pending FROM version_backlog WHERE version_backlog.slug=games.slug), '0')
             AS version_pending
     FROM games

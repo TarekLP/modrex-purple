@@ -14,7 +14,7 @@ const selectionAt = new Date().toISOString()
 const pendingRows = (await sql`
     SELECT
         games.slug,
-        (COUNT(DISTINCT (mod_listings.source_id, mod_listings.remote_id)) FILTER (
+        COUNT(DISTINCT (mod_listings.source_id, mod_listings.remote_id)) FILTER (
             WHERE mod_listings.remote_id IS NOT NULL AND (
                 ((mod_checks.remote_id IS NULL OR
                     mod_checks.updated_at <> mod_listings.updated_at) AND (
