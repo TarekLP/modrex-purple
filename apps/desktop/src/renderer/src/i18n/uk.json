@@ -179,6 +179,8 @@
             "staleDuplicateHint": "Це залишок старої версії пакунка завантаження цього файла — його можна безпечно видалити."
         },
         "updatesModal": {
+            "versionChange": "! {from} to {to}",
+            "versionAvailable": "! {version} available",
             "title": "Доступні оновлення ({count})",
             "update": "Оновити",
             "updating": "Оновлення...",

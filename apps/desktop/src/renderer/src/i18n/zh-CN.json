@@ -179,6 +179,8 @@
             "staleDuplicateHint": "这是该文件重新打包下载前遗留的旧文件（可安全移除）。"
         },
         "updatesModal": {
+            "versionChange": "! {from} to {to}",
+            "versionAvailable": "! {version} available",
             "title": "可用更新（{count}）",
             "update": "更新",
             "updating": "正在更新...",

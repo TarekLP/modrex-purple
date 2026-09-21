@@ -179,6 +179,8 @@
             "staleDuplicateHint": "Это остаток от версии до того, как загрузка этого файла была переупакована — можно безопасно удалить."
         },
         "updatesModal": {
+            "versionChange": "! {from} to {to}",
+            "versionAvailable": "! {version} available",
             "title": "Доступные обновления ({count})",
             "update": "Обновить",
             "updating": "Обновление...",

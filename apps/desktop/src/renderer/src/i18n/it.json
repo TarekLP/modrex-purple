@@ -179,6 +179,8 @@
             "staleDuplicateHint": "Questo è un residuo di quando il download di questo file non era ancora stato repackaged (può essere rimosso in sicurezza)."
         },
         "updatesModal": {
+            "versionChange": "! {from} to {to}",
+            "versionAvailable": "! {version} available",
             "title": "Aggiornamenti disponibili ({count})",
             "update": "Aggiorna",
             "updating": "Aggiornando...",

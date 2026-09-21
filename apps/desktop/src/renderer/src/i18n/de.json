@@ -179,6 +179,8 @@
             "staleDuplicateHint": "Dies ist ein Überbleibsel aus der Zeit vor der Neuverpackung des Downloads – kann sicher entfernt werden."
         },
         "updatesModal": {
+            "versionChange": "! {from} to {to}",
+            "versionAvailable": "! {version} available",
             "title": "Verfügbare Updates ({count})",
             "update": "Aktualisieren",
             "updating": "Aktualisiere...",
