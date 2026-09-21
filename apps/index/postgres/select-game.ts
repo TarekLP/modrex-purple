@@ -14,7 +14,7 @@ const selectionAt = new Date().toISOString()
 const pendingRows = (await sql`
     SELECT
         games.slug,
-        COUNT(DISTINCT (mod_listings.source_id, mod_listings.remote_id)) FILTER (
+        (COUNT(DISTINCT (mod_listings.source_id, mod_listings.remote_id)) FILTER (
             WHERE mod_listings.remote_id IS NOT NULL AND (
                 ((mod_checks.remote_id IS NULL OR
                     mod_checks.updated_at <> mod_listings.updated_at) AND (
@@ -40,7 +40,7 @@ const pendingRows = (await sql`
                     )
                 )
             )
-        )::TEXT AS pending
+        ))::TEXT AS pending
     FROM games
     JOIN sources ON sources.game_id = games.id
     LEFT JOIN mod_listings ON mod_listings.source_id = sources.id
