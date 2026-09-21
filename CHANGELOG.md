@@ -11,6 +11,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ### Fixed
 
+- Fixed ModWorkshop update detection and restored identification index refreshes after an upstream API change.
 - Fixed Browse hiding category and tag filter loading failures when a request fails.
 
 ## 0.15.0
