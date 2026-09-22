@@ -1,5 +1,6 @@
 # Tauri runs this for the app exe, the NSIS uninstaller and the installer.
 # Swapping the signing provider means changing only this file and its secrets.
+# The bundler resolves the signCommand path from src-tauri, not from apps/desktop.
 param([Parameter(Mandatory)][string]$Path)
 
 $ErrorActionPreference = 'Stop'
