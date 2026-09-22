@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.15.1
+
 ### Added
 
 - ModWorkshop mod links inside a mod's description, changelog, file notes and instructions now open that mod's page in Modrex instead of the browser.
