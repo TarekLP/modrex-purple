@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, startTransition } from 'react'
 import { error as logError } from '@tauri-apps/plugin-log'
 import { Button } from './components/ui/Button'
-import { X, ExternalLink, Download } from 'lucide-react'
+import { X, ExternalLink, Download, RefreshCw } from 'lucide-react'
 import { GAMES, isGameId, type GameId } from '../../shared/types'
 import { loadLoaderRegistry } from './loaders'
 import { loadSourceRegistry } from './sources'
@@ -161,7 +161,6 @@ export default function App() {
 
     async function handleUpdate() {
         if (!update) return
-        setShowUpdateModal(false)
         setUpdate((prev) => (prev ? { ...prev, phase: 'downloading', percent: 0 } : prev))
         try {
             await api.download()
@@ -179,7 +178,7 @@ export default function App() {
     }
     const topBar = {
         update:
-            update && update.phase !== 'available'
+            update && update.phase !== 'available' && !showUpdateModal
                 ? { phase: update.phase, percent: update.percent }
                 : null,
         onDismissUpdate: () => setUpdate(null),
@@ -234,8 +233,17 @@ export default function App() {
                         </div>
                     )}
                     <Dialog
-                        open={showUpdateModal && !!update && update.phase === 'available'}
+                        open={showUpdateModal && !!update}
                         onOpenChange={(open) => !open && setShowUpdateModal(false)}
+                        onPointerDownOutside={(event) => {
+                            const target = event.detail.originalEvent.target
+                            if (
+                                target instanceof Element &&
+                                target.closest('[data-tauri-drag-region], [data-window-resize]')
+                            ) {
+                                event.preventDefault()
+                            }
+                        }}
                         title={update ? t('app.updateNotesTitle', { version: update.version }) : ''}
                         className="w-full max-w-lg max-h-[80vh]"
                     >
@@ -255,7 +263,7 @@ export default function App() {
                                     </Button>
                                 </div>
                                 {update.body && (
-                                    <div className="overflow-y-auto px-5 py-4 flex-1">
+                                    <div className="overflow-y-auto px-5 py-4 flex-1 [&>div>:first-child]:mt-0">
                                         <MarkdownContent text={update.body} />
                                     </div>
                                 )}
@@ -270,32 +278,65 @@ export default function App() {
                                         {t('app.updateViewOnGithub')}
                                     </Button>
                                     <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => setShowUpdateModal(false)}
-                                        >
-                                            {t('app.updateLater')}
-                                        </Button>
-                                        {update.strategy !== 'browser' ? (
-                                            <button
-                                                onClick={handleUpdate}
-                                                className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
+                                        {update.phase === 'available' && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setShowUpdateModal(false)}
                                             >
-                                                <Download className="w-3.5 h-3.5" />
-                                                {t('app.updateAction')}
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => api.openExternal(update.releaseUrl)}
-                                                className="text-xs px-3 py-1 rounded bg-accent/20 hover:bg-accent/30 text-accent transition-colors flex items-center gap-1.5"
-                                            >
-                                                <ExternalLink className="w-3.5 h-3.5" />
-                                                {t('app.updateDownload')}
-                                            </button>
+                                                {t('app.updateLater')}
+                                            </Button>
                                         )}
+                                        {update.phase === 'ready' && (
+                                            <Button
+                                                variant="accent"
+                                                onClick={() => api.installUpdate()}
+                                            >
+                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                {t('app.updateInstall')}
+                                            </Button>
+                                        )}
+                                        {update.phase === 'available' &&
+                                            update.strategy !== 'browser' && (
+                                                <Button variant="accent" onClick={handleUpdate}>
+                                                    <Download className="w-3.5 h-3.5" />
+                                                    {t('app.updateAction')}
+                                                </Button>
+                                            )}
+                                        {update.phase === 'available' &&
+                                            update.strategy === 'browser' && (
+                                                <Button
+                                                    variant="accent"
+                                                    onClick={() =>
+                                                        api.openExternal(update.releaseUrl)
+                                                    }
+                                                >
+                                                    <ExternalLink className="w-3.5 h-3.5" />
+                                                    {t('app.updateDownload')}
+                                                </Button>
+                                            )}
                                     </div>
                                 </div>
+                                {update.phase === 'downloading' && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-4">
+                                        <span className="absolute right-2 bottom-1 text-[10px] text-text-muted">
+                                            {update.percent ?? 0}%
+                                        </span>
+                                        <div
+                                            role="progressbar"
+                                            aria-label={t('common.downloading')}
+                                            aria-valuemin={0}
+                                            aria-valuemax={100}
+                                            aria-valuenow={update.percent ?? 0}
+                                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface-active"
+                                        >
+                                            <div
+                                                className="h-full bg-accent transition-[width] duration-100"
+                                                style={{ width: `${update.percent ?? 0}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
                     </Dialog>
