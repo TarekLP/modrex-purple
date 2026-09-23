@@ -186,7 +186,10 @@
             "updating": "Aktualisiere...",
             "updatingProgress": "Aktualisiere {done} / {total}",
             "updateSelected": "Ausgewählte aktualisieren ({count})",
-            "error": "Aktualisierung fehlgeschlagen. Überprüfe deine Verbindung und versuche es erneut."
+            "error": "Aktualisierung fehlgeschlagen. Überprüfe deine Verbindung und versuche es erneut.",
+            "chooseTitle": "! Choose a file",
+            "chooseBody": "! {name} has several files. Pick the one to install.",
+            "unavailable": "! {name} can't be updated from Modrex."
         },
         "pakViewer": {
             "title": "Inhalte dieser PAK-Datei",

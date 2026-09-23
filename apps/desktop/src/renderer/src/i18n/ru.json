@@ -186,7 +186,10 @@
             "updating": "Обновление...",
             "updatingProgress": "Обновление {done} / {total}",
             "updateSelected": "Обновить выбранное ({count})",
-            "error": "Не удалось обновить. Проверьте подключение и повторите попытку."
+            "error": "Не удалось обновить. Проверьте подключение и повторите попытку.",
+            "chooseTitle": "! Choose a file",
+            "chooseBody": "! {name} has several files. Pick the one to install.",
+            "unavailable": "! {name} can't be updated from Modrex."
         },
         "pakViewer": {
             "title": "Содержимое pak-файла",

@@ -186,7 +186,10 @@
             "updating": "正在更新...",
             "updatingProgress": "正在更新 {done} / {total}",
             "updateSelected": "更新所选项（{count}）",
-            "error": "更新失败。请检查网络连接后重试。"
+            "error": "更新失败。请检查网络连接后重试。",
+            "chooseTitle": "! Choose a file",
+            "chooseBody": "! {name} has several files. Pick the one to install.",
+            "unavailable": "! {name} can't be updated from Modrex."
         },
         "pakViewer": {
             "title": "Pak 内容",

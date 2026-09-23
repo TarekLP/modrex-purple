@@ -186,7 +186,10 @@
             "updating": "Aggiornando...",
             "updatingProgress": "Aggiornando {done} / {total}",
             "updateSelected": "Aggiornamenti selezionati ({count})",
-            "error": "Aggiornamento fallito. Controlla la tua connessione e riprova."
+            "error": "Aggiornamento fallito. Controlla la tua connessione e riprova.",
+            "chooseTitle": "! Choose a file",
+            "chooseBody": "! {name} has several files. Pick the one to install.",
+            "unavailable": "! {name} can't be updated from Modrex."
         },
         "pakViewer": {
             "title": "! Pak contents",
