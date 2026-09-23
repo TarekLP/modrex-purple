@@ -4,6 +4,8 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+## 0.15.2
+
 ### Changed
 
 - Mods that download from outside ModWorkshop no longer appear in the updates list.
