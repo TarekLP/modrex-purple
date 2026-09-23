@@ -75,6 +75,7 @@ export interface ModSummary {
     category_id: number
     has_download: boolean
     disable_mod_managers: boolean | null
+    download_type: string | null
     thumbnail: { file: string; has_thumb: boolean | null } | null
     user: {
         // absent on locally synthesized mods (installedUtils.syntheticMod)
@@ -97,6 +98,8 @@ export interface Mod extends ModSummary {
         download_url: string | null
         url: string | null
     } | null
+    download_id: number | null
+    files_are_versions: boolean | null
     changelog: string | null
     instructions: string | null
     license: string | null

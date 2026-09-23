@@ -1,9 +1,10 @@
-import type { InstalledMod, Mod } from '../../shared/types'
+import type { InstalledMod, Mod, ModFile, ModSummary } from '../../shared/types'
 import type { VersionState } from './modVersions'
 
 export function updatableMods(
     installed: InstalledMod[],
-    versions: ReadonlyMap<number, VersionState>
+    versions: ReadonlyMap<number, VersionState>,
+    summaries: ReadonlyMap<number, ModSummary>
 ): InstalledMod[] {
     const groups = new Map<number, InstalledMod[]>()
     for (const mod of installed) {
@@ -15,6 +16,8 @@ export function updatableMods(
     for (const [id, group] of groups) {
         const remote = versions.get(id)
         if (remote?.status !== 'known') continue
+        const summary = summaries.get(id)
+        if (summary?.download_type === 'link' || summary?.disable_mod_managers) continue
         const present = group.filter((mod) => !mod.missing)
         const confirmed = present.find((mod) => mod.updateStatus === 'outdated')
         if (confirmed) {
@@ -31,26 +34,45 @@ export function updatableMods(
 
 export type UpdateTarget =
     | { status: 'unchanged' }
-    | { status: 'review' }
-    | { status: 'ready'; download: NonNullable<Mod['download']> & { download_url: string } }
+    | { status: 'unavailable' }
+    | { status: 'install' }
+    | { status: 'choose' }
 
-export function resolveUpdateTarget(installed: InstalledMod[], detail: Mod): UpdateTarget {
-    const currentBytes = installed.filter((mod) => !mod.missing)
-    const hasOutdatedBytes = currentBytes.some((mod) => mod.updateStatus === 'outdated')
+export function resolveUpdateTarget(
+    installed: InstalledMod[],
+    detail: Mod,
+    files: ModFile[]
+): UpdateTarget {
+    const present = installed.filter((mod) => !mod.missing)
+    const hasOutdatedBytes = present.some((mod) => mod.updateStatus === 'outdated')
     if (
         !detail.version ||
-        (!hasOutdatedBytes && currentBytes.some((mod) => mod.version === detail.version))
+        (!hasOutdatedBytes && present.some((mod) => mod.version === detail.version))
     )
         return { status: 'unchanged' }
     const download = detail.download
-    // Existing records do not prove default-following intent. A different file ID
-    // requires review rather than replacing a deliberately selected variant.
     if (
         detail.disable_mod_managers ||
-        !download?.download_url ||
-        !installed.length ||
-        installed.some((mod) => mod.fileId !== download.id || mod.missing)
+        (download && !download.download_url) ||
+        (!download && !files.length)
     )
-        return { status: 'review' }
-    return { status: 'ready', download: { ...download, download_url: download.download_url } }
+        return { status: 'unavailable' }
+    return defaultFileIsUnambiguous(present, detail, files)
+        ? { status: 'install' }
+        : { status: 'choose' }
+}
+
+// Any other listed file may be a variant the user picked.
+export function defaultFileIsUnambiguous(
+    installed: InstalledMod[],
+    detail: Mod,
+    files: ModFile[]
+): boolean {
+    const download = detail.download
+    const replaceable = (mod: InstalledMod) =>
+        mod.fileId === download?.id ||
+        (mod.fileId !== undefined && !files.some((file) => file.id === mod.fileId))
+    if (download && installed.length && installed.every(replaceable)) return true
+    if (detail.files_are_versions === true && detail.download_id === null) return true
+    return files.length === 1
 }

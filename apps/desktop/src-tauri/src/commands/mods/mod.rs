@@ -50,8 +50,8 @@ pub(crate) use self::folders::{
     create_folder_op, delete_folder_op, move_folder_op, rename_folder_op,
 };
 pub(crate) use self::install::{
-    disable_mod_op, enable_mod_op, install_host_pack_op, move_crimeboss_mod_target_op,
-    uninstall_mod_op,
+    disable_mod_op, enable_mod_op, forget_mod_op, install_host_pack_op,
+    move_crimeboss_mod_target_op, uninstall_mod_op,
 };
 pub(crate) use self::naming::{hash_filename, sidecar_path, strip_priority_prefix, unit_filename};
 pub(crate) use self::paths::{active_mod_path, disabled_base, disabled_mod_path, resolve_pak_path};
@@ -97,7 +97,7 @@ use crate::commands::sources;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
@@ -407,6 +407,7 @@ pub async fn get_installed(app: AppHandle, game_id: String) -> Result<InstalledR
 pub async fn install_mod(
     app: AppHandle,
     mod_id: u32,
+    file_id: Option<u32>,
     game_path: String,
     folder_id: Option<String>,
     game_id: String,
@@ -418,29 +419,28 @@ pub async fn install_mod(
         let mod_version = mod_val["version"].as_str().unwrap_or("").to_string();
         let remote_id = mod_val["id"].as_i64().unwrap_or(0);
 
-        let (file_id, download_url, file_type) = if !mod_val["download"].is_null() {
-            let dl = &mod_val["download"];
-            (
-                dl["id"].as_i64().unwrap_or(0),
-                dl["download_url"]
-                    .as_str()
-                    .ok_or("no download_url")?
-                    .to_string(),
-                dl["type"].as_str().unwrap_or("pak").to_string(),
-            )
-        } else if mod_val["has_download"].as_bool().unwrap_or(false) {
-            let f = api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?;
-            (
-                f["id"].as_i64().unwrap_or(0),
-                f["download_url"]
-                    .as_str()
-                    .ok_or("no download_url")?
-                    .to_string(),
-                f["type"].as_str().unwrap_or("pak").to_string(),
-            )
-        } else {
-            return Err("Mod has no download".to_string());
+        let file = match file_id {
+            Some(file_id) => {
+                let f = api_get(&app, &format!("/files/{file_id}"), vec![]).await?;
+                if f["mod_id"].as_i64() != Some(remote_id) {
+                    return Err(format!("file {file_id} does not belong to mod {mod_id}"));
+                }
+                f
+            }
+            None if !mod_val["download"].is_null() => mod_val["download"].clone(),
+            None if mod_val["has_download"].as_bool().unwrap_or(false) => {
+                api_get(&app, &format!("/mods/{}/files/latest", mod_id), vec![]).await?
+            }
+            None => return Err("Mod has no download".to_string()),
         };
+        let (file_id, download_url, file_type) = (
+            file["id"].as_i64().unwrap_or(0),
+            file["download_url"]
+                .as_str()
+                .ok_or("no download_url")?
+                .to_string(),
+            file["type"].as_str().unwrap_or("pak").to_string(),
+        );
 
         let download_id = format!("mod:{mod_id}");
         let downloaded = download_file(&app, &download_url, &file_type, &download_id).await?;
@@ -709,6 +709,7 @@ pub async fn install_file(
                 None
             }
         });
+        let was_disabled = saved.mods.iter().any(|m| m.uid == uid && !m.enabled);
         // Never inherit folder when this mod_id already has multiple installed files.
         let effective_folder_id = if mod_id > 0
             && saved
@@ -743,7 +744,7 @@ pub async fn install_file(
             &game_path,
             &sp,
             InstalledMod {
-                uid,
+                uid: uid.clone(),
                 name: mod_name,
                 version: mod_version,
                 filename,
@@ -763,6 +764,13 @@ pub async fn install_file(
             cfg,
             target,
         )?;
+
+        if was_disabled {
+            let settings = read_settings(&app);
+            let launcher_str =
+                game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+            disable_mod_op(&game_path, &sp, &uid, cfg, launcher_str.as_deref())?;
+        }
 
         register_download(&app, file_id).await;
 
@@ -1405,29 +1413,71 @@ pub async fn install_dropped_file(
     result.map(|()| InstallOutcome::Installed)
 }
 
-/// The single same-mod entry to uninstall before an archive-entry install lands under a new uid:
-/// an older version under a different file id, or this file's previous bare-pak packaging
-/// (uid == "{file_id}"). An archive-scheme sibling of the same file (uid "{file_id}_...") is
-/// another entry of the archive being installed right now, and removing it would make a
-/// multi-entry batch install delete each predecessor, leaving only the last selected entry.
-fn stale_entry_for_zip_install<'a>(
+/// Records an archive entry install replaces. Siblings from the same file are kept, or a
+/// multi-entry batch install would delete each entry it had just installed.
+fn stale_entries_for_zip_install<'a>(
     mods: &'a [InstalledMod],
     uid: &str,
     mod_id: i64,
-    mod_id_str: &str,
     file_id: i64,
-) -> Option<&'a InstalledMod> {
-    if mod_id <= 0 || mods.iter().any(|m| m.uid == uid) {
-        return None;
+    filename: &str,
+    location: Option<&str>,
+    folder_id: Option<&str>,
+) -> Vec<&'a InstalledMod> {
+    if mod_id <= 0 {
+        return Vec::new();
     }
+    let mod_id_str = mod_id.to_string();
+    let sibling = format!("{file_id}_");
+    let stem = uid.strip_prefix(&sibling);
     let same: Vec<_> = mods
         .iter()
-        .filter(|m| m.remote_id.as_deref() == Some(mod_id_str))
+        .filter(|m| m.remote_id.as_deref() == Some(mod_id_str.as_str()))
         .collect();
-    if same.len() != 1 || same[0].uid.starts_with(&format!("{file_id}_")) {
-        return None;
+    let stale: Vec<_> = same
+        .iter()
+        .copied()
+        .filter(|m| m.uid != uid && !m.uid.starts_with(&sibling))
+        .filter(|m| {
+            let same_entry = stem.is_some_and(|stem| {
+                m.uid
+                    .split_once('_')
+                    .is_some_and(|(old, s)| s == stem && old.parse::<i64>().is_ok())
+            });
+            let same_path = (m.filename == filename
+                || strip_priority_prefix(&m.filename) == filename)
+                && m.location.as_deref() == location
+                && m.folder_id.as_deref() == folder_id;
+            same_entry || same_path
+        })
+        .collect();
+    if !stale.is_empty() || mods.iter().any(|m| m.uid == uid) {
+        return stale;
     }
-    Some(same[0])
+    if same.len() != 1 || same[0].uid.starts_with(&sibling) {
+        return Vec::new();
+    }
+    same
+}
+
+/// A Crime Boss mod's entries share one folder, so a shared path only loses its record.
+fn remove_stale_zip_entry(
+    game_path: &str,
+    state_path: &Path,
+    cfg: &ModEngineConfig,
+    mods: &[InstalledMod],
+    stale: &InstalledMod,
+) -> Result<(), String> {
+    let shared = mods.iter().any(|m| {
+        m.uid != stale.uid
+            && m.filename == stale.filename
+            && m.location == stale.location
+            && m.folder_id == stale.folder_id
+    });
+    if shared {
+        return forget_mod_op(state_path, &stale.uid);
+    }
+    uninstall_mod_op(game_path, state_path, &stale.uid, cfg)
 }
 
 // The arg list outgrew specta's function arity; the renderer passes these under one args key.
@@ -1559,11 +1609,18 @@ pub async fn install_from_zip_entry(
             .find(|m| m.sha256.as_deref() == Some(sha256.as_str()));
         let uid = sha256_match.map(|m| m.uid.clone()).unwrap_or(uid);
 
-        if let Some(stale) =
-            stale_entry_for_zip_install(&saved.mods, &uid, mod_id, &mod_id_str, file_id)
-        {
-            let stale_uid = stale.uid.clone();
-            uninstall_mod_op(&game_path, &sp, &stale_uid, cfg)?;
+        let primary = std::ptr::eq(target, cfg.primary());
+        let stale = stale_entries_for_zip_install(
+            &saved.mods,
+            &uid,
+            mod_id,
+            file_id,
+            &install_filename,
+            (!primary).then_some(target.tag),
+            folder_id.as_deref().filter(|_| primary),
+        );
+        for stale in stale {
+            remove_stale_zip_entry(&game_path, &sp, cfg, &saved.mods, stale)?;
         }
 
         // Never inherit folderId from existing entries; callers always supply the target folder.
