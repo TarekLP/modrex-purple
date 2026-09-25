@@ -14,6 +14,16 @@ jobs:
         runs-on: windows-latest
         environment: release-delay
         steps:
+            # komac creates the release branch at upstream's current head, and GitHub
+            # reports that as a permissions error whenever the fork has not caught up.
+            - name: Sync the winget-pkgs fork with upstream
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+              run: |
+                  gh release download v2.16.0 --repo russellbanks/Komac --pattern komac-2.16.0-x86_64-pc-windows-msvc.exe --output komac.exe
+                  ./komac.exe sync
+
             - uses: vedantmgoyal2009/winget-releaser@v2
               with:
                   identifier: Modrexio.Modrex

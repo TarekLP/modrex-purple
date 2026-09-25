@@ -77,8 +77,6 @@ struct WireModSummary {
     #[serde(deserialize_with = "null_default")]
     short_desc: String,
     #[serde(deserialize_with = "null_default")]
-    version: String,
-    #[serde(deserialize_with = "null_default")]
     downloads: i64,
     #[serde(deserialize_with = "null_default")]
     likes: i64,
@@ -93,8 +91,8 @@ struct WireModSummary {
     #[serde(deserialize_with = "null_default")]
     has_download: bool,
     disable_mod_managers: Option<bool>,
+    download_type: Option<String>,
     thumbnail: Option<WireThumbnail>,
-    download: Option<WireDownload>,
     #[serde(deserialize_with = "null_default")]
     user: WireUser,
 }
@@ -127,7 +125,7 @@ pub struct ModThumbnail {
     pub has_thumb: Option<bool>,
 }
 
-/// The default download attached to a listing. modworkshop has two shapes here:
+/// The default download attached to a detail response. modworkshop has two shapes here:
 /// file-hosted mods carry download_url/type/size, external-link mods carry only url.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct ModDownload {
@@ -149,15 +147,14 @@ pub struct ModUser {
     pub avatar_has_thumb: Option<bool>,
 }
 
-/// A mod as a listing returns it. The detail call adds images, banner, dependencies,
-/// instructs_template and tags, which is why those are deliberately absent here.
+/// A mod as a listing returns it. Version/default-download and the richer detail fields
+/// are deliberately absent because the listing endpoint does not guarantee them.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct ModSummary {
     pub id: i64,
     pub name: String,
     pub desc: String,
     pub short_desc: String,
-    pub version: String,
     pub downloads: i64,
     pub likes: i64,
     pub views: i64,
@@ -166,8 +163,8 @@ pub struct ModSummary {
     pub category_id: i64,
     pub has_download: bool,
     pub disable_mod_managers: Option<bool>,
+    pub download_type: Option<String>,
     pub thumbnail: Option<ModThumbnail>,
-    pub download: Option<ModDownload>,
     pub user: ModUser,
 }
 
@@ -226,7 +223,6 @@ impl From<WireModSummary> for ModSummary {
             name: w.name,
             desc: w.desc,
             short_desc: w.short_desc,
-            version: w.version,
             downloads: w.downloads,
             likes: w.likes,
             views: w.views,
@@ -235,8 +231,8 @@ impl From<WireModSummary> for ModSummary {
             category_id: w.category_id,
             has_download: w.has_download,
             disable_mod_managers: w.disable_mod_managers,
+            download_type: w.download_type,
             thumbnail: w.thumbnail.map(Into::into),
-            download: w.download.map(Into::into),
             user: w.user.into(),
         }
     }
@@ -503,25 +499,28 @@ struct WireInstructsTemplate {
     dependencies: Vec<WireDependency>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(default)]
+#[derive(Debug, Clone, Deserialize)]
 struct WireModDetail {
     #[serde(flatten)]
     summary: WireModSummary,
+    version: String,
+    download: Option<WireDownload>,
+    download_id: Option<i64>,
+    files_are_versions: Option<bool>,
     changelog: Option<String>,
     instructions: Option<String>,
     license: Option<String>,
     repo_url: Option<String>,
     donation: Option<String>,
     banner: Option<WireImage>,
-    #[serde(deserialize_with = "null_default")]
+    #[serde(default, deserialize_with = "null_default")]
     images: Vec<WireImage>,
-    #[serde(deserialize_with = "null_default")]
+    #[serde(default, deserialize_with = "null_default")]
     dependencies: Vec<WireDependency>,
     instructs_template: Option<WireInstructsTemplate>,
-    #[serde(deserialize_with = "null_default")]
+    #[serde(default, deserialize_with = "null_default")]
     tags: Vec<WireTag>,
-    #[serde(deserialize_with = "null_default")]
+    #[serde(default, deserialize_with = "null_default")]
     members: Vec<WireMember>,
 }
 
@@ -598,8 +597,12 @@ pub struct ModDetail {
     pub category_id: i64,
     pub has_download: bool,
     pub disable_mod_managers: Option<bool>,
+    pub download_type: Option<String>,
     pub thumbnail: Option<ModThumbnail>,
     pub download: Option<ModDownload>,
+    // Set only when the author pinned a default file.
+    pub download_id: Option<i64>,
+    pub files_are_versions: Option<bool>,
     pub user: ModUser,
     pub changelog: Option<String>,
     pub instructions: Option<String>,
@@ -685,7 +688,7 @@ impl From<WireModDetail> for ModDetail {
             name: s.name,
             desc: s.desc,
             short_desc: s.short_desc,
-            version: s.version,
+            version: w.version,
             downloads: s.downloads,
             likes: s.likes,
             views: s.views,
@@ -694,8 +697,11 @@ impl From<WireModDetail> for ModDetail {
             category_id: s.category_id,
             has_download: s.has_download,
             disable_mod_managers: s.disable_mod_managers,
+            download_type: s.download_type,
             thumbnail: s.thumbnail,
-            download: s.download,
+            download: w.download.map(Into::into),
+            download_id: w.download_id,
+            files_are_versions: w.files_are_versions,
             user: s.user,
             changelog: w.changelog,
             instructions: w.instructions,
@@ -757,12 +763,8 @@ struct WireNexusPage {
 /// - pictureUrl becomes thumbnail.file. modworkshop stores a CDN filename there and Nexus
 ///   gives a full URL. The renderer's useThumbnail passes absolute URLs through untouched,
 ///   which is the same route locally recorded thumbnails already take.
-/// - version is EMPTY. The GraphQL search selection carries no version at all, and an
-///   empty version is what suppresses false update prompts in useModData, so a Nexus mod
-///   still cannot report updates. Fixing that needs a per-mod detail call, not this one.
 ///
-/// has_download is true because every Nexus search result is downloadable. The download
-/// itself is null since acquisition goes through the nxm handoff, not a direct URL.
+/// Version checks use Nexus detail responses, never search summaries.
 fn nexus_node_to_summary(w: WireNexusNode) -> ModSummary {
     let summary = w.summary.unwrap_or_default();
     ModSummary {
@@ -770,7 +772,6 @@ fn nexus_node_to_summary(w: WireNexusNode) -> ModSummary {
         name: w.name,
         desc: summary.clone(),
         short_desc: summary,
-        version: String::new(),
         downloads: w.downloads,
         likes: w.endorsements,
         views: 0,
@@ -779,11 +780,11 @@ fn nexus_node_to_summary(w: WireNexusNode) -> ModSummary {
         category_id: 0,
         has_download: true,
         disable_mod_managers: None,
+        download_type: None,
         thumbnail: w.picture_url.map(|file| ModThumbnail {
             file,
             has_thumb: None,
         }),
-        download: None,
         user: ModUser {
             id: None,
             name: w.author.unwrap_or_default(),
@@ -871,11 +872,14 @@ pub fn parse_nexus_detail(value: serde_json::Value) -> Result<ModDetail, String>
         category_id: 0,
         has_download: true,
         disable_mod_managers: None,
+        download_type: None,
         thumbnail: w.picture_url.map(|file| ModThumbnail {
             file,
             has_thumb: None,
         }),
         download: None,
+        download_id: None,
+        files_are_versions: None,
         user: ModUser {
             id: w.user.and_then(|u| u.member_id),
             name: w.author.unwrap_or_default(),
@@ -1008,7 +1012,6 @@ mod tests {
             "name": "Test Mod",
             "desc": "long",
             "short_desc": "short",
-            "version": "2.11",
             "downloads": 100,
             "likes": 5,
             "views": 900,
@@ -1017,13 +1020,6 @@ mod tests {
             "category_id": 7,
             "has_download": true,
             "thumbnail": { "file": "abc.png", "has_thumb": true },
-            "download": {
-                "id": 1,
-                "version": "1.9.4",
-                "size": 2048,
-                "type": "zip",
-                "download_url": "https://example.test/a.zip"
-            },
             "user": { "id": 3, "name": "Author" }
         }],
         "meta": { "current_page": 1, "last_page": 4, "per_page": 24, "total": 90 }
@@ -1036,13 +1032,10 @@ mod tests {
         assert_eq!(page.meta.total, 90);
         let m = &page.data[0];
         assert_eq!(m.id, 58065);
-        assert_eq!(m.version, "2.11");
         assert_eq!(m.thumbnail.as_ref().expect("thumbnail").file, "abc.png");
-        let d = m.download.as_ref().expect("download");
-        assert_eq!(d.kind.as_deref(), Some("zip"));
-        // The file-level version is a different field from the mod-level one above, and
-        // conflating them is a known trap: installed state must store the mod-level value.
-        assert_eq!(d.version, "1.9.4");
+        let serialized = serde_json::to_value(m).unwrap();
+        assert!(serialized.get("version").is_none());
+        assert!(serialized.get("download").is_none());
         assert_eq!(m.user.name, "Author");
     }
 
@@ -1050,11 +1043,8 @@ mod tests {
     // Modelling those as required would error the entire page over one such mod.
     #[test]
     fn parses_a_link_type_download() {
-        let page = parse(
-            r#"{"data":[{"id":1,"name":"L","download":{"id":9,"version":"1",
-            "url":"https://example.test/page"}}],"meta":{}}"#,
-        );
-        let d = page.data[0].download.as_ref().expect("download");
+        let detail = parse_mod_detail(serde_json::json!({"id":1,"name":"L", "version":"1", "download":{"id":9,"version":"1","url":"https://example.test/page"}})).unwrap();
+        let d = detail.download.as_ref().expect("download");
         assert_eq!(d.url.as_deref(), Some("https://example.test/page"));
         assert!(d.download_url.is_none());
         assert!(d.kind.is_none());
@@ -1068,10 +1058,8 @@ mod tests {
         let page = parse(r#"{"data":[{"id":2,"name":"Bare"}],"meta":{}}"#);
         let m = &page.data[0];
         assert_eq!(m.name, "Bare");
-        assert_eq!(m.version, "");
         assert!(!m.has_download);
         assert!(m.thumbnail.is_none());
-        assert!(m.download.is_none());
         assert_eq!(m.user.name, "");
     }
 
@@ -1169,7 +1157,7 @@ mod tests {
     fn dependencies_keep_their_nested_summary_and_offsite_form() {
         let detail = parse_mod_detail(
             serde_json::from_str(
-                r#"{"id":1,"name":"M","dependencies":[
+                r#"{"id":1,"name":"M","version":"","dependencies":[
                 {"id":10,"mod_id":55,"optional":false,"order":1,
                  "mod":{"id":55,"name":"Required Dep","version":"1.1"}},
                 {"id":11,"mod_id":null,"optional":true,"name":"SuperBLT",
@@ -1195,22 +1183,41 @@ mod tests {
     // must normalize to empty rather than failing or producing null.
     #[test]
     fn a_detail_without_collections_normalizes_to_empty() {
-        let detail =
-            parse_mod_detail(serde_json::from_str(r#"{"id":2,"name":"Bare"}"#).expect("json"))
-                .expect("detail");
+        let detail = parse_mod_detail(
+            serde_json::from_str(r#"{"id":2,"name":"Bare","version":""}"#).expect("json"),
+        )
+        .expect("detail");
         assert!(detail.images.is_empty());
         assert!(detail.dependencies.is_empty());
         assert!(detail.tags.is_empty());
         assert!(detail.members.is_empty());
         assert!(detail.banner.is_none());
         assert!(detail.instructs_template.is_none());
+        assert!(detail.download_id.is_none());
+        assert!(detail.files_are_versions.is_none());
+    }
+
+    #[test]
+    fn a_listing_keeps_the_download_type() {
+        let page = parse(r#"{"data":[{"id":1,"name":"L","download_type":"link"}],"meta":{}}"#);
+        assert_eq!(page.data[0].download_type.as_deref(), Some("link"));
+    }
+
+    #[test]
+    fn a_detail_keeps_the_file_layout() {
+        let detail = parse_mod_detail(serde_json::json!({
+            "id": 1, "name": "M", "version": "2", "download_id": 70813, "files_are_versions": false
+        }))
+        .expect("detail");
+        assert_eq!(detail.download_id, Some(70813));
+        assert_eq!(detail.files_are_versions, Some(false));
     }
 
     #[test]
     fn instructs_template_dependencies_parse() {
         let detail = parse_mod_detail(
             serde_json::from_str(
-                r#"{"id":3,"name":"T","instructs_template":{"id":9,"name":"BLT",
+                r#"{"id":3,"name":"T","version":"","instructs_template":{"id":9,"name":"BLT",
                 "instructions":"do this","dependencies":[{"id":12,"mod_id":49744,"optional":false}]}}"#,
             )
             .expect("json"),
@@ -1245,11 +1252,7 @@ mod tests {
             "https://cdn.nexus.test/a.png",
             "an absolute URL rides the thumbnail field, as locally recorded ones already do"
         );
-        // No version in the search selection. Empty is what stops useModData reporting a
-        // false update, so this is load-bearing rather than incidental.
-        assert_eq!(m.version, "");
         assert!(m.has_download);
-        assert!(m.download.is_none());
     }
 
     #[test]
@@ -1297,7 +1300,6 @@ mod tests {
         assert_eq!(m.id, 1);
         assert_eq!(m.category_id, 0);
         assert_eq!(m.downloads, 0);
-        assert_eq!(m.version, "");
         assert!(!m.has_download);
         assert_eq!(
             m.user.name, "",
@@ -1331,7 +1333,7 @@ mod tests {
     fn explicit_nulls_in_a_mod_detail_are_tolerated() {
         let detail = parse_mod_detail(
             serde_json::from_str(
-                r#"{"id":3,"name":"D","category_id":null,"images":null,
+                r#"{"id":3,"name":"D","version":"","category_id":null,"images":null,
                 "dependencies":null,"tags":null,"members":null,"banner":null}"#,
             )
             .expect("json"),

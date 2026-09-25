@@ -51,25 +51,22 @@ export interface ModTag {
 
 /**
  * A mod as a LIST returns it. Both browse results and the bulk installed-metadata
- * refresh produce this shape, which lacks the images, banner, dependencies,
- * instructs_template and tags that only /mods/{id} returns.
+ * refresh produce this shape. It contains only fields the listing endpoint currently
+ * guarantees; version, default download, images, banner, dependencies,
+ * instructs_template and tags belong to other contracts.
  *
  * Must stay structurally identical to the generated ModSummary in bindings.ts. api.ts
  * assigns the command result to it WITHOUT a cast, so any drift is a compile error there.
  * Nullable fields are written | null rather than optional because Rust Option exports that
  * way, and loosening them to ?: breaks that check rather than fixing anything.
  *
- * It does NOT prevent a summary being used where a Mod is expected: every field Mod adds is
- * optional and TypeScript is structural, so ModSummary still satisfies Mod. Closing that
- * needs the detail path typed in Rust too, so until then modCache.ts's installedMetaCache
- * invariant stays a prose rule.
+ * Mod adds required detail-only fields, so a summary cannot be used as a complete detail.
  */
 export interface ModSummary {
     id: number
     name: string
     desc: string
     short_desc: string
-    version: string
     downloads: number
     likes: number
     views: number
@@ -78,15 +75,8 @@ export interface ModSummary {
     category_id: number
     has_download: boolean
     disable_mod_managers: boolean | null
+    download_type: string | null
     thumbnail: { file: string; has_thumb: boolean | null } | null
-    download: {
-        id: number
-        version: string
-        size: number | null
-        type: string | null
-        download_url: string | null
-        url: string | null
-    } | null
     user: {
         // absent on locally synthesized mods (installedUtils.syntheticMod)
         id: number | null
@@ -99,6 +89,17 @@ export interface ModSummary {
 
 /** A mod as /mods/{id} returns it: a summary plus the fields only the detail call carries. */
 export interface Mod extends ModSummary {
+    version: string
+    download: {
+        id: number
+        version: string
+        size: number | null
+        type: string | null
+        download_url: string | null
+        url: string | null
+    } | null
+    download_id: number | null
+    files_are_versions: boolean | null
     changelog: string | null
     instructions: string | null
     license: string | null

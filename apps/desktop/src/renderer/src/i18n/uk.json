@@ -102,6 +102,7 @@
         "tagFilterEmpty": "Тегів не знайдено",
         "noMods": "Модів не знайдено",
         "loadFailed": "Не вдалося завантажити моди",
+        "filterLoadFailed": "! Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop наразі обмежує частоту запитів. Спробуйте ще раз за мить.",
         "modCount": "Модів: {total}",
         "sort": {
@@ -178,12 +179,17 @@
             "staleDuplicateHint": "Це залишок старої версії пакунка завантаження цього файла — його можна безпечно видалити."
         },
         "updatesModal": {
+            "versionChange": "! {from} to {to}",
+            "versionAvailable": "! {version} available",
             "title": "Доступні оновлення ({count})",
             "update": "Оновити",
             "updating": "Оновлення...",
             "updatingProgress": "Оновлення: {done} / {total}",
             "updateSelected": "Оновити вибрані ({count})",
-            "error": "Не вдалося оновити. Перевірте з’єднання та повторіть спробу."
+            "error": "Не вдалося оновити. Перевірте з’єднання та повторіть спробу.",
+            "chooseTitle": "! Choose a file",
+            "chooseBody": "! {name} has several files. Pick the one to install.",
+            "unavailable": "! {name} can't be updated from Modrex."
         },
         "pakViewer": {
             "title": "Вміст pak-файлу",

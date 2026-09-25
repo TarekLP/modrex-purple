@@ -4,10 +4,39 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Fixed
+
+- Fixed Restart & Install not restarting Modrex on Linux after installing an update.
+
+## 0.15.2
+
+### Changed
+
+- Mods that download from outside ModWorkshop no longer appear in the updates list.
+
+### Fixed
+
+- Fixed Update in the updates list opening the mod's page instead of installing the update.
+- Fixed Reinstall swapping a mod's chosen file for a different one.
+- Fixed updating a mod with several paks leaving the old paks behind or asking which paks to install again.
+- Fixed updating a PAYDAY 2 or RAID mod leaving files from its old version behind.
+- Fixed an already updated mod staying in the updates list.
+- Fixed a mod's Downloads tab showing only its first 20 files.
+
+## 0.15.1
+
 ### Added
 
 - ModWorkshop mod links inside a mod's description, changelog, file notes and instructions now open that mod's page in Modrex instead of the browser.
 - The back mouse button, Alt+Left and the keyboard Back key now leave a mod's page.
+
+### Fixed
+
+- Fixed update progress and restart controls disappearing from the update popup.
+- Fixed window resizing dismissing the update popup.
+- Fixed global settings reopening the last game's settings.
+- Fixed ModWorkshop update detection and restored identification index refreshes after an upstream API change.
+- Fixed Browse hiding category and tag filter loading failures when a request fails.
 
 ## 0.15.0
 

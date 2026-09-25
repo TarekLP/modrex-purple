@@ -17,6 +17,7 @@ export const commands = {
 	tags: number[] | null,
 	block_tags: number[] | null,
 } | null) => __TAURI_INVOKE<ModPage>("list_mods", { gameId, params }),
+	getModVersions: (ids: number[]) => __TAURI_INVOKE<ModVersionResult[]>("get_mod_versions", { ids }),
 	getMod: (id: number) => __TAURI_INVOKE<ModDetail>("get_mod", { id }),
 	listModFiles: (modId: number) => __TAURI_INVOKE<FilePage>("list_mod_files", { modId }),
 	listModLinks: (modId: number) => __TAURI_INVOKE<LinkPage>("list_mod_links", { modId }),
@@ -75,7 +76,7 @@ export const commands = {
 	 */
 	trackEvent: (name: string, params: unknown | null) => __TAURI_INVOKE<void>("track_event", { name, params }),
 	getInstalled: (gameId: string) => __TAURI_INVOKE<InstalledResponse_Serialize>("get_installed", { gameId }),
-	installMod: (modId: number, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, gamePath, folderId, gameId }),
+	installMod: (modId: number, fileId: number | null, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, fileId, gamePath, folderId, gameId }),
 	installFile: (modId: number, modName: string, fileId: number, downloadUrl: string, fileType: string, modVersion: string, gamePath: string, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_file", { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath, gameId }),
 	/**
 	 *  Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
@@ -736,8 +737,11 @@ export type ModDetail = {
 	category_id: number,
 	has_download: boolean,
 	disable_mod_managers: boolean | null,
+	download_type: string | null,
 	thumbnail: ModThumbnail | null,
 	download: ModDownload | null,
+	download_id: number | null,
+	files_are_versions: boolean | null,
 	user: ModUser,
 	changelog: string | null,
 	instructions: string | null,
@@ -753,7 +757,7 @@ export type ModDetail = {
 };
 
 /**
- *  The default download attached to a listing. modworkshop has two shapes here:
+ *  The default download attached to a detail response. modworkshop has two shapes here:
  *  file-hosted mods carry download_url/type/size, external-link mods carry only url.
  */
 export type ModDownload = {
@@ -856,15 +860,14 @@ export type ModPage = {
 };
 
 /**
- *  A mod as a listing returns it. The detail call adds images, banner, dependencies,
- *  instructs_template and tags, which is why those are deliberately absent here.
+ *  A mod as a listing returns it. Version/default-download and the richer detail fields
+ *  are deliberately absent because the listing endpoint does not guarantee them.
  */
 export type ModSummary = {
 	id: number,
 	name: string,
 	desc: string,
 	short_desc: string,
-	version: string,
 	downloads: number,
 	likes: number,
 	views: number,
@@ -873,8 +876,8 @@ export type ModSummary = {
 	category_id: number,
 	has_download: boolean,
 	disable_mod_managers: boolean | null,
+	download_type: string | null,
 	thumbnail: ModThumbnail | null,
-	download: ModDownload | null,
 	user: ModUser,
 };
 
@@ -896,6 +899,8 @@ export type ModUser = {
 	avatar: string | null,
 	avatar_has_thumb: boolean | null,
 };
+
+export type ModVersionResult = { status: "known"; id: number; version: string } | { status: "unversioned"; id: number } | { status: "missing"; id: number } | { status: "failed"; id: number; error: string };
 
 export type NewsItem = {
 	title: string,

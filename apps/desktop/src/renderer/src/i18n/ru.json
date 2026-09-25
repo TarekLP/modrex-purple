@@ -102,6 +102,7 @@
         "tagFilterEmpty": "Теги не найдены",
         "noMods": "Моды не найдены",
         "loadFailed": "Не удалось загрузить моды",
+        "filterLoadFailed": "! Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop сейчас ограничивает количество запросов. Повторите попытку через некоторое время.",
         "modCount": "{total} модов",
         "sort": {
@@ -178,12 +179,17 @@
             "staleDuplicateHint": "Это остаток от версии до того, как загрузка этого файла была переупакована — можно безопасно удалить."
         },
         "updatesModal": {
+            "versionChange": "! {from} to {to}",
+            "versionAvailable": "! {version} available",
             "title": "Доступные обновления ({count})",
             "update": "Обновить",
             "updating": "Обновление...",
             "updatingProgress": "Обновление {done} / {total}",
             "updateSelected": "Обновить выбранное ({count})",
-            "error": "Не удалось обновить. Проверьте подключение и повторите попытку."
+            "error": "Не удалось обновить. Проверьте подключение и повторите попытку.",
+            "chooseTitle": "! Choose a file",
+            "chooseBody": "! {name} has several files. Pick the one to install.",
+            "unavailable": "! {name} can't be updated from Modrex."
         },
         "pakViewer": {
             "title": "Содержимое pak-файла",

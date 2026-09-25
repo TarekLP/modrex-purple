@@ -130,6 +130,10 @@ export const api = {
     },
 
     // ── Browse / API ───────────────────────────────────────────────────────────
+    getModVersions(ids: number[]) {
+        return commands.getModVersions(ids)
+    },
+
     listMods(gameId: number, params?: ListModsParams): Promise<Paginated<ModSummary>> {
         const p = params ?? {}
         return commands.listMods(gameId, {
@@ -312,8 +316,15 @@ export const api = {
     async openModFolder(gameId: string, tag: string): Promise<void> {
         await commands.openModFolder(gameId, tag)
     },
-    installMod(modId: number, gamePath: string, gameId: string): Promise<InstallOutcome> {
-        return trackInstallOutcome(commands.installMod(modId, gamePath, null, gameId))
+    installMod(
+        modId: number,
+        gamePath: string,
+        gameId: string,
+        fileId?: number
+    ): Promise<InstallOutcome> {
+        return trackInstallOutcome(
+            commands.installMod(modId, fileId ?? null, gamePath, null, gameId)
+        )
     },
     installDroppedFile(
         path: string,

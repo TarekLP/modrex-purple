@@ -96,7 +96,6 @@ export function syntheticMod(ins: InstalledMod): ModSummary {
         short_desc: external
             ? `Installed from ${SOURCE_LABELS[source] ?? source}`
             : 'Manually installed — not on ModWorkshop',
-        version: ins.version,
         downloads: 0,
         likes: 0,
         views: 0,
@@ -105,10 +104,10 @@ export function syntheticMod(ins: InstalledMod): ModSummary {
         category_id: 0,
         has_download: false,
         disable_mod_managers: null,
+        download_type: null,
         // useThumbnail passes absolute URLs through untouched, so a recorded CDN
         // URL can ride the normal thumbnail field.
         thumbnail: ins.thumbnailUrl ? { file: ins.thumbnailUrl, has_thumb: null } : null,
-        download: null,
         user: {
             id: null,
             // ins.author is recorded for non-modworkshop sources, and filled in from the

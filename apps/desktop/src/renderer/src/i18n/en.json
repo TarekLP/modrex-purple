@@ -102,6 +102,7 @@
         "tagFilterEmpty": "No tags found",
         "noMods": "No mods found",
         "loadFailed": "Couldn't load mods",
+        "filterLoadFailed": "Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop is rate-limiting requests right now. Try again in a moment.",
         "modCount": "{total} mods",
         "sort": {
@@ -178,12 +179,17 @@
             "staleDuplicateHint": "This is a leftover from before this file's download was repackaged (safe to remove)."
         },
         "updatesModal": {
+            "versionChange": "{from} to {to}",
+            "versionAvailable": "{version} available",
             "title": "Available updates ({count})",
             "update": "Update",
             "updating": "Updating...",
             "updatingProgress": "Updating {done} / {total}",
             "updateSelected": "Update Selected ({count})",
-            "error": "Update failed. Check your connection and try again."
+            "error": "Update failed. Check your connection and try again.",
+            "chooseTitle": "Choose a file",
+            "chooseBody": "{name} has several files. Pick the one to install.",
+            "unavailable": "{name} can't be updated from Modrex."
         },
         "pakViewer": {
             "title": "Pak contents",

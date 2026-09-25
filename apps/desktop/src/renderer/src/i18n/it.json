@@ -102,6 +102,7 @@
         "tagFilterEmpty": "Nessuna etichetta trovata",
         "noMods": "Nessuna mod trovata",
         "loadFailed": "Impossibile caricare le mod",
+        "filterLoadFailed": "! Couldn't load filters: {error}",
         "rateLimited": "ModWorkshop sta limitando la frequenza della richieste. Riprova tra un momento.",
         "modCount": "{total} mod",
         "sort": {
@@ -178,12 +179,17 @@
             "staleDuplicateHint": "Questo è un residuo di quando il download di questo file non era ancora stato repackaged (può essere rimosso in sicurezza)."
         },
         "updatesModal": {
+            "versionChange": "! {from} to {to}",
+            "versionAvailable": "! {version} available",
             "title": "Aggiornamenti disponibili ({count})",
             "update": "Aggiorna",
             "updating": "Aggiornando...",
             "updatingProgress": "Aggiornando {done} / {total}",
             "updateSelected": "Aggiornamenti selezionati ({count})",
-            "error": "Aggiornamento fallito. Controlla la tua connessione e riprova."
+            "error": "Aggiornamento fallito. Controlla la tua connessione e riprova.",
+            "chooseTitle": "! Choose a file",
+            "chooseBody": "! {name} has several files. Pick the one to install.",
+            "unavailable": "! {name} can't be updated from Modrex."
         },
         "pakViewer": {
             "title": "! Pak contents",

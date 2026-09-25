@@ -71,6 +71,17 @@ describe('computeAutoUpdateSelection', () => {
         expect(result).toEqual([0, 2])
     })
 
+    it('matches entries by the uid when every entry shares one folder name', () => {
+        const installed = [
+            makeInstalled({ uid: '101909_VariantB', filename: 'Some_Mod' }),
+            makeInstalled({ uid: '99907_VariantC', filename: 'Some_Mod' }),
+        ]
+        const payload = makePayload({
+            entries: ['Wrap/VariantA.pak', 'Wrap/VariantB.pak', 'Wrap/VariantC.pak'],
+        })
+        expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([1, 2])
+    })
+
     it('returns null for a fresh install with no prior entries for this mod id', () => {
         const installed = [makeInstalled({ id: 999, filename: 'Unrelated.pak' })]
         const payload = makePayload()
@@ -96,6 +107,13 @@ describe('computeAutoUpdateSelection', () => {
         // VariantA is already installed from this exact archive, so it's excluded from the
         // "to install" set returned for an auto-resolve pass, so it is not pending work.
         expect(mod.computeAutoUpdateSelection(payload, installed)).toEqual([2])
+    })
+
+    it('returns an empty selection when every entry is already installed', () => {
+        const installed = ['VariantA', 'VariantB', 'VariantC'].map((stem) =>
+            makeInstalled({ uid: `200_${stem}`, fileId: 200, filename: `${stem}.pak` })
+        )
+        expect(mod.computeAutoUpdateSelection(makePayload(), installed)).toEqual([])
     })
 
     it('ignores missing (uninstalled) prior entries', () => {
