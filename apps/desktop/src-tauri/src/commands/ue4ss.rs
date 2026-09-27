@@ -114,13 +114,40 @@ fn descriptor_for(game_id: &str, launcher: Option<&str>) -> Option<Ue4ssBuild> {
             storefronts,
             proxy_dlls,
             install_into,
+            store_install_into,
             ..
         } if storefronts.contains(&storefront) => Some(Ue4ssBuild {
             proxy_dlls,
-            binaries: install_into,
+            binaries: store_install_into
+                .iter()
+                .find(|o| o.store == storefront)
+                .map_or(install_into, |o| &o.install_into),
         }),
         _ => None,
     })
+}
+
+/// UE4SS reads Mods beside the UE4SS.dll its proxy loads, and the proxy tries UE4SS/UE4SS.dll
+/// first (load_ue4ss_dll in RE-UE4SS proxy_generator).
+pub(crate) fn live_mods_dir(binaries: &Path) -> Option<PathBuf> {
+    let nested = on_disk(binaries, "UE4SS").filter(|dir| on_disk(dir, "UE4SS.dll").is_some());
+    let root = match nested {
+        Some(dir) => dir,
+        None => {
+            on_disk(binaries, "UE4SS.dll")?;
+            binaries.to_path_buf()
+        }
+    };
+    Some(on_disk(&root, "Mods").unwrap_or_else(|| root.join("Mods")))
+}
+
+/// Older releases ship ue4ss.dll, and a Linux filesystem does not fold case like Wine does.
+pub(crate) fn on_disk(dir: &Path, name: &str) -> Option<PathBuf> {
+    std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .find(|entry| entry.file_name().eq_ignore_ascii_case(name))
+        .map(|entry| entry.path())
 }
 
 fn binaries_dir(game_path: &str, descriptor: &Ue4ssBuild) -> PathBuf {
@@ -692,10 +719,10 @@ pub(crate) fn uninstall(
     let (dest, proxies) = resolve_build(game_id, game_path, launcher)?;
     let owned = owned_paths(&dest, proxies);
     if owned.is_empty() {
-        return Err(
-            "Modrex could not tell which files here are UE4SS's, so it will not delete any of them. Remove it by hand from the game's Win64 folder."
-                .to_string(),
-        );
+        return Err(format!(
+            "Modrex could not tell which files here are UE4SS's, so it will not delete any of them. Remove it by hand from {}.",
+            dest.display()
+        ));
     }
     let failed: Vec<String> = owned
         .iter()

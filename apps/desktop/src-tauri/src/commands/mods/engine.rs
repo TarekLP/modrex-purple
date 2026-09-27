@@ -1,5 +1,5 @@
 pub use crate::game_package::{Activation, DecoderBinding, ModMetadata};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub enum ModUnit {
     File {
@@ -30,6 +30,14 @@ pub enum ModUnit {
     },
 }
 
+pub struct StoreLayout {
+    /// Its presence marks the copy as this store's build.
+    pub executable: &'static str,
+    pub mods_subpath: &'static [&'static str],
+    pub disabled_subpath: &'static [&'static str],
+    pub backup_subpath: &'static [&'static str],
+}
+
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
@@ -46,9 +54,17 @@ pub struct ScanTarget {
     pub mods_subpath: &'static [&'static str],
     pub disabled_subpath: &'static [&'static str],
     pub backup_subpath: &'static [&'static str],
+    pub store_layouts: &'static [StoreLayout],
 }
 
 impl ScanTarget {
+    /// Read from disk, not the launcher, because path helpers only get the game path.
+    pub fn store_layout(&self, game_path: &str) -> Option<&'static StoreLayout> {
+        self.store_layouts
+            .iter()
+            .find(|layout| Path::new(game_path).join(layout.executable).exists())
+    }
+
     pub fn is_directory_unit(&self) -> bool {
         matches!(self.unit, ModUnit::Directory { .. })
     }
@@ -130,25 +146,62 @@ pub fn engine_for_game(game_id: &str) -> Result<&'static ModEngineConfig, String
         .ok_or_else(|| format!("unknown game id '{game_id}'"))
 }
 
-pub fn mods_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target
-        .mods_subpath
+pub(crate) fn join_subpath(game_path: &str, subpath: &[&str]) -> PathBuf {
+    subpath
         .iter()
         .fold(PathBuf::from(game_path), |p, s| p.join(s))
+}
+
+fn declared(game_path: &str, target: &ScanTarget) -> [&'static [&'static str]; 3] {
+    match target.store_layout(game_path) {
+        Some(layout) => [
+            layout.mods_subpath,
+            layout.disabled_subpath,
+            layout.backup_subpath,
+        ],
+        None => [
+            target.mods_subpath,
+            target.disabled_subpath,
+            target.backup_subpath,
+        ],
+    }
+}
+
+/// validate::check requires a UE4SS target path to end in Mods.
+pub(crate) fn ue4ss_binaries<'a>(subpath: &'a [&'a str]) -> &'a [&'a str] {
+    match subpath {
+        [binaries @ .., "UE4SS", "Mods"] | [binaries @ .., "Mods"] => binaries,
+        _ => subpath,
+    }
+}
+
+fn live_ue4ss_mods(game_path: &str, target: &ScanTarget) -> Option<PathBuf> {
+    if target.enabled_state != Activation::Ue4ssModsTxt {
+        return None;
+    }
+    let [mods, _, _] = declared(game_path, target);
+    crate::commands::ue4ss::live_mods_dir(&join_subpath(game_path, ue4ss_binaries(mods)))
+}
+
+pub fn mods_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
+    if let Some(live) = live_ue4ss_mods(game_path, target) {
+        return live;
+    }
+    join_subpath(game_path, declared(game_path, target)[0])
 }
 
 pub fn disabled_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target
-        .disabled_subpath
-        .iter()
-        .fold(PathBuf::from(game_path), |p, s| p.join(s))
+    if let Some(live) = live_ue4ss_mods(game_path, target) {
+        return live.join("disabled");
+    }
+    join_subpath(game_path, declared(game_path, target)[1])
 }
 
 pub fn backup_dir(game_path: &str, target: &ScanTarget) -> PathBuf {
-    target
-        .backup_subpath
-        .iter()
-        .fold(PathBuf::from(game_path), |p, s| p.join(s))
+    if let Some(live) = live_ue4ss_mods(game_path, target) {
+        return live.with_file_name("Mods.bak");
+    }
+    join_subpath(game_path, declared(game_path, target)[2])
 }
 
 pub fn state_path(game_path: &str, cfg: &ModEngineConfig) -> PathBuf {
