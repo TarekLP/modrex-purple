@@ -77,7 +77,10 @@ The recognized-mod count uses `getModIndexStats()` at build time only as a fallb
 `Features.astro` refreshes the rendered number in the browser from the R2 catalog
 manifest at `https://index.modrex.net/catalog/latest.json` (URL + payload type live in
 `src/lib/mod-index-shared.ts`, shared by both sides); do not make visitors or the build
-download a SQLite shard just to render the count.
+download a SQLite shard just to render the count. The refresh needs two things outside
+`Features.astro`: `connect-src` in `public/_headers` listing `https://index.modrex.net`, and a
+CORS rule on the R2 bucket (Cloudflare dashboard, not this repo) allowing `GET` from
+`https://modrex.net`. Without either, the fetch fails and the build-time number stays.
 
 ### Styling rules
 
@@ -89,16 +92,17 @@ download a SQLite shard just to render the count.
 
 **Mobile breakpoints** (defined in `global.css` for shared utilities; in component `<style>` blocks for component-specific layout):
 
-- `768px` — nav switches to hamburger, `.wrap` padding shrinks to `16px` (docs-layout responsiveness is Starlight's own plus `starlight.css` overrides, not these breakpoints)
-- `860px` / `500px` — features grid: 3-col → 2-col → 1-col
-- `640px` — hero inner padding/font size reductions, download section 2-col → 1-col, gallery nav buttons switch to absolute overlays on the card edges
-- `480px` — section title font size floor (`32px`)
+- `50rem` — nav switches to the hamburger (matches Starlight's sidebar breakpoint, so docs and marketing pages switch together)
+- `1100px` — the hero stacks its text above the screenshot stage instead of beside it
+- `900px` — feature rows stack their text above the screenshot crop; the footer brand takes its own row
+- `768px` — `.wrap` padding shrinks to `16px`, section spacing to `64px` (docs-layout responsiveness is Starlight's own plus `starlight.css` overrides, not these breakpoints)
+- `640px` — hero drops the primary download button, the screenshot tabs give way to the name, count and previous/next bar under the image, download and changelog rows stack
 
 ### OS detection
 
 Client-side OS detection is shared: `detectOs()` in `src/lib/os-detect.ts` returns `{ isMobile, isLinux }` and is imported by the three components with download buttons — `Hero.astro`, `DownloadSection.astro`, `Nav.astro`. The `isMobile` check is two-part: a UA pattern for standard mobile devices plus a `maxTouchPoints` branch for iPadOS 13+, which reports its user agent as macOS.
 
-On mobile: no OS highlight or badge is shown, and the hero button shows a generic "Download" label. On desktop Linux: switch to Linux assets (the install command is the one-liner served by `functions/install.sh.ts`). On desktop Windows/other: default to Windows assets. Change detection logic only in `os-detect.ts`.
+On mobile: no OS highlight or badge is shown, and the hero hides its download button, keeping only the link to the download section. On desktop Linux: switch to Linux assets (the install command is the one-liner served by `functions/install.sh.ts`). On desktop Windows/other: default to Windows assets. Change detection logic only in `os-detect.ts`.
 
 ### Analytics & consent
 
@@ -122,7 +126,7 @@ GA4 and the consent banner exist only on `BaseLayout` pages (`index`, `privacy`,
 
 `BaseLayout.astro` emits: `<meta name="description">`, `<link rel="canonical">`, `<meta name="theme-color">` (`#131313`, matching `--color-surface`), Open Graph tags (`og:title/description/image/image:alt/url/type/site_name/locale`), Twitter card tags (including `twitter:image:alt`), `<link rel="manifest" href="/site.webmanifest">`, and a site-wide `Organization` JSON-LD block (duplicated in the Starlight `Head` override, since docs pages never render `BaseLayout`). The default `og:image` is `/logo.png` resolved to an absolute URL via `new URL('/logo.png', Astro.site)`; `og:image:alt`/`twitter:image:alt` share the `ogImageAlt` prop (default generic, overridden on `index.astro` for the screenshot). `og:image:type` is **derived from the `ogImage` URL's extension**, not passed in — an unrecognized extension emits no type tag rather than a wrong one. No `twitter:site`/`twitter:creator` — Modrex has no X account. `BaseLayout` has a `<slot name="head" />` inside `<head>` for page-specific injections.
 
-The shared `og:image` is generated at build time by `getOgImage()` (`src/lib/og-image.ts`): a 1200x630 JPEG cut from `browse-mods-window.png`. Never point `og:image` at a raw screenshot — the sources are ~2MB and scrapers commonly give up at that size. JPEG rather than PNG because Astro's PNG encoder does not quantize (~780kB vs ~120kB), and scrapers are the one audience with no WebP/AVIF guarantee.
+The shared `og:image` is generated at build time by `getOgImage()` (`src/lib/og-image.ts`): a 1200x630 JPEG cut from `browse-mods-window.png`. Never point `og:image` at a raw screenshot — the sources are ~1MB PNGs and scrapers commonly give up at that size. JPEG rather than PNG because Astro's PNG encoder does not quantize (~780kB vs ~120kB), and scrapers are the one audience with no WebP/AVIF guarantee.
 
 `src/pages/index.astro` injects a `SoftwareApplication` JSON-LD block via `<script type="application/ld+json" is:inline set:html={...} slot="head">`. The `is:inline` directive is required when using `set:html` on a script tag.
 
@@ -135,14 +139,14 @@ Only the homepage carries a sitemap `lastmod`, set in the sitemap `serialize` in
 ### Images
 
 Screenshots are imported from `src/assets/screenshots/`, never served from `public/`. `Hero.astro`
-renders them through `<Picture>` with AVIF plus a WebP fallback at the widths in `SHOT_WIDTHS`; the
-first real card is `loading="eager"` with `fetchpriority="high"` and is the site's LCP element.
-There is deliberately **no** `<link rel="preload">` for it: a preload without a matching
-`imagesrcset`/`imagesizes` would double-download now that a srcset is in play.
+renders them through `<Picture>` with AVIF plus a WebP fallback at the widths in `STAGE_WIDTHS`; the
+screenshot shown first (`FIRST`) is `loading="eager"` with `fetchpriority="high"` and is the site's
+LCP element. There is deliberately **no** `<link rel="preload">` for it: a preload without a
+matching `imagesrcset`/`imagesizes` would double-download now that a srcset is in play.
 
-`.shot-card picture` and `.viewer-card picture` need `display: block` — `<picture>` is inline by
-default, which leaves a baseline gap in the card and perturbs the width the carousel measures to
-compute its step stride.
+`Features.astro` shows crops of the same screenshots rather than separate image files: `crop()`
+takes a rectangle in source pixels and scales and offsets the full image inside a fixed-ratio frame,
+with a `sizes` value scaled to match. Re-check the rectangles whenever the screenshots are retaken.
 
 ### Static assets
 
@@ -154,7 +158,9 @@ Lucide icons via the `lucide` package (not `lucide-react`). In each component th
 
 ### Nav mobile menu
 
-At `≤768px`, `.nav-links` and `.nav-right` are hidden and a hamburger button appears. Clicking it toggles `.open` on `#mobile-menu`, which drops down below the nav bar with all links plus a download button. The menu closes on any link click. The mobile download button mirrors the OS detection logic from the desktop button.
+At `≤50rem`, `.nav-links` and `.nav-right` are hidden and a hamburger button appears. Clicking it toggles `.open` on `#mobile-menu`, which drops down below the nav bar with all links. The menu closes on any link click.
+
+`Nav` renders identically on docs and marketing pages. Docs pages never load `global.css`, so `starlight.css` repeats the `.wrap` and `.btn-lg` rules the header needs; keep them in step with `global.css`.
 
 ### Docs (Starlight)
 
@@ -162,7 +168,7 @@ At `≤768px`, `.nav-links` and `.nav-right` are hidden and a hamburger button a
 - Sidebar nav is the `sidebar` array in `astro.config.mjs`: the "Games" and "Concepts" groups autogenerate from `src/content/docs/docs/games/` and `.../concepts/`; the other entries are explicit slugs. Update the array when adding/removing pages outside the autogenerated directories.
 - `/docs/` is a real page (`src/content/docs/docs/index.mdx`), not a redirect — it's the docs landing page; `/docs/getting-started` is the separate install guide it links to.
 - Starlight renders `h1` from `title` and the lead paragraph from `description` frontmatter — don't repeat these inside the MDX body.
-- Component overrides in `src/components/starlight/`: `Header` renders the site's own `Nav` (`activePage="docs"`); `Sidebar` injects the custom client-side docs filter (`Search.astro`, a `site-search` custom element) above Starlight's sidebar internals; `DarkThemeProvider` pins docs to dark (clears `starlight-theme` from localStorage and stubs the theme-picker API); `Head` adds the structured data described under SEO, then defers to Starlight's default Head.
+- Component overrides in `src/components/starlight/`: `Header` renders the site's own `Nav` (`activePage="docs"`); `Sidebar` injects `Search.astro` above Starlight's sidebar internals, a field that opens Starlight's Pagefind search dialog (restyled in `starlight.css`). Pagefind indexes built HTML, which `astro dev` never writes, so `src/integrations/dev-search.ts` builds the same index from the rendered docs pages under `astro dev` and `Search.astro` starts the search box there with Starlight's ranking settings; `DarkThemeProvider` pins docs to dark (clears `starlight-theme` from localStorage and stubs the theme-picker API); `Head` adds the structured data described under SEO, then defers to Starlight's default Head; `TableOfContents` wraps Starlight's own and marks the last heading on screen current at the bottom of a page, which Starlight's observer never reaches.
 - Fenced code blocks go through Expressive Code with the inline `modrexCodeTheme` in `astro.config.mjs` — its hex values are deliberately duplicated from `tokens/colors.css` because Shiki themes can't reference CSS variables; keep them in sync when tokens change.
 - `disable404Route: true` — the site's own `src/pages/404.astro` handles 404s for docs URLs too.
 - Custom MDX components live in `src/components/docs/`: `Callout` (default `type="info"`, or `type="warning"`) plus the game-docs family (`GameFacts`, `GameSupportTable`, `LauncherMatrix`, `LauncherSupportTable`, `ModTargetsTable`, `SupportBadge`, `OsIcon`, `LauncherIcon`). Starlight's own `CardGrid`/`LinkCard` are used too. Each must be imported at the top of the MDX file that uses it.
@@ -170,9 +176,11 @@ At `≤768px`, `.nav-links` and `.nav-right` are hidden and a hamburger button a
 - The game tables/facts are driven by `src/data/docsGames.ts` (typed, per-game) — add or change game data there, not inline in MDX.
 - Docs-specific styling (including responsive layout) lives in `src/styles/starlight.css`, loaded via the starlight `customCss` option.
 
-### Hero gallery
+### Hero screenshot stage
 
-Infinite carousel in `Hero.astro`: slots carry **two clones per edge** (`CLONES` in the frontmatter) — a wrap step travels onto the first clone and the second keeps a neighbor sliver visible beyond it (one clone left a blank viewport edge during the wrap). The script derives the real range from which card the server marked `active`, so the clone count is stated once. One `createCarousel()` factory drives both the hero track and the fullscreen viewer track. Steps are animated with the **Web Animations API, not CSS transitions** (the tracks deliberately have no `transition: transform`): the committed `style.transform` is set to the step's final position up front and the animation only overlays the travel, so a canceled/interrupted step can never strand the track mid-flight, and completion is `anim.onfinish` — a guaranteed callback, unlike `transitionend`, which is silently lost when a transition is canceled (e.g. by the ResizeObserver repositioning mid-step) or never starts. That event loss froze the gallery in the old CSS-transition design; do not reintroduce a transition on the tracks or an `animating` lock flag. When a step lands on a clone, `onfinish` teleports to the real twin via `place()` (card transitions suppressed for two frames to avoid the highlight blink); a step _started_ from a not-yet-teleported clone folds the wrap into its start position (`from ± SPAN * stride()`). There is no step lock — rapid clicks retarget the animation from the current rendered position (`getComputedStyle` + `DOMMatrixReadOnly`). Card width is `74%` on desktop (`flex: 0 0 74%`) and `88%` on mobile (`flex: 0 0 88%`); the JS reads rendered width from the DOM (`cardEls[REAL_FIRST].offsetWidth`) so no ratio is hardcoded. On mobile (`≤640px`), the nav buttons are `position: absolute` overlays centered on the left/right edges of the active card (`left/right: 6%` — derived from `(100% - 88%) / 2`).
+`Hero.astro` shows one screenshot at a time. All five share one grid cell and only the active one is visible, so switching is instant and the frame never changes height. Desktop picks screens with an ARIA tablist under the frame (arrow keys, Home and End); at `≤640px` the tabs hide and a bar under the image shows the name, `n / 5` and joined previous/next buttons, and horizontal swipes step too. Nothing is drawn over the screenshot.
+
+The fullscreen viewer is a native `<dialog>` opened with `showModal()`, which makes the page inert and closes on Escape; the script restores focus to whatever opened it. The stage and the viewer share one `show()` index, so closing the viewer leaves the stage on the same screen.
 
 ## Local Pages Function testing
 
