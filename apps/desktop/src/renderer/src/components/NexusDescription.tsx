@@ -152,17 +152,15 @@ class BrTag extends Tag {
     }
 }
 
-// Vortex's own size override, a relative scale in rem rather than the base library's
-// pixel size.
+// Nexus renders [size=N] as <font size=N>.
+const FONT_SIZES_PX = [10, 13, 16, 18, 24, 32, 48]
+
 class SizeTag extends Tag {
     toReact() {
-        const size = Number(this.params.size)
+        const size = parseInt(this.params.size, 10)
         if (Number.isNaN(size)) return Children.toArray(this.getComponents())
-        return (
-            <span style={{ fontSize: `${1 + size * 0.1}rem` }}>
-                {Children.toArray(this.getComponents())}
-            </span>
-        )
+        const px = FONT_SIZES_PX[Math.min(Math.max(size, 1), 7) - 1]
+        return <span style={{ fontSize: `${px}px` }}>{Children.toArray(this.getComponents())}</span>
     }
 }
 
@@ -180,9 +178,40 @@ class LineTag extends Tag {
     }
 }
 
+class CodeTag extends Tag {
+    toReact() {
+        const code = decodeContentEscape(this.getContent(true))
+            .replaceAll('[br][/br]', '\n')
+            .replace(/^\n+|\n+$/g, '')
+        if (this.params.code === 'inline') return <code>{code}</code>
+        return (
+            <pre>
+                <code>{code}</code>
+            </pre>
+        )
+    }
+}
+
+class LeftTag extends Tag {
+    toReact() {
+        return <div style={{ textAlign: 'left' }}>{Children.toArray(this.getComponents())}</div>
+    }
+}
+
+class QuoteTag extends Tag {
+    constructor(renderer: unknown, settings: unknown) {
+        super(renderer, settings)
+        this.STRIP_OUTER = true
+    }
+
+    toReact() {
+        return <blockquote>{Children.toArray(this.getComponents())}</blockquote>
+    }
+}
+
 class HeadingTag extends Tag {
     toReact() {
-        return <h3>{Children.toArray(this.getComponents())}</h3>
+        return <h2>{Children.toArray(this.getComponents())}</h2>
     }
 }
 
@@ -290,6 +319,9 @@ const parser = new Parser()
 parser.registerTag('br', BrTag)
 parser.registerTag('size', SizeTag)
 parser.registerTag('line', LineTag)
+parser.registerTag('code', CodeTag)
+parser.registerTag('left', LeftTag)
+parser.registerTag('quote', QuoteTag)
 parser.registerTag('heading', HeadingTag)
 parser.registerTag('font', FontTag)
 parser.registerTag('youtube', YoutubeTag)
@@ -341,12 +373,17 @@ function stripTrailingBreaks(nodes: ReactNode[]): ReactNode[] {
     return result
 }
 
+const TABLE_PARTS = new Set(['table', 'thead', 'tbody', 'tfoot', 'tr'])
+
 function normalizeNode(node: ReactNode): ReactNode {
     if (!isValidElement<{ children?: ReactNode }>(node)) return node
     if (node.props.children === undefined) return node
 
     let children = normalizeNodes(Children.toArray(node.props.children))
     if (node.type === 'li') children = stripTrailingBreaks(children)
+    if (typeof node.type === 'string' && TABLE_PARTS.has(node.type)) {
+        children = children.filter((child) => !isBr(child))
+    }
     return cloneElement(node, undefined, children)
 }
 

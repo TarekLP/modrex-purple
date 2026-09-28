@@ -4,10 +4,19 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 
 ## Unreleased
 
+### Changed
+
+- Mod descriptions now look the way they do on ModWorkshop and Nexus.
+
 ### Fixed
 
 - Fixed Restart & Install not restarting Modrex on Linux after installing an update.
 - Fixed UE4SS mods installing to a folder PAYDAY 3's UE4SS does not read.
+- Fixed broken formatting, images and videos in mod descriptions.
+
+### Security
+
+- Mod descriptions can no longer use inline styles to draw over the rest of Modrex.
 
 ## 0.15.2
 

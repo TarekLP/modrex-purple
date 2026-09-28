@@ -26,9 +26,13 @@ describe('NexusDescription', () => {
         expect(bold.closest('span')?.style.color).toBe('green')
     })
 
-    it("uses Vortex's relative rem scale for [size], not a pixel size", () => {
-        const { getByText } = render(<NexusDescription text="[size=4]big[/size]" />)
-        expect(getByText('big').style.fontSize).toBe('1.4rem')
+    it('sizes [size] text like the Nexus site does', () => {
+        const { getByText } = render(
+            <NexusDescription text="[size=2]fine print[/size][size=4]big[/size][size=200]huge[/size]" />
+        )
+        expect(getByText('fine print').style.fontSize).toBe('13px')
+        expect(getByText('big').style.fontSize).toBe('18px')
+        expect(getByText('huge').style.fontSize).toBe('48px')
     })
 
     it('normalizes a literal <br> into a real line break with no doubling', () => {
@@ -44,6 +48,14 @@ describe('NexusDescription', () => {
         const centered = container.querySelector('div[style*="center"]')
         expect(centered?.contains(img)).toBe(true)
         expect(img?.classList.contains('inline-block')).toBe(true)
+    })
+
+    it('renders a [left] block instead of leaking the tag', () => {
+        const { container, getByText } = render(
+            <NexusDescription text="[center]Intro[/center][left][i]Aligned[/i][/left]" />
+        )
+        expect(getByText('Aligned').closest('div')?.style.textAlign).toBe('left')
+        expect(container.textContent).toBe('IntroAligned')
     })
 
     it('supports a self-closing image URL with dimensions and alignment', () => {
@@ -203,8 +215,16 @@ describe('NexusDescription', () => {
         const { getByText } = render(
             <NexusDescription text="[heading]Title[/heading][font=Impact]Body[/font]" />
         )
-        expect(getByText('Title').tagName).toBe('H3')
+        expect(getByText('Title').tagName).toBe('H2')
         expect(getByText('Body').style.fontFamily).toBe('Impact')
+    })
+
+    it('renders a named quote without an author line, like Nexus', () => {
+        const { container, getByText } = render(
+            <NexusDescription text="[quote=Dallas]Quoted line[/quote]" />
+        )
+        expect(getByText('Quoted line').closest('blockquote')).not.toBeNull()
+        expect(container.textContent).toBe('Quoted line')
     })
 
     it('renders a Nexus spoiler as an expandable details element', () => {
@@ -225,11 +245,42 @@ describe('NexusDescription', () => {
         expect(container.querySelector('iframe')).toBeNull()
     })
 
+    it('keeps line breaks and quotes inside a code block', () => {
+        const { container } = render(
+            <NexusDescription
+                text={
+                    '[code]Mods&#92;\n<br />└── main.lua\n<br />["id"] = a &lt; b &amp;&amp; c[/code]'
+                }
+            />
+        )
+        expect(container.querySelector('pre > code')?.textContent).toBe(
+            'Mods\\\n└── main.lua\n["id"] = a < b && c'
+        )
+    })
+
+    it('renders [code=inline] as inline code', () => {
+        const { container } = render(<NexusDescription text="run [code=inline]a && b[/code] now" />)
+        expect(container.querySelector('pre')).toBeNull()
+        expect(container.querySelector('code')?.textContent).toBe('a && b')
+    })
+
     it('preserves semantic table markup for scoped description styling', () => {
         const { getByText } = render(
             <NexusDescription text="[table][tr][th]Name[/th][td]Value[/td][/tr][/table]" />
         )
         expect(getByText('Name').tagName).toBe('TH')
         expect(getByText('Value').tagName).toBe('TD')
+    })
+
+    it('keeps Nexus line breaks out of the table structure', () => {
+        const { container } = render(
+            <NexusDescription
+                text={
+                    '[table]\n<br />[tr]\n<br />[td]a[/td]\n<br />[td]b[/td]\n<br />[/tr]\n<br />[/table]'
+                }
+            />
+        )
+        expect(container.querySelectorAll('table br')).toHaveLength(0)
+        expect(container.querySelectorAll('td')).toHaveLength(2)
     })
 })

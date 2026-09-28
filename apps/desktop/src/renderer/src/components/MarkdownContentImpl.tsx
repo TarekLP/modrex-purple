@@ -1,13 +1,13 @@
 import { useMemo, createContext, useContext, type ReactNode } from 'react'
-import ReactMarkdown from 'react-markdown'
-import rehypeRaw from 'rehype-raw'
-import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
+import { Fragment, jsx, jsxs } from 'react/jsx-runtime'
+import { unified } from 'unified'
+import rehypeParse from 'rehype-parse'
+import rehypeSanitize, { defaultSchema, type Options as SanitizeOptions } from 'rehype-sanitize'
 import rehypeHighlight from 'rehype-highlight'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
-import type { Components } from 'react-markdown'
+import { toJsxRuntime, type Components } from 'hast-util-to-jsx-runtime'
 import { t } from '../i18n'
-import { detectEmbed, EMBEDS, type Embed, type EmbedDef } from '../embeds'
+import { detectEmbed, mediaKind } from '../embeds'
+import { renderMarkdown, renderModworkshopMarkdown } from '../markdown'
 import 'highlight.js/styles/github-dark.css'
 import { api } from '../api'
 import { parseModworkshopModId } from '../modLinks'
@@ -15,145 +15,26 @@ import { EmbedPlayer } from './EmbedPlayer'
 
 const InsidePreContext = createContext(false)
 
-// Mod descriptions are attacker-controlled HTML (rehypeRaw), so they are sanitized
-// against the GitHub-style default schema. Must run AFTER rehypeRaw (there is no raw
-// HTML to sanitize before it) and BEFORE rehypeHighlight (so the hljs-* classes it
-// injects survive). Three deliberate carve-outs beyond the defaults:
-// - span keeps the style attribute: parseColorTags compiles modworkshop's {#hex}(text)
-//   syntax to <span style="color:...">, and authors write the same tag raw.
-// - div keeps the style attribute too, for the same reason: a raw <div style> an
-//   author writes directly would otherwise silently lose it with no visible error.
-// - iframe keeps only src (http/https enforced by the schema's protocol map): the
-//   iframe component below renders nothing unless detectEmbed matches an allowlisted
-//   video host, so unknown iframes are dropped even after passing sanitization.
-const sanitizeSchema = {
+// Must run before rehypeHighlight so its hljs classes survive.
+const sanitizeSchema: SanitizeOptions = {
     ...defaultSchema,
-    tagNames: [...(defaultSchema.tagNames ?? []), 'iframe', 'figure', 'figcaption'],
+    tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
     attributes: {
         ...defaultSchema.attributes,
-        span: [...(defaultSchema.attributes?.span ?? []), 'style'],
-        div: [...(defaultSchema.attributes?.div ?? []), 'style'],
-        iframe: ['src'],
+        span: [
+            ...(defaultSchema.attributes?.span ?? []),
+            'dataColor',
+            'dataSize',
+            ['className', 'center'],
+        ],
+        div: [...(defaultSchema.attributes?.div ?? []), ['className', 'center', 'left', 'right']],
     },
 }
 
-type Part =
-    | { type: 'text'; text: string }
-    | { type: 'embed'; embed: Embed }
-    | { type: 'collapsible'; title: string; body: string }
-
-function splitEmbeds(text: string, defs: EmbedDef[]): Part[] {
-    const parts: Part[] = []
-    const re = /!\[[^\]]*\]\(([^)]+)\)/g
-    let lastIndex = 0
-    let match: RegExpExecArray | null
-
-    while ((match = re.exec(text)) !== null) {
-        const embed = detectEmbed(match[1], defs)
-        if (!embed) continue
-
-        if (match.index > lastIndex) {
-            parts.push({ type: 'text', text: text.slice(lastIndex, match.index) })
-        }
-        parts.push({ type: 'embed', embed })
-        lastIndex = match.index + match[0].length
-    }
-
-    if (lastIndex < text.length) {
-        parts.push({ type: 'text', text: text.slice(lastIndex) })
-    }
-
-    return parts.length > 0 ? parts : [{ type: 'text', text }]
-}
-
-interface ColorFrame {
-    color: string
-    tokenIndex: number
-    parenDepth: number
-}
-
-function colorTagAt(text: string, start: number): { color: string; end: number } | null {
-    if (text[start] !== '{') return null
-
-    let i = start + 1
-    if (text[i] === '#') {
-        const hexStart = ++i
-        while (i - hexStart < 9 && /[0-9A-Fa-f]/.test(text[i] ?? '')) i++
-        if (i - hexStart < 3 || i - hexStart > 8) return null
-    } else {
-        const nameStart = i
-        while (/[A-Za-z]/.test(text[i] ?? '')) i++
-        if (i === nameStart) return null
-    }
-
-    if (text[i] !== '}' || text[i + 1] !== '(') return null
-    return { color: text.slice(start + 1, i), end: i + 2 }
-}
-
-// Modworkshop uses {#HEX}(text) or {ColorName}(text) for inline colored text.
-// Parse it with a stack so nested tags and parentheses remain linear in the input size.
-function parseColorTags(text: string): string {
-    const output: string[] = []
-    const stack: ColorFrame[] = []
-
-    for (let i = 0; i < text.length;) {
-        const tag = colorTagAt(text, i)
-        if (tag) {
-            const tokenIndex = output.length
-            output.push(text.slice(i, tag.end))
-            stack.push({
-                color: tag.color,
-                tokenIndex,
-                parenDepth: 0,
-            })
-            i = tag.end
-            continue
-        }
-
-        const frame = stack.at(-1)
-        const char = text[i]
-        if (frame && char === '(') {
-            frame.parenDepth++
-        } else if (frame && char === ')') {
-            if (frame.parenDepth === 0) {
-                stack.pop()
-                output[frame.tokenIndex] = `<span style="color:${frame.color}">`
-                output.push('</span>')
-                i++
-                continue
-            }
-            frame.parenDepth--
-        }
-
-        output.push(char)
-        i++
-    }
-
-    return output.join('')
-}
-
-// Modworkshop uses !!! Title ... !!! as a collapsible section syntax not in standard markdown.
-// Collapsibles are split at the React level so their body is still parsed as markdown.
-function splitParts(text: string, defs: EmbedDef[]): Part[] {
-    const result: Part[] = []
-    const re = /^!!!(?: ?(.+))?\n([\s\S]*?)^!!!$/gm
-    let lastIndex = 0
-    let match: RegExpExecArray | null
-
-    while ((match = re.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-            result.push(...splitEmbeds(text.slice(lastIndex, match.index), defs))
-        }
-        result.push({ type: 'collapsible', title: match[1]?.trim() ?? '', body: match[2] })
-        lastIndex = match.index + match[0].length
-    }
-
-    if (lastIndex < text.length) {
-        result.push(...splitEmbeds(text.slice(lastIndex), defs))
-    }
-
-    return result.length > 0 ? result : splitEmbeds(text, defs)
-}
+const processor = unified()
+    .use(rehypeParse, { fragment: true })
+    .use(rehypeSanitize, sanitizeSchema)
+    .use(rehypeHighlight)
 
 function Code({ children }: { children?: ReactNode }) {
     const inPre = useContext(InsidePreContext)
@@ -166,30 +47,40 @@ function Code({ children }: { children?: ReactNode }) {
     )
 }
 
-function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => void): Components {
+const ALIGN: Record<string, string> = {
+    center: 'text-center [&_div]:mx-auto',
+    left: 'text-left',
+    right: 'text-right',
+}
+
+function makeComponents(onOpenDetail?: (modId: number) => void): Components {
     return {
         p: ({ children }) => (
-            <div className="text-sm text-text-muted leading-relaxed mb-2">{children}</div>
+            <div className="text-sm text-text leading-relaxed mb-2">{children}</div>
         ),
         h1: ({ children }) => (
-            <h1 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h1>
+            <h1 className="text-[1.75rem] font-semibold text-text mt-4 mb-3 pb-2 border-b border-border">
+                {children}
+            </h1>
         ),
         h2: ({ children }) => (
-            <h2 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h2>
+            <h2 className="text-[1.3125rem] font-semibold text-text mt-4 mb-3 pb-2 border-b border-border">
+                {children}
+            </h2>
         ),
         h3: ({ children }) => (
-            <h3 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h3>
+            <h3 className="text-base font-semibold text-text mt-4 mb-2">{children}</h3>
         ),
         h4: ({ children }) => (
-            <h4 className="text-sm font-semibold text-text mt-4 mb-1">{children}</h4>
+            <h4 className="text-sm font-semibold text-text mt-4 mb-2">{children}</h4>
         ),
-        ul: ({ children }) => (
-            <ul className="list-disc ml-5 mb-2 text-sm text-text-muted">{children}</ul>
+        ul: ({ children }) => <ul className="list-disc ml-5 mb-2 text-sm text-text">{children}</ul>,
+        ol: ({ children, start }) => (
+            <ol start={start} className="list-decimal ml-5 mb-2 text-sm text-text">
+                {children}
+            </ol>
         ),
-        ol: ({ children }) => (
-            <ol className="list-decimal ml-5 mb-2 text-sm text-text-muted">{children}</ol>
-        ),
-        li: ({ children }) => <li className="mb-0.5">{children}</li>,
+        li: ({ children }) => <li className="mb-2">{children}</li>,
         a: ({ href, children }) => {
             if (!href) return <>{children}</>
             const modId = onOpenDetail ? parseModworkshopModId(href) : null
@@ -226,7 +117,7 @@ function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => vo
         // style, which silently defeats any colored wrapper around bold text.
         // Letting it inherit is also correct in the plain case, since the surrounding
         // text already sets the base color.
-        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        strong: ({ children }) => <strong className="font-bold">{children}</strong>,
         em: ({ children }) => <em className="italic">{children}</em>,
         code: Code,
         pre: ({ children }) => (
@@ -237,8 +128,28 @@ function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => vo
             </InsidePreContext.Provider>
         ),
         img: ({ src, alt }) => {
-            if (!src) return null
-            return <img src={src} alt={alt} loading="lazy" className="max-w-full rounded my-2" />
+            if (typeof src !== 'string' || !src) return null
+            const embed = detectEmbed(src)
+            if (embed) return <EmbedPlayer embed={embed} />
+            const media = mediaKind(src)
+            if (media === 'video') {
+                return (
+                    <video src={src} controls preload="metadata" className="max-w-xl w-full my-2" />
+                )
+            }
+            if (media === 'audio') {
+                return (
+                    <audio src={src} controls preload="metadata" className="max-w-xl w-full my-2" />
+                )
+            }
+            return (
+                <img
+                    src={src}
+                    alt={alt}
+                    loading="lazy"
+                    className="max-w-full max-h-[250px] rounded my-2"
+                />
+            )
         },
         hr: () => <hr className="border-t border-border my-3" />,
         blockquote: ({ children }) => (
@@ -247,101 +158,79 @@ function makeMdComponents(defs: EmbedDef[], onOpenDetail?: (modId: number) => vo
             </blockquote>
         ),
         table: ({ children }) => (
-            <table className="w-full text-sm text-left border-collapse my-2">{children}</table>
+            <table className="block max-w-full overflow-x-auto text-sm text-left border-collapse my-2">
+                {children}
+            </table>
         ),
-        th: ({ children }) => (
-            <th className="border border-border px-3 py-1.5 text-text font-semibold bg-surface-raised">
+        th: ({ children, style }) => (
+            <th
+                style={style}
+                className="border border-border px-3 py-1.5 text-text font-semibold bg-surface-raised"
+            >
                 {children}
             </th>
         ),
-        td: ({ children }) => (
-            <td className="border border-border px-3 py-1.5 text-text-muted">{children}</td>
+        td: ({ children, style }) => (
+            <td style={style} className="border border-border px-3 py-1.5 text-text">
+                {children}
+            </td>
         ),
-        div: ({ children, style, className }) => (
-            <div style={style} className={className}>
+        span: ({ children, className, node }) => {
+            const dataColor = node?.properties.dataColor
+            const dataSize = node?.properties.dataSize
+            return (
+                <span
+                    style={{
+                        color: typeof dataColor === 'string' ? dataColor : undefined,
+                        fontSize: typeof dataSize === 'string' ? dataSize : undefined,
+                    }}
+                    className={className === 'center' ? 'block text-center' : className}
+                >
+                    {children}
+                </span>
+            )
+        },
+        div: ({ children, className }) => (
+            <div className={typeof className === 'string' ? ALIGN[className] : undefined}>
                 {children}
             </div>
         ),
-        span: ({ children, style, className }) => (
-            <span style={style} className={className}>
+        details: ({ children }) => (
+            <details className="my-2 border border-border rounded-lg overflow-hidden [&>div]:px-3">
                 {children}
-            </span>
+            </details>
         ),
-        section: ({ children }) => <section>{children}</section>,
-        figure: ({ children }) => <figure className="my-2">{children}</figure>,
-        figcaption: ({ children }) => (
-            <figcaption className="text-xs text-text-subtle mt-1">{children}</figcaption>
+        summary: ({ children }) => (
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
+                {children ?? t('detail.spoiler')}
+            </summary>
         ),
-        br: () => <br />,
-        iframe: ({ src }) => {
-            if (!src) return null
-            const embed = detectEmbed(src, defs)
-            return embed ? <EmbedPlayer embed={embed} /> : null
-        },
-        script: () => null,
-        style: () => null,
-        object: () => null,
-        embed: () => null,
     }
 }
 
-export function MarkdownContent({
+function Markup({ html, onOpenDetail }: { html: string; onOpenDetail?: (modId: number) => void }) {
+    const components = useMemo(() => makeComponents(onOpenDetail), [onOpenDetail])
+    const content = useMemo(() => {
+        const tree = processor.runSync(processor.parse(html))
+        return toJsxRuntime(tree, { Fragment, jsx, jsxs, components, passNode: true })
+    }, [html, components])
+    return <div>{content}</div>
+}
+
+export function MarkdownContent({ text }: { text: string }) {
+    const html = useMemo(() => renderMarkdown(text), [text])
+    return <Markup html={html} />
+}
+
+export function ModworkshopMarkup({
     text,
-    embeds = EMBEDS,
+    legacy = false,
     onOpenDetail,
 }: {
     text: string
-    embeds?: EmbedDef[]
+    legacy?: boolean
     onOpenDetail?: (modId: number) => void
 }) {
-    const components = useMemo(() => makeMdComponents(embeds, onOpenDetail), [embeds, onOpenDetail])
-    const normalized = text.replace(/\r\n/g, '\n')
-    const parts = splitParts(parseColorTags(normalized), embeds)
-
-    return (
-        <div>
-            {parts.map((part, i) => {
-                if (part.type === 'embed') return <EmbedPlayer key={i} embed={part.embed} />
-                if (part.type === 'collapsible') {
-                    return (
-                        <details
-                            key={i}
-                            className="my-2 border border-border rounded-lg overflow-hidden"
-                        >
-                            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-text bg-surface-raised hover:bg-surface-hover transition-colors select-none">
-                                {part.title || t('detail.spoiler')}
-                            </summary>
-                            <div className="px-3">
-                                <ReactMarkdown
-                                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                                    rehypePlugins={[
-                                        rehypeRaw,
-                                        [rehypeSanitize, sanitizeSchema],
-                                        rehypeHighlight,
-                                    ]}
-                                    components={components}
-                                >
-                                    {part.body}
-                                </ReactMarkdown>
-                            </div>
-                        </details>
-                    )
-                }
-                return (
-                    <ReactMarkdown
-                        key={i}
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[
-                            rehypeRaw,
-                            [rehypeSanitize, sanitizeSchema],
-                            rehypeHighlight,
-                        ]}
-                        components={components}
-                    >
-                        {part.text}
-                    </ReactMarkdown>
-                )
-            })}
-        </div>
-    )
+    const html = useMemo(() => renderModworkshopMarkdown(text, legacy), [text, legacy])
+    return <Markup html={html} onOpenDetail={onOpenDetail} />
 }

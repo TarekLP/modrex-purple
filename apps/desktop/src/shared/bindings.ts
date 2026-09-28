@@ -728,6 +728,7 @@ export type ModDetail = {
 	name: string,
 	desc: string,
 	short_desc: string,
+	legacy_markup: boolean,
 	version: string,
 	downloads: number,
 	likes: number,
@@ -868,6 +869,8 @@ export type ModSummary = {
 	name: string,
 	desc: string,
 	short_desc: string,
+	/**  ModWorkshop parser_version 1, which mixes BBCode into markdown. */
+	legacy_markup: boolean,
 	downloads: number,
 	likes: number,
 	views: number,

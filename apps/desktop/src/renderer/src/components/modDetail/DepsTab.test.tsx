@@ -24,6 +24,7 @@ const summary: ModSummary = {
     name: 'BeardLib',
     desc: '',
     short_desc: '',
+    legacy_markup: false,
     downloads: 0,
     likes: 0,
     views: 0,
@@ -54,6 +55,7 @@ it('shows only a known authoritative dependency version', () => {
         <TooltipProvider>
             <DepsTab
                 instructions={null}
+                legacyMarkup={false}
                 instructsTemplate={null}
                 deps={[dependency]}
                 installed={[]}
@@ -72,6 +74,7 @@ it('shows only a known authoritative dependency version', () => {
         <TooltipProvider>
             <DepsTab
                 instructions={null}
+                legacyMarkup={false}
                 instructsTemplate={null}
                 deps={[dependency]}
                 installed={[]}

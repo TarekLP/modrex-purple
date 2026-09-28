@@ -1,22 +1,29 @@
 import { lazy, Suspense } from 'react'
-import type { EmbedDef } from '../embeds'
 import { SkeletonText } from './Skeleton'
 
-const Impl = lazy(() =>
-    import('./MarkdownContentImpl').then((m) => ({ default: m.MarkdownContent }))
-)
+const loadImpl = () => import('./MarkdownContentImpl')
+const MarkdownImpl = lazy(() => loadImpl().then((m) => ({ default: m.MarkdownContent })))
+const ModworkshopImpl = lazy(() => loadImpl().then((m) => ({ default: m.ModworkshopMarkup })))
 
 // warm the chunk during startup idle so the null fallback window rarely ever shows
-setTimeout(() => void import('./MarkdownContentImpl'), 2000)
+setTimeout(() => void loadImpl(), 2000)
 
-export function MarkdownContent(props: {
+export function MarkdownContent(props: { text: string }) {
+    return (
+        <Suspense fallback={<SkeletonText />}>
+            <MarkdownImpl {...props} />
+        </Suspense>
+    )
+}
+
+export function ModworkshopMarkup(props: {
     text: string
-    embeds?: EmbedDef[]
+    legacy?: boolean
     onOpenDetail?: (modId: number) => void
 }) {
     return (
         <Suspense fallback={<SkeletonText />}>
-            <Impl {...props} />
+            <ModworkshopImpl {...props} />
         </Suspense>
     )
 }

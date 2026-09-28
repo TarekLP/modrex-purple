@@ -7,7 +7,7 @@ import type {
     GameId,
     InstructsTemplate,
 } from '../../../../shared/types'
-import { MarkdownContent } from '../MarkdownContent'
+import { ModworkshopMarkup } from '../MarkdownContent'
 import { Tooltip } from '../Tooltip'
 import { t } from '../../i18n'
 import { useThumbnail } from '../../hooks/useThumbnail'
@@ -18,6 +18,7 @@ import { useModVersions } from '../../hooks/useModVersions'
 
 export function DepsTab({
     instructions,
+    legacyMarkup,
     instructsTemplate,
     deps,
     installed,
@@ -30,6 +31,7 @@ export function DepsTab({
     onOpenDetail,
 }: {
     instructions: string | null
+    legacyMarkup: boolean
     instructsTemplate: InstructsTemplate | null
     deps: ModDependency[]
     installed: InstalledMod[]
@@ -92,14 +94,19 @@ export function DepsTab({
                         {t('detail.deps.instructions')}
                     </h2>
                     {instructsTemplate?.instructions && (
-                        <MarkdownContent
+                        <ModworkshopMarkup
                             text={instructsTemplate.instructions}
+                            legacy={legacyMarkup}
                             onOpenDetail={onOpenDetail}
                         />
                     )}
                     {instructions && (
                         <div className="mt-3">
-                            <MarkdownContent text={instructions} onOpenDetail={onOpenDetail} />
+                            <ModworkshopMarkup
+                                text={instructions}
+                                legacy={legacyMarkup}
+                                onOpenDetail={onOpenDetail}
+                            />
                         </div>
                     )}
                 </section>
