@@ -247,6 +247,7 @@
             "noUpdates": "所有内容均为最新。",
             "noMissingDeps": "所有已安装模组的依赖项均已满足。",
             "missingFileHint": "磁盘中缺少文件",
+            "containerMissingHint": "! Its .ucas and .utoc files are missing from disk",
             "brokenArchiveHint": "无法验证压缩包",
             "outdatedHint": "建议重新安装",
             "unidentifiedRowHint": "未识别",
@@ -254,7 +255,16 @@
             "installDep": "安装",
             "installAllDeps": "安装所有依赖项",
             "installDepFailed": "部分依赖项无法自动安装。",
-            "reinstallAll": "全部重新安装"
+            "reinstallAll": "全部重新安装",
+            "leftoversCount": "! Leftover files ({count})",
+            "noLeftovers": "! No leftover files.",
+            "leftoversLoadFailed": "! Leftover files couldn't be listed: {error}",
+            "leftoverHint": "! {files}, {size}. No installed mod uses these files.",
+            "deleteLeftover": "! Delete",
+            "confirmDelete": "! Confirm",
+            "deleteAllLeftovers": "! Delete All",
+            "confirmDeleteAll": "! Confirm Delete All",
+            "deleteLeftoversFailed": "! Some leftover files couldn't be deleted: {error}"
         }
     },
     "news": {
