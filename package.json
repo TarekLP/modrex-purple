@@ -58,11 +58,13 @@
         "index:test": "pnpm --dir apps/index test:export-determinism && pnpm --dir apps/index test:snapshot-delta && pnpm --dir apps/index test:game-schedule && pnpm --dir apps/index test:marker-contract && pnpm --dir apps/index test:marker-archive && pnpm --dir apps/index test:process-failure && pnpm --dir apps/index test:postgres-architecture && pnpm --dir apps/index test:postgres-queries && pnpm --dir apps/index test:staged-rebuild",
         "index:typecheck": "pnpm --dir apps/index exec tsc --noEmit",
         "audit:deps": "pnpm --dir apps/site test:cache-security && pnpm audit",
-        "prepare": "husky"
+        "prepare": "husky",
+        "i18n:typecheck": "pnpm --dir apps/desktop typecheck:i18n"
     },
     "devDependencies": {
         "@commitlint/cli": "21.2.3",
         "@commitlint/config-conventional": "21.2.3",
+        "@types/node": "^22.20.5",
         "husky": "^9.1.7",
         "prettier": "^3.9.9",
         "typescript": "6.0.3"
@@ -84,5 +86,8 @@
         "patchedDependencies": {
             "http-cache-semantics@4.2.0": "patches/http-cache-semantics@4.2.0.patch"
         }
+    },
+    "engines": {
+        "node": ">=22.18.0"
     }
 }

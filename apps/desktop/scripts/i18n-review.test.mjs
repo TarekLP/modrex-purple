@@ -18,10 +18,10 @@ import {
     placeholderContract,
     placeholderDifferences,
     TARGET_VALUE_KIND,
-} from '../src/shared/i18n-values.js'
-import { flattenBundle } from './i18n-current.mjs'
-import { writeLocaleAtomically } from './i18n-files.mjs'
-import { createGitAdapter } from './i18n-git.mjs'
+} from '../src/shared/i18n-values.mts'
+import { flattenBundle } from './i18n-current.mts'
+import { writeLocaleAtomically } from './i18n-files.mts'
+import { createGitAdapter } from './i18n-git.mts'
 import {
     analyzeCommittedHistory,
     analyzeProspective,
@@ -29,15 +29,16 @@ import {
     describeHistoryAvailability,
     I18N_LOCALE_DIR,
     snapshotFromBundles,
+    summarizeHistory,
     workingTreeSnapshot,
-} from './i18n-history.mjs'
+} from './i18n-history.mts'
 import {
     applyBaseline,
     createHistoryState,
     entryId,
     PENDING_PROVENANCE,
-} from './i18n-history-events.mjs'
-import { inspectLocales } from './i18n-inspection.mjs'
+} from './i18n-history-events.mts'
+import { inspectLocales } from './i18n-inspection.mts'
 import {
     applyReviewAction,
     buildReviewCandidates,
@@ -46,7 +47,7 @@ import {
     reviewEditProblems,
     reviewLocaleSession,
     runI18nReview,
-} from './i18n-review.mjs'
+} from './i18n-review.mts'
 
 const LOCALE_DIR = 'i18n'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
@@ -162,6 +163,91 @@ function scriptedAnswers(values) {
         index += 1
         if (answer instanceof Error) throw answer
         return answer
+    }
+}
+
+for (const [form, committedValue, editedValue] of [
+    ['NFC', '\u00e9', 'e\u0301'],
+    ['NFD', 'e\u0301', '\u00e9'],
+]) {
+    for (const [request, committedMarker, workingValue] of [
+        ['an unmarked target', false, undefined],
+        ['an uncommitted review marker', false, `? ${committedValue}`],
+        ['an uncommitted normalized target', false, editedValue],
+        ['a committed review marker', true, undefined],
+    ]) {
+        test(`normalization from ${form} requires observable acceptance with ${request}`, async () => {
+            await withRepository(async (directory) => {
+                const baseline = commitLocales(
+                    directory,
+                    { en: { value: 'A' }, de: { value: committedValue } },
+                    'baseline'
+                )
+                commitLocales(
+                    directory,
+                    {
+                        en: { value: 'B' },
+                        de: { value: committedMarker ? `? ${committedValue}` : committedValue },
+                    },
+                    'source change'
+                )
+                if (workingValue !== undefined)
+                    writeLocales(directory, { de: { value: workingValue } })
+                const review = prepareI18nReview({
+                    ...reviewOptions(directory, baseline),
+                    localeId: 'de',
+                })
+                const candidate = review.candidates[0]
+                if (committedMarker) {
+                    assert.deepEqual(reviewEditProblems(candidate, editedValue), [])
+                    const action = applyReviewAction(candidate, REVIEW_ACTION.EDIT, editedValue)
+                    commitLocales(directory, { de: { value: action.storedValue } }, 'accept source')
+                    const history = analyzeCommittedHistory(reviewOptions(directory, baseline))
+                    const entry = summarizeHistory(history).locales.get('de').entries.get('value')
+                    assert.equal(entry.effectiveState, 'accepted')
+                    assert.equal(entry.checkpoint.sourceText, 'B')
+                    assert.equal(history.events.at(-1).kind, 'keep')
+                    return
+                }
+                assert.match(
+                    reviewEditProblems(candidate, editedValue).join('\n'),
+                    /canonically identical/
+                )
+                assert.throws(
+                    () => applyReviewAction(candidate, REVIEW_ACTION.EDIT, editedValue),
+                    /canonically identical/
+                )
+                assert.throws(
+                    () => applyReviewAction(candidate, REVIEW_ACTION.KEEP),
+                    /no acceptance could be recorded/
+                )
+                const localePath = join(directory, LOCALE_DIR, 'de.json')
+                const before = readFileSync(localePath)
+                const indexBefore = git(directory, ['write-tree'])
+                let writes = 0
+                const output = captureStream()
+                assert.deepEqual(
+                    await reviewLocaleSession({
+                        review,
+                        ask: scriptedAnswers(['e', editedValue, '']),
+                        stdout: output.stream,
+                        write() {
+                            writes += 1
+                        },
+                    }),
+                    { edited: 0, kept: 0, skipped: 1 }
+                )
+                assert.match(output.value(), /canonically identical/)
+                assert.equal(writes, 0)
+                assert.deepEqual(readFileSync(localePath), before)
+                assert.equal(git(directory, ['write-tree']), indexBefore)
+                const history = analyzeCommittedHistory(reviewOptions(directory, baseline))
+                assert.equal(
+                    summarizeHistory(history).locales.get('de').entries.get('value').effectiveState,
+                    'review'
+                )
+            })
+        })
     }
 }
 
@@ -865,61 +951,24 @@ test(
             workingTreeSnapshot(REPOSITORY_ROOT, I18N_LOCALE_DIR)
         )
         const historyGit = createGitAdapter({ cwd: REPOSITORY_ROOT })
+        const checkpointCache = new Map()
+        const summary = summarizeHistory(history)
         for (const locale of inspection.locales) {
             const candidates = buildReviewCandidates(history, locale.id)
             assert.deepEqual(
                 candidates.map(({ key }) => key),
-                locale.pendingKeys
+                [...summary.locales.get(locale.id).entries.values()]
+                    .filter((entry) => entry.effectiveState === 'review')
+                    .map((entry) => entry.key)
             )
             for (const candidate of candidates) {
                 const persisted = locale.targetValues[candidate.key]
-                assert.equal(persisted.kind, TARGET_VALUE_KIND.PENDING)
+                assert.ok(
+                    [TARGET_VALUE_KIND.PENDING, TARGET_VALUE_KIND.ACCEPTED].includes(persisted.kind)
+                )
                 assert.equal(candidate.locale, locale.id)
                 assert.equal(candidate.currentTargetText, persisted.targetText)
                 assert.equal(candidate.currentSourceText, inspection.sourceStrings[candidate.key])
-
-                const stateEntry = history.state.entries.get(entryId(locale.id, candidate.key))
-                assert.ok(stateEntry?.pending)
-                const checkpoint = stateEntry.pending.lineageCheckpoint
-                assert.ok(checkpoint)
-                assert.equal(candidate.checkpointRevision, checkpoint.revision)
-                assert.equal(
-                    historyGit.resolveRevision(candidate.checkpointRevision),
-                    candidate.checkpointRevision
-                )
-
-                const checkpointPaths = historyGit.treeBlobs(
-                    candidate.checkpointRevision,
-                    I18N_LOCALE_DIR
-                )
-                const sourcePath = `${I18N_LOCALE_DIR}/en.json`
-                const targetPath = `${I18N_LOCALE_DIR}/${locale.id}.json`
-                const sourceBlob = checkpointPaths.get(sourcePath)
-                const targetBlob = checkpointPaths.get(targetPath)
-                assert.ok(sourceBlob)
-                assert.ok(targetBlob)
-                const checkpointBlobs = historyGit.readBlobs([sourceBlob, targetBlob])
-                const sourceErrors = []
-                const targetErrors = []
-                const checkpointSource = flattenBundle(
-                    JSON.parse(checkpointBlobs.get(sourceBlob)),
-                    'en',
-                    sourceErrors
-                )[candidate.key]
-                const checkpointTargetStored = flattenBundle(
-                    JSON.parse(checkpointBlobs.get(targetBlob)),
-                    locale.id,
-                    targetErrors
-                )[candidate.key]
-                assert.deepEqual(sourceErrors, [])
-                assert.deepEqual(targetErrors, [])
-                const checkpointTarget = parseTargetValue(checkpointTargetStored)
-                assert.equal(checkpointTarget.kind, TARGET_VALUE_KIND.ACCEPTED)
-                assert.equal(checkpoint.rawSourceText, checkpointSource)
-                assert.equal(checkpoint.rawTargetText, checkpointTarget.targetText)
-                assert.equal(candidate.lastAcceptedSourceText, checkpointSource)
-                assert.equal(candidate.lastAcceptedTargetText, checkpointTarget.targetText)
-                assert.equal(candidate.pendingProvenance, stateEntry.pending.provenance)
 
                 const placeholderDifference = placeholderDifferences(
                     placeholderContract(inspection.sourceStrings[candidate.key]),
@@ -929,6 +978,68 @@ test(
                     placeholderDifference.missing.length === 0 &&
                     placeholderDifference.unexpected.length === 0
                 assert.equal(candidate.placeholderCompatible, placeholderCompatible)
+
+                const stateEntry = history.state.entries.get(entryId(locale.id, candidate.key))
+                assert.ok(stateEntry?.pending)
+                const checkpoint =
+                    stateEntry.pending.lineageCheckpoint ?? stateEntry.lastProvenCheckpoint
+                if (!checkpoint) {
+                    assert.ok(stateEntry.gapIds.size > 0)
+                    assert.equal(candidate.checkpointRevision, null)
+                    assert.equal(candidate.lastAcceptedSourceText, null)
+                    assert.equal(candidate.lastAcceptedTargetText, null)
+                    continue
+                }
+                assert.equal(candidate.checkpointRevision, checkpoint.revision)
+                assert.equal(
+                    historyGit.resolveRevision(candidate.checkpointRevision),
+                    candidate.checkpointRevision
+                )
+
+                const cacheKey = candidate.checkpointRevision + ':' + locale.id
+                if (!checkpointCache.has(cacheKey)) {
+                    const paths = historyGit.treeBlobs(
+                        candidate.checkpointRevision,
+                        I18N_LOCALE_DIR
+                    )
+                    const sourceBlob = paths.get(I18N_LOCALE_DIR + '/en.json')
+                    const targetBlob = paths.get(I18N_LOCALE_DIR + '/' + locale.id + '.json')
+                    assert.ok(sourceBlob)
+                    assert.ok(targetBlob)
+                    const recovery = history.recoveries.find(
+                        (value) =>
+                            value.revision === candidate.checkpointRevision &&
+                            value.locale === locale.id &&
+                            value.blob === targetBlob
+                    )
+                    const readableTargetBlob = recovery?.repairedBlob ?? targetBlob
+                    const blobs = historyGit.readBlobs([sourceBlob, readableTargetBlob])
+                    const sourceErrors = []
+                    const targetErrors = []
+                    const source = flattenBundle(
+                        JSON.parse(blobs.get(sourceBlob)),
+                        'en',
+                        sourceErrors
+                    )
+                    const target = flattenBundle(
+                        JSON.parse(blobs.get(readableTargetBlob)),
+                        locale.id,
+                        targetErrors
+                    )
+                    assert.deepEqual(sourceErrors, [])
+                    assert.deepEqual(targetErrors, [])
+                    checkpointCache.set(cacheKey, { source, target })
+                }
+                const evidence = checkpointCache.get(cacheKey)
+                const checkpointSource = evidence.source[candidate.key]
+                const checkpointTargetStored = evidence.target[candidate.key]
+                const checkpointTarget = parseTargetValue(checkpointTargetStored)
+                assert.equal(checkpointTarget.kind, TARGET_VALUE_KIND.ACCEPTED)
+                assert.equal(checkpoint.rawSourceText, checkpointSource)
+                assert.equal(checkpoint.rawTargetText, checkpointTarget.targetText)
+                assert.equal(candidate.lastAcceptedSourceText, checkpointSource)
+                assert.equal(candidate.lastAcceptedTargetText, checkpointTarget.targetText)
+                assert.equal(candidate.pendingProvenance, stateEntry.pending.provenance)
             }
         }
         for (const [id, before] of localeBytesBefore) {
