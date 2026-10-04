@@ -8,14 +8,14 @@
         "preview": "astro preview",
         "typecheck": "astro check",
         "typecheck:functions": "tsc -p functions/tsconfig.json",
-        "check-legal-dates": "node scripts/check-legal-dates.mjs",
+        "check-legal-dates": "bun scripts/check-legal-dates.mjs",
         "test": "vitest",
-        "test:run": "pnpm test:cache-security && vitest run",
+        "test:run": "bun run test:cache-security && vitest run",
         "lint": "eslint src/",
         "lint:fix": "eslint src/ --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "test:cache-security": "node --test scripts/http-cache-semantics.test.mjs"
+        "test:cache-security": "bun test ./scripts/http-cache-semantics.test.mjs"
     },
     "devDependencies": {
         "@astrojs/check": "0.9.10",

@@ -141,7 +141,7 @@ export function buildReviewCandidates(
 function acceptanceRecordingInstruction(candidate: Candidate) {
     if (candidate.evidenceIncomplete)
         return 'First commit an explicit review marker for this key, then review it again.'
-    return 'Run pnpm i18n:sync and commit the review marker first.'
+    return 'Run bun i18n:sync and commit the review marker first.'
 }
 
 // i18n-review.test.mts enforces normalized edits and committed marker removal.
@@ -508,7 +508,7 @@ export async function runI18nReview(
     }: ReviewOptions = {}
 ) {
     if (args.length !== 1) {
-        stderr.write('Usage: pnpm i18n:review <locale>\n')
+        stderr.write('Usage: bun i18n:review <locale>\n')
         return 2
     }
 
