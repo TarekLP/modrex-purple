@@ -1,4 +1,4 @@
-import type { CliIO } from './i18n-io.mts'
+import { errorMessage, type CliIO } from './i18n-io.mts'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -285,7 +285,10 @@ function prepareWrites(plan: SyncPlan, i18nDir: string): SyncWrite[] {
     })
 }
 
-export function applySyncWrites(writes: SyncWrite[], write: Write = writeSerializedFileAtomically) {
+export function applySyncWrites(
+    writes: Pick<SyncWrite, 'id' | 'path' | 'serialized' | 'changed'>[],
+    write: Write = writeSerializedFileAtomically
+) {
     const written: string[] = []
     for (const file of writes) {
         if (!file.changed) continue
@@ -329,7 +332,10 @@ function countOperations(locale: Pick<SyncLocalePlan, 'operations'>, kind: SyncK
     return locale.operations.filter((item) => item.kind === kind).length
 }
 
-export function formatSyncSummary(result: SyncResult) {
+export function formatSyncSummary(result: {
+    writes: Pick<SyncWrite, 'id' | 'changed' | 'operations'>[]
+    written: string[]
+}) {
     const lines = ['i18n:sync']
     for (const file of result.writes) {
         lines.push(
@@ -367,7 +373,7 @@ export function runI18nSync(
         stdout.write(`${formatSyncSummary(result)}\n`)
         return 0
     } catch (error) {
-        stderr.write(`i18n:sync: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`i18n:sync: ${errorMessage(error)}\n`)
         return 1
     }
 }

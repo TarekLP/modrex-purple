@@ -1,4 +1,4 @@
-import type { CliIO, CliOutput } from './i18n-io.mts'
+import { errorMessage, type CliIO, type CliOutput } from './i18n-io.mts'
 import type { LocaleBundle } from './i18n-files.mts'
 import type { HistoryAnalysis, HistoryOptions } from './i18n-history.mts'
 import type { HistorySnapshot } from './i18n-history-events.mts'
@@ -43,8 +43,11 @@ import {
     validateLocaleId,
 } from './i18n-inspection.mts'
 
-type Candidate = ReturnType<typeof buildReviewCandidates>[number]
+export type Candidate = ReturnType<typeof buildReviewCandidates>[number]
 type Review = ReturnType<typeof prepareI18nReview>
+type ReviewSession = Pick<Review, 'localePath' | 'candidates'> & {
+    locale: Pick<Review['locale'], 'id' | 'bundle'>
+}
 type Ask = (question: string) => Promise<string>
 type ReviewWriter = (path: string, bundle: LocaleBundle) => unknown
 type ReviewOptions = HistoryOptions &
@@ -143,7 +146,7 @@ function acceptanceRecordingInstruction(candidate: Candidate) {
     return 'Run pnpm i18n:sync and commit the review marker first.'
 }
 
-// i18n-review.test.mjs enforces normalized edits and committed marker removal.
+// i18n-review.test.mts enforces normalized edits and committed marker removal.
 function wouldRecordAcceptance(candidate: Candidate, storedValue: string) {
     if (candidate.committedValue === undefined) return true
     return normalize(storedValue) !== normalize(candidate.committedValue)
@@ -156,9 +159,7 @@ export function reviewEditProblems(candidate: Candidate, targetText: string) {
     try {
         parsed = parseTargetValue(targetText)
     } catch (error) {
-        return [
-            `Invalid workflow marker syntax: ${error instanceof Error ? error.message : String(error)}`,
-        ]
+        return [`Invalid workflow marker syntax: ${errorMessage(error)}`]
     }
     if (parsed.kind !== TARGET_VALUE_KIND.ACCEPTED) {
         return ['An edited target must not begin with the reserved "! " or "? " prefix.']
@@ -395,7 +396,7 @@ async function promptEditedTarget(
 }
 
 function saveReviewedValue(
-    review: Review,
+    review: ReviewSession,
     bundle: LocaleBundle,
     candidate: Candidate,
     storedValue: string,
@@ -412,7 +413,7 @@ export async function reviewLocaleSession({
     stdout = process.stdout,
     env = process.env,
     write = writeLocaleAtomically,
-}: CliIO & { ask: Ask; review: Review; write?: ReviewWriter }) {
+}: CliIO & { ask: Ask; review: ReviewSession; write?: ReviewWriter }) {
     const localeName = localeNativeName(review.locale.id)
     if (review.candidates.length === 0) {
         stdout.write(`${localeName} (${review.locale.id}): no translations need review.\n`)
@@ -523,7 +524,7 @@ export async function runI18nReview(
     try {
         validateLocaleId(localeId)
     } catch (error) {
-        stderr.write(`i18n:review: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`i18n:review: ${errorMessage(error)}\n`)
         return 2
     }
     if (localeId === SOURCE_LOCALE) {
@@ -546,7 +547,7 @@ export async function runI18nReview(
         await runSession(review, { ask, stdin, stdout, write })
         return 0
     } catch (error) {
-        stderr.write(`i18n:review: ${error instanceof Error ? error.message : String(error)}\n`)
+        stderr.write(`i18n:review: ${errorMessage(error)}\n`)
         if (error instanceof I18nHistoryUnavailableError) {
             stderr.write('Full i18n history through the audited baseline is required.\n')
         }

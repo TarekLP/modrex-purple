@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import {
@@ -7,6 +6,7 @@ import {
     type TargetValue,
 } from '../src/shared/i18n-values.mts'
 import { createGitAdapter, GitBlobDecodeError } from './i18n-git.mts'
+import { errorMessage } from './i18n-io.mts'
 import {
     acceptedPairExists,
     analyzeTransition,
@@ -23,9 +23,9 @@ import {
     type HistoryState,
     type HistoryEvent,
     type EvidenceGap,
-    type EvidenceRecovery,
     type Checkpoint,
     type HistoryEntry,
+    type TargetEvent,
 } from './i18n-history-events.mts'
 
 type Adapter = ReturnType<typeof createGitAdapter>
@@ -62,7 +62,6 @@ export type HistoryAnalysis = {
     prospectiveEvents?: HistoryEvent[]
     prospective?: boolean
     gaps: EvidenceGap[]
-    recoveries: EvidenceRecovery[]
     stats: {
         revisions: number
         gitCalls: number | undefined
@@ -70,7 +69,6 @@ export type HistoryAnalysis = {
         bundleParses: number
     }
 }
-type ObservedSnapshot = HistorySnapshot & { gaps: EvidenceGap[] }
 type BundleObservation =
     { kind: 'parsed'; value: unknown } | { kind: 'invalid-json' | 'invalid-utf8'; cause: unknown }
 export type EffectiveState = 'accepted' | 'review' | 'missing'
@@ -110,12 +108,11 @@ export type HistorySummary = {
     revision: string
     locales: Map<string, LocaleHistorySummary>
     gaps: EvidenceGap[]
-    recoveries: EvidenceRecovery[]
 }
 
 // Acceptance reconstruction starts at the audited baseline. Pre-baseline events create no
 // review debt. Rewriting repository history requires a new audit, never a guessed baseline.
-export const I18N_HISTORY_BASELINE = 'c0d5814991976169076c12f893a3a68e0d4a12be'
+export const I18N_HISTORY_BASELINE = 'da1040c9f04d7e004d5cd1fee3af15fabaa80b7e'
 
 export const I18N_LOCALE_DIR = 'apps/desktop/src/renderer/src/i18n'
 
@@ -223,7 +220,7 @@ function parseTargets(flat: Record<string, string>, label: string) {
             targets.set(key, parseTargetValue(raw))
         } catch (error) {
             throw new I18nHistoryDataError(
-                `Malformed target ${label} key '${key}': ${error instanceof Error ? error.message : String(error)}`,
+                `Malformed target ${label} key '${key}': ${errorMessage(error)}`,
                 { cause: error }
             )
         }
@@ -264,42 +261,18 @@ function createBundleCache(counters: { bundleParses: number }) {
     }
 }
 
-// Recovery is limited to the audited blob and exact repair enforced by i18n-recovery.test.mjs.
-function recoverHistoricalBundle(path: string, blob: string, text: string | GitBlobDecodeError) {
-    if (
-        path !== I18N_LOCALE_DIR + '/it.json' ||
-        blob !== 'bb6f61129dfbd7c8bdb1b114b937711e3cfb7645' ||
-        typeof text !== 'string'
-    )
-        return undefined
-    const repairedBlob = 'd57d12bbdd1e78537dcbd559bc5c0552e8ff1908'
-    const repaired = text.replace(
-        '"loadFailed": "Impossibile caricare le mod,',
-        '"loadFailed": "Impossibile caricare le mod",'
-    )
-    const identity = createHash('sha1')
-        .update('blob ' + Buffer.byteLength(repaired) + '\0')
-        .update(repaired)
-        .digest('hex')
-    if (identity !== repairedBlob)
-        throw new I18nHistoryDataError(
-            'Audited Italian history repair does not match its blob identity.'
-        )
-    return {
-        text: repaired,
-        repairedBlob,
-        repairRevision: 'da1040c9f04d7e004d5cd1fee3af15fabaa80b7e',
-    }
-}
-
 function buildSnapshot(
     revision: string,
     blobPaths: Map<string, string>,
     contents: ReadonlyMap<string, string | GitBlobDecodeError>,
-    cache: ReturnType<typeof createBundleCache>,
-    recoverHistory = false
-): ObservedSnapshot {
-    const snapshot: ObservedSnapshot = { revision, source: new Map(), locales: new Map(), gaps: [] }
+    cache: ReturnType<typeof createBundleCache>
+): HistorySnapshot {
+    const snapshot: HistorySnapshot = {
+        revision,
+        source: new Map(),
+        locales: new Map(),
+        gaps: [],
+    }
     let sourceSeen = false
     for (const [path, id] of blobPaths) {
         if (!path.endsWith('.json')) continue
@@ -307,20 +280,7 @@ function buildSnapshot(
         if (localeId === SOURCE_LOCALE) sourceSeen = true
         const text = contents.get(id)
         if (text === undefined) throw new Error('Missing blob ' + id + ' for ' + path)
-        const recovery = recoverHistory ? recoverHistoricalBundle(path, id, text) : undefined
-        const parseId = recovery?.repairedBlob ?? id
-        const parsed = cache.parse(parseId, recovery?.text ?? text)
-        if (recovery) {
-            snapshot.recoveries ??= []
-            snapshot.recoveries.push({
-                locale: localeId,
-                revision,
-                path,
-                blob: id,
-                repairedBlob: recovery.repairedBlob,
-                repairRevision: recovery.repairRevision,
-            })
-        }
+        const parsed = cache.parse(id, text)
         if (parsed.kind !== 'parsed') {
             snapshot.gaps.push({
                 id: revision + ':' + path + ':' + id,
@@ -339,13 +299,13 @@ function buildSnapshot(
             })
             continue
         }
-        const flat = cache.flat(parseId, parsed.value, localeId + '.json@' + revision)
+        const flat = cache.flat(id, parsed.value, localeId + '.json@' + revision)
         if (localeId === SOURCE_LOCALE) {
             for (const [key, value] of Object.entries(flat)) snapshot.source.set(key, value)
             continue
         }
         snapshot.locales.set(localeId, {
-            targets: cache.targets(parseId, flat, localeId + '.json@' + revision),
+            targets: cache.targets(id, flat, localeId + '.json@' + revision),
         })
     }
     if (!sourceSeen)
@@ -359,7 +319,7 @@ function buildSnapshot(
     return snapshot
 }
 
-function assertReadableSnapshot(snapshot: ObservedSnapshot) {
+function assertReadableSnapshot(snapshot: HistorySnapshot) {
     if (snapshot.gaps.length === 0) return snapshot
     const gap = snapshot.gaps[0]!
     if (gap.cause instanceof GitBlobDecodeError) throw gap.cause
@@ -370,7 +330,12 @@ export function snapshotFromBundles(
     revision: string,
     bundles: Map<string, unknown> | Record<string, unknown>
 ): HistorySnapshot {
-    const snapshot: HistorySnapshot = { revision, source: new Map(), locales: new Map() }
+    const snapshot: HistorySnapshot = {
+        revision,
+        source: new Map(),
+        locales: new Map(),
+        gaps: [],
+    }
     const entries = bundles instanceof Map ? bundles.entries() : Object.entries(bundles)
     for (const [localeId, bundle] of entries) {
         const label = `${localeId}.json@${revision}`
@@ -489,14 +454,8 @@ function loadSnapshots(
     const contents = git.readBlobObservations
         ? git.readBlobObservations([...wanted])
         : git.readBlobs([...wanted])
-    return blobPathsByRevision.map(([revision, blobPaths], index) =>
-        buildSnapshot(
-            revision,
-            blobPaths,
-            contents,
-            cache,
-            index > 0 && index < blobPathsByRevision.length - 1
-        )
+    return blobPathsByRevision.map(([revision, blobPaths]) =>
+        buildSnapshot(revision, blobPaths, contents, cache)
     )
 }
 
@@ -549,7 +508,6 @@ export function analyzeCommittedHistory(options: HistoryOptions = {}): HistoryAn
         revisions,
         snapshot: { ...snapshots[snapshots.length - 1]!, revision: head },
         gaps: snapshots.flatMap((snapshot) => snapshot.gaps),
-        recoveries: snapshots.flatMap((snapshot) => snapshot.recoveries ?? []),
         state,
         events,
         committedEvents: events,
@@ -754,8 +712,7 @@ export function summarizeHistory(history: HistoryAnalysis): HistorySummary {
         baseline: history.baseline,
         revision: history.revision,
         locales,
-        gaps: history.gaps ?? [],
-        recoveries: history.recoveries ?? [],
+        gaps: history.gaps,
     }
 }
 
@@ -765,7 +722,10 @@ function sameSource(left: string | undefined, right: string | undefined) {
 }
 
 export function explicitReviewRequests(history: HistoryAnalysis) {
-    return history.events.filter((event) => event.kind === HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED)
+    return history.events.filter(
+        (event): event is TargetEvent & { kind: typeof HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED } =>
+            event.kind === HISTORY_EVENT.EXPLICIT_REVIEW_REQUESTED
+    )
 }
 
 export function canDeferPlaceholderMismatch(entry: EffectiveEntry | undefined) {
