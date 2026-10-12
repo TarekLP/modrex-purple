@@ -18,10 +18,10 @@ bun check-csp    # Verify csp and devCsp in tauri.conf.json agree on all externa
 bun check-updater # Verify release.yml's latest.json generation matches the updater config in tauri.conf.json (CI only)
 bun check-i18n   # Validate each locale's translated subset and {var} interpolation against en.json, and report coverage (pre-commit + CI)
 bun checks       # Run the full CI gate locally: all check-* scripts, format:check, lint, typecheck, tests
-bun format       # Format all files with prettier
+bun format       # Format all files with oxfmt
 bun format:check # Check formatting without writing
-bun lint         # ESLint on renderer source (src/renderer/src/)
-bun lint:fix     # ESLint with auto-fix
+bun lint         # oxlint on renderer source and scripts
+bun lint:fix     # oxlint with auto-fix
 bun run test         # Run all tests: Rust (cargo test) then renderer (vitest)
 bun test:renderer # Run only renderer TypeScript tests (vitest)
 cd src-tauri && cargo test --test export_preview_fixtures -- --ignored # Refresh preview fixtures from live modworkshop
