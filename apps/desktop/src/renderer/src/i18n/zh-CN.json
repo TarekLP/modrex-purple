@@ -28,9 +28,9 @@
     "resources": {
         "details": "! Technical details",
         "launchWithoutPackages": "! Launch without package mods",
-        "launchDescription": "! Temporarily disables mod folders. Movie replacements and INI settings stay selected.",
-        "launchMoviesDescription": "! Temporarily disables mod folders. Movie replacements stay selected.",
-        "launchConfigDescription": "! Temporarily disables mod folders. INI settings stay selected.",
+        "launchDescription": "! Movie replacements and INI settings are unchanged.",
+        "launchMoviesDescription": "! Movie replacements are unchanged.",
+        "launchConfigDescription": "! INI settings are unchanged.",
         "movie": "! Movie replacement",
         "ini": "! INI preset",
         "status": {
@@ -83,6 +83,7 @@
             "configTarget": "! Engine.ini location",
             "configUnavailable": "! Modrex needs your game's active Engine.ini before it can check and apply these presets. Choose it below.",
             "singleVariant": "! Choose one preset. Modrex applies its supported settings and keeps your other preferences.",
+            "readOnlyHelp": "! If Engine.ini is read-only, clear that attribute before changing presets in Modrex. Restore it afterward if the mod author requires it.",
             "apply": "! Install selected",
             "next": {
                 "chooseFiles": "! Select a movie replacement or INI preset to install.",
@@ -141,6 +142,9 @@
         }
     },
     "app": {
+        "sourcesLoading": "! Loading mod sources...",
+        "sourcesLoadFailed": "! Mod sources could not be loaded.",
+        "sourcesRetry": "! Try again",
         "modsHidden": "模组已隐藏；游戏以原版模式启动，并且可能仍在运行。",
         "stateUnreadable": "Modrex 无法读取此游戏由自身维护的模组列表，因此以下模组是通过扫描文件夹找到的，任何更改都不会被保存。详细信息请查看日志。",
         "restoreMods": "恢复模组",
@@ -470,6 +474,7 @@
         "installSelected": "安装所选项（{count}）"
     },
     "zipPicker": {
+        "sharedHelp": "! Choose only the packages required by the author's instructions. Some archives contain alternative profiles that must not be installed together.",
         "title": "从压缩包安装",
         "subtitle": "{modName}：选择要安装的文件。",
         "installSelected": "安装所选项（{count}）",
