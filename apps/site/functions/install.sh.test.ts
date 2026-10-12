@@ -50,7 +50,8 @@ describe('resolveEngineTag', () => {
 
     function stubTags(names: string[]) {
         const fetchMock = vi.fn(
-            async () => new Response(JSON.stringify(names.map((name) => ({ name }))))
+            async (_input: RequestInfo | URL, _init?: RequestInit) =>
+                new Response(JSON.stringify(names.map((name) => ({ name }))))
         )
         vi.stubGlobal('fetch', fetchMock)
         return fetchMock
@@ -85,6 +86,38 @@ describe('resolveEngineTag', () => {
     it('throws when no tag matches the requested major', async () => {
         stubTags(['v2.0.0', 'v3.0.0'])
         await expect(resolveEngineTag('v1')).rejects.toThrow('no tags found')
+    })
+
+    it('authenticates the tags request when a token is given', async () => {
+        const fetchMock = stubTags(['v1.0.0'])
+        await resolveEngineTag('v1', 'secret')
+        const init = fetchMock.mock.calls[0][1] as RequestInit
+        expect(init.headers).toMatchObject({
+            Authorization: 'Bearer secret',
+            'User-Agent': 'modrex-install-worker',
+        })
+    })
+
+    it('sends no Authorization header without a token', async () => {
+        const fetchMock = stubTags(['v1.0.0'])
+        await resolveEngineTag('v1')
+        const init = fetchMock.mock.calls[0][1] as RequestInit
+        expect(init.headers).not.toHaveProperty('Authorization')
+    })
+
+    it("reports GitHub's own explanation and whether a token was sent", async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(
+                async () =>
+                    new Response('{"message":"API rate limit exceeded for 1.2.3.4."}', {
+                        status: 403,
+                    })
+            )
+        )
+        await expect(resolveEngineTag('v1')).rejects.toThrow(
+            'GitHub API (tags) failed: 403 (token absent): {"message":"API rate limit exceeded for 1.2.3.4."}'
+        )
     })
 })
 
