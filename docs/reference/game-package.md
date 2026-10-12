@@ -83,6 +83,8 @@ lists every storefront the game can be found on. At most one entry per provider.
 | `epic` | `name` as the Epic launcher lists it |
 | `xbox` | `product_id`, `executable` relative to the install's Content folder |
 
+`steam_windows_no_mods_argument` is an optional single verified Windows Steam flag for launching without Pak mods. It preserves user launch options and never hides the shared native Paks directory.
+
 ## `loaders`
 
 `kind` names a loader the host implements; a kind that does not exist is a build error,
@@ -129,15 +131,18 @@ has no verified movie replacement mechanism.
 | Format | Fields |
 | --- | --- |
 | `bink` | `directory`, `storefronts`, optional `absent_slots` |
+| `mp4` | `directory`, `storefronts`, optional `absent_slots` |
 
 `directory` is a list of relative components below the selected install. This mechanism
-accepts `.bk2` movies. `storefronts` lists supported stores from `install.stores`.
+accepts `.bk2` for Bink or `.mp4` for MP4. MP4 payloads require one H.264 video
+track and at most one AAC LC audio track. `storefronts` lists supported stores
+from `install.stores`.
 A manual installation with no recognised store offers only slots found on disk.
 
 Each `absent_slots` entry names a supported `store` and its verified `filenames`.
 These slots may be offered even when the files are absent, so declare them only
 after verifying published replacement instructions for that store. Filenames must
-be single `.bk2` names and unique ignoring ASCII case.
+be single names with the declared movie extension and unique ignoring ASCII case.
 
 ## `config_presets`
 
@@ -185,6 +190,7 @@ elsewhere.
 | `tag` | yes | stable id, stored in every installed mod's record. Renaming one is a data migration |
 | `label` | yes | which folder name the interface shows |
 | `primary` | no | defaults to `false`; exactly one target must set it |
+| `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |
 | `path` | yes | components below the game path |
 | `backup` | yes | where launching without mods moves the contents |
 | `store_paths` | no | `path` and `backup` for a store build laid out differently |

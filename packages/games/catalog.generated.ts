@@ -84,4 +84,20 @@ export const GAME_SPECS = {
             { id: 'mods', path: 'mods' },
         ],
     },
+    ron: {
+        name: 'Ready or Not',
+        shortName: 'RoN',
+        modMetadata: 'none',
+        nexusDomain: 'readyornot',
+        storageKey: 'ron',
+        hasNews: false,
+        supportsPackageViewer: false,
+        movieReplacement: { extension: 'mp4', storefronts: ['steam'] },
+        configPresets: { filename: 'Engine.ini' },
+        graphicsConfig: { filename: 'GameUserSettings.ini' },
+        launchers: ['Steam'],
+        modTargets: [
+            { id: 'paks', path: 'ReadyOrNot/Content/Paks' },
+        ],
+    },
 } satisfies Record<string, GameSpec>

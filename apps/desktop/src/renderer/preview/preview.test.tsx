@@ -67,6 +67,74 @@ test('another game loads its own fixtures', async () => {
     expect(await found(pd2Mods.data[0].name)).toBeTruthy()
 })
 
+test('Ready or Not opens signed-out Nexus browsing with a stale ModWorkshop preference', async () => {
+    store.set('modrex:active-game', 'ron')
+    store.set('modrex:ron:browse-source', 'modworkshop')
+    await mount()
+    expect(await found('Sign in with Nexus Mods to browse mods from Nexus.')).toBeTruthy()
+    expect(screen.queryByText(pd3Mods.data[0].name)).toBeNull()
+})
+
+test('Ready or Not settings use its verified Steam folder', async () => {
+    store.set('modrex:active-game', 'ron')
+    store.set('modrex:active-view', 'settings')
+    await mount()
+    expect(
+        await found('C:\\Program Files (x86)\\Steam\\steamapps\\common\\Ready Or Not')
+    ).toBeTruthy()
+})
+
+test.each(['demo', 'large'])(
+    'Ready or Not has an honest empty installed preview in the %s library profile',
+    async (profile) => {
+        window.history.replaceState({}, '', `/?library=${profile}`)
+        store.set('modrex:active-game', 'ron')
+        store.set('modrex:active-view', 'installed')
+        await mount()
+        expect(await found('No mods installed yet')).toBeTruthy()
+        const { commands } = await import('./commands')
+        expect((await commands.getInstalled('ron')).mods).toEqual([])
+        expect(await commands.listModFolders('ron')).toEqual([{ tag: 'paks', labelKey: 'mods' }])
+        expect((await commands.listLoaders()).some((loader) => loader.games.includes('ron'))).toBe(
+            false
+        )
+        const sources = await commands.listSources()
+        expect(sources.find((source) => source.id === 'nexus')?.games).toContainEqual({
+            gameId: 'ron',
+            nativeId: 'readyornot',
+        })
+        expect(
+            sources
+                .find((source) => source.id === 'modworkshop')
+                ?.games.some((binding) => binding.gameId === 'ron')
+        ).toBe(false)
+    }
+)
+
+test('Ready or Not resource preview uses MP4 slots and keeps its Nexus-only catalog', async () => {
+    window.history.replaceState({}, '', '/?library=resources')
+    store.set('modrex:active-game', 'ron')
+    store.set('modrex:active-view', 'installed')
+    await mount()
+    expect(await found('Custom intro movie')).toBeTruthy()
+    const { commands } = await import('./commands')
+    const installed = (await commands.getInstalled('ron')).mods
+    expect(
+        installed.filter((mod) => mod.deployment === 'movie').map((mod) => mod.filename)
+    ).toEqual(['ReadyOrNot_StartupMovie.mp4', 'RoNLogo.mp4'])
+    expect(installed.find((mod) => mod.deployment === 'ini')?.filename).toBe('Engine.ini')
+    const sources = await commands.listSources()
+    expect(sources.find((source) => source.id === 'nexus')?.games).toContainEqual({
+        gameId: 'ron',
+        nativeId: 'readyornot',
+    })
+    expect(
+        sources
+            .find((source) => source.id === 'modworkshop')
+            ?.games.some((binding) => binding.gameId === 'ron')
+    ).toBe(false)
+})
+
 test('browse fixtures honor filters, sorting, and the captured page boundary', async () => {
     vi.resetModules()
     const { commands } = await import('./commands')

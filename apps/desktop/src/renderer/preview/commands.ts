@@ -57,6 +57,7 @@ const steamFolders: Record<GameId, string> = {
     pdth: 'PAYDAY The Heist',
     cb: 'Crime Boss Rockay City',
     raid: 'RAID World War II',
+    ron: 'Ready Or Not',
 }
 
 const fixtures = new Map<GameId, Promise<GameFixtures>>()
@@ -66,6 +67,7 @@ const graphicsFolders: Partial<Record<GameId, string>> = {
     pd2: 'PAYDAY 2',
     pdth: 'PAYDAY',
     raid: 'RAID WW2',
+    ron: 'ReadyOrNot/Saved/Config/Windows',
 }
 
 function game(gameId: string): GameId {
@@ -204,6 +206,11 @@ const handlers = {
                 status: 'found',
                 path: 'C:/Users/Preview/AppData/Local/PAYDAY3/Saved/Config/WindowsClient/Engine.ini',
             }
+        if (id === 'ron')
+            return {
+                status: 'found',
+                path: 'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/Engine.ini',
+            }
         return { status: 'needsLocation' }
     },
     openEngineIni: async (gameId) => {
@@ -213,7 +220,10 @@ const handlers = {
     pickEngineIni: async (gameId) => {
         const path = gamePath(gameId)
         if (!path) throw new Error('Choose a game folder first')
-        const configPath = path + '/Saved/Config/WindowsClient/Engine.ini'
+        const configPath =
+            game(gameId) === 'ron'
+                ? 'C:/Users/Preview/AppData/Local/ReadyOrNot/Saved/Config/Windows/Engine.ini'
+                : path + '/Saved/Config/WindowsClient/Engine.ini'
         chosenIniLocations.set(game(gameId), configPath)
         return configPath
     },
@@ -288,7 +298,8 @@ const handlers = {
         const lib = library(id)
         if (previewState.library !== 'empty' && !lib.seeded) {
             if (previewState.library === 'resources') resourceFixtures.seedResourceLibrary(id)
-            else lib.seed((await load(id)).modRecords, previewState.library)
+            else if (GAMES[id].workshopId !== undefined)
+                lib.seed((await load(id)).modRecords, previewState.library)
         }
         return lib.response()
     },

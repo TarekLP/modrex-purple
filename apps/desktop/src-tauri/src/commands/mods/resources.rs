@@ -19,7 +19,7 @@ use super::types::{InstalledMod, ResourceDeployment, ResourceStatus, UpdateStatu
 use super::zip::{extract_entry_at_budget, safe_dest, ResourceArchive, ZipMultiPakPayload};
 use crate::commands::games::game_spec;
 use crate::commands::settings::{game_settings, read_settings};
-use crate::game_package::{ConfigLocation, ConfigPresets};
+use crate::game_package::{ConfigLocation, ConfigPresets, MovieReplacement};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -777,6 +777,7 @@ fn assess(
     name: &str,
     staged: Option<&Path>,
     movies: &Result<Vec<String>, String>,
+    movie_format: Option<&MovieReplacement>,
     config: Option<&ConfigPresets>,
 ) -> (ResourceEntryKind, Result<(), String>) {
     let ext = extension_of(name);
@@ -787,7 +788,7 @@ fn assess(
         );
     }
     let kind = match ext.as_str() {
-        "bk2" => ResourceEntryKind::Movie,
+        "bk2" | "mp4" => ResourceEntryKind::Movie,
         "ini" => ResourceEntryKind::Ini,
         _ => ResourceEntryKind::Other,
     };
@@ -802,10 +803,14 @@ fn assess(
             Err(".bak2 is not a movie format Modrex installs; rename it yourself only if you know the game reads it".to_string())
         }
         ResourceEntryKind::Other => Err("not a movie or Engine.ini".to_string()),
-        ResourceEntryKind::Movie => movies
-            .as_ref()
-            .map_err(Clone::clone)
-            .and_then(|_| movies::validate_bink(staged.expect("movies are staged")).map(|_| ())),
+        ResourceEntryKind::Movie => (|| {
+            let format = movie_format.ok_or("Movie replacements are not supported for this game")?;
+            if ext != format.extension() {
+                return Err(format!("This game accepts .{} movie replacements", format.extension()));
+            }
+            movies.as_ref().map_err(Clone::clone)?;
+            movies::validate_payload_for(format, staged.expect("movies are staged"))
+        })(),
         ResourceEntryKind::Ini if config.is_none() => {
             Err("Engine.ini presets are not supported for this game".into())
         }
@@ -817,14 +822,18 @@ fn assess(
 }
 
 fn preset_assignments(name: &str, staged: &Path) -> Result<Vec<ini::Assignment>, String> {
-    if !file_name_of(name).eq_ignore_ascii_case("Engine.ini") {
-        return Err("only Engine.ini presets are supported".to_string());
-    }
     let (bytes, revision) = read_ini_bytes(staged)?;
     if revision == Content::Absent {
         return Err("The staged preset is missing".into());
     }
-    let decoded = ini::decode(&bytes)?;
+    preset_assignments_from_bytes(name, &bytes)
+}
+
+fn preset_assignments_from_bytes(name: &str, bytes: &[u8]) -> Result<Vec<ini::Assignment>, String> {
+    if !file_name_of(name).eq_ignore_ascii_case("Engine.ini") {
+        return Err("only Engine.ini presets are supported".to_string());
+    }
+    let decoded = ini::decode(bytes)?;
     if decoded.eol == ini::LineEnding::Mixed {
         return Err(
             "The preset mixes line endings. Use your text editor for manual installation".into(),
@@ -940,7 +949,11 @@ fn build_review(
         } else {
             extension_of(&found.downloaded.to_string_lossy())
         };
-        let wanted = !name.ends_with('/') && (ext == "bk2" || ext == "ini");
+        let wanted = !name.ends_with('/')
+            && (ext == "ini"
+                || spec
+                    .movie_replacement
+                    .is_some_and(|format| ext == format.extension()));
         if wanted
             && entries
                 .iter()
@@ -974,8 +987,11 @@ fn build_review(
             (true, true, None) => None,
         };
         remaining -= available - budget;
-        let assessment_name = if !found.is_archive && ext == "bk2" && !movies::is_bk2_name(&name) {
-            format!("{name}.bk2")
+        let assessment_name = if !found.is_archive
+            && matches!(ext.as_str(), "bk2" | "mp4")
+            && !movies::has_movie_extension(&name, &ext)
+        {
+            format!("{name}.{ext}")
         } else {
             name.clone()
         };
@@ -983,6 +999,7 @@ fn build_review(
             &assessment_name,
             staged.as_deref(),
             &slots,
+            spec.movie_replacement,
             spec.config_presets,
         );
         let supported = verdict.is_ok();
@@ -1368,7 +1385,6 @@ async fn install_selected(
                 if review.movie_pack_applied {
                     return Err("The movie pack in this review has already been applied".into());
                 }
-                movies::validate_bink(&staged)?;
                 let slot = sel
                     .slot
                     .clone()
@@ -1487,9 +1503,12 @@ async fn install_movie_pack(
     blocking(move || {
         let mut slots = Vec::new();
         for (c, dest) in choices.into_iter().zip(destinations) {
-            let Content::Present { sha256, size } = store.capture(&c.staged)? else {
+            let Content::Present { sha256, size } =
+                store.capture_bounded(&c.staged, 512 * 1024 * 1024)?
+            else {
                 return Err(format!("{} disappeared from staging", c.entry_name));
             };
+            movies::validate_payload(&game_id, &store.object_path(&sha256))?;
             slots.push(MovieSlot {
                 slot: c.slot,
                 destination: dest.to_string_lossy().to_string(),
@@ -1537,6 +1556,9 @@ fn apply_movie_pack(
     mut pack: Deployment,
     replacing: Option<String>,
 ) -> Result<ResourceInstallResult, String> {
+    for slot in movies::slots_of(&pack) {
+        movies::validate_payload(game_id, &store.object_path(&slot.payload_sha256))?;
+    }
     let plan = movies::plan_apply(store, manifest, &pack, replacing.as_deref())?;
     if let DeploymentBody::Movie { slots } = &mut pack.body {
         slots.retain(|slot| !plan.already_current.contains(&slot.destination));
@@ -1587,7 +1609,7 @@ async fn install_preset(
     if resolve_engine_ini(app, &review.context)? != Some(config.clone()) {
         return Err("Engine.ini changed destination while preparing the install".into());
     }
-    let mut preset = new_deployment(
+    let preset = new_deployment(
         review,
         DeploymentBody::Ini {
             preset: IniPreset {
@@ -1601,44 +1623,65 @@ async fn install_preset(
             },
         },
     );
-    let game_id = review.context.game_id.clone();
     let review_manifest_revision = review.manifest_revision;
     let review_config_revision = review
         .config_revision
         .clone()
         .ok_or("Review the configuration destination before applying the preset")?;
     blocking(move || {
-        let Content::Present { sha256, size } = store.capture(&staged)? else {
-            return Err("the preset disappeared from staging".to_string());
-        };
-        if let DeploymentBody::Ini { preset: p } = &mut preset.body {
-            p.source_sha256 = sha256;
-            p.source_size = size;
-        }
-        let manifest = store.load_manifest()?;
-        if manifest.deployments.iter().any(|d| d.id == preset.id) {
-            return Ok(());
-        }
-        if Some(manifest.revision) != review_manifest_revision {
-            return Err(
-                "Managed resources changed after this review. Review the destinations again".into(),
-            );
-        }
-        if live_content(&config)? != review_config_revision {
-            return Err("Engine.ini changed after this review. Review its settings again".into());
-        }
-        let previous = same_project(&manifest, &preset).cloned();
-        if let Some(old) = previous.as_ref().filter(|old| !old.enabled) {
-            // An update of a disabled preset must not activate it.
-            preset.enabled = false;
-            return store.apply(&game_id, Vec::new(), |m| {
-                m.deployments.retain(|d| d.id != old.id);
-                upsert(m, preset);
-            });
-        }
-        apply_preset(&store, &game_id, &manifest, preset, previous.map(|p| p.id))
+        install_preset_from_staging(
+            &store,
+            preset,
+            &staged,
+            review_manifest_revision,
+            &review_config_revision,
+        )
     })
     .await
+}
+
+fn install_preset_from_staging(
+    store: &ResourceStore,
+    mut preset: Deployment,
+    staged: &Path,
+    review_manifest_revision: Option<u64>,
+    review_config_revision: &Content,
+) -> Result<(), String> {
+    let (bytes, revision) = read_ini_bytes(staged)?;
+    let Content::Present { sha256, size } = revision else {
+        return Err("the preset disappeared from staging".to_string());
+    };
+    store.put_bytes(&bytes)?;
+    let source = preset_of(&preset).expect("an INI deployment");
+    preset_assignments_from_bytes(&source.source_entry, &bytes)?;
+    let config = PathBuf::from(&source.config_path);
+    if let DeploymentBody::Ini { preset: p } = &mut preset.body {
+        p.source_sha256 = sha256;
+        p.source_size = size;
+    }
+    let manifest = store.load_manifest()?;
+    if manifest.deployments.iter().any(|d| d.id == preset.id) {
+        return Ok(());
+    }
+    if Some(manifest.revision) != review_manifest_revision {
+        return Err(
+            "Managed resources changed after this review. Review the destinations again".into(),
+        );
+    }
+    if live_content(&config)? != *review_config_revision {
+        return Err("Engine.ini changed after this review. Review its settings again".into());
+    }
+    let game_id = preset.game_id.clone();
+    let previous = same_project(&manifest, &preset).cloned();
+    if let Some(old) = previous.as_ref().filter(|old| !old.enabled) {
+        // An update of a disabled preset must not activate it.
+        preset.enabled = false;
+        return store.apply(&game_id, Vec::new(), |m| {
+            m.deployments.retain(|d| d.id != old.id);
+            upsert(m, preset);
+        });
+    }
+    apply_preset(store, &game_id, &manifest, preset, previous.map(|p| p.id))
 }
 
 fn preset_of(d: &Deployment) -> Option<&IniPreset> {
@@ -1749,8 +1792,11 @@ fn apply_preset(
     let p = preset_of(&preset).expect("an INI deployment").clone();
     let path = PathBuf::from(&p.config_path);
     let (_original, decoded, original_revision) = read_config(&path)?;
+    if p.source_size > MAX_INI_BYTES {
+        return Err("Engine.ini exceeds the 1 MiB configuration limit".into());
+    }
     let source = store.read_object(&p.source_sha256, p.source_size)?;
-    let assignments = ini::scalar_assignments(&ini::decode(&source)?.text)?;
+    let assignments = preset_assignments_from_bytes(&p.source_entry, &source)?;
     let mut text = decoded.text.clone();
     let mut switched_off = Vec::new();
     for d in manifest
@@ -2239,3 +2285,7 @@ fn installed_rows_for(
 #[cfg(test)]
 #[path = "resources_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "resources_mp4_tests.rs"]
+mod mp4_tests;

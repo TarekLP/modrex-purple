@@ -537,6 +537,10 @@ impl ResourceStore {
     /// Copies a file into the object store and returns what it held. The copy is hashed while
     /// it is written and checked again from disk, so a short read cannot become a recovery copy.
     pub(crate) fn capture(&self, path: &Path) -> Result<Content, String> {
+        self.capture_bounded(path, u64::MAX)
+    }
+
+    pub(crate) fn capture_bounded(&self, path: &Path, byte_limit: u64) -> Result<Content, String> {
         self.initialize()?;
         let mut src = match File::open(path) {
             Ok(f) => f,
@@ -553,6 +557,12 @@ impl ResourceStore {
                     .map_err(|e| format!("could not read {}: {e}", path.display()))?;
                 if n == 0 {
                     break;
+                }
+                if n as u64 > byte_limit - size {
+                    return Err(format!(
+                        "{} exceeds the {byte_limit} byte resource limit",
+                        path.display()
+                    ));
                 }
                 size += n as u64;
                 hasher.update(&buf[..n]);
@@ -652,12 +662,16 @@ impl ResourceStore {
     }
 
     pub(crate) fn read_object(&self, sha256: &str, size: u64) -> Result<Vec<u8>, String> {
-        let bytes = fs::read(self.object_path(sha256)).map_err(|_| {
+        let file = File::open(self.object_path(sha256)).map_err(|_| {
             format!(
                 "recovery copy {} is missing",
                 &sha256[..sha256.len().min(12)]
             )
         })?;
+        let mut bytes = Vec::new();
+        file.take(size.saturating_add(1))
+            .read_to_end(&mut bytes)
+            .map_err(|error| format!("could not read recovery copy: {error}"))?;
         if bytes.len() as u64 != size || sha256_hex(&bytes) != sha256 {
             return Err(format!(
                 "recovery copy {} is damaged",

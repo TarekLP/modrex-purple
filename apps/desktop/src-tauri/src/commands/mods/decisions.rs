@@ -5,6 +5,7 @@
 use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming;
 use super::staged::NameSource;
+use super::types::InstalledMod;
 use super::unit_filename;
 use std::path::Path;
 
@@ -93,10 +94,6 @@ pub fn install_filename_for_source_file(
     }
 }
 
-/// Filename for a dropped archive, whose directory fallback is the stem recovered from the
-/// drop rather than the staged directory's own name.
-/// The name staging gave the file, when the target keeps archive filenames and staging took
-/// that name from an archive.
 fn staged_file_name(target: &ScanTarget, tmp: &Path, name_source: NameSource) -> Option<String> {
     if !target.keeps_archive_filename() || name_source != NameSource::FromArchive {
         return None;
@@ -104,16 +101,135 @@ fn staged_file_name(target: &ScanTarget, tmp: &Path, name_source: NameSource) ->
     tmp.file_name().and_then(|s| s.to_str()).map(str::to_string)
 }
 
+/// Filename for a dropped archive, whose directory fallback is the stem recovered from the
+/// drop rather than the staged directory's own name.
 pub fn install_filename_for_dropped(
     cfg: &ModEngineConfig,
     target: &ScanTarget,
     display_stem: &str,
 ) -> String {
     match &target.unit {
+        ModUnit::File { extension, .. } if target.keeps_archive_filename() => {
+            if display_stem
+                .to_ascii_lowercase()
+                .ends_with(&format!(".{extension}"))
+            {
+                return display_stem.to_string();
+            }
+            format!("{display_stem}.{extension}")
+        }
         ModUnit::File { extension, .. } => unit_filename(display_stem, extension),
         ModUnit::Directory { .. } if is_crimeboss(cfg) => naming::mod_folder_name(display_stem),
         ModUnit::Directory { .. } => display_stem.to_string(),
     }
+}
+
+pub fn dropped_uid(target: &ScanTarget, filename: &str) -> String {
+    if target.native_steam_app.is_some() {
+        return filename.to_string();
+    }
+    naming::strip_priority_prefix(filename).to_string()
+}
+
+pub fn archive_entry_identity(
+    target: &ScanTarget,
+    mod_id: i64,
+    file_id: i64,
+    entry_name: &str,
+    entry_stem: &str,
+    filename: &str,
+) -> InstalledMod {
+    if target.native_steam_app.is_some() && mod_id <= 0 {
+        return InstalledMod {
+            uid: format!("local:{file_id}:entry:{}", entry_name.replace('\\', "/")),
+            id: naming::hash_filename(filename),
+            source: "local".into(),
+            update_status: super::types::UpdateStatus::Unknown,
+            ..InstalledMod::default()
+        };
+    }
+    InstalledMod {
+        uid: format!("{file_id}_{entry_stem}"),
+        file_id: Some(file_id),
+        ..InstalledMod::from_catalog(
+            "modworkshop",
+            mod_id.to_string(),
+            super::identity::IdentityEvidence::InstallProvenance,
+        )
+    }
+}
+
+pub fn loose_published_filename(target: &ScanTarget, name: &str) -> Result<String, String> {
+    let ModUnit::File { extension, .. } = &target.unit else {
+        return Err("A published package filename requires a file target".to_string());
+    };
+    if name.contains(['/', '\\'])
+        || !name
+            .to_ascii_lowercase()
+            .ends_with(&format!(".{extension}"))
+    {
+        return Err(format!(
+            "The published filename '{name}' is not a .{extension} package filename"
+        ));
+    }
+    Ok(name.to_string())
+}
+
+pub fn shared_nexus_update<'a>(
+    mods: &'a [InstalledMod],
+    mod_id: u32,
+    file_id: i64,
+    filename: &str,
+    member: Option<&str>,
+    location: Option<&str>,
+    filename_is_unique: bool,
+) -> Result<Option<&'a InstalledMod>, String> {
+    let remote_id = mod_id.to_string();
+    let prior: Vec<_> = mods
+        .iter()
+        .filter(|record| {
+            record.source == "nexus"
+                && record.deployment.is_none()
+                && record.remote_id.as_deref() == Some(&remote_id)
+                && record.location.as_deref() == location
+        })
+        .collect();
+    let member_suffix = member.map(|name| format!("entry:{}", name.replace('\\', "/")));
+    let exact: Vec<_> = prior
+        .iter()
+        .copied()
+        .filter(|record| {
+            member_suffix
+                .as_deref()
+                .is_some_and(|suffix| record.uid.splitn(4, ':').nth(3) == Some(suffix))
+        })
+        .collect();
+    if exact.len() > 1 {
+        return Err("More than one installed Nexus package matches this archive member. Review the installed variants before updating.".into());
+    }
+    if let Some(record) = exact.first() {
+        return Ok(Some(*record));
+    }
+    let has_previous_file = prior.iter().any(|record| record.file_id != Some(file_id));
+    let by_filename: Vec<_> = prior
+        .into_iter()
+        .filter(|record| {
+            record.filename == filename
+                && (member.is_none()
+                    || !record
+                        .uid
+                        .splitn(4, ':')
+                        .nth(3)
+                        .is_some_and(|suffix| suffix.starts_with("entry:")))
+        })
+        .collect();
+    if by_filename.len() > 1 || (!by_filename.is_empty() && !filename_is_unique) {
+        return Err("This filename matches more than one Nexus variant. Review the installed variants before updating.".into());
+    }
+    if by_filename.is_empty() && has_previous_file {
+        return Err("This package does not match the installed Nexus variant. Review and remove the previous variant before installing a changed package. Nothing was replaced.".into());
+    }
+    Ok(by_filename.into_iter().next())
 }
 
 /// Filename for one entry picked out of a multi-entry archive. The unit kind does not enter

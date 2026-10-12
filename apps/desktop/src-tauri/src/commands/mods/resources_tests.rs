@@ -1,6 +1,263 @@
 use super::*;
 use std::fs;
 
+#[test]
+fn changed_staged_ini_sources_cannot_replace_disabled_presets() {
+    for (changed, expected) in [
+        (b"".as_slice(), "sets nothing"),
+        (b"[S]\n+A=2\n".as_slice(), "array operator"),
+        (b"\xEF\xBB\xBF\xFF".as_slice(), "UTF-8"),
+        (b"[S]\r\nA=2\n".as_slice(), "mixes line endings"),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let store = ResourceStore::at(temp.path().join("recovery"));
+        let config = temp.path().canonicalize().unwrap().join("Engine.ini");
+        let original = b"[S]\nA=0\n";
+        fs::write(&config, original).unwrap();
+        let mut previous = preset(&store, &config, b"[S]\nA=1\n");
+        previous.game_id = "ron".into();
+        previous.source = Some("nexus".into());
+        previous.remote_id = Some("6849".into());
+        previous.enabled = false;
+        store
+            .apply("ron", vec![], |m| m.deployments.push(previous.clone()))
+            .unwrap();
+        let manifest = store.load_manifest().unwrap();
+        let before = serde_json::to_vec(&manifest).unwrap();
+        let mut incoming = previous;
+        incoming.id = "update".into();
+        incoming.version = "2".into();
+        let staged = temp.path().join("staged.ini");
+        fs::write(&staged, b"[S]\nA=2\n").unwrap();
+        assert!(preset_assignments("Engine.ini", &staged).is_ok());
+        fs::write(&staged, changed).unwrap();
+        let error = install_preset_from_staging(
+            &store,
+            incoming,
+            &staged,
+            Some(manifest.revision),
+            &live_content(&config).unwrap(),
+        )
+        .unwrap_err();
+        assert!(error.contains(expected), "{error}");
+        assert_eq!(fs::read(&config).unwrap(), original);
+        assert_eq!(
+            serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+            before
+        );
+    }
+}
+
+#[test]
+fn a_valid_disabled_preset_update_preserves_the_disabled_state_and_live_config() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let config = temp.path().canonicalize().unwrap().join("Engine.ini");
+    let original = b"[S]\nA=0\n";
+    fs::write(&config, original).unwrap();
+    let mut previous = preset(&store, &config, b"[S]\nA=1\n");
+    previous.game_id = "ron".into();
+    previous.source = Some("nexus".into());
+    previous.remote_id = Some("6849".into());
+    previous.enabled = false;
+    store
+        .apply("ron", vec![], |m| m.deployments.push(previous.clone()))
+        .unwrap();
+    let manifest = store.load_manifest().unwrap();
+    let mut incoming = previous;
+    incoming.id = "update".into();
+    incoming.version = "2".into();
+    let staged = temp.path().join("staged.ini");
+    let source = b"[S]\nA=2\n";
+    fs::write(&staged, source).unwrap();
+    install_preset_from_staging(
+        &store,
+        incoming,
+        &staged,
+        Some(manifest.revision),
+        &live_content(&config).unwrap(),
+    )
+    .unwrap();
+    let manifest = store.load_manifest().unwrap();
+    assert_eq!(manifest.deployments.len(), 1);
+    let updated = &manifest.deployments[0];
+    assert_eq!(updated.id, "update");
+    assert_eq!(updated.version, "2");
+    assert!(!updated.enabled);
+    let body = preset_of(updated).unwrap();
+    assert_eq!(body.source_sha256, sha256_hex(source));
+    assert_eq!(
+        store
+            .read_object(&body.source_sha256, body.source_size)
+            .unwrap(),
+        source
+    );
+    assert_eq!(fs::read(&config).unwrap(), original);
+}
+
+#[test]
+fn an_oversized_staged_preset_is_rejected_before_creating_a_recovery_copy() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let config = temp.path().canonicalize().unwrap().join("Engine.ini");
+    let original = b"[S]\nA=0\n";
+    fs::write(&config, original).unwrap();
+    let mut previous = preset(&store, &config, b"[S]\nA=1\n");
+    previous.enabled = false;
+    store
+        .apply("pd3", vec![], |m| m.deployments.push(previous.clone()))
+        .unwrap();
+    let manifest = store.load_manifest().unwrap();
+    let before = serde_json::to_vec(&manifest).unwrap();
+    let object_count = fs::read_dir(store.object_path("")).unwrap().count();
+    let mut incoming = previous;
+    incoming.id = "update".into();
+    let staged = temp.path().join("staged.ini");
+    fs::write(&staged, b"[S]\nA=2\n").unwrap();
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&staged)
+        .unwrap()
+        .set_len(MAX_INI_BYTES + 1)
+        .unwrap();
+    let error = install_preset_from_staging(
+        &store,
+        incoming,
+        &staged,
+        Some(manifest.revision),
+        &live_content(&config).unwrap(),
+    )
+    .unwrap_err();
+    assert!(error.contains("1 MiB"));
+    assert_eq!(
+        fs::read_dir(store.object_path("")).unwrap().count(),
+        object_count
+    );
+    assert_eq!(fs::read(&config).unwrap(), original);
+    assert_eq!(
+        serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+        before
+    );
+}
+
+#[test]
+fn stored_ini_sources_keep_the_same_admission_rules_when_enabled() {
+    for (source, source_entry, expected) in [
+        (
+            b"[S]\r\nA=1\n".as_slice(),
+            "Engine.ini",
+            "mixes line endings",
+        ),
+        (b"[S]\nA=1\n".as_slice(), "Input.ini", "only Engine.ini"),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let store = ResourceStore::at(temp.path().join("recovery"));
+        let config = temp.path().canonicalize().unwrap().join("Engine.ini");
+        let original = b"[S]\nA=0\n";
+        fs::write(&config, original).unwrap();
+        let mut deployment = preset(&store, &config, source);
+        deployment.enabled = false;
+        let DeploymentBody::Ini { preset } = &mut deployment.body else {
+            unreachable!()
+        };
+        preset.source_entry = source_entry.into();
+        let manifest = store.load_manifest().unwrap();
+        let before = serde_json::to_vec(&manifest).unwrap();
+        let error = apply_preset(&store, "pd3", &manifest, deployment, None).unwrap_err();
+        assert!(error.contains(expected), "{error}");
+        assert_eq!(fs::read(&config).unwrap(), original);
+        assert_eq!(
+            serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+            before
+        );
+    }
+}
+
+#[test]
+fn ready_or_not_scalar_presets_preserve_repeated_paths_and_existing_manual_settings() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    let original = b"[Core.System]\r\nPaths=../../../Engine/Content\r\nPaths=%GAMEDIR%Content\r\n[SystemSettings]\r\nr.MotionBlurQuality=1\r\nr.Tonemapper.Sharpen=0.5\r\n";
+    fs::write(&path, original).unwrap();
+    let mut deployment = preset(
+        &store,
+        &path,
+        b"[SystemSettings]\nr.MotionBlurQuality=0\nr.Tonemapper.Sharpen=0.5\n",
+    );
+    deployment.game_id = "ron".into();
+    deployment.source = Some("local".into());
+    deployment.remote_id = None;
+    deployment.file_id = None;
+    apply_preset(
+        &store,
+        "ron",
+        &store.load_manifest().unwrap(),
+        deployment,
+        None,
+    )
+    .unwrap();
+    let manifest = store.load_manifest().unwrap();
+    let deployment = &manifest.deployments[0];
+    assert_eq!(preset_of(deployment).unwrap().changes.len(), 1);
+    let expected = String::from_utf8(original.to_vec())
+        .unwrap()
+        .replace("r.MotionBlurQuality=1", "r.MotionBlurQuality=0");
+    assert_eq!(fs::read(&path).unwrap(), expected.as_bytes());
+    fs::write(&path, format!("{expected}r.Anisotropy=8\r\n")).unwrap();
+    release_preset(&store, "ron", deployment, true).unwrap();
+    let mut restored = original.to_vec();
+    restored.extend_from_slice(b"r.Anisotropy=8\r\n");
+    assert_eq!(fs::read(&path).unwrap(), restored);
+    assert!(store.load_manifest().unwrap().deployments.is_empty());
+}
+
+#[test]
+fn a_read_only_ready_or_not_config_refuses_application_without_claiming_the_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ResourceStore::at(temp.path().join("recovery"));
+    let path = temp.path().canonicalize().unwrap().join("Engine.ini");
+    let original = b"[SystemSettings]\r\nr.MotionBlurQuality=1\r\n";
+    fs::write(&path, original).unwrap();
+    let mut deployment = preset(&store, &path, b"[SystemSettings]\nr.MotionBlurQuality=0\n");
+    deployment.game_id = "ron".into();
+    let permissions = fs::metadata(&path).unwrap().permissions();
+    let mut read_only = permissions.clone();
+    read_only.set_readonly(true);
+    fs::set_permissions(&path, read_only).unwrap();
+    let before = serde_json::to_vec(&store.load_manifest().unwrap()).unwrap();
+    let result = apply_preset(
+        &store,
+        "ron",
+        &store.load_manifest().unwrap(),
+        deployment,
+        None,
+    );
+    let preserved = fs::read(&path).unwrap();
+    let still_read_only = fs::metadata(&path).unwrap().permissions().readonly();
+    fs::set_permissions(&path, permissions).unwrap();
+    assert!(result.unwrap_err().contains("read-only"));
+    assert_eq!(preserved, original);
+    assert!(still_read_only);
+    assert_eq!(
+        serde_json::to_vec(&store.load_manifest().unwrap()).unwrap(),
+        before
+    );
+}
+
+#[test]
+fn loose_presets_require_the_author_filename_before_scalar_review() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("download.ini");
+    let bytes = b"[SystemSettings]\nr.MotionBlurQuality=0\n";
+    fs::write(&path, bytes).unwrap();
+    assert!(preset_assignments("Engine.ini", &path).is_ok());
+    for name in ["Input.ini", "Engine-6849-1-0.ini", "GameUserSettings.ini"] {
+        assert!(preset_assignments(name, &path).is_err(), "{name}");
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+    }
+}
+
 #[tokio::test]
 async fn pending_launch_blocks_writers_during_preparation_and_delayed_store_handoff() {
     let locks = ResourceLocks::default();
@@ -229,19 +486,31 @@ fn recovery_opener_does_not_wait_for_or_kill_a_running_file_manager() {
 }
 
 #[test]
+fn movies_in_the_wrong_declared_format_are_rejected_without_staging() {
+    for (game_id, name, extension) in [("pd3", "trailer.mp4", "bk2"), ("ron", "trailer.bk2", "mp4")]
+    {
+        let spec = game_spec(game_id).unwrap();
+        let (kind, verdict) = assess(name, None, &Ok(vec![]), spec.movie_replacement, None);
+        assert!(matches!(kind, ResourceEntryKind::Movie));
+        assert!(verdict.unwrap_err().contains(&format!(".{extension}")));
+    }
+}
+
+#[test]
 fn config_presets_can_be_reviewed_without_movie_support() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("Engine.ini");
     fs::write(&path, b"[S]\nA=1\n").unwrap();
     let config = ConfigPresets::UnrealEngineIni { locations: vec![] };
     let no_movies = Err("Movie replacements are not supported".into());
-    let (kind, verdict) = assess("Engine.ini", Some(&path), &no_movies, Some(&config));
+    let (kind, verdict) = assess("Engine.ini", Some(&path), &no_movies, None, Some(&config));
     assert!(matches!(kind, ResourceEntryKind::Ini));
     assert!(verdict.is_ok());
     assert!(assess(
         "Engine.ini",
         Some(&path),
         &Ok(vec!["Intro.bk2".into()]),
+        None,
         None
     )
     .1
@@ -407,10 +676,22 @@ fn matching_preexisting_movie_is_not_adopted_and_never_becomes_a_baseline() {
     let temp = tempfile::tempdir().unwrap();
     let store = ResourceStore::at(temp.path().join("recovery"));
     let path = temp.path().join("Intro.bk2");
-    fs::write(&path, b"existing manual replacement").unwrap();
-    let Content::Present { sha256, size } =
-        store.put_bytes(b"existing manual replacement").unwrap()
-    else {
+    let mut payload = vec![0u8; 64];
+    payload[..4].copy_from_slice(b"KB2i");
+    for (offset, value) in [
+        (4, 56u32),
+        (8, 1),
+        (12, 16),
+        (20, 1280),
+        (24, 720),
+        (28, 30),
+        (32, 1),
+        (48, 52),
+    ] {
+        payload[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    fs::write(&path, &payload).unwrap();
+    let Content::Present { sha256, size } = store.put_bytes(&payload).unwrap() else {
         unreachable!()
     };
     let mut deployment = preset(&store, &path, b"[S]\nA=1\n");
@@ -439,7 +720,7 @@ fn matching_preexisting_movie_is_not_adopted_and_never_becomes_a_baseline() {
     let manifest = store.load_manifest().unwrap();
     assert!(manifest.deployments.is_empty());
     assert!(manifest.movie_baselines.is_empty());
-    assert_eq!(fs::read(&path).unwrap(), b"existing manual replacement");
+    assert_eq!(fs::read(&path).unwrap(), payload);
 }
 
 #[test]
@@ -577,6 +858,7 @@ fn review_from(source: Option<&str>, picker: Option<ZipMultiPakPayload>) -> Revi
 
 fn picker() -> ZipMultiPakPayload {
     ZipMultiPakPayload {
+        shared_paks: false,
         archive_handle: "grant".into(),
         entries: vec!["Skip_P.pak".into()],
         entry_ids: Vec::new(),

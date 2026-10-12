@@ -142,7 +142,7 @@ fn list_unit_entries_indexed(path: &Path, extension: &str) -> Result<Vec<(u32, S
     Ok(list_entries(path)?
         .into_iter()
         .enumerate()
-        .filter(|(_, e)| !e.is_dir && e.name.ends_with(&suffix))
+        .filter(|(_, e)| !e.is_dir && e.name.to_ascii_lowercase().ends_with(&suffix))
         .map(|(i, e)| (i as u32, e.name))
         .collect())
 }
@@ -151,7 +151,7 @@ pub fn list_unit_entries(path: &Path, extension: &str) -> Result<Vec<String>, St
     let suffix = format!(".{extension}");
     Ok(list_entries(path)?
         .into_iter()
-        .filter(|e| !e.is_dir && e.name.ends_with(&suffix))
+        .filter(|e| !e.is_dir && e.name.to_ascii_lowercase().ends_with(&suffix))
         .map(|e| e.name)
         .collect())
 }
@@ -794,6 +794,10 @@ pub(crate) fn classify_archive_dirs(
 /// are attacker-controlled, so directory extractors must route writes through this (Zip-Slip).
 pub(crate) fn safe_dest(dest: &Path, relative: &str) -> Option<PathBuf> {
     use std::path::Component;
+    // Unix path parsing treats Windows drive prefixes as ordinary names.
+    if matches!(relative.as_bytes(), [drive, b':', ..] if drive.is_ascii_alphabetic()) {
+        return None;
+    }
     for comp in Path::new(relative).components() {
         match comp {
             Component::Normal(_) | Component::CurDir => {}
@@ -1206,6 +1210,8 @@ pub struct ZipMultiPakPayload {
     /// each other; these cannot.
     pub entry_ids: Vec<ArchiveEntryId>,
     pub target_tag: Option<String>,
+    #[serde(default)]
+    pub shared_paks: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entry_tags: Option<Vec<Option<String>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1315,6 +1321,7 @@ fn multi_pak_payload(
         entries,
         entry_ids,
         target_tag,
+        shared_paks: false,
         entry_tags,
         entry_kind,
         mod_id: None,
@@ -1369,7 +1376,7 @@ pub enum ResolveError {
 pub struct ResourceArchive {
     /// The downloaded file. A temp artifact the install owns, never a user's dropped original.
     pub downloaded: PathBuf,
-    /// False for a loose .bk2 or .ini download, which is its own only member.
+    /// False for a loose movie or INI download, which is its own only member.
     pub is_archive: bool,
     /// Archive members to review: resources and the components nothing here installs, each
     /// with its position in the archive's enumeration order. None marks a UE4SS sub-mod
@@ -1407,7 +1414,9 @@ fn detect_resource_download(
     if movies.is_none() && config.is_none() {
         if detect_archive(downloaded).is_none()
             && downloaded.extension().is_some_and(|extension| {
-                extension.eq_ignore_ascii_case("bk2") || extension.eq_ignore_ascii_case("ini")
+                extension.eq_ignore_ascii_case("bk2")
+                    || extension.eq_ignore_ascii_case("mp4")
+                    || extension.eq_ignore_ascii_case("ini")
             })
         {
             return Err(ResolveError::Failure(format!(
@@ -1422,18 +1431,24 @@ fn detect_resource_download(
             .extension()
             .and_then(|value| value.to_str())
             .unwrap_or("");
-        if (ext.eq_ignore_ascii_case("bk2") && movies.is_none())
-            || (ext.eq_ignore_ascii_case("ini") && config.is_none())
-        {
+        if ext.eq_ignore_ascii_case("ini") && config.is_none() {
             return Err(ResolveError::Failure(format!(
-                "{} are not supported for {}",
-                if ext.eq_ignore_ascii_case("ini") {
-                    "Standalone INI presets"
-                } else {
-                    "Movie replacements"
-                },
+                "Standalone INI presets are not supported for {}",
                 cfg.game_id
             )));
+        }
+        if (ext.eq_ignore_ascii_case("bk2") || ext.eq_ignore_ascii_case("mp4"))
+            && !movies.is_some_and(|binding| ext.eq_ignore_ascii_case(binding.extension()))
+        {
+            let error = match movies {
+                Some(binding) => format!(
+                    "{} accepts .{} movie replacements",
+                    cfg.game_id,
+                    binding.extension()
+                ),
+                None => format!("Movie replacements are not supported for {}", cfg.game_id),
+            };
+            return Err(ResolveError::Failure(error));
         }
         if downloaded
             .extension()
@@ -1532,14 +1547,16 @@ fn detect_resource_download(
     };
     let mut pak_picker = None;
     if !paks.is_empty() {
-        pak_picker = Some(multi_pak_payload(
+        let mut picker = multi_pak_payload(
             registry,
             downloaded.to_string_lossy().to_string(),
             paks,
             None,
             None,
             None,
-        )?);
+        )?;
+        picker.shared_paks = cfg.primary().native_steam_app.is_some();
+        pak_picker = Some(picker);
     }
     Ok(Some(ResourceArchive {
         downloaded: downloaded.to_path_buf(),
@@ -1655,14 +1672,180 @@ fn decoder_for(cfg: &ModEngineConfig, downloaded: &Path) -> Option<&'static Deco
     })
 }
 
-/// Resolves a downloaded archive into an installable path plus the detected scan-target tag.
-/// Returns (extracted_path, original_archive, location_tag) where location_tag is None
-/// for the primary target and Some(tag) for any secondary target (e.g. "mod_overrides").
+fn inert_pak_document(name: &str) -> bool {
+    let name = entry_file_name(name).to_ascii_lowercase();
+    let (stem, extension) = name.rsplit_once('.').unwrap_or((&name, ""));
+    if !matches!(extension, "" | "txt" | "md") {
+        return false;
+    }
+    matches!(
+        stem,
+        "readme" | "license" | "licence" | "changelog" | "changes" | "credits"
+    ) || (extension.is_empty() && (name.starts_with("created by ") || name.starts_with("discord ")))
+}
+
+#[cfg(windows)]
+fn validate_shared_windows_member_paths(names: &HashSet<String>) -> Result<(), String> {
+    if names.iter().all(|name| name.is_ascii()) {
+        return Ok(());
+    }
+    let mut paths: Vec<_> = names
+        .iter()
+        .map(|name| (name.encode_utf16().collect::<Vec<_>>(), name))
+        .collect();
+    crate::commands::launchers::steam_manifest::sort_windows_paths(&mut paths)?;
+    for pair in paths.windows(2) {
+        if crate::commands::launchers::steam_manifest::windows_path_order(&pair[0].0, &pair[1].0)?
+            == std::cmp::Ordering::Equal
+        {
+            return Err(format!(
+                "This archive contains duplicate package paths ('{}') under Windows ordinal casing. Nothing was installed. Ask the author for an archive with distinct file paths.",
+                pair[1].1
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_shared_pak_download(downloaded: &Path, cfg: &ModEngineConfig) -> Result<(), String> {
+    let ModUnit::File { extension, .. } = &cfg.primary().unit else {
+        return Err("Shared Pak targets must install file units".to_string());
+    };
+    let spec = crate::commands::games::game_spec(cfg.game_id)
+        .ok_or_else(|| format!("unknown game id '{}'", cfg.game_id))?;
+    if detect_archive(downloaded).is_none() {
+        if downloaded
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|value| {
+                value.eq_ignore_ascii_case(extension)
+                    || spec
+                        .movie_replacement
+                        .is_some_and(|binding| value.eq_ignore_ascii_case(binding.extension()))
+                    || (spec.config_presets.is_some() && value.eq_ignore_ascii_case("ini"))
+            })
+        {
+            return Ok(());
+        }
+        return Err("This game does not support this file as a package, movie replacement or Engine.ini preset. Install this file using its author's instructions.".into());
+    }
+    let entries = list_entries(downloaded)?;
+    let mut member_names = HashSet::new();
+    for entry in &entries {
+        let relative = safe_dest(Path::new(""), &entry.name).ok_or_else(|| {
+            format!(
+                "This package contains unsafe path '{}'. Nothing was installed. Ask the author for an archive with safe relative paths.",
+                entry.name
+            )
+        })?;
+        let normalized: PathBuf = relative
+            .components()
+            .filter(|component| matches!(component, std::path::Component::Normal(_)))
+            .collect();
+        if !entry.is_dir && !member_names.insert(normalized.to_string_lossy().to_ascii_lowercase())
+        {
+            return Err(format!(
+                "This archive contains duplicate package paths ('{}'). Nothing was installed. Ask the author for an archive with distinct file paths.",
+                entry.name
+            ));
+        }
+        if entry
+            .name
+            .split('/')
+            .any(|part| part.eq_ignore_ascii_case("mod.io"))
+        {
+            return Err("This archive targets mod.io subscription files, which Modrex does not manage. Nothing was installed. Follow the author's mod.io installation instructions.".into());
+        }
+        if entry.is_dir {
+            continue;
+        }
+        let filename = entry_file_name(&entry.name);
+        let member_extension = Path::new(filename)
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("");
+        if member_extension.eq_ignore_ascii_case(extension)
+            || spec
+                .movie_replacement
+                .is_some_and(|binding| member_extension.eq_ignore_ascii_case(binding.extension()))
+            || spec
+                .config_presets
+                .is_some_and(|binding| filename.eq_ignore_ascii_case(binding.filename()))
+            || inert_pak_document(&entry.name)
+        {
+            continue;
+        }
+        return Err(format!(
+            "This package contains unsupported file '{}'. Nothing was installed. Only supported packages, declared movie replacements, Engine.ini presets and author documentation can be installed. Follow this package author's instructions.",
+            entry.name
+        ));
+    }
+    #[cfg(windows)]
+    validate_shared_windows_member_paths(&member_names)?;
+    Ok(())
+}
+
+pub(crate) fn require_nexus_pak_archive(downloaded: &Path) -> Result<(), String> {
+    if detect_archive(downloaded).is_some() {
+        return Ok(());
+    }
+    Err("Nexus Pak installs for this game require an archive that preserves the author's filenames. For a loose Pak, follow the author's rename instructions and drop the correctly named file into Modrex.".into())
+}
+
+pub(crate) fn shared_pak_update_choice(
+    downloaded: PathBuf,
+    cfg: &ModEngineConfig,
+    registry: &StagingRegistry,
+) -> ResolvedArchive {
+    if let Err(error) = validate_shared_pak_download(&downloaded, cfg) {
+        cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
+        return Err(ResolveError::Failure(error));
+    }
+    if let Some(resources) = detect_resources(&downloaded, cfg, registry)? {
+        return Err(ResolveError::Resources(Box::new(resources)));
+    }
+    let extension = cfg
+        .primary()
+        .content_extension()
+        .expect("Shared Pak targets install file units");
+    let entries = list_unit_entries_indexed(&downloaded, extension)?;
+    if entries.is_empty() {
+        cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
+        return Err(ResolveError::Failure(format!(
+            "This archive contains no .{extension} packages"
+        )));
+    }
+    let staged = entries
+        .into_iter()
+        .map(|(index, display_name)| StagedEntry {
+            source: StagedEntrySource::File { index },
+            display_name,
+        })
+        .collect();
+    let mut picker = multi_pak_payload(
+        registry,
+        downloaded.to_string_lossy().into(),
+        staged,
+        None,
+        None,
+        None,
+    )?;
+    picker.shared_paks = true;
+    Err(prompt_err(InstallPrompt::ZipMultiPak(picker)))
+}
+
+/// Stages a downloaded package or returns a typed install choice.
 pub fn resolve_archive_download(
     downloaded: PathBuf,
     cfg: &ModEngineConfig,
     registry: &StagingRegistry,
 ) -> ResolvedArchive {
+    if cfg.primary().native_steam_app.is_some() {
+        if let Err(error) = validate_shared_pak_download(&downloaded, cfg) {
+            cleanup::run_sync(&CleanupPlan::RemoveOwnedFile(downloaded));
+            return Err(ResolveError::Failure(error));
+        }
+    }
     // Must run before detect_archive: a decoded container is a ZIP by magic bytes and would
     // fall through to the Directory-unit path without this early check.
     if let Some(binding) = decoder_for(cfg, &downloaded) {
@@ -1787,7 +1970,9 @@ pub fn resolve_archive_download(
                             display_name: name,
                         })
                         .collect();
-                    let payload = multi_pak_payload(registry, zip_path, staged, None, None, None)?;
+                    let mut payload =
+                        multi_pak_payload(registry, zip_path, staged, None, None, None)?;
+                    payload.shared_paks = cfg.primary().native_steam_app.is_some();
                     Err(prompt_err(InstallPrompt::ZipMultiPak(payload)))
                 }
             }

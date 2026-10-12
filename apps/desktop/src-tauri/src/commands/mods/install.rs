@@ -4,11 +4,12 @@ use super::host_mods::{host_target_by_id, parse_host_location};
 use super::moves::put_back;
 use super::naming::log_name;
 use super::naming::{apply_priority_prefix, mod_folder_name, sidecar_path, strip_priority_prefix};
+use super::native_files::NativeGuard;
 use super::paths::{
     active_mod_path, disabled_base, disabled_mod_path, host_pack_dir, host_pack_disabled_dir,
     mods_base, resolve_host_mod_dir,
 };
-use super::state::{get_folder_path, read_state, save_error, save_state};
+use super::state::{get_folder_path, read_state, read_state_for_game, save_error, save_state};
 use super::types::{InstalledMod, ModsState};
 use super::ue4ss_modstxt;
 use super::zip::extract_dir_entry;
@@ -54,7 +55,7 @@ pub fn install_host_pack_op(
         .as_deref()
         .and_then(parse_host_location)
         .ok_or("install_host_pack: mod_data.location is not a host location")?;
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let host_dir = resolve_host_mod_dir(game_path, cfg, &state.mods, &state.folders, host_id)
         .ok_or_else(|| {
             let name = host_target_by_id(host_id)
@@ -118,14 +119,8 @@ pub fn install_mod_from_path(
     } else {
         None
     };
-    let state = read_state(state_path).map_err(|e| e.to_string())?;
+    let state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let folder_rel = get_folder_path(&state.folders, folder_id.as_deref());
-
-    let dest_dir = match &folder_rel {
-        Some(rel) => mods_base(game_path, target).join(rel),
-        None => mods_base(game_path, target),
-    };
-    fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
 
     let existing = state.mods.iter().find(|m| m.uid == mod_data.uid).cloned();
 
@@ -152,8 +147,27 @@ pub fn install_mod_from_path(
     } else {
         mod_data.filename.clone()
     };
+    let mod_data = InstalledMod {
+        filename,
+        priority: Some(priority),
+        folder_id,
+        enabled: true,
+        location: (!std::ptr::eq(target, cfg.primary())).then(|| target.tag.to_string()),
+        ..mod_data
+    };
 
-    let dest = active_mod_path(game_path, &filename, folder_rel.as_deref(), target);
+    if target.native_steam_app.is_some() {
+        let native = NativeGuard::load(game_path, cfg)?;
+        return install_shared_pak(
+            game_path, state_path, mod_data, source, cfg, target, state, &native,
+        );
+    }
+    let dest_dir = match &folder_rel {
+        Some(rel) => mods_base(game_path, target).join(rel),
+        None => mods_base(game_path, target),
+    };
+    fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+    let dest = active_mod_path(game_path, &mod_data.filename, folder_rel.as_deref(), target);
     match &target.unit {
         ModUnit::File { extension, .. } => {
             copy_file_with_sidecars(source, &dest, extension, target.companions)?;
@@ -179,8 +193,7 @@ pub fn install_mod_from_path(
         } else {
             disabled_mod_path(game_path, &ex.filename, ex_rel.as_deref(), target)
         };
-        let new_active = active_mod_path(game_path, &filename, folder_rel.as_deref(), target);
-        if old != new_active && old.exists() {
+        if old != dest && old.exists() {
             match &target.unit {
                 ModUnit::File { extension, .. } => {
                     if let Err(e) = remove_file_with_sidecars(&old, extension, target.companions) {
@@ -204,20 +217,14 @@ pub fn install_mod_from_path(
         })
         .collect();
 
-    let location = (!std::ptr::eq(target, cfg.primary())).then(|| target.tag.to_string());
     log::info!(
         "install: {} ({}) -> {} [{}]",
         mod_data.name,
         mod_data.uid,
         target.tag,
-        filename
+        mod_data.filename
     );
     new_mods.push(InstalledMod {
-        filename,
-        priority: Some(priority),
-        folder_id,
-        enabled: true,
-        location,
         installed_at: Utc::now().to_rfc3339(),
         ..mod_data
     });
@@ -231,6 +238,89 @@ pub fn install_mod_from_path(
     )
     .map_err(save_error)?;
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn install_shared_pak(
+    game_path: &str,
+    state_path: &Path,
+    mut mod_data: InstalledMod,
+    source: &Path,
+    cfg: &ModEngineConfig,
+    target: &ScanTarget,
+    mut state: ModsState,
+    native: &NativeGuard,
+) -> Result<(), String> {
+    let existing = state.mods.iter().find(|entry| entry.uid == mod_data.uid);
+    mod_data.enabled = existing.is_none_or(|entry| entry.enabled);
+    let folder = get_folder_path(&state.folders, mod_data.folder_id.as_deref());
+    let active = active_mod_path(game_path, &mod_data.filename, folder.as_deref(), target);
+    native.check_file(&active)?;
+    let disabled = disabled_mod_path(game_path, &mod_data.filename, folder.as_deref(), target);
+    let dest = if mod_data.enabled { &active } else { &disabled };
+    let old = existing
+        .map(|entry| {
+            let folder = get_folder_path(&state.folders, entry.folder_id.as_deref());
+            let target = cfg.target_for(entry.location.as_deref());
+            let active = active_mod_path(game_path, &entry.filename, folder.as_deref(), target);
+            native.check_file(&active)?;
+            let disabled = disabled_mod_path(game_path, &entry.filename, folder.as_deref(), target);
+            let (old, counterpart) = if entry.enabled {
+                (active, disabled)
+            } else {
+                (disabled, active)
+            };
+            if counterpart
+                .try_exists()
+                .map_err(|error| format!("Could not inspect the existing mod: {error}"))?
+            {
+                return Err(format!("{} has a conflicting active or disabled copy. Refresh the installed list and remove or move that copy before installing this file.", log_name(&counterpart)));
+            }
+            Ok(old)
+        })
+        .transpose()?;
+    for entry in &state.mods {
+        if entry.uid == mod_data.uid {
+            continue;
+        }
+        let folder = get_folder_path(&state.folders, entry.folder_id.as_deref());
+        let path = active_mod_path(
+            game_path,
+            &entry.filename,
+            folder.as_deref(),
+            cfg.target_for(entry.location.as_deref()),
+        );
+        if path
+            .to_string_lossy()
+            .eq_ignore_ascii_case(&active.to_string_lossy())
+        {
+            return Err(format!(
+                "{} is already used by another installed mod",
+                log_name(&active)
+            ));
+        }
+    }
+    for path in [&active, &disabled] {
+        if path
+            .try_exists()
+            .map_err(|error| format!("Could not inspect the mod destination: {error}"))?
+            && old.as_deref() != Some(path.as_path())
+        {
+            return Err(format!("{} already exists. Refresh the installed list and remove or move that mod before installing this file.", log_name(path)));
+        }
+    }
+    state.mods.retain(|entry| entry.uid != mod_data.uid);
+    mod_data.installed_at = Utc::now().to_rfc3339();
+    state.mods.push(mod_data);
+    super::file_transaction::replace_family(
+        Some(source),
+        dest,
+        old.as_deref(),
+        target,
+        native,
+        state_path,
+        &state,
+    )
 }
 
 // SuperBLT deletes a mod's folder on update, so nothing in it has to survive one.
@@ -260,7 +350,7 @@ pub fn move_crimeboss_mod_target_op(
     cfg: &ModEngineConfig,
     launcher: Option<&str>,
 ) -> Result<(), String> {
-    let state = read_state(state_path).map_err(|e| e.to_string())?;
+    let state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let m = state
         .mods
         .iter()
@@ -386,7 +476,7 @@ pub fn uninstall_mod_op(
     if is_loader_uid(uid) {
         return Err(loader_refusal(uid));
     }
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let Some(m) = state.mods.iter().find(|m| m.uid == uid).cloned() else {
         return Ok(());
     };
@@ -417,6 +507,19 @@ pub fn uninstall_mod_op(
     } else {
         disabled_mod_path(game_path, &m.filename, rel.as_deref(), target)
     };
+    if target.native_steam_app.is_some() {
+        let native = super::native_files::NativeGuard::load(game_path, cfg)?;
+        native.check_file(&active_mod_path(
+            game_path,
+            &m.filename,
+            rel.as_deref(),
+            target,
+        ))?;
+        state.mods.retain(|entry| entry.uid != uid);
+        return super::file_transaction::replace_family(
+            None, &path, None, target, &native, state_path, &state,
+        );
+    }
     if path.exists() {
         match &target.unit {
             ModUnit::File { extension, .. } => {
@@ -520,7 +623,7 @@ fn set_activation(
     if is_loader_uid(uid) {
         return Err(loader_refusal(uid));
     }
-    let mut state = read_state(state_path).map_err(|e| e.to_string())?;
+    let mut state = read_state_for_game(game_path, state_path, cfg).map_err(|e| e.to_string())?;
     let Some(m) = state
         .mods
         .iter()
@@ -547,6 +650,41 @@ fn set_activation(
     let rel = get_folder_path(&state.folders, m.folder_id.as_deref());
     let active = active_mod_path(game_path, &m.filename, rel.as_deref(), target);
     let disabled = disabled_mod_path(game_path, &m.filename, rel.as_deref(), target);
+    if target.native_steam_app.is_some() {
+        let native = super::native_files::NativeGuard::load(game_path, cfg)?;
+        native.check_file(&active)?;
+        native.check_file(&disabled)?;
+        let placement = observe_placement(&active, &disabled, target);
+        if placement == Placement::Both || placement == Placement::Missing {
+            return Err(format!(
+                "{} must have exactly one installed copy before it can be enabled or disabled",
+                m.name
+            ));
+        }
+        let (from, to) = if enable {
+            (&disabled, &active)
+        } else {
+            (&active, &disabled)
+        };
+        let needs_move = placement != wanted_placement(enable);
+        if needs_move {
+            let parent = to.parent().expect("the mod path has a target directory");
+            native.check_path(parent)?;
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("Could not prepare the mod folder: {error}"))?;
+        }
+        let mut moves = super::moves::Moves::with_native_guard(native);
+        if needs_move {
+            moves.unit(target, from.clone(), to.clone());
+        }
+        state
+            .mods
+            .iter_mut()
+            .find(|entry| entry.uid == uid)
+            .expect("the mod was found above")
+            .enabled = enable;
+        return moves.run()?.save(state_path, &state);
+    }
     let (from, to) = if enable {
         (&disabled, &active)
     } else {

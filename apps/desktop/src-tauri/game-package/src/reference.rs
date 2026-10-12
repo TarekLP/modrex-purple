@@ -216,6 +216,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | Provider | Fields |\n| --- | --- |\n",
     );
     out.push_str(&storefront_rows());
+    out.push_str("\n`steam_windows_no_mods_argument` is an optional single verified Windows Steam flag for launching without Pak mods. It preserves user launch options and never hides the shared native Paks directory.\n");
 
     out.push_str(
         "\n## `loaders`\n\n\
@@ -283,14 +284,20 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
         "bink",
         "`directory`, `storefronts`, optional `absent_slots`",
     ));
+    out.push_str(&row(
+        "mp4",
+        "`directory`, `storefronts`, optional `absent_slots`",
+    ));
     out.push_str(
         "\n`directory` is a list of relative components below the selected install. This mechanism\n\
-         accepts `.bk2` movies. `storefronts` lists supported stores from `install.stores`.\n\
+         accepts `.bk2` for Bink or `.mp4` for MP4. MP4 payloads require one H.264 video\n\
+         track and at most one AAC LC audio track. `storefronts` lists supported stores\n\
+         from `install.stores`.\n\
          A manual installation with no recognised store offers only slots found on disk.\n\n\
          Each `absent_slots` entry names a supported `store` and its verified `filenames`.\n\
          These slots may be offered even when the files are absent, so declare them only\n\
          after verifying published replacement instructions for that store. Filenames must\n\
-         be single `.bk2` names and unique ignoring ASCII case.\n",
+         be single names with the declared movie extension and unique ignoring ASCII case.\n",
     );
     out.push_str(
         "\n## `config_presets`\n\n\
@@ -331,6 +338,7 @@ pub fn markdown(examples: &[(&str, &str)]) -> String {
          | `tag` | yes | stable id, stored in every installed mod's record. Renaming one is a data migration |\n\
          | `label` | yes | which folder name the interface shows |\n\
          | `primary` | no | defaults to `false`; exactly one target must set it |\n\
+         | `scope` | no | `mods` by default. `unreal_paks` shares native game files and requires a complete installed Steam depot catalog before mod changes. It supports archive-named Pak file units without filename ordering and never moves the whole target |\n\
          | `path` | yes | components below the game path |\n\
          | `backup` | yes | where launching without mods moves the contents |\n\
          | `store_paths` | no | `path` and `backup` for a store build laid out differently |\n\
