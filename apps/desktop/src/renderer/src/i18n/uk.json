@@ -284,6 +284,18 @@
         "gridView": "Вигляд сіткою",
         "listView": "Вигляд списком",
         "newFolder": "Нова папка",
+        "tabs": {
+            "label": "! Mod locations",
+            "gameFiles": "! Game files",
+            "openFolder": "! Open {name} folder",
+            "hasProblems": "! Needs attention",
+            "matchesElsewhere": "! No mods here match \"{query}\", but {count} in {tab} do",
+            "matchesElsewhereSingle": "! No mods here match \"{query}\", but {count} in {tab} does",
+            "showTab": "! Show {tab}",
+            "empty": "! Nothing installed in {tab} yet",
+            "alsoIn": "! Also in {tabs}",
+            "loadFailed": "! Could not read this game's mod locations: {error}"
+        },
         "folder": {
             "modCount": "Модів: {count}",
             "modCountSingle": "{count} мод",
@@ -294,6 +306,7 @@
             "newSubfolder": "Нова вкладена папка",
             "delete": "Видалити папку",
             "deleteConfirm": "Видалити папку й перемістити її вміст до батьківської папки?",
+            "deleteMovesOtherTabs": "! Its mods in {tabs} move to the parent too.",
             "dropHere": "Перетягніть моди сюди"
         },
         "fileCount": "Файлів: {count}",
@@ -640,6 +653,8 @@
             "appFolder": "Відкрити папку застосунку",
             "open": "Відкрити {name}",
             "mods": "Моди",
+            "pakMods": "! Pak mods",
+            "loaderMods": "! {name} mods",
             "modkitMods": "Моди ModKit",
             "legacyPaks": "Застарілі pak-файли",
             "overrides": "Перевизначення ресурсів",

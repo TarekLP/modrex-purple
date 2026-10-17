@@ -284,6 +284,18 @@
         "gridView": "网格视图",
         "listView": "列表视图",
         "newFolder": "新建文件夹",
+        "tabs": {
+            "label": "! Mod locations",
+            "gameFiles": "! Game files",
+            "openFolder": "! Open {name} folder",
+            "hasProblems": "! Needs attention",
+            "matchesElsewhere": "! No mods here match \"{query}\", but {count} in {tab} do",
+            "matchesElsewhereSingle": "! No mods here match \"{query}\", but {count} in {tab} does",
+            "showTab": "! Show {tab}",
+            "empty": "! Nothing installed in {tab} yet",
+            "alsoIn": "! Also in {tabs}",
+            "loadFailed": "! Could not read this game's mod locations: {error}"
+        },
         "folder": {
             "modCount": "{count} 个模组",
             "modCountSingle": "{count} 个模组",
@@ -294,6 +306,7 @@
             "newSubfolder": "新建子文件夹",
             "delete": "删除文件夹",
             "deleteConfirm": "删除此文件夹并将其中内容移动到上一级文件夹吗？",
+            "deleteMovesOtherTabs": "! Its mods in {tabs} move to the parent too.",
             "dropHere": "将模组拖放到此处"
         },
         "fileCount": "{count} 个文件",
@@ -640,6 +653,8 @@
             "appFolder": "打开应用文件夹",
             "open": "打开 {name}",
             "mods": "模组",
+            "pakMods": "! Pak mods",
+            "loaderMods": "! {name} mods",
             "modkitMods": "ModKit 模组",
             "legacyPaks": "旧版 pak",
             "overrides": "资源覆盖",

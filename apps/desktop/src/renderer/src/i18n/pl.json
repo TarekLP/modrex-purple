@@ -284,6 +284,18 @@
         "gridView": "Widok siatki",
         "listView": "Widok listy",
         "newFolder": "Nowy folder",
+        "tabs": {
+            "label": "! Mod locations",
+            "gameFiles": "! Game files",
+            "openFolder": "! Open {name} folder",
+            "hasProblems": "! Needs attention",
+            "matchesElsewhere": "! No mods here match \"{query}\", but {count} in {tab} do",
+            "matchesElsewhereSingle": "! No mods here match \"{query}\", but {count} in {tab} does",
+            "showTab": "! Show {tab}",
+            "empty": "! Nothing installed in {tab} yet",
+            "alsoIn": "! Also in {tabs}",
+            "loadFailed": "! Could not read this game's mod locations: {error}"
+        },
         "folder": {
             "modCount": "{count} modów",
             "modCountSingle": "{count} mod",
@@ -294,6 +306,7 @@
             "newSubfolder": "Nowy podfolder",
             "delete": "Usuń folder",
             "deleteConfirm": "Usunąć folder i przenieść jego zawartość do folderu nadrzędnego?",
+            "deleteMovesOtherTabs": "! Its mods in {tabs} move to the parent too.",
             "dropHere": "Przeciągnij mody tutaj"
         },
         "fileCount": "{count} plików",
@@ -640,6 +653,8 @@
             "appFolder": "Otwórz folder aplikacji",
             "open": "Otwórz {name}",
             "mods": "Mody",
+            "pakMods": "! Pak mods",
+            "loaderMods": "! {name} mods",
             "modkitMods": "Mody ModKit",
             "legacyPaks": "Stare pakiety",
             "overrides": "Nadpisania assetów",

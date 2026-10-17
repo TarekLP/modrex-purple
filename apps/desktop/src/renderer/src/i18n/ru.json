@@ -284,6 +284,18 @@
         "gridView": "Вид сеткой",
         "listView": "Вид списком",
         "newFolder": "Новая папка",
+        "tabs": {
+            "label": "! Mod locations",
+            "gameFiles": "! Game files",
+            "openFolder": "! Open {name} folder",
+            "hasProblems": "! Needs attention",
+            "matchesElsewhere": "! No mods here match \"{query}\", but {count} in {tab} do",
+            "matchesElsewhereSingle": "! No mods here match \"{query}\", but {count} in {tab} does",
+            "showTab": "! Show {tab}",
+            "empty": "! Nothing installed in {tab} yet",
+            "alsoIn": "! Also in {tabs}",
+            "loadFailed": "! Could not read this game's mod locations: {error}"
+        },
         "folder": {
             "modCount": "{count} модов",
             "modCountSingle": "{count} мод",
@@ -294,6 +306,7 @@
             "newSubfolder": "Новая подпапка",
             "delete": "Удалить папку",
             "deleteConfirm": "Удалить папку и переместить её содержимое в родительскую папку?",
+            "deleteMovesOtherTabs": "! Its mods in {tabs} move to the parent too.",
             "dropHere": "Перетащите моды сюда"
         },
         "fileCount": "{count} файлов",
@@ -640,6 +653,8 @@
             "appFolder": "Открыть папку приложения",
             "open": "Открыть {name}",
             "mods": "Моды",
+            "pakMods": "! Pak mods",
+            "loaderMods": "! {name} mods",
             "modkitMods": "Моды ModKit",
             "legacyPaks": "Устаревшие паки",
             "overrides": "Замена ассетов",
