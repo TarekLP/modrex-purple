@@ -41,6 +41,7 @@ pub struct StoreLayout {
 pub struct ScanTarget {
     pub tag: &'static str,
     pub label_key: &'static str,
+    pub label_name: Option<&'static str>,
     /// Some when this Unreal target shares a directory with native Steam depot files.
     pub native_steam_app: Option<u32>,
     pub unit: ModUnit,
@@ -131,6 +132,10 @@ pub struct ModEngineConfig {
 impl ModEngineConfig {
     pub fn primary(&self) -> &ScanTarget {
         &self.targets[0]
+    }
+
+    pub fn mod_target(&self, m: &super::types::InstalledMod) -> &ScanTarget {
+        self.target_for(m.location.as_deref())
     }
 
     pub fn target_for(&self, tag: Option<&str>) -> &ScanTarget {

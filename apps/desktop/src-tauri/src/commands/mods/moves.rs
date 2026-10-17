@@ -1,8 +1,9 @@
-use super::engine::{ModUnit, ScanTarget};
+use super::engine::{ModEngineConfig, ModUnit, ScanTarget};
 use super::naming::{log_name, sidecar_path};
-use super::native_files::NativeGuard;
+use super::native_files::{paths_equal, resolve_existing_ancestor, NativeGuard};
+use super::paths::{disabled_base, mods_base};
 use super::state::{save_error, save_state};
-use super::types::ModsState;
+use super::types::{InstalledMod, ModFolder, ModsState};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,6 +16,7 @@ use std::path::{Path, PathBuf};
 #[derive(Default)]
 pub struct Moves {
     units: Vec<Unit>,
+    parents: Vec<PathBuf>,
     native: Option<NativeGuard>,
 }
 
@@ -29,6 +31,7 @@ impl Moves {
     pub(super) fn with_native_guard(native: NativeGuard) -> Self {
         Self {
             units: Vec::new(),
+            parents: Vec::new(),
             native: Some(native),
         }
     }
@@ -59,6 +62,39 @@ impl Moves {
         });
     }
 
+    pub(super) fn folder(
+        &mut self,
+        game_path: &str,
+        targets: &[&ScanTarget],
+        from_rel: &str,
+        to_rel: &str,
+    ) -> Result<(), String> {
+        if from_rel == to_rel {
+            return Ok(());
+        }
+        for base in targets.iter().flat_map(|target| {
+            [
+                mods_base(game_path, target),
+                disabled_base(game_path, target),
+            ]
+        }) {
+            let from = base.join(from_rel);
+            if !exists(&from)? {
+                continue;
+            }
+            let to = base.join(to_rel);
+            let parent = to.parent().expect("an app folder has a parent directory");
+            if let Some(native) = &self.native {
+                native.check_tree(&from)?;
+                native.check_tree(&to)?;
+                native.check_path(parent)?;
+            }
+            self.parents.push(parent.to_path_buf());
+            self.path(from, to);
+        }
+        Ok(())
+    }
+
     /// Checks every destination before touching anything, then renames through a staging
     /// name so a plan may swap two names. The staging name prefixes the whole filename, so
     /// a pak and its companions still share a stem if Modrex dies between the two passes.
@@ -86,27 +122,33 @@ impl Moves {
                 }
             }
         }
-        if let Some(native) = self
+        let paths: Vec<_> = units.iter().flatten().cloned().collect();
+        if self
             .native
             .as_ref()
-            .filter(|native| native.shares_native_files())
+            .is_some_and(NativeGuard::shares_native_files)
         {
-            native.check_move_destinations(&units.iter().flatten().cloned().collect::<Vec<_>>())?;
+            NativeGuard::check_move_destinations(&paths)?;
         } else {
-            let sources: HashSet<&Path> =
-                units.iter().flatten().map(|(a, _)| a.as_path()).collect();
-            let mut destinations = HashSet::new();
-            for (_, to) in units.iter().flatten() {
-                if !destinations.insert(to.as_path()) {
-                    return Err(format!("two files would both be named {}", log_name(to)));
-                }
-                if !sources.contains(to.as_path()) && exists(to)? {
-                    return Err(format!(
-                        "{} is in the way. Move or delete it, then try again.",
-                        log_name(to)
-                    ));
+            check_move_destinations(&paths)?;
+        }
+
+        for (index, files) in units.iter().enumerate() {
+            for (from, _) in files {
+                let staged = staging_path(from, index);
+                if exists(&staged)? {
+                    return Err(format!("{} is in the way", log_name(&staged)));
                 }
             }
+        }
+        for parent in &self.parents {
+            if let Some(native) = &self.native {
+                native.check_path(parent)?;
+            }
+        }
+        for parent in &self.parents {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("Could not prepare the destination: {error}"))?;
         }
 
         let mut done = Vec::new();
@@ -160,6 +202,7 @@ impl Applied {
                     companions: Vec::new(),
                 })
                 .collect(),
+            parents: Vec::new(),
             native: None,
         };
         match inverse.run() {
@@ -169,6 +212,117 @@ impl Applied {
             )),
         }
     }
+}
+
+// Folder target ownership is covered by tracked_directory_collision tests.
+pub(super) fn folder_targets<'a>(
+    cfg: &'a ModEngineConfig,
+    folders: &[ModFolder],
+    mods: &[InstalledMod],
+    folder_id: &str,
+) -> Result<Vec<&'a ScanTarget>, String> {
+    let folder = folders
+        .iter()
+        .find(|folder| folder.id == folder_id)
+        .expect("the operation found the folder before selecting its targets");
+    let mut targets = Vec::new();
+    'targets: for target in cfg.targets {
+        for m in mods.iter().filter(|m| {
+            cfg.mod_target(m).tag == target.tag
+                && m.folder_id == folder.parent_id
+                && !m
+                    .location
+                    .as_deref()
+                    .is_some_and(|tag| tag.starts_with("host:"))
+        }) {
+            if paths_equal(Path::new(&m.filename), Path::new(&folder.disk_name))? {
+                continue 'targets;
+            }
+        }
+        if target.tag == cfg.primary().tag
+            || mods.iter().any(|m| {
+                if cfg.mod_target(m).tag != target.tag {
+                    return false;
+                }
+                let mut current = m.folder_id.as_deref();
+                while let Some(id) = current {
+                    if id == folder_id {
+                        return true;
+                    }
+                    current = folders
+                        .iter()
+                        .find(|folder| folder.id == id)
+                        .and_then(|folder| folder.parent_id.as_deref());
+                }
+                false
+            })
+        {
+            targets.push(target);
+        }
+    }
+    Ok(targets)
+}
+
+fn check_move_destinations(moves: &[(PathBuf, PathBuf)]) -> Result<(), String> {
+    // Windows ordinal Unicode equality is preserved by the identity checker.
+    #[cfg(windows)]
+    if moves.iter().any(|(from, to)| {
+        !from.as_os_str().as_encoded_bytes().is_ascii()
+            || !to.as_os_str().as_encoded_bytes().is_ascii()
+    }) {
+        return NativeGuard::check_move_destinations(moves);
+    }
+    let key = |path: &Path| {
+        #[cfg(windows)]
+        {
+            PathBuf::from(path.as_os_str().to_ascii_lowercase())
+        }
+        #[cfg(not(windows))]
+        {
+            path.to_path_buf()
+        }
+    };
+    let mut sources = HashSet::new();
+    let mut destinations = HashSet::new();
+    for (from, to) in moves {
+        if !sources.insert(key(from)) {
+            return Err("The move contains two references to the same mod file".into());
+        }
+        if !destinations.insert(key(to)) {
+            return Err("Two mod files would have the same destination name".into());
+        }
+    }
+    let mut source_identities = None;
+    for (_, to) in moves {
+        if sources.contains(&key(to)) || !exists(to)? {
+            continue;
+        }
+        let identity = resolve_existing_ancestor(to)?;
+        let identities = match &source_identities {
+            Some(identities) => identities,
+            None => source_identities.insert(
+                moves
+                    .iter()
+                    .map(|(from, _)| resolve_existing_ancestor(from).map(|path| key(&path)))
+                    .collect::<Result<HashSet<_>, String>>()?,
+            ),
+        };
+        #[cfg(windows)]
+        if !identity.as_os_str().as_encoded_bytes().is_ascii()
+            || identities
+                .iter()
+                .any(|path| !path.as_os_str().as_encoded_bytes().is_ascii())
+        {
+            return NativeGuard::check_move_destinations(moves);
+        }
+        if !identities.contains(&key(&identity)) {
+            return Err(format!(
+                "{} is in the way. Move or delete it, then try again.",
+                log_name(to)
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn staging_path(path: &Path, n: usize) -> PathBuf {
