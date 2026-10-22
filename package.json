@@ -13,8 +13,10 @@
         "dist": "bun run --cwd apps/desktop dist",
         "dist:win": "bun run --cwd apps/desktop dist:win",
         "dist:linux": "bun run --cwd apps/desktop dist:linux",
-        "typecheck": "bun run --cwd apps/desktop typecheck && bun run site:typecheck && bun run site:typecheck:functions && bun run index:typecheck && bun run typecheck:bun",
-        "typecheck:bun": "bun check -p apps/desktop/tsconfig.json && bun check -p apps/desktop/tsconfig.i18n.json && bun check -p apps/index/tsconfig.json && bun check -p apps/site/functions/tsconfig.json",
+        "typecheck": "bun run --cwd apps/desktop typecheck && bun run site:typecheck && bun run site:typecheck:functions && bun run index:typecheck && bun run typecheck:functions && bun run typecheck:tools && bun run typecheck:bun",
+        "typecheck:functions": "tsc -p functions/tsconfig.json",
+        "typecheck:tools": "tsc -p tsconfig.tools.json",
+        "typecheck:bun": "bun check -p apps/desktop/tsconfig.json && bun check -p apps/desktop/tsconfig.config.json && bun check -p apps/desktop/tsconfig.i18n.json && bun check -p apps/index/tsconfig.json && bun check -p apps/site/functions/tsconfig.json && bun check -p functions/tsconfig.json && bun check -p tsconfig.tools.json",
         "check-version": "bun run --cwd apps/desktop check-version",
         "check-overrides": "bun run --cwd apps/desktop check-overrides",
         "check-commands": "bun run --cwd apps/desktop check-commands",
@@ -46,7 +48,7 @@
         "lint:fix": "bun run --cwd apps/desktop lint:fix && bun run --cwd apps/site lint:fix",
         "generate-licenses": "bun run --cwd apps/desktop generate-licenses",
         "preversion": "bun -e \"console.error('Run bun release patch, minor, or major from the repository root.'); process.exit(1)\"",
-        "release": "bun apps/desktop/scripts/release.mjs",
+        "release": "bun apps/desktop/scripts/release.mts",
         "site:dev": "bun run --cwd apps/site dev",
         "site:build": "bun run --cwd apps/site build",
         "site:typecheck": "bun run --cwd apps/site typecheck",
@@ -65,7 +67,8 @@
     "devDependencies": {
         "@commitlint/cli": "21.2.4",
         "@commitlint/config-conventional": "21.2.4",
-        "@types/node": "^26.6.5",
+        "@commitlint/types": "21.2.3",
+        "@types/bun": "^1.4.3",
         "husky": "^9.1.7",
         "oxfmt": "0.73.0",
         "typescript": "6.0.3"
@@ -82,7 +85,8 @@
         "js-yaml": "^4.3.2",
         "@babel/core": "^7.29.6",
         "rolldown": "1.2.13",
-        "vite": "8.3.4"
+        "vite": "8.3.4",
+        "@types/node": "^26.6.5"
     },
     "workspaces": [
         "apps/*",

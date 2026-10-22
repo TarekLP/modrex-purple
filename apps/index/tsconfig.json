@@ -1,8 +1,9 @@
 {
+    "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "target": "ESNext",
         "module": "Node16",
-        "types": ["node", "emscripten"],
-        "strict": true
-    }
+        "types": ["bun", "emscripten"]
+    },
+    "include": ["**/*"]
 }

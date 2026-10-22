@@ -24,8 +24,8 @@ it('counts Ready or Not and existing declared Nexus domains separately from the 
     vi.stubGlobal('fetch', fetch)
 
     expect(await getNexusModCounts()).toEqual({ total: 100 })
-    const request = fetch.mock.calls[0][1] as RequestInit
-    expect(JSON.parse(request.body as string).query).toContain(
+    const request = fetch.mock.calls[0]![1] as RequestInit
+    expect((JSON.parse(request.body as string) as { query: string }).query).toContain(
         'readyOrNot: games(filter: { name: [{ value: "Ready or Not", op: EQUALS }] }'
     )
 })

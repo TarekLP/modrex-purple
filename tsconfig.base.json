@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "noFallthroughCasesInSwitch": true,
+        "verbatimModuleSyntax": true
+    },
+    "files": ["./types/unknown-json.d.ts"]
+}

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
     buildPrelude,
+    onRequestGet,
     parseSemver,
     resolveEngineTag,
     shellQuote,
@@ -91,7 +92,7 @@ describe('resolveEngineTag', () => {
     it('authenticates the tags request when a token is given', async () => {
         const fetchMock = stubTags(['v1.0.0'])
         await resolveEngineTag('v1', 'secret')
-        const init = fetchMock.mock.calls[0][1] as RequestInit
+        const init = fetchMock.mock.calls[0]![1] as RequestInit
         expect(init.headers).toMatchObject({
             Authorization: 'Bearer secret',
             'User-Agent': 'modrex-install-worker',
@@ -101,7 +102,7 @@ describe('resolveEngineTag', () => {
     it('sends no Authorization header without a token', async () => {
         const fetchMock = stubTags(['v1.0.0'])
         await resolveEngineTag('v1')
-        const init = fetchMock.mock.calls[0][1] as RequestInit
+        const init = fetchMock.mock.calls[0]![1] as RequestInit
         expect(init.headers).not.toHaveProperty('Authorization')
     })
 
@@ -173,4 +174,39 @@ describe('buildPrelude', () => {
         const prelude = buildPrelude({ ...config, project_name: "x'; rm -rf / #" })
         expect(prelude).toContain(`CFG_PROJECT_NAME='x'"'"'; rm -rf / #'`)
     })
+})
+
+describe('onRequestGet', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    function stubUpstream(configBody: string) {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async (input: RequestInfo | URL) => {
+                const url = String(input)
+                if (url.includes('/tags')) return new Response(JSON.stringify([{ name: 'v1.2.3' }]))
+                if (url.endsWith('/install.sh')) return new Response('#!/bin/sh\necho engine\n')
+                return new Response(configBody)
+            })
+        )
+    }
+
+    it('serves the config as CFG exports ahead of the engine body', async () => {
+        stubUpstream(JSON.stringify({ project_name: 'modrex' }))
+        const res = await onRequestGet({ env: {} })
+        expect(res.status).toBe(200)
+        expect(await res.text()).toBe("#!/bin/sh\nCFG_PROJECT_NAME='modrex'\necho engine\n")
+    })
+
+    it.each(['null', '[]', '"modrex"'])(
+        'answers a %s config with a failing script',
+        async (body) => {
+            stubUpstream(body)
+            const res = await onRequestGet({ env: {} })
+            expect(res.status).toBe(502)
+            expect(await res.text()).toBe('# install.config.json is not a JSON object\nexit 1\n')
+        }
+    )
 })

@@ -320,7 +320,10 @@ function loadModChecks(stateDb: DB, sourceId: number): Map<number, ModCheck> {
         .prepare('SELECT remote_id, updated_at, file_ids FROM mod_checks WHERE source_id = ?')
         .all(sourceId) as { remote_id: number; updated_at: string; file_ids: string }[]
     return new Map(
-        rows.map((r) => [r.remote_id, { updatedAt: r.updated_at, fileIds: JSON.parse(r.file_ids) }])
+        rows.map((r) => [
+            r.remote_id,
+            { updatedAt: r.updated_at, fileIds: JSON.parse(r.file_ids) as number[] },
+        ])
     )
 }
 
@@ -462,7 +465,8 @@ async function listModsSince(gameId: number, since: Date | null): Promise<Mod[]>
 
         if (threshold) {
             mods.push(...batch.filter((m) => new Date(m.bumped_at) >= threshold))
-            if (batch.length > 0 && new Date(batch[batch.length - 1].bumped_at) < threshold) break
+            const last = batch.at(-1)
+            if (last && new Date(last.bumped_at) < threshold) break
         } else {
             mods.push(...batch)
         }
@@ -888,7 +892,7 @@ function hash64(s: string): bigint {
         ;[a, b, c] = mix64(a, b, c)
         pos += 24
     }
-    const g = (i: number): bigint => (pos + i < k.length ? BigInt(k[pos + i]) : 0n)
+    const g = (i: number): bigint => (pos + i < k.length ? BigInt(k[pos + i]!) : 0n)
     c = (c + length) & M
     a =
         (a +
@@ -986,7 +990,7 @@ async function extractPdmodEntry(url: string): Promise<ContentEntry | null> {
         // Sort alphabetically, matching first_file_in_dir's representative-file pick.
         resolved.sort((a, b) => a.path.localeCompare(b.path))
 
-        const first = resolved[0]
+        const first = resolved[0]!
         const replPath = join(outDir, first.repl)
         if (!existsSync(replPath)) return null
 
@@ -1021,7 +1025,7 @@ async function resolveDownload(
 
 // url is a resolved storage.modworkshop.net URL; archive format comes from its extension.
 async function extractPd2Entries(url: string, size: number | null): Promise<ContentEntry[]> {
-    const path = url.split('?')[0].toLowerCase()
+    const path = url.split('?')[0]!.toLowerCase()
 
     if (path.endsWith('.rar') || path.endsWith('.7z')) {
         const sz = size ?? (await headContentLength(url))
@@ -1620,7 +1624,7 @@ async function main(): Promise<void> {
             try {
                 const resolved = await resolveDownload(fileId)
                 if (resolved) {
-                    const isPdmod = resolved.url.split('?')[0].toLowerCase().endsWith('.pdmod')
+                    const isPdmod = resolved.url.split('?')[0]!.toLowerCase().endsWith('.pdmod')
                     const entries = isPdmod
                         ? await extractPdmodEntry(resolved.url).then((e) => (e ? [e] : []))
                         : await extractPd2Entries(resolved.url, resolved.size)

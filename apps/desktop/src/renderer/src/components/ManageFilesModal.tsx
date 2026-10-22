@@ -18,6 +18,8 @@ import {
     findSuspectDuplicateGroups,
     resolveStaleDuplicates,
     hasCatalogLink,
+    isNonEmpty,
+    type ModGroup,
 } from '../hooks/installedUtils'
 import { getCachedModFiles } from '../modCache'
 import { getArchiveEntries, mergeArchiveEntries, setArchiveEntries } from '../archiveEntriesCache'
@@ -25,7 +27,7 @@ import type { ZipMultiPakPayload } from './ZipPickerModal'
 import { useInstalledContext } from './InstalledContext'
 
 interface Props {
-    mods: InstalledMod[]
+    mods: ModGroup
     modName: string
     onClose: () => void
 }
@@ -48,7 +50,7 @@ export function resolveGhostEntryIndex(entries: string[], ghostEntry: string): n
         entries.forEach((entry, index) => {
             if (matches(entry)) hits.push(index)
         })
-        return hits.length === 1 ? hits[0] : null
+        return hits.length === 1 ? hits[0]! : null
     }
     const exact = onlyMatch((entry) => entry === ghostEntry)
     if (exact !== null) return exact
@@ -194,14 +196,14 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         else await handleEnable([mod])
     }
 
-    async function handleToggleGroup(groupMods: InstalledMod[]) {
+    async function handleToggleGroup(groupMods: ModGroup) {
         if (loadingMod) return
         const anyEnabled = groupMods.some((m) => m.enabled)
         if (anyEnabled) await handleDisable(groupMods)
         else await handleEnable(groupMods)
     }
 
-    async function handleRemove(targets: InstalledMod[]) {
+    async function handleRemove(targets: ModGroup) {
         if (loadingMod) return
         await handleUninstall(targets)
         if (mods.length <= targets.length) onClose()
@@ -245,7 +247,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 const locationTag = zip.entryTags?.[realIdx] ?? zip.targetTag ?? undefined
                 await api.installFromZipEntry(
                     zip.archiveHandle,
-                    zip.entryIds[realIdx],
+                    zip.entryIds[realIdx]!,
                     zip.modId,
                     zip.modName,
                     zip.fileId,
@@ -279,12 +281,12 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         }
     }
 
-    const groupMap = new Map<string | null, InstalledMod[]>()
+    const groupMap = new Map<string | null, ModGroup>()
     for (const mod of mods) {
         const key = rawById.get(mod.uid)?.folderId ?? null
-        const arr = groupMap.get(key) ?? []
-        arr.push(mod)
-        groupMap.set(key, arr)
+        const group = groupMap.get(key)
+        if (group) group.push(mod)
+        else groupMap.set(key, [mod])
     }
     for (const arr of groupMap.values()) {
         arr.sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
@@ -308,15 +310,13 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
         mod.filename.toLowerCase().includes(q)
     const visibleRootMods = q ? rootMods.filter(matchesQuery) : rootMods
     const visibleGroups = q
-        ? folderGroups
-              .map((g) => {
-                  const folderName = g.folder?.displayName ?? g.path ?? ''
-                  // A matching folder name keeps the whole group visible
-                  return folderName.toLowerCase().includes(q)
-                      ? g
-                      : { ...g, mods: g.mods.filter(matchesQuery) }
-              })
-              .filter((g) => g.mods.length > 0)
+        ? folderGroups.flatMap((g) => {
+              const folderName = g.folder?.displayName ?? g.path ?? ''
+              // A matching folder name keeps the whole group visible
+              if (folderName.toLowerCase().includes(q)) return [g]
+              const matching = g.mods.filter(matchesQuery)
+              return isNonEmpty(matching) ? [{ ...g, mods: matching }] : []
+          })
         : folderGroups
     const visibleMods = [...visibleRootMods, ...visibleGroups.flatMap((g) => g.mods)]
     const anyVisibleEnabled = visibleMods.some((m) => m.enabled)
@@ -369,7 +369,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
             const m = mods.find((x) => stripPriorityPrefix(x.filename) === entryFilename(e))
             return m ? (m.priority ?? 0) : null
         })
-        for (let i = 0; i < seq.length; i++) {
+        for (const [i, entry] of seq.entries()) {
             if (prios[i] !== null) continue
             const prev =
                 prios
@@ -385,7 +385,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                       : next !== null
                         ? next - 0.5
                         : Number.MAX_SAFE_INTEGER
-            ghostKeys.set(entryFilename(seq[i]).toLowerCase(), key)
+            ghostKeys.set(entryFilename(entry).toLowerCase(), key)
         }
     }
     type Row = { kind: 'file'; mod: InstalledMod } | { kind: 'ghost'; ghost: GhostFile }
@@ -428,7 +428,7 @@ export function ManageFilesModal({ mods, modName, onClose }: Props) {
                 <Toggle
                     checked={anyVisibleEnabled}
                     disabled={!!loadingMod || visibleMods.length === 0}
-                    onChange={() => handleToggleGroup(visibleMods)}
+                    onChange={() => isNonEmpty(visibleMods) && handleToggleGroup(visibleMods)}
                     title={t(
                         anyVisibleEnabled
                             ? 'installed.manageFiles.disableAll'
