@@ -80,6 +80,16 @@ export const commands = {
 	installMod: (modId: number, fileId: number | null, gamePath: string, folderId: string | null, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_mod", { modId, fileId, gamePath, folderId, gameId }),
 	installFile: (modId: number, modName: string, fileId: number, downloadUrl: string, fileType: string, modVersion: string, gamePath: string, gameId: string) => __TAURI_INVOKE<InstallOutcome_Serialize>("install_file", { modId, modName, fileId, downloadUrl, fileType, modVersion, gamePath, gameId }),
 	/**
+	 *  What stops a game's plugin mods from loading: plugin mods installed as loose paks, each with
+	 *  the release that reinstalls it as a plugin, and a descriptor in the plugin folder itself.
+	 */
+	checkPluginInstalls: (gameId: string) => __TAURI_INVOKE<PluginInstallReport>("check_plugin_installs", { gameId }),
+	/**
+	 *  Cancels an install still fetching its file. Nothing happens when no fetch has this id,
+	 *  since it may have finished a moment before.
+	 */
+	cancelDownload: (downloadId: string) => __TAURI_INVOKE<void>("cancel_download", { downloadId }),
+	/**
 	 *  Installs a mod from a local file the user dropped onto the window (Explorer drag-drop).
 	 *  The file carries no modworkshop identity, so it is installed as an unidentified entry
 	 *  (negative id, "unknown" version) exactly like an ambiently-discovered pak; get_installed's
@@ -542,14 +552,14 @@ export type InstallOutcome = InstallOutcome_Serialize | InstallOutcome_Deseriali
  *  user decision first. Returned in the Ok channel so the renderer handles every case
  *  with an exhaustive switch instead of parsing sentinel strings out of errors.
  */
-export type InstallOutcome_Deserialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Deserialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized";
+export type InstallOutcome_Deserialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Deserialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Deserialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized" | "cancelled";
 
 /**
  *  What an install command produced: a finished install, or an archive that needs a
  *  user decision first. Returned in the Ok channel so the renderer handles every case
  *  with an exhaustive switch instead of parsing sentinel strings out of errors.
  */
-export type InstallOutcome_Serialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Serialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Serialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Serialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized";
+export type InstallOutcome_Serialize = "installed" | ({ needsPicker: ZipMultiPakPayload_Serialize }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsResourceReview?: never } | ({ needsHostChoice: HostPackPayload_Serialize }) & { needsCbFlatConfirm?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsCbFlatConfirm: CbFlatPayload_Serialize }) & { needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsLoaderConfirm: Ue4ssReplacePayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsPicker?: never; needsResourceReview?: never } | ({ needsResourceReview: ResourceReviewPayload }) & { needsCbFlatConfirm?: never; needsHostChoice?: never; needsLoaderConfirm?: never; needsPicker?: never } | "unrecognized" | "cancelled";
 
 export type InstalledMod = InstalledMod_Serialize | InstalledMod_Deserialize;
 
@@ -782,6 +792,15 @@ export type LoaderPresence = {
 	 *  them, so they are named rather than assumed away.
 	 */
 	unrecognized: string[],
+};
+
+export type MisplacedPlugin = {
+	/**  ModWorkshop ids. file_id is the plugin release to install. */
+	modId: number,
+	fileId: number,
+	name: string,
+	/**  The pak records that install removes. */
+	uids: string[],
 };
 
 /**
@@ -1075,6 +1094,14 @@ export type PakAsset = {
 };
 
 export type PendingGameLaunch = "preparing" | "handedOff";
+
+export type PluginInstallReport = {
+	/**  The plugin target's tag, None for a game without one. */
+	target: string | null,
+	misplaced: MisplacedPlugin[],
+	/**  A descriptor's file name in the plugin folder itself, which hides every plugin below it. */
+	rootDescriptor: string | null,
+};
 
 /**
  *  What installing a UE4SS release over the current one would change.

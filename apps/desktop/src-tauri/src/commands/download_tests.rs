@@ -232,3 +232,44 @@ async fn downloaded_file_is_complete_when_streaming_returns() {
     drop(file);
     assert_eq!(std::fs::read(&path).unwrap(), body);
 }
+
+#[tokio::test]
+async fn a_cancel_reaches_the_download_with_that_id() {
+    let download = Cancellable::register("file:1:2");
+    cancel_download("file:1:2".to_string());
+    // The signal waits for the download's next await, so this resolves at once.
+    download.signal.notified().await;
+}
+
+#[tokio::test]
+async fn a_cancel_stops_a_fetch_that_is_still_waiting() {
+    let fetch = cancellable("mod:5", std::future::pending::<()>());
+    let cancel = async {
+        tokio::task::yield_now().await;
+        cancel_download("mod:5".to_string());
+    };
+    let (fetched, ()) = futures::join!(fetch, cancel);
+    assert!(fetched.is_none());
+}
+
+#[test]
+fn an_unfinished_download_deletes_its_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("partial.zip");
+    std::fs::write(&path, b"part").unwrap();
+    drop(TempDownload {
+        path: path.clone(),
+        complete: false,
+    });
+    assert!(!path.exists());
+}
+
+#[test]
+fn a_finished_download_leaves_no_entry_but_keeps_a_newer_one() {
+    let first = Cancellable::register("file:3:4");
+    let second = Cancellable::register("file:3:4");
+    drop(first);
+    assert!(cancels().lock().unwrap().contains_key("file:3:4"));
+    drop(second);
+    assert!(!cancels().lock().unwrap().contains_key("file:3:4"));
+}

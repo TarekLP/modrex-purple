@@ -22,6 +22,7 @@ mod native_files;
 mod nexus_content;
 mod paths;
 mod pdmod;
+mod plugin_repair;
 mod reorder;
 mod resource_state;
 mod resources;
@@ -37,6 +38,7 @@ pub(crate) use self::staging_tokens::StagingRegistry;
 mod state;
 mod types;
 mod ue4ss_modstxt;
+pub(crate) mod unreal_plugin;
 mod zip;
 
 // Public API used by lib.rs, launchers/, and other modules
@@ -47,6 +49,7 @@ pub use self::engine::{
 pub use self::identity::IdentityEvidence;
 pub use self::install::install_mod_from_path;
 pub use self::paths::{find_untracked_host_packs, find_untracked_paks, get_state_path, mods_base};
+pub use self::plugin_repair::PluginInstallReport;
 use self::state::save_error;
 pub use self::state::{get_folder_path, load_for_scan, read_state};
 pub use self::types::{
@@ -112,7 +115,7 @@ pub(crate) use self::zip::{
 };
 
 use crate::commands::api::{api_get, http_client, user_agent};
-use crate::commands::download::download_file;
+use crate::commands::download::{cancellable, download_file};
 use crate::commands::mod_index;
 use crate::commands::settings::{self, game_settings, read_settings};
 use crate::commands::sources;
@@ -152,7 +155,12 @@ impl StateLocks {
     }
 }
 
-async fn lock_game_state(app: &AppHandle, game_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+/// Also taken by launching and restoring, which move the same folders installs write into.
+/// Take it after the resource lock, never before, so the two always nest the same way.
+pub(crate) async fn lock_game_state(
+    app: &AppHandle,
+    game_id: &str,
+) -> tokio::sync::OwnedMutexGuard<()> {
     use tauri::Manager;
     app.state::<StateLocks>().acquire(game_id).await
 }
@@ -224,6 +232,7 @@ pub enum InstallOutcome {
     NeedsLoaderConfirm(Ue4ssReplacePayload),
     NeedsResourceReview(resources::ResourceReviewPayload),
     Unrecognized,
+    Cancelled,
 }
 
 /// The mod page a loader package came from. Absent for a dropped file, which has no page
@@ -706,8 +715,10 @@ pub async fn install_mod(
             downloaded,
             source_name,
         ))
-    }
-    .await;
+    };
+    let Some(prep) = cancellable(&download_id, prep).await else {
+        return Ok(InstallOutcome::Cancelled);
+    };
 
     let (mod_name, mod_version, remote_id, file_id, file_type, downloaded, source_name) = match prep
     {
@@ -801,6 +812,14 @@ pub async fn install_mod(
             // sources::source_native_local_id) and is never compared against this directly.
             let remote_id_str = remote_id.to_string();
             let sp = get_state_path(&game_path, cfg);
+            let superseded = plugin_repair::set_aside_superseded_paks(
+                &game_path,
+                &sp,
+                cfg,
+                target,
+                Some(&remote_id_str),
+            )?;
+            let paks_disabled = superseded.all_disabled;
             let saved =
                 state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
             let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
@@ -819,7 +838,6 @@ pub async fn install_mod(
                     None
                 }
             });
-            let was_disabled = existing_entry.is_some_and(|e| !e.enabled);
             // Don't inherit folder when same-id already has multiple files; each pak is placed deliberately.
             let effective_folder_id = folder_id.or_else(|| {
                 if remote_id > 0
@@ -834,10 +852,11 @@ pub async fn install_mod(
                 }
                 existing_entry.and_then(|e| e.folder_id.clone())
             });
+            // A plugin's folder is named after the descriptor this release ships.
             let filename = saved
                 .mods
                 .iter()
-                .find(|m| m.uid == uid)
+                .find(|m| m.uid == uid && !target.is_unreal_plugin_unit())
                 .map(|m| m.filename.clone())
                 .unwrap_or_else(|| {
                     decisions::install_filename_from_mod_name(
@@ -848,6 +867,18 @@ pub async fn install_mod(
                         name_source,
                     )
                 });
+            let was_disabled = match existing_entry {
+                Some(e) => !e.enabled,
+                None => plugin_repair::installs_disabled(
+                    cfg,
+                    &saved.mods,
+                    target,
+                    &uid,
+                    &filename,
+                    file_id,
+                    paks_disabled,
+                ),
+            };
 
             // If the mod had a single previously-installed entry under a different uid
             // (i.e. an older version with a different file_id), remove it first so
@@ -887,6 +918,7 @@ pub async fn install_mod(
                 cfg,
                 target,
             )?;
+            superseded.commit();
 
             if was_disabled {
                 let settings = read_settings(&app);
@@ -930,15 +962,17 @@ pub async fn install_file(
     let source_name =
         hosted_resource_name(&download_url).unwrap_or_else(|| format!("{mod_name}.{file_type}"));
     let download_id = format!("file:{mod_id}:{file_id}");
-    let downloaded = match download_file(
+    let fetch = download_file(
         &app,
         &download_url,
         &file_type,
         &download_id,
         Some(&game_id),
-    )
-    .await
-    {
+    );
+    let Some(fetched) = cancellable(&download_id, fetch).await else {
+        return Ok(InstallOutcome::Cancelled);
+    };
+    let downloaded = match fetched {
         Ok(v) => v,
         Err(e) => {
             log::warn!("install_file {mod_id}/{file_id}: {e}");
@@ -1024,6 +1058,14 @@ pub async fn install_file(
             let uid = file_id.to_string();
             let mod_id_str = mod_id.to_string();
             let sp = get_state_path(&game_path, cfg);
+            let superseded = plugin_repair::set_aside_superseded_paks(
+                &game_path,
+                &sp,
+                cfg,
+                target,
+                Some(&mod_id_str),
+            )?;
+            let paks_disabled = superseded.all_disabled;
             let saved =
                 state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
             let existing_entry = saved.mods.iter().find(|m| m.uid == uid).or_else(|| {
@@ -1041,7 +1083,6 @@ pub async fn install_file(
                     None
                 }
             });
-            let was_disabled = saved.mods.iter().any(|m| m.uid == uid && !m.enabled);
             // Never inherit folder when this mod_id already has multiple installed files.
             let effective_folder_id = if mod_id > 0
                 && saved
@@ -1055,10 +1096,11 @@ pub async fn install_file(
             } else {
                 existing_entry.and_then(|e| e.folder_id.clone())
             };
+            // A plugin's folder is named after the descriptor this release ships.
             let filename = saved
                 .mods
                 .iter()
-                .find(|m| m.uid == uid)
+                .find(|m| m.uid == uid && !target.is_unreal_plugin_unit())
                 .map(|m| m.filename.clone())
                 .unwrap_or_else(|| {
                     decisions::install_filename_for_source_file(
@@ -1071,6 +1113,18 @@ pub async fn install_file(
                         name_source,
                     )
                 });
+            let was_disabled = match saved.mods.iter().find(|m| m.uid == uid) {
+                Some(e) => !e.enabled,
+                None => plugin_repair::installs_disabled(
+                    cfg,
+                    &saved.mods,
+                    target,
+                    &uid,
+                    &filename,
+                    file_id,
+                    paks_disabled,
+                ),
+            };
 
             install_mod_from_path(
                 &game_path,
@@ -1096,6 +1150,7 @@ pub async fn install_file(
                 cfg,
                 target,
             )?;
+            superseded.commit();
 
             if was_disabled {
                 let settings = read_settings(&app);
@@ -1119,6 +1174,54 @@ pub async fn install_file(
         Err(e) => log::warn!("install_file {mod_id} file={file_id}: {e}"),
     }
     result.map(|()| InstallOutcome::Installed)
+}
+
+/// What stops a game's plugin mods from loading: plugin mods installed as loose paks, each with
+/// the release that reinstalls it as a plugin, and a descriptor in the plugin folder itself.
+#[tauri::command]
+#[specta::specta]
+pub async fn check_plugin_installs(
+    app: AppHandle,
+    game_id: String,
+) -> Result<PluginInstallReport, String> {
+    let cfg = engine_for_game(&game_id)?;
+    let Some(target) = cfg.targets.iter().find(|t| t.is_unreal_plugin_unit()) else {
+        return Ok(PluginInstallReport::default());
+    };
+    let settings = read_settings(&app);
+    let Some(game_path) = game_settings(&settings, &game_id).and_then(|gs| gs.game_path.clone())
+    else {
+        return Ok(PluginInstallReport::default());
+    };
+    // A repair installs into folders that launching without mods has moved aside, so it
+    // waits until they are restored.
+    if cfg
+        .targets
+        .iter()
+        .any(|t| backup_dir(&game_path, t).exists())
+    {
+        return Ok(PluginInstallReport::default());
+    }
+    let root_descriptor = unreal_plugin::root_descriptor(&mods_base(&game_path, target));
+    let target = Some(target.tag.to_string());
+    // Without the index there is no evidence a pak came out of a plugin.
+    let Some(conn) = mod_index::open_index(&app, cfg.game_id) else {
+        return Ok(PluginInstallReport {
+            target,
+            misplaced: Vec::new(),
+            root_descriptor,
+        });
+    };
+    let _state_guard = lock_game_state(&app, &game_id).await;
+    let state = state::read_state_for_game(&game_path, &get_state_path(&game_path, cfg), cfg)
+        .map_err(|e| e.to_string())?;
+    let misplaced = plugin_repair::misplaced_plugins(cfg, &state.mods, &conn)
+        .map_err(|e| format!("the mod index could not be read: {e}"))?;
+    Ok(PluginInstallReport {
+        target,
+        misplaced,
+        root_descriptor,
+    })
 }
 
 pub(crate) struct NexusInstallMeta {
@@ -2307,8 +2410,18 @@ pub async fn install_from_zip_entry(
     let result = async {
         let sha256 = staged_content_sha256(target, &ext).await?;
         let state_guard = lock_game_state(&app, cfg.game_id).await;
+        let app = app.clone();
         commit_install(state_guard, move || {
             let sp = get_state_path(&game_path, cfg);
+            let remote = (mod_id > 0).then(|| mod_id.to_string());
+            let superseded = plugin_repair::set_aside_superseded_paks(
+                &game_path,
+                &sp,
+                cfg,
+                target,
+                remote.as_deref(),
+            )?;
+            let paks_disabled = superseded.all_disabled;
             let saved =
                 state::read_state_for_game(&game_path, &sp, cfg).map_err(|e| e.to_string())?;
 
@@ -2325,6 +2438,15 @@ pub async fn install_from_zip_entry(
             let uid = sha256_match
                 .map(|m| m.uid.clone())
                 .unwrap_or_else(|| identity.uid.clone());
+            let was_disabled = plugin_repair::installs_disabled(
+                cfg,
+                &saved.mods,
+                target,
+                &uid,
+                &install_filename,
+                file_id,
+                paks_disabled,
+            );
 
             let primary = std::ptr::eq(target, cfg.primary());
             let stale = stale_entries_for_zip_install(
@@ -2347,7 +2469,7 @@ pub async fn install_from_zip_entry(
                 &game_path,
                 &sp,
                 InstalledMod {
-                    uid,
+                    uid: uid.clone(),
                     name: mod_name,
                     version: mod_version,
                     filename: install_filename,
@@ -2362,6 +2484,14 @@ pub async fn install_from_zip_entry(
                 cfg,
                 target,
             )?;
+            superseded.commit();
+
+            if was_disabled {
+                let settings = read_settings(&app);
+                let launcher =
+                    game_settings(&settings, cfg.game_id).and_then(|gs| gs.launcher.clone());
+                disable_mod_op(&game_path, &sp, &uid, cfg, launcher.as_deref())?;
+            }
 
             Ok::<(), String>(())
         })
@@ -3252,3 +3382,7 @@ mod staged_tests;
 #[cfg(test)]
 #[path = "marker_contract_tests.rs"]
 mod marker_contract_tests;
+
+#[cfg(test)]
+#[path = "plugin_install_tests.rs"]
+mod plugin_install_tests;

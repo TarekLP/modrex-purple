@@ -12,6 +12,7 @@ import type {
     DetectedInstall,
     LeftoverFiles,
     LoaderInfo,
+    PluginInstallReport,
     ModFolderInfo,
     SourceInfo,
     NexusArchiveIdentity,
@@ -28,6 +29,8 @@ export type {
     DetectedInstall,
     LeftoverFiles,
     LoaderInfo,
+    MisplacedPlugin,
+    PluginInstallReport,
     ModFolderInfo,
     SourceInfo,
     NexusArchiveIdentity,
@@ -858,6 +861,10 @@ export const api = {
         await commands.deleteLeftoverFiles(gameId, sets)
     },
 
+    checkPluginInstalls(gameId: string): Promise<PluginInstallReport> {
+        return commands.checkPluginInstalls(gameId)
+    },
+
     isPd2Diesel3(gamePath: string): Promise<boolean> {
         return commands.isPd2Diesel3(gamePath)
     },
@@ -896,6 +903,9 @@ export const api = {
     },
     getGameLaunchStatus(gameId: string): Promise<GameLaunchStatus> {
         return commands.getGameLaunchStatus(gameId)
+    },
+    cancelDownload(downloadId: string): Promise<void> {
+        return commands.cancelDownload(downloadId)
     },
     async cancelPendingGameLaunch(gameId: string): Promise<void> {
         await commands.cancelPendingGameLaunch(gameId)

@@ -16,6 +16,7 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Added translation coverage and contributor credits in language settings.
 - Added tabs to Installed Mods for games that keep mods in more than one folder.
 - Added Instagram to Settings > About.
+- Added PAYDAY 3 Mod Loader (PDML) support, including a repair for PDML mods installed as loose paks.
 
 ### Changed
 
@@ -42,6 +43,9 @@ All notable changes to Modrex are documented in this file. Each version's sectio
 - Fixed deleting a folder also deleting its mods' .ucas and .utoc files.
 - Fixed broken formatting, images and videos in mod descriptions.
 - Fixed popups closing when resizing the window.
+- Fixed updates of multi-file mods skipping renamed files.
+- Fixed installing a mod during a launch without mods keeping your other mods from being restored.
+- Fixed older UE4SS releases installing as Lua mods.
 - Fixed PAYDAY: The Heist showing the wrong DAHM install status.
 - Fixed News showing an empty feed instead of an error.
 - Fixed Nexus Mods sign-in giving no feedback.
