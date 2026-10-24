@@ -2,8 +2,8 @@
 import { Picture } from 'astro:assets'
 import type { ModIndexStats } from '../lib/mod-index'
 import type { NexusModCounts } from '../lib/nexus-mod-count'
-import browseMods from '../assets/screenshots/browse-mods-window.png'
-import installedMods from '../assets/screenshots/installed-mods-window.png'
+import browseMods from '../assets/screenshots/browse-mods-window.webp'
+import installedMods from '../assets/screenshots/installed-mods-window.webp'
 
 interface Props {
     indexStats: ModIndexStats | null
@@ -20,11 +20,11 @@ const nexusModsAvailable = nexusModCounts
     ? new Intl.NumberFormat('en-US').format(nexusModCounts.total)
     : null
 
-// Each crop is a window onto a full 1706x912 screenshot, in source pixels, so the
+// Each crop is a window onto a full 2560x1368 screenshot, in source pixels, so the
 // evidence stays in sync with the screenshots instead of living in separate files.
-// The image is scaled up by 1706 / w and shifted so the rectangle fills the frame.
-const SOURCE_WIDTH = 1706
-const CROP_WIDTHS = [1180, 1706]
+// The image is scaled up by 2560 / w and shifted so the rectangle fills the frame.
+const SOURCE_WIDTH = 2560
+const CROP_WIDTHS = [1180, 1706, 2560]
 
 function crop(x: number, y: number, w: number, h: number) {
     const scale = SOURCE_WIDTH / w
@@ -43,9 +43,9 @@ function crop(x: number, y: number, w: number, h: number) {
     }
 }
 
-const launchCrop = crop(1173, 0, 533, 104)
-const browseCrop = crop(200, 47, 746, 400)
-const installedCrop = crop(200, 53, 746, 400)
+const launchCrop = crop(1760, 0, 800, 156)
+const browseCrop = crop(300, 70, 1120, 600)
+const installedCrop = crop(300, 242, 1120, 600)
 ---
 
 <section id="features">

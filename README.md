@@ -17,7 +17,7 @@ Free and open source, for Windows and Linux.
 [![Windows and Linux](https://img.shields.io/badge/Windows%20%7C%20Linux-informational?style=flat-square)](#download)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/QM2rDgy43Y)
 
-<img src="assets/example.png" width="900" alt="The Modrex mod library showing installed mods for a game, each with a switch to enable or disable it" />
+<img src="assets/example.webp" width="900" alt="The Modrex mod library showing installed mods for a game, each with a switch to enable or disable it" />
 
 </div>
 

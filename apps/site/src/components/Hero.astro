@@ -1,11 +1,11 @@
 ---
 import { Picture } from 'astro:assets'
 import type { Release } from '../lib/github'
-import gamePicker from '../assets/screenshots/game-picker-window.png'
-import browseMods from '../assets/screenshots/browse-mods-window.png'
-import installedMods from '../assets/screenshots/installed-mods-window.png'
-import news from '../assets/screenshots/news-window.png'
-import settings from '../assets/screenshots/settings-window.png'
+import gamePicker from '../assets/screenshots/game-picker-window.webp'
+import browseMods from '../assets/screenshots/browse-mods-window.webp'
+import installedMods from '../assets/screenshots/installed-mods-window.webp'
+import news from '../assets/screenshots/news-window.webp'
+import settings from '../assets/screenshots/settings-window.webp'
 
 interface Props {
     release?: Release | null
@@ -14,7 +14,7 @@ interface Props {
 const { release = null } = Astro.props
 
 // Imported rather than served from public/ so astro:assets emits AVIF and WebP at
-// several widths. The sources are 1706px PNG screenshots, about a megabyte each; the
+// several widths. The sources are 2560px WebP screenshots, a few hundred kilobytes each; the
 // first one shown is the largest contentful paint of the whole site.
 const shots = [
     {
@@ -57,7 +57,7 @@ const STAGE_SIZES = [
     '(max-width: 1440px) calc((100vw - 112px) * 7 / 12)',
     '775px',
 ].join(', ')
-const VIEWER_WIDTHS = [1180, 1706]
+const VIEWER_WIDTHS = [1180, 1706, 2560]
 
 const releasedOn = release
     ? new Intl.DateTimeFormat('en-US', {
