@@ -275,6 +275,14 @@
         "filterPlaceholder": "搜索模组...",
         "filterEmpty": "没有与“{query}”匹配的模组",
         "reinstallFailed": "重新安装失败：{error}",
+        "misplacedPlugins": {
+            "message": "! {count} PDML mods are in the pak folder, where the game cannot load them.",
+            "messageSingle": "! {count} PDML mod is in the pak folder, where the game cannot load it.",
+            "stop": "! Stop",
+            "repairing": "! Reinstalling {name}...",
+            "failed": "! {name} could not be repaired: {error}",
+            "rootDescriptor": "! {file} is directly in the PDML mods folder, so the game ignores every other mod there. Move it, with its Content and Resources folders, into a folder of its own."
+        },
         "actionFailed": "无法更改 {name}：{error}",
         "actionFailedSome": "无法更改 {count} 个模组（{names}）：{error}",
         "refreshFailed": "无法刷新已安装模组列表：{error}",

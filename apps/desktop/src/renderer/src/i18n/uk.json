@@ -275,6 +275,14 @@
         "filterPlaceholder": "Шукати моди...",
         "filterEmpty": "Жоден мод не відповідає запиту «{query}»",
         "reinstallFailed": "Не вдалося перевстановити: {error}",
+        "misplacedPlugins": {
+            "message": "! {count} PDML mods are in the pak folder, where the game cannot load them.",
+            "messageSingle": "! {count} PDML mod is in the pak folder, where the game cannot load it.",
+            "stop": "! Stop",
+            "repairing": "! Reinstalling {name}...",
+            "failed": "! {name} could not be repaired: {error}",
+            "rootDescriptor": "! {file} is directly in the PDML mods folder, so the game ignores every other mod there. Move it, with its Content and Resources folders, into a folder of its own."
+        },
         "actionFailed": "Не вдалося змінити «{name}»: {error}",
         "actionFailedSome": "Не вдалося змінити моди ({count}; {names}): {error}",
         "refreshFailed": "Не вдалося оновити список встановлених модів: {error}",
