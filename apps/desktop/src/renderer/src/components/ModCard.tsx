@@ -54,12 +54,9 @@ export function ModCard({
     progress = null,
     showMeta = false,
 }: Props) {
-    // Full-size: the small CDN variant is only 256 px wide and upscales badly
-    // at card width.
-    const thumbSrc = useThumbnail(mod.thumbnail?.file, true)
-    // Fade the image in on its first real decode; cache hits (el.complete is
-    // already true at mount) skip the fade so warm grids stay instant.
-    const [thumbLoaded, setThumbLoaded] = useState(false)
+    const thumbSrc = useThumbnail(mod.thumbnail?.file, 'card')
+    // Sources known at mount stay visible. Sources resolved later fade in on decode.
+    const [thumbLoaded, setThumbLoaded] = useState(() => thumbSrc !== null)
     const needsResourceReview =
         installed?.resourceStatus === 'diverged' || installed?.resourceStatus === 'blocked'
     const canAct = !!gamePath && !loading && !needsResourceReview

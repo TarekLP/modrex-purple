@@ -45,7 +45,6 @@ import { useDragDrop } from '../hooks/useDragDrop'
 import { useFolderActions } from '../hooks/useFolderActions'
 import { useModActions } from '../hooks/useModActions'
 import { UpdateFileModal } from './UpdateFileModal'
-import { useAutoIdentifyNexusMods } from '../hooks/useAutoIdentifyNexusMods'
 import {
     computeChildren,
     groupChildren,
@@ -72,6 +71,11 @@ import { loadLoaderRegistry, loadersForGame } from '../loaders'
 import { api, type LoaderInfo, type ModFolderInfo } from '../api'
 
 type ViewMode = 'grid' | 'list'
+
+type Locations = { targets: ModFolderInfo[]; loaders: LoaderInfo[] }
+
+// Targets are compiled package data and the loader registry is fixed for the session.
+const locationsCache = new Map<GameId, Locations>()
 
 function uniqueModCount(mods: InstalledMod[]): number {
     return new Set(mods.map(identityKey)).size
@@ -186,16 +190,18 @@ export function InstalledPage({
 
     // Loaders route their mods to a tab, so the targets are only taken once the loader
     // registry has landed, and the page stays a single list until both have.
-    const [locations, setLocations] = useState<{
-        targets: ModFolderInfo[]
-        loaders: LoaderInfo[]
-    } | null>(null)
+    const [locations, setLocations] = useState<Locations | null>(
+        () => locationsCache.get(activeGame) ?? null
+    )
     const [locationsError, setLocationsError] = useState<string | null>(null)
     useEffect(() => {
+        if (locationsCache.has(activeGame)) return
         let cancelled = false
         Promise.all([api.listModFolders(activeGame), loadLoaderRegistry()]).then(
             ([targets]) => {
-                if (!cancelled) setLocations({ targets, loaders: loadersForGame(activeGame) })
+                const resolved = { targets, loaders: loadersForGame(activeGame) }
+                locationsCache.set(activeGame, resolved)
+                if (!cancelled) setLocations(resolved)
             },
             (error: unknown) => {
                 if (!cancelled) setLocationsError(String(error))
@@ -212,11 +218,17 @@ export function InstalledPage({
         const byUid = new Map<string, string>()
         if (!locations || !primaryTag) return byUid
         const targetTags = locations.targets.map((target) => target.tag)
-        for (const m of installed) {
-            byUid.set(
-                m.uid,
-                installedTabKey(m, installed, primaryTag, locations.loaders, targetTags)
+        const hosts = new Map<string, InstalledMod>()
+        for (const mod of installed) {
+            if (
+                (mod.source ?? 'modworkshop') !== 'modworkshop' ||
+                mod.location?.startsWith('host:')
             )
+                continue
+            if (mod.remoteId && !hosts.has(mod.remoteId)) hosts.set(mod.remoteId, mod)
+        }
+        for (const m of installed) {
+            byUid.set(m.uid, installedTabKey(m, hosts, primaryTag, locations.loaders, targetTags))
         }
         return byUid
     }, [installed, primaryTag, locations])
@@ -282,8 +294,6 @@ export function InstalledPage({
     } = useModActions(gamePath, onRefreshInstalled, activeGame)
 
     const choiceOpen = useInstallChoiceOpen()
-
-    useAutoIdentifyNexusMods({ installed, gamePath, activeGame, onRefreshInstalled })
 
     const folderActions = useFolderActions(gamePath, folders, onRefreshInstalled, activeGame)
 
@@ -353,10 +363,12 @@ export function InstalledPage({
         : undefined
     const activeTabLabel = tabs.find((tab) => tab.key === activeTab)?.label
 
+    const listFormatter = new Intl.ListFormat(getLocale(), { type: 'conjunction' })
+
     // Labels of the given tab keys in tab order, as one localized list.
     function listTabs(keys: Set<string>): string {
         const labels = tabs.filter((tab) => keys.has(tab.key)).map((tab) => tab.label)
-        return new Intl.ListFormat(getLocale(), { type: 'conjunction' }).format(labels)
+        return listFormatter.format(labels)
     }
 
     // Each card acts on its mod's whole file set, so it carries the files on other tabs and

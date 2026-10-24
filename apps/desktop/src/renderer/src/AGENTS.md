@@ -12,7 +12,7 @@ a workspace. `preview/navigation.test.tsx` covers navigation, restart, and scope
 
 **`GameWorkspace.tsx`** owns game page navigation, the mod detail stack, source selection,
 and focus refreshes. It mounts for one game and unmounts on returning to the picker.
-Game panes stay mounted across tab switches with visibility-based hiding. Locale changes
+Game panes mount on first activation, then stay mounted across tab switches with visibility-based hiding. Locale changes
 remount its rendered pages while preserving workspace navigation and data subscriptions.
 `GameTopBar` supplies game controls to the shared `TopBar`. `Sidebar` takes a typed
 navigation object whose global variant contains no game ID or game navigation callback.
@@ -48,7 +48,7 @@ it unmounts. Cache ownership remains in `settingsCache.ts`.
 
 **`requestPriority.ts`** — lets background API work defer to foreground work so it doesn't sit queued behind silent background calls on the shared rate-limited connection to modworkshop. Installed display refreshes, version batches and hover prefetches all await the same quiet-window gate. It tracks recency rather than an in-flight counter so one missed completion cannot permanently starve background work.
 
-**`thumbnailCache.ts`** — Persistent thumbnail cache bridge. Module-level `resolved: Map<filename, thumbUrl>` deduplicates IPC calls within a session. `getLocalThumbnail(filename)` invokes `get_thumbnail` (which ensures the file exists in the disk cache, downloading if missing), then builds the URL via `convertFileSrc(filename, 'thumb')` — the custom `thumb://` protocol registered in `lib.rs`, **not** Tauri's asset protocol. The thumb protocol serves files from the thumbnails cache dir with `Cache-Control: immutable` (CDN filenames are content-unique), so the webview reuses cached decoded images across page remounts — the asset protocol sends no cache headers, which made every game/tab switch re-decode the whole grid. The `thumb:`/`http://thumb.localhost` origins must stay in `img-src` in both `csp` and `devCsp`. `getCachedThumbnailUrl(filename)` is a synchronous accessor used by `useThumbnail` to initialize state without triggering an IPC call on second render. Never call `api.getThumbnail` directly — always go through `thumbnailCache.ts`. `useModData` pre-warms thumbnails for all installed mods as mod data becomes available (both the sync cache pass and the async fetch pass).
+**`thumbnailCache.ts`** — Persistent thumbnail cache bridge. `getLocalImage(filename, size)` shares resolved URLs and in-flight IPC promises by filename and size (`small`, `card`, `full`, default `small`). `getCachedThumbnailUrl` reads the same key synchronously. `clearResolvedThumbnails` invalidates both maps. Always use this bridge rather than calling `api.getThumbnail` directly. It builds URLs with `convertFileSrc(cacheName, 'thumb')`, whose immutable cache headers preserve decoded images across remounts. Keep the thumb origins in both CSP image source lists. `useModData` pre-warms the card variant in both its cache and fetch passes. Consumer variant policy lives in the thumbnails.rs entry in the backend commands AGENTS.md.
 
 **`settingsCache.ts`** caches game settings and detected installs for `GameSettings`.
 The workspace warms it on entry. Manual folder selection and launcher selection patch it
