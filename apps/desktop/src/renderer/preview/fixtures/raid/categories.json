@@ -342,7 +342,7 @@
             "name": "Weapons",
             "parent_id": null,
             "thumbnail": "",
-            "updated_at": "2026-03-22T16:28:44.000000Z",
+            "updated_at": "2026-10-17T18:08:22.000000Z",
             "webhook_url": ""
         },
         {
@@ -892,12 +892,12 @@
             "disable_mod_managers": false,
             "display_order": 1,
             "game_id": 543,
-            "id": 568,
-            "last_date": "2022-07-16T12:08:09.000000Z",
+            "id": 589,
+            "last_date": "2022-06-10T22:58:55.000000Z",
             "name": "Audio",
-            "parent_id": 567,
+            "parent_id": null,
             "thumbnail": "",
-            "updated_at": "2023-10-21T19:34:24.000000Z",
+            "updated_at": "2023-10-21T19:41:17.000000Z",
             "webhook_url": ""
         },
         {
@@ -907,12 +907,12 @@
             "disable_mod_managers": false,
             "display_order": 1,
             "game_id": 543,
-            "id": 589,
-            "last_date": "2022-06-10T22:58:55.000000Z",
+            "id": 568,
+            "last_date": "2022-07-16T12:08:09.000000Z",
             "name": "Audio",
-            "parent_id": null,
+            "parent_id": 567,
             "thumbnail": "",
-            "updated_at": "2023-10-21T19:41:17.000000Z",
+            "updated_at": "2023-10-21T19:34:24.000000Z",
             "webhook_url": ""
         },
         {
@@ -1272,7 +1272,7 @@
             "name": "Secondary",
             "parent_id": 546,
             "thumbnail": "",
-            "updated_at": "2023-10-21T19:41:08.000000Z",
+            "updated_at": "2026-10-17T18:05:08.000000Z",
             "webhook_url": ""
         },
         {
@@ -1347,7 +1347,7 @@
             "name": "Throwables",
             "parent_id": 546,
             "thumbnail": "",
-            "updated_at": "2023-10-21T19:41:11.000000Z",
+            "updated_at": "2026-10-17T18:08:22.000000Z",
             "webhook_url": ""
         },
         {
@@ -1409,6 +1409,51 @@
             "thumbnail": "",
             "updated_at": "2023-10-21T19:34:25.000000Z",
             "webhook_url": ""
+        },
+        {
+            "approval_only": false,
+            "created_at": "2026-10-23T21:14:49.000000Z",
+            "desc": "",
+            "disable_mod_managers": false,
+            "display_order": 0,
+            "game_id": 543,
+            "id": 985,
+            "last_date": "2026-10-23T21:14:49.000000Z",
+            "name": "Custom Missions",
+            "parent_id": null,
+            "thumbnail": "",
+            "updated_at": "2026-10-23T21:18:35.000000Z",
+            "webhook_url": ""
+        },
+        {
+            "approval_only": false,
+            "created_at": "2026-10-17T18:06:12.000000Z",
+            "desc": "",
+            "disable_mod_managers": false,
+            "display_order": 0,
+            "game_id": 543,
+            "id": 983,
+            "last_date": "2026-10-17T18:06:12.000000Z",
+            "name": "Lead Bar",
+            "parent_id": 614,
+            "thumbnail": "",
+            "updated_at": "2026-10-17T18:06:14.000000Z",
+            "webhook_url": ""
+        },
+        {
+            "approval_only": false,
+            "created_at": "2026-10-17T18:05:07.000000Z",
+            "desc": "",
+            "disable_mod_managers": false,
+            "display_order": 0,
+            "game_id": 543,
+            "id": 982,
+            "last_date": "2026-10-17T18:05:07.000000Z",
+            "name": "Parabellum P08",
+            "parent_id": 547,
+            "thumbnail": "",
+            "updated_at": "2026-10-17T18:05:09.000000Z",
+            "webhook_url": ""
         }
     ],
     "meta": {
@@ -1416,7 +1461,7 @@
         "from": 1,
         "last_page": 1,
         "per_page": 100,
-        "to": 94,
-        "total": 94
+        "to": 97,
+        "total": 97
     }
 }

@@ -1,355 +1,23 @@
 {
-    "48221": {
-        "detail": {
-            "id": 48221,
-            "name": "Toggle HUD - Fog - Lens Flare - Bloom - Item Shimmer - Minimal Buddy UI",
-            "desc": "This mod allows you to quickly toggle all HUD elements on/off with a single key press (Caps Lock by default, but this can be changed). I've included a few extra toggles:\n* F1 - Toggles the item shimmering/highlighting that all characters see.\n* F2 - Toggles some of the extra HUD decoration that only shows while playing as Buddy.\n* F3 - Toggles the highlighting around interactable items that only shows while playing as Buddy.\n* F4 - Toggles Fog.\n* F5 - Toggles Bloom and Lens Dirt effects.\n* F6 - Toggles Lens Flare effect.\n* F7 - Toggles Blur Vignette while aiming, including some of the depth of field on your hands/weapons.\n\n**__INSTALLATION:__**\n\n1. Don't use Mod Organizer 2 to install this, it won't know wtf to do with it.\n2. Simply extract the contents of my .zip to this folder (or the EGS equivalent):\n__*steamapps\\common\\CrimeBossRockayCity\\CrimeBoss\\Binaries\\Win64*__\n3. Boot up the game and use the keybinds mentioned above!\n\n**__TO CHANGE KEYBINDS:__**\n\n1. Press Home key\n2. Go to \"Add-ons\" tab\n3. Under ShaderToggler click the \"Edit\" button to the left of the toggle you want to rebind\n4. Click the box to the right of \"Key Shortcut\" and then press the key (or controller button) you want to use instead\n5. Click \"OK\" and then \"Save all Toggle Groups\"\n\n**__TO MAKE A TOGGLE ALWAYS ACTIVE WHEN STARTING THE GAME:__**\n\n1. Press Home key\n2. Go to \"Add-ons\" tab\n3. Under ShaderToggler click the \"Edit\" button to the left of the toggle you want\n4. Checkmark \"Is active at startup\"\n5. Click \"OK\" and then \"Save all Toggle Groups\"",
-            "short_desc": "Toggle all HUD on/off (or Buddy the robot's view) with a single key press in Crime Boss: Rockay City",
-            "version": "1.3",
-            "downloads": 214,
-            "likes": 10,
-            "views": 1893,
-            "published_at": "2024-06-19T12:20:21.000000Z",
-            "bumped_at": "2026-07-26T10:58:43.000000Z",
-            "category_id": 890,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "thumbnail": {
-                "file": "xpoo5PRkIWbkkknvdGMrqkR0vyX2JifB0gRUwPJk.webp",
-                "has_thumb": true
-            },
-            "download": {
-                "id": 101017,
-                "version": "",
-                "size": 2358833,
-                "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/48221_74428_t0uYwyDULFqkSFMX5wQNoaSSn11OGH4AIXTvAIYP.zip?filename=Toggle%20HUD%20and%20Effects.zip",
-                "url": null
-            },
-            "user": {
-                "id": 74428,
-                "name": "Akela",
-                "donation_url": "https://www.paypal.com/donate/?hosted_button_id=PR2K52NXZ9EE8",
-                "avatar": "G6KXcDc1fBJBeuCqoG1dpJ3Pi0oySzBHy4ouqL4m.webp",
-                "avatar_has_thumb": true
-            },
-            "changelog": "Fixed Item Shimmer/Highlight toggle, separated Lens Flare and Bloom toggles.",
-            "instructions": "* Extract the contents of my Toggle HUD for Crime Boss.zip to this folder (or the EGS equivalent):\n*﻿steamapps\\common\\CrimeBossRockayCity\\CrimeBoss\\Binaries\\Win64*\n* Boot up the game and use Caps Lock to toggle the HUD on/off, F1 to toggle minimal Buddy view, and F2 to toggle even more of Buddy's view.",
-            "license": "Thank you to Frans Bouma for creating the ShaderToggler addon for Reshade, and for giving me permission to include their addon in my toggle HUD mods!",
-            "repo_url": null,
-            "donation": "https://www.paypal.com/donate/?hosted_button_id=PR2K52NXZ9EE8",
-            "banner": {
-                "id": 142703,
-                "file": "WGgvGvgUYAcLXTXKBj6nyqfcEilEqyDrUbNvrl17.webp",
-                "type": "webp",
-                "size": 284552,
-                "display_order": 6,
-                "visible": false,
-                "has_thumb": true
-            },
-            "images": [
-                {
-                    "id": 167245,
-                    "file": "vrXYgCjbgxfTtPcp9s5XCFTjDhLwuJDDAvdajOtN.webp",
-                    "type": "webp",
-                    "size": 22836,
-                    "display_order": 0,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 142702,
-                    "file": "H0RRJrtCkyEZtcXsuJBmjnkJRwzdFDFgRJIyaPjh.webp",
-                    "type": "webp",
-                    "size": 506518,
-                    "display_order": 1,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 142701,
-                    "file": "KfjxpDRgB7A6rL54ZkwZGihKZ1m80zY01QBGdxkl.webp",
-                    "type": "webp",
-                    "size": 1316142,
-                    "display_order": 2,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 163846,
-                    "file": "EHs9UtVQSj4CgyELSz5pw5NtCCrf6EiiF6ciaGLA.webp",
-                    "type": "webp",
-                    "size": 415362,
-                    "display_order": 3,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 163845,
-                    "file": "0pQZlB8qTkWQZ5qD0QlD1pAiGNT9jou167awIAoH.webp",
-                    "type": "webp",
-                    "size": 398770,
-                    "display_order": 4,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 167244,
-                    "file": "NOcFzL9xsBXZl0OsApKs9t9K7VdwKtbp3cDwCOUf.webp",
-                    "type": "webp",
-                    "size": 739978,
-                    "display_order": 5,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 142703,
-                    "file": "WGgvGvgUYAcLXTXKBj6nyqfcEilEqyDrUbNvrl17.webp",
-                    "type": "webp",
-                    "size": 284552,
-                    "display_order": 6,
-                    "visible": false,
-                    "has_thumb": true
-                },
-                {
-                    "id": 163847,
-                    "file": "xpoo5PRkIWbkkknvdGMrqkR0vyX2JifB0gRUwPJk.webp",
-                    "type": "webp",
-                    "size": 317900,
-                    "display_order": 7,
-                    "visible": false,
-                    "has_thumb": true
-                }
-            ],
-            "dependencies": [],
-            "instructs_template": null,
-            "tags": [
-                {
-                    "id": 62,
-                    "name": "Client-side",
-                    "color": "#5151ff"
-                },
-                {
-                    "id": 12,
-                    "name": "Quality of Life",
-                    "color": "#369649"
-                }
-            ],
-            "members": []
-        },
-        "files": {
-            "data": [
-                {
-                    "id": 101017,
-                    "name": "Toggle HUD and Effects",
-                    "version": "",
-                    "size": 2358833,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/48221_74428_t0uYwyDULFqkSFMX5wQNoaSSn11OGH4AIXTvAIYP.zip?filename=Toggle%20HUD%20and%20Effects.zip",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 25,
-                    "created_at": "2026-07-26T10:58:23.000000Z"
-                }
-            ],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 1
-            }
-        },
-        "links": {
-            "data": [],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 0
-            }
-        }
-    },
-    "50098": {
-        "detail": {
-            "id": 50098,
-            "name": "M4 Super 90",
-            "desc": "Replaces \"Practical\" with classic M4 Super 90.\n\n \nCurrent known problems:\n* Muzzle attachments are misplaced when gun is animated.",
-            "short_desc": "Most practical mod in Rockay city.",
-            "version": "1.2",
-            "downloads": 244,
-            "likes": 10,
-            "views": 1153,
-            "published_at": "2024-10-31T21:23:23.000000Z",
-            "bumped_at": "2026-07-26T09:48:02.000000Z",
-            "category_id": 896,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "thumbnail": {
-                "file": "iCpOxcAgPTzCt3JcDaqhFJEZkqoBiwrImgDJYlww.webp",
-                "has_thumb": true
-            },
-            "download": null,
-            "user": {
-                "id": 965,
-                "name": ">:3",
-                "donation_url": "https://ko-fi.com/pawcio1337",
-                "avatar": "https://avatars.steamstatic.com/978c7b3f1e1a890b3b125f593f45098aa861cb10_full.jpg",
-                "avatar_has_thumb": false
-            },
-            "changelog": "1.2\n* Fixed problem with receiver mesh.\n* Improved default weapon icon.\n\n1.11\n* Skins are now applied to pistol grip.\n* Fixed skin patterns.\n\n1.1\n* Improved texture of silver finish.\n* Corrected ARM texture settings - weapon now uses metallic layer correctly.",
-            "instructions": "",
-            "license": "Model/texture - Counter-Strike 2 (Valve)",
-            "repo_url": null,
-            "donation": "",
-            "banner": null,
-            "images": [
-                {
-                    "id": 165461,
-                    "file": "iCpOxcAgPTzCt3JcDaqhFJEZkqoBiwrImgDJYlww.webp",
-                    "type": "webp",
-                    "size": 194762,
-                    "display_order": 0,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 165464,
-                    "file": "xEWd0b4hjOwpFmoFCDpBLqKXABKDkYDMUcWleksh.webp",
-                    "type": "webp",
-                    "size": 219334,
-                    "display_order": 1,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 165462,
-                    "file": "fQXx7fupadr0n3hby9twTYwsR6plk3LGWJu6CjB3.webp",
-                    "type": "webp",
-                    "size": 211744,
-                    "display_order": 2,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 165463,
-                    "file": "BZFsyaZAmLS9HJa5jzcq35MMtbO4sn6codXdWVpG.webp",
-                    "type": "webp",
-                    "size": 297784,
-                    "display_order": 3,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 165465,
-                    "file": "lx2rUnGOF5l6QmXMtEHCZQtbFtlBrIUBDQOJbT9G.webp",
-                    "type": "webp",
-                    "size": 227490,
-                    "display_order": 4,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 165472,
-                    "file": "13Pj2q7LXN4vQs4I6xJRojeyxLepUqdAGmq72f3A.webp",
-                    "type": "webp",
-                    "size": 242572,
-                    "display_order": 5,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 165471,
-                    "file": "m0GVEQwc6D98QwZijTKqQgpx2Kmi0FEStd5hMaIN.webp",
-                    "type": "webp",
-                    "size": 350124,
-                    "display_order": 6,
-                    "visible": true,
-                    "has_thumb": true
-                }
-            ],
-            "dependencies": [],
-            "instructs_template": null,
-            "tags": [
-                {
-                    "id": 61,
-                    "name": "PAK Mod",
-                    "color": "#f1eab4"
-                },
-                {
-                    "id": 7,
-                    "name": "Port",
-                    "color": "#7c41c5"
-                }
-            ],
-            "members": []
-        },
-        "files": {
-            "data": [
-                {
-                    "id": 80238,
-                    "name": "M4Super90.zip",
-                    "version": "",
-                    "size": 30492832,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/50098_965_lpba81tM23ZuWdIB3ezHoMJwkrzqrtW2s6Mnc2ua.zip?filename=M4Super90.zip",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 193,
-                    "created_at": "2024-10-31T21:22:38.000000Z"
-                },
-                {
-                    "id": 80239,
-                    "name": "M4Super90_SilverFinish.zip",
-                    "version": "",
-                    "size": 30957027,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/50098_965_Pmzr36LhJG57ayN5sGx0Br98DDTPu2jk3AEvJM7N.zip?filename=M4Super90_SilverFinish.zip",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 58,
-                    "created_at": "2024-10-31T21:22:39.000000Z"
-                }
-            ],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 2
-            }
-        },
-        "links": {
-            "data": [],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 0
-            }
-        }
-    },
     "53844": {
         "detail": {
             "id": 53844,
             "name": "Removed Skins Restoration WIP",
             "desc": "Mod restores a bunch of old skins, because IGS are too busy doing whatever other stuff to add them back themselves, who knows how long before we get them back officially so I'll just do some of them myself (preview images slightly outdated, use Practical R instead of Practical H for fully skinned gun). Currently have no skin or weapon icons (too lazy).\n\nCurrent skins list:\n3 for the Sturm GWR and Practical\n2 for the Yarek and SMG 9mm\n1 for the DE44, Scorp, Glizzy and Micro SMG",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "4",
-            "downloads": 72,
-            "likes": 6,
-            "views": 493,
+            "downloads": 79,
+            "likes": 7,
+            "views": 536,
             "published_at": "2025-09-21T13:18:14.000000Z",
             "bumped_at": "2026-09-11T15:21:50.000000Z",
             "category_id": 896,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": null,
             "thumbnail": {
-                "file": "g9V9vltMxx7FZtmL0Q4WtDBuL2NdTSxS40IVge98.webp",
+                "file": "nGMrf0aeRR0gZ7aJIuDhntIg41MbVrT0OsUsDQWL.webp",
                 "has_thumb": true
             },
             "download": {
@@ -360,6 +28,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/53844_1428_vq9MaLgh0zykU5ou4YoXtpJkkBX1QKTjxepMoA8E.zip?filename=Removed%20Skins%20Restoration.zip",
                 "url": null
             },
+            "download_id": null,
+            "files_are_versions": true,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -375,15 +45,6 @@
             "banner": null,
             "images": [
                 {
-                    "id": 150135,
-                    "file": "g9V9vltMxx7FZtmL0Q4WtDBuL2NdTSxS40IVge98.webp",
-                    "type": "webp",
-                    "size": 93048,
-                    "display_order": 0,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
                     "id": 150136,
                     "file": "15L1Kq1aiTZoYIBm14bCXqK2Ey9nngRcootC6POn.webp",
                     "type": "webp",
@@ -397,7 +58,7 @@
                     "file": "hC283jVV7avcDIs9PorrZ6wpOiP2ZUYk3tL2y5pP.webp",
                     "type": "webp",
                     "size": 146724,
-                    "display_order": 2,
+                    "display_order": 1,
                     "visible": true,
                     "has_thumb": true
                 },
@@ -415,16 +76,7 @@
                     "file": "zvzHxL7msCoUkWRRz0WeQxYEP18YavbTelp5tl76.webp",
                     "type": "webp",
                     "size": 42898,
-                    "display_order": 4,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 150305,
-                    "file": "z4hycPTTwpILlgWstHgLfZIvM62K7GxTSrVfEI5V.webp",
-                    "type": "webp",
-                    "size": 95068,
-                    "display_order": 4,
+                    "display_order": 3,
                     "visible": true,
                     "has_thumb": true
                 },
@@ -442,7 +94,25 @@
                     "file": "KV4GqgdrVRxYqFvWlB3klZZcifxnTFAsEfx5ywFV.webp",
                     "type": "webp",
                     "size": 80052,
-                    "display_order": 4,
+                    "display_order": 5,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 172478,
+                    "file": "LroQ4AuSfuyW6aqQgtzk8v6JnVTbw1lxPlNf2Ejc.webp",
+                    "type": "webp",
+                    "size": 136934,
+                    "display_order": 6,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 172479,
+                    "file": "nGMrf0aeRR0gZ7aJIuDhntIg41MbVrT0OsUsDQWL.webp",
+                    "type": "webp",
+                    "size": 206364,
+                    "display_order": 7,
                     "visible": true,
                     "has_thumb": true
                 }
@@ -491,7 +161,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 9,
+                    "downloads": 16,
                     "created_at": "2026-09-11T15:21:46.000000Z"
                 }
             ],
@@ -512,33 +182,37 @@
             }
         }
     },
-    "54409": {
+    "54199": {
         "detail": {
-            "id": 54409,
-            "name": "Scudos Final Turf Restoration",
-            "desc": "Restores the original final turf location at a boarded up mall.",
-            "short_desc": "Cagnali's Mall",
+            "id": 54199,
+            "name": "Vintovka Model Fix",
+            "desc": "Fixes the hole in the back as well as the missing ironsight glow.\n\nDelete old files from Content/Paks/~mods before updating.",
+            "short_desc": "",
+            "legacy_markup": false,
             "version": "",
-            "downloads": 25,
+            "downloads": 39,
             "likes": 2,
-            "views": 436,
-            "published_at": "2025-11-17T12:56:12.000000Z",
-            "bumped_at": "2026-07-28T20:01:04.000000Z",
-            "category_id": 897,
+            "views": 307,
+            "published_at": "2025-10-22T18:59:16.000000Z",
+            "bumped_at": "2026-09-20T16:26:33.000000Z",
+            "category_id": 896,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
-                "file": "RA1x6pjZJTqwhjKasamdzSf6kKInrnRiy0uSZUgH.webp",
+                "file": "gwUdoeNUoPLBztmNaikBJj0G8YW4YG0VdlvbfArT.webp",
                 "has_thumb": true
             },
             "download": {
-                "id": 101118,
+                "id": 103308,
                 "version": "",
-                "size": 87829,
+                "size": 2615226,
                 "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/54409_1428_ELZhCowCgjC0alL1IjqH28SsmRnMXqBz0N0lASE7.zip?filename=Scudos%20Turf.zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/54199_1428_xJ9QP6ex1S9LfF16OdqOLdGUUry8hkszzB6qAXCL.zip?filename=Vintovka%20Model%20Fix.zip",
                 "url": null
             },
+            "download_id": 103308,
+            "files_are_versions": true,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -546,7 +220,7 @@
                 "avatar": "CmCL0Pkvw53Wl4JbAi0u2yIBdAn7uJBFRGlEXrLW.webp",
                 "avatar_has_thumb": true
             },
-            "changelog": "Fixed captain spawns (spawns 3 of them as it should instead of only 1 named Cagnali)",
+            "changelog": "Redone to be UGC format, fixed missing iron sights glow as well",
             "instructions": "",
             "license": "",
             "repo_url": null,
@@ -554,12 +228,21 @@
             "banner": null,
             "images": [
                 {
-                    "id": 152162,
-                    "file": "RA1x6pjZJTqwhjKasamdzSf6kKInrnRiy0uSZUgH.webp",
+                    "id": 151317,
+                    "file": "4wCSu0G3AcWoHcCzOD8Sabz8k8fN5Z6SK6WoAbFq.webp",
                     "type": "webp",
-                    "size": 139842,
+                    "size": 10090,
                     "display_order": 0,
                     "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 170918,
+                    "file": "gwUdoeNUoPLBztmNaikBJj0G8YW4YG0VdlvbfArT.webp",
+                    "type": "webp",
+                    "size": 10606,
+                    "display_order": 1,
+                    "visible": false,
                     "has_thumb": true
                 }
             ],
@@ -572,24 +255,14 @@
             },
             "tags": [
                 {
-                    "id": 3,
-                    "name": "Lorefriendly",
-                    "color": "#1e621e"
-                },
-                {
-                    "id": 12,
-                    "name": "Quality of Life",
-                    "color": "#369649"
-                },
-                {
                     "id": 22,
                     "name": "Bugfix",
                     "color": "#7a20fc"
                 },
                 {
-                    "id": 67,
-                    "name": "UGC Mod",
-                    "color": "#ecb3fb"
+                    "id": 12,
+                    "name": "Quality of Life",
+                    "color": "#369649"
                 }
             ],
             "members": []
@@ -597,39 +270,25 @@
         "files": {
             "data": [
                 {
-                    "id": 101118,
-                    "name": "Scudos Turf",
+                    "id": 103308,
+                    "name": "Vintovka Model Fix",
                     "version": "",
-                    "size": 87829,
+                    "size": 2615226,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/54409_1428_ELZhCowCgjC0alL1IjqH28SsmRnMXqBz0N0lASE7.zip?filename=Scudos%20Turf.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/54199_1428_xJ9QP6ex1S9LfF16OdqOLdGUUry8hkszzB6qAXCL.zip?filename=Vintovka%20Model%20Fix.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 9,
-                    "created_at": "2026-07-28T20:00:57.000000Z"
-                },
-                {
-                    "id": 101119,
-                    "name": "Source",
-                    "version": "",
-                    "size": 575254,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/54409_1428_PHGGH8VWMHIOUOnvwAD24BClOXOKbV8RJUSOOJBK.zip?filename=Source.zip",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 0,
-                    "created_at": "2026-07-28T20:01:04.000000Z"
+                    "downloads": 12,
+                    "created_at": "2026-09-20T16:26:28.000000Z"
                 }
             ],
             "meta": {
                 "current_page": 1,
                 "last_page": 1,
                 "per_page": 20,
-                "total": 2
+                "total": 1
             }
         },
         "links": {
@@ -648,27 +307,31 @@
             "name": "Story Intro Restoration",
             "desc": "Adds the old intro as a standalone plotline. Scripted turf war not included due to being broken (haven't checked but probably still is).\n\nWhen there's nothing left to do, it's over, and you have to use the Restart Campaign button to end it. Cba figure that out.\n\nNote: You can softlock yourself if you hire a goon and then don't have enough leftover cash to pay for a job's planning cost.",
             "short_desc": "New adventures await buddy\nBetter than story mode",
-            "version": "2",
-            "downloads": 28,
+            "legacy_markup": false,
+            "version": "3",
+            "downloads": 30,
             "likes": 3,
-            "views": 582,
+            "views": 679,
             "published_at": "2025-11-21T19:32:55.000000Z",
-            "bumped_at": "2026-08-24T16:59:52.000000Z",
+            "bumped_at": "2026-10-15T16:35:38.000000Z",
             "category_id": 892,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "4rNa9JUcAmm6b2tfJw1PDaDNr35LFqooD5nfqoQs.webp",
                 "has_thumb": true
             },
             "download": {
-                "id": 101958,
+                "id": 104673,
                 "version": "",
-                "size": 70020,
+                "size": 75644,
                 "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/54450_1428_6vR69FlPF1o15rG8uuOdqoDPNRYI33nkIN6fwvAi.zip?filename=Story%20Intro%20Restoration.zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/54450_1428_wDD9uZoEdLcJC45rj9jMxiAzpJIN2MZVWUtWc7rq.zip?filename=Story%20Intro%20Restoration.zip",
                 "url": null
             },
+            "download_id": 104673,
+            "files_are_versions": false,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -676,7 +339,7 @@
                 "avatar": "CmCL0Pkvw53Wl4JbAi0u2yIBdAn7uJBFRGlEXrLW.webp",
                 "avatar_has_thumb": true
             },
-            "changelog": "No longer hides other plotlines on the menu, added legendary intro shootout, fixed team members in defend the candy, added first bank/store/truck goals",
+            "changelog": "Made intro bank job cops be Tier 2, added Gloves cutscenes\n\n!!!\nNo longer hides other plotlines on the menu, added legendary intro shootout, fixed team members in defend the candy, added first bank/store/truck goals\n!!!",
             "instructions": "",
             "license": "",
             "repo_url": null,
@@ -736,32 +399,32 @@
         "files": {
             "data": [
                 {
-                    "id": 101958,
+                    "id": 104673,
                     "name": "Story Intro Restoration",
                     "version": "",
-                    "size": 70020,
+                    "size": 75644,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/54450_1428_6vR69FlPF1o15rG8uuOdqoDPNRYI33nkIN6fwvAi.zip?filename=Story%20Intro%20Restoration.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/54450_1428_wDD9uZoEdLcJC45rj9jMxiAzpJIN2MZVWUtWc7rq.zip?filename=Story%20Intro%20Restoration.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 5,
-                    "created_at": "2026-08-24T16:59:46.000000Z"
+                    "downloads": 1,
+                    "created_at": "2026-10-15T16:35:36.000000Z"
                 },
                 {
-                    "id": 101959,
+                    "id": 104672,
                     "name": "Source",
                     "version": "",
-                    "size": 180432,
+                    "size": 196167,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/54450_1428_zutcrfhy3hE9nqVzfGpCkwyG87c24yBFtbhP9iku.zip?filename=Source.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/54450_1428_zNTueJBnrBvozXy7uExLrD7kdLvogI0kEOCSFCDV.zip?filename=Source.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
                     "downloads": 0,
-                    "created_at": "2026-08-24T16:59:50.000000Z"
+                    "created_at": "2026-10-15T16:35:31.000000Z"
                 }
             ],
             "meta": {
@@ -785,26 +448,30 @@
         "detail": {
             "id": 54961,
             "name": "Improved Roguelite & Multiplayer",
-            "desc": "Incompatibilites:\n!!!\n**Dollar Dragon Fix - Obsolete mod\nBig Heist Improvements**\nAlready included in the mod, just in a different way.\n!!!\n\nMakes changes to the roguelite and multiplayer to improve the experience.\nPlaying with [No Boss Level](https://modworkshop.net/mod/54337) mod is recommended (as it is otherwise pointless without it).\nIncludes [No Roguelite Robots + Restored Cutscenes mod;](https://modworkshop.net/mod/54334), [Old Scudos](https://modworkshop.net/mod/51826), [Shock Trooper AI Fix](https://modworkshop.net/mod/55463), [Big Heist Improvements](https://modworkshop.net/mod/55497), [More Boss Skins](https://modworkshop.net/mod/54585), [Enemy Character Packs](https://modworkshop.net/mod/58340), [Improved Hielo Vintovka Skin](https://modworkshop.net/mod/58485), [Icon Fixes](https://modworkshop.net/mod/58589) and [Graves Captains](https://modworkshop.net/mod/57846) mods.\n\nChanges (WIP, more to be added in the future):\n!!!\nGangs and Police Tiers overhaul:\n- Graves no longer have overpowered weapon setups;\n- Touchdown has weaker weapons (especially on Tier 1);\n- Scudos are no longer poorly armed and bulletsponges (they are now the opposite and also back to being Italian);\n- Generic enemy captains are better armed;\n- Shock Trooper melee swing cooldown is now dependent on police tier (AI Fix);\n- Police Sniper damage is doubled;\n- Shields are back to using the Swiss instead of the Glizzy (nearly double damage difference) with variants scaling based on police tier;\n- Butchers have stronger, higher damage dealing saws and shorter cleaver throwing cooldowns;\n- Shield SWATs have the same HP as regular SWAT but have stronger shield glass and do double melee damage;\n- Sniper SWATs have the same HP as regular SWAT but hit chance scales up with tiers;\n- Swapped melee weapons for Sicarios and Riders.\n\nGeneral:\n- Only one enemy can be pinged/marked at a time and it only lasts for 5 seconds;\n- Rebalanced equipment (Sentry takes 60 seconds longer to recharge and cannot be stacked with Geared, Flash Grenade no longer stuns through objects, Distraction Magazine is now a one time use item (but rechargeable with kills), Berserk and Adrenaline are now melee focused: no longer providing super fast reloads and increased gun damage while increasing damage reduction);\n- Timm4 default magazine is now correct (20) and trades accuracy stats with the Sturm GWR;\n- AAS shoots half pellets/does half damage but has increased ammo reserve;\n- Disabled certain DLC perks from Roguelite generation (Cracker DLC, Chase DLC, Wiz DLC except Packed, and Ninja Smoke DLC except Rebound on Brutes);\n- Bearslayer is no longer a straight upgrade to the 357 BOA (currently identical in stats) and they both do more damage;\n- Practicals, SL8s and BU-RPs no longer deal shit damage in enemy hands;\n- Shotguns no longer have penetration;\n- Minor rebalances for some weapons (mostly total ammo related, WIP);\n- Rebalanced characters (including Multiplayer Boss);\n- Rebalanced melee weapons;\n- Rebalanced and reworked perks (WIP, notable ones are Ghost merged with Dodge and Desperado replacing it);\n- Restored Rebar melee weapon;\n- Added two SL8 variants, two Urban Striker variants and an SPX variant (sights);\n- Changed the opening cutscene of Juiced Up, Iced Out (also added to Money Train standalone plotline), as well as swapped Cracker for Tuna;\n- Mercs no longer deal more melee damage than Brutes;\n- Thieves and Assasins detection speed bonuses aren't as high as before (15 and 20% max reduction);\n- Added the Annihilator revolver as a Primary weapon;\n- Decreased difficulty of Armored Trucks heists so that they are doable at Heat 5;\n- Loud variants of the regular bank heist no longer have scripted heat;\n- Disabled alien content (alien rumble map is still playable but weapons are not usable);\n- Changed music played on Golf With The Dragon and Great Escape ([Preview](https://youtu.be/DqnJnJ5TlXQ?si=3ctWK41Nzz9uzFr_&t=137));\n- Scudo Robots now have pink lights;\n- Added Money Train 2/Rendezvouz edit;\n- Bodycount now always plays on the Chopper escape variant of the Bank job;\n- Tuna gets a unique Practical variant;\n- Added unused 99p music to Free Graves and Cyberstorm (latter only applies to robot ambush finale).\n\nRoguelite:\n- Gold Cup and Last Verse can no longer be the 1st plotline;\n- Runaway, Jupiter, Vamp, Stinger and Ropes don't have reduced job cuts anymore;\n- Legendary tier characters start with 1 perk like everyone else instead of 2;\n- DLC characters no longer have priority over other characters;\n- Generic characters only come pre-leveled (Level 2 max) upon reaching Affiliated respect level;\n- Reduced prices of Uncommon and Rare generic characters;\n- Increased prices of Epic and (especially) Legendary equipment (no more cheap Sentries);\n- Purchasing ziplines for Dragon Dogs is now required and are no longer marked;\n- Successfully completing the Dragon Dogs plotline now shows extra cutscenes (unless Khan is gone);\n- Whether you get the Ringer or Cash Trucks variant of the Money Train plotline depends on whether or not it is your 1st plotline of the campaign;\n- Classic Roguelite is an additional option, on which The Last Verse and Hans Fang plotlines do not trigger (neither does the Cold Strike or Auction House event). Gold Cup and Cagnali's Order are up to the player to enable/disable via Steam DLC system;\n- Roguelite Normal & Hard difficulties use gameplay values from Extreme difficulty while other aspects remain the same (character missions unaffected);\n- Wiz plotline plays extra cutscenes;\n- Gang robbery missions can now also involve the Scudos;\n- Changed intro cutscenes;\n- Scorp Elites with Volk's skin will no longer appear in the shop (instead, unskinned ones will);\n- You no longer start the game with Baker's Bearslayer (have to buy it similarly to the Repeater);\n- Increased investigation per day on lower difficulties (13 and 15% for Normal and Hard);\n- Amount of detectives per run and chances of appearing are now the same across all difficulties;\n- Bribe The Cops and Interfere With Investigation goals now freeze investigation for 2 days instead of decreasing it;\n- Characters take longer to max level (+1 mission);\n- Increased difficulty of the Art Gallery and Night Bank job when going loud;\n- Fixed Tier 3 Army Upgrade playing the wrong cutscene for the Compound and High Security Warehouse;\n- Fixed Rescue Khan's dealer job appearing even if Hielo was gone;\n- Hielo can now do heists if failed or ignored by the player (WIP);\n- Added effects for rejecting Last Verse and failing Dragon Dogs;\n- DLC character variants no longer show up in the Roguelite by default (download the new Submod to re-enable them as well as enable the ones from the mod and Matt DLC, disables Gold Cup adding Janitor to the hiring pool);\n- Changed investigation goals to trigger more reliably (as it was sometimes possible to never get the 2nd goal before reaching 100% investigation even without wasting days).\n\nMultiplayer:\n- Multiplayer difficulties all use Extreme difficulty values, and now instead change starting heat (3/4/5) and enemy tiers (2/3/3);\n- New team members (Casey, Gloves, Nasara, Monarch Baker, Savant Nasara, Werevolk, Mighty Mother, Vixen Vamp, Mac, Carlos, Luna, Khan and dlc-less versions of Hielo and Dollar Dragon) and boss skins;\n- Reworked Urban Legends;\n- Changed Shuffle lists (Big heists show up at the end of Short shuffles; Cold Strike is not part of it);\n- Moved the ending cutscene of New Blood to the beginning of the Urban Legend;\n- Added original version of Mozart's rifle (used in Urban Legend);\n- Removed scripted heat on Golf With The Dragon;\n- Copied Mac's stats over to Mozart (Urban Legend rescue mission).\n\nBig Heist Improvements differences:\n- Import Export detectives timer is 6 minutes, and shrinks by 30 seconds for every extra player;\n- Hidden Vault and Dragon Dogs start at Heat 4 in Roguelite (difficulty dependent in Multiplayer);\n- Heat no longer increases on vault open (Dragon Dogs Heat increases when the dogs are secured);\n- Gold Cup stealth timer is 8 minutes in Roguelite, and 6 minutes in Multiplayer.\n!!!\n\nNotes:\n- Due to the amount of changes and additions, it is not recommended to host public lobbies (although surprisingly it is still playable);\n- If a boss slot has Ghost or Dodge/Desperado equipped, it has to be re-equipped whenever the mod is added or removed or they will not work (indicated by an empty perk slot on the character wheel);\n- Make sure Dollar Dragon Alternate Appearance is Off for the correct outfit during Golf With The Dragon (reverse for when mod isn't active).\n\nPlotline tweaks (somewhat outdated) available as standalone (Dragon Dogs, Money Train, Wiz Missions)",
+            "desc": "Incompatibilites:\n!!!\n**Dollar Dragon Fix - Obsolete mod\nBig Heist Improvements**\nAlready included in the mod, just in a different way.\n!!!\n\nMakes changes to the roguelite and multiplayer to improve the experience.\nPlaying with [No Boss Level](https://modworkshop.net/mod/54337) mod is recommended (as it is otherwise pointless without it). [More Multiplayer Jobs](https://modworkshop.net/mod/54316) is also recommended (has Shuffle support for the added jobs).\nIncludes [No Roguelite Robots + Restored Cutscenes mod;](https://modworkshop.net/mod/54334), [Old Scudos](https://modworkshop.net/mod/51826), [Shock Trooper AI Fix](https://modworkshop.net/mod/55463), [Big Heist Improvements](https://modworkshop.net/mod/55497), [More Boss Skins](https://modworkshop.net/mod/54585), [Enemy Character Packs](https://modworkshop.net/mod/58340), [Improved Hielo Vintovka Skin](https://modworkshop.net/mod/58485), [Icon Fixes](https://modworkshop.net/mod/58589), [Money Train 2](https://modworkshop.net/mod/58196), [Peak's Rifle](https://modworkshop.net/mod/59404) and [Graves Captains](https://modworkshop.net/mod/57846) mods. Having included mods alongside it will not cause conflicts/problems.\n\nChanges (WIP, more to be added in the future):\n!!!\nGangs and Police Tiers overhaul:\n- Graves no longer have overpowered weapon setups;\n- Touchdown has weaker weapons (especially on Tier 1);\n- Scudos are no longer poorly armed and bulletsponges (they are now the opposite and also back to being Italian);\n- Generic enemy captains are better armed;\n- Shock Trooper melee swing cooldown is now dependent on police tier (AI Fix);\n- Police Sniper damage is doubled;\n- Shields are back to using the Swiss instead of the Glizzy (nearly double damage difference) with variants scaling based on police tier;\n- Butchers have stronger, higher damage dealing saws and shorter cleaver throwing cooldowns;\n- Shield SWATs have the same HP as regular SWAT but have stronger shield glass and do double melee damage;\n- Sniper SWATs have the same HP as regular SWAT but hit chance scales up with tiers;\n- Swapped melee weapons for Sicarios and Riders;\n- Shield's melee attack now actually works.\n\nGeneral:\n- Only one enemy can be pinged/marked at a time and it only lasts for 5 seconds;\n- Rebalanced equipment (Sentry takes 60 seconds longer to recharge and cannot be stacked with Geared, Flash Grenade no longer stuns through objects, Distraction Magazine is now a one time use item (but rechargeable with kills), Berserk and Adrenaline are now melee focused: no longer providing super fast reloads and increased gun damage while increasing damage reduction);\n- Timm4 default magazine is now correct (20) and trades accuracy stats with the Sturm GWR;\n- AAS shoots half pellets/does half damage but has increased ammo reserve;\n- Disabled certain DLC perks from Roguelite generation (Cracker DLC, Chase DLC, Wiz DLC except Packed, and Ninja Smoke DLC except Rebound on Brutes);\n- Bearslayer is no longer a straight upgrade to the 357 BOA (currently identical in stats) and they both do more damage;\n- Practicals, SL8s and BU-RPs no longer deal shit damage in enemy hands;\n- Shotguns no longer have penetration;\n- Minor rebalances for some weapons (mostly total ammo related, WIP);\n- Rebalanced characters (including Multiplayer Boss);\n- Rebalanced melee weapons;\n- Rebalanced and reworked perks (WIP, notable ones are Ghost merged with Dodge and Desperado replacing it);\n- Restored Rebar melee weapon;\n- Added two SL8 variants, two Urban Striker variants and an SPX variant (sights);\n- Changed the opening cutscene of Juiced Up, Iced Out (also added to Money Train standalone plotline), as well as swapped Cracker for Tuna;\n- Mercs no longer deal more melee damage than Brutes;\n- Thieves and Assasins detection speed bonuses aren't as high as before (15 and 20% max reduction);\n- Added the Annihilator revolver as a Primary weapon;\n- Decreased difficulty of Armored Trucks heists so that they are doable at Heat 5;\n- Loud variants of the regular bank heist no longer have scripted heat;\n- Disabled alien content (alien rumble map is still playable but weapons are not usable);\n- Changed music played on Golf With The Dragon and Great Escape ([Preview](https://youtu.be/DqnJnJ5TlXQ?si=3ctWK41Nzz9uzFr_&t=137));\n- Scudo Robots now have pink lights;\n- Added Money Train 2/Rendezvouz edit;\n- Bodycount now always plays on the Chopper escape variant of the Bank job;\n- Tuna gets a unique Practical variant;\n- Added unused 99p music to Free Graves and Cyberstorm (latter only applies to robot ambush finale);\n- Buddy has his own custom class (Brute/Big Shot hybrid).\n\nRoguelite:\n- Gold Cup and Last Verse can no longer be the 1st plotline;\n- Runaway, Jupiter, Vamp, Stinger and Ropes don't have reduced job cuts anymore;\n- Legendary tier characters start with 1 perk like everyone else instead of 2;\n- DLC characters no longer have priority over other characters;\n- Generic characters only come pre-leveled (Level 2 max) upon reaching Affiliated respect level;\n- Reduced prices of Uncommon and Rare generic characters;\n- Increased prices of Epic and (especially) Legendary equipment (no more cheap Sentries);\n- Purchasing ziplines for Dragon Dogs is now required and are no longer marked;\n- Successfully completing the Dragon Dogs plotline now shows extra cutscenes (unless Khan is gone);\n- Whether you get the Ringer or Cash Trucks variant of the Money Train plotline depends on whether or not it is your 1st plotline of the campaign;\n- Classic Roguelite is an additional option, on which The Last Verse and Hans Fang plotlines do not trigger (neither does the Cold Strike or Auction House event). Gold Cup and Cagnali's Order are up to the player to enable/disable via Steam DLC system;\n- Roguelite Normal & Hard difficulties use gameplay values from Extreme difficulty while other aspects remain the same (character missions unaffected);\n- Wiz plotline plays extra cutscenes;\n- Gang robbery missions can now also involve the Scudos;\n- Changed intro cutscenes;\n- Scorp Elites with Volk's skin will no longer appear in the shop (instead, unskinned ones will);\n- You no longer start the game with Baker's Bearslayer (have to buy it similarly to the Repeater);\n- Increased investigation per day on lower difficulties (13 and 15% for Normal and Hard);\n- Amount of detectives per run and chances of appearing are now the same across all difficulties;\n- Bribe The Cops and Interfere With Investigation goals now freeze investigation for 2 days instead of decreasing it;\n- Characters take longer to max level (+1 mission);\n- Increased difficulty of the Art Gallery and Night Bank job when going loud;\n- Fixed Tier 3 Army Upgrade playing the wrong cutscene for the Compound and High Security Warehouse;\n- Fixed Rescue Khan's dealer job appearing even if Hielo was gone;\n- Hielo can now do heists if failed or ignored by the player (WIP);\n- Added effects for rejecting Last Verse and failing Dragon Dogs;\n- DLC character variants no longer show up in the Roguelite by default (download the new Submod to re-enable them as well as enable the ones from the mod and Matt DLC, disables Gold Cup adding Janitor to the hiring pool);\n- Changed investigation goals to trigger more reliably (as it was sometimes possible to never get the 2nd goal before reaching 100% investigation even without wasting days).\n\nMultiplayer:\n- Multiplayer difficulties all use Extreme gameplay values, and now instead change starting heat (3/4/5) and enemy tiers (2/3/3);\n- New team members (Casey, Gloves, Nasara, Monarch Baker, Savant Nasara, Werevolk, Mighty Mother, Vixen Vamp, Mac, Carlos, Luna, Khan and dlc-less versions of Hielo and Dollar Dragon) and boss skins;\n- Reworked Urban Legends;\n- Changed Shuffle lists (Big heists show up at the end of Short shuffles; Cold Strike is not part of it);\n- Moved the ending cutscene of New Blood to the beginning of the Urban Legend;\n- Added original version of Mozart's rifle (used in Urban Legend);\n- Removed scripted heat on Golf With The Dragon;\n- Copied Mac's stats over to Mozart (Urban Legend rescue mission);\n- Big Shot Bosses now have the Boss class (but still retain Big Shot perks, Baker team member now also has them).\n\nBig Heist Improvements differences:\n- Import Export detectives timer is 6 minutes, and shrinks by 30 seconds for every extra player;\n- Hidden Vault and Dragon Dogs start at Heat 4 in Roguelite (difficulty dependent in Multiplayer);\n- Heat no longer increases on vault open (Dragon Dogs Heat increases when the dogs are secured);\n- Gold Cup stealth timer is 8 minutes in Roguelite, and 6 minutes in Multiplayer.\n!!!\n\nNotes:\n- Due to the amount of changes and additions, it is not recommended to host public lobbies (although surprisingly it is still playable);\n- If a boss slot has Ghost or Dodge/Desperado equipped, it has to be re-equipped whenever the mod is added or removed or they will not work (indicated by an empty perk slot on the character wheel);\n- Make sure Dollar Dragon Alternate Appearance is Off for the correct outfit during Golf With The Dragon (reverse for when mod isn't active);\n- Once started, an Urban Legend with custom/add-on characters has to be done in one play session (restarting the game will empty out the character list).\n\nPlotline tweaks (somewhat outdated) available as standalone (Dragon Dogs, Money Train, Wiz Missions)",
             "short_desc": "",
-            "version": "8",
-            "downloads": 134,
+            "legacy_markup": false,
+            "version": "8.2",
+            "downloads": 156,
             "likes": 7,
-            "views": 2609,
+            "views": 2960,
             "published_at": "2026-01-08T18:18:24.000000Z",
-            "bumped_at": "2026-09-15T17:47:56.000000Z",
+            "bumped_at": "2026-10-16T12:07:25.000000Z",
             "category_id": 898,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": null,
             "download": {
-                "id": 102936,
+                "id": 104701,
                 "version": "",
-                "size": 60323693,
+                "size": 94971041,
                 "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/54961_1428_gPJwXs5jutqvo5xEkjrmwouyWfuP3kVTTXbQGxGE.zip?filename=Improved%20Roguelite%20%20Multiplayer.zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/54961_1428_vHCDibBk7mukIzaMGsumcolXMozd6EgWbUGrMzKC.zip?filename=Improved%20Roguelite%20%20Multiplayer.zip",
                 "url": null
             },
+            "download_id": 104701,
+            "files_are_versions": false,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -812,7 +479,7 @@
                 "avatar": "CmCL0Pkvw53Wl4JbAi0u2yIBdAn7uJBFRGlEXrLW.webp",
                 "avatar_has_thumb": true
             },
-            "changelog": "V8 ~~[2nd Offense](https://www.youtube.com/watch?v=__e8nsN9rYc)~~\n\n!!!\nFixed Volk's age old inaccurate UI image;\nFixed Mother's Gun UI image;\nFixed some unintended weapons showing up in the Roguelite shop;\nFixed Classic Roguelite being broken;\nAdded unused 99p music to Free Graves and Cyberstorm (latter only applies to robot ambush finale);\nCyberstorm difficulty changes (Big Heist Improvement additions now only apply to Extreme difficulty);\nRebalanced new DLC team members;\nDLC character variants no longer show up in the Roguelite by default (download the new submod to re-enable them as well as enable the ones from the mod and Matt DLC, disables Gold Cup adding Janitor to the hiring pool);\nWerevolk has a new Scorp skin and re-added him to the Silence Is Gold Urban Legend;\nSwapped melee weapons for Sicarios and Riders;\nChanged investigation goals to trigger more reliably (as it was sometimes possible to never get the 2nd goal before reaching 100% investigation even without wasting days);\nTuna gets a unique Practical variant.\n!!!\n\nVersion 7.1\n!!!\nDragon Dogs script fix;\nAddon character fixes;\nAdded Improved Hielo Vintovka Skin to the mod and gave it back to Hielo;\nAdded new loot and ending cutscene to Secret Symphony Urban Legend;\nAdded another (conditional) cutscene for completing the Dragon Dogs plotline.\n!!!\n\nVersion 7\n!!!\nSentries can no longer be stacked when using Geared;\nGeared roguelite generation is no longer exclusive to Baker;\nBuffed Ranger's M60 accuracy;\nNerfed Handcannon's effective range and buffed it for the 1911;\nChanged secondary Micro SMG stats and mods to be the same as the primary;\nFixed Rescue Khan's dealer job appearing even if Hielo was gone;\nHielo can now do heists if failed or ignored by the player (WIP);\nAdded effects for rejecting Last Verse and failing Dragon Dogs;\nScudo Robots now have pink lights;\nCopied Mac's stats over to Mozart (Urban Legend rescue mission);\nLowered requirements for gang related cutscenes;\nSlight increase to Roidiac Jupiter and Buddy HP;\nDesperado perk no longer blocks shotguns from all it's benefits;\nFixed bugs with the Armored Truck difficulty tweaks;\nMore team members and boss skins;\nAdded Money Train 2/Rendezvouz edit;\nBodycount now always plays on the Chopper escape variant of the Bank job;\nReplaced Wiz with Khan in Cagnali's Order and Volk with Luna in Han's Fang;\nAdded edited version of Big Heist Improvements:\n- Import Export detectives timer is 6 minutes, and shrinks by 30 seconds for every extra player;\n- Hidden Vault and Dragon Dogs start at Heat 4 in Roguelite (difficulty dependent in Multiplayer);\n- Heat no longer increases on vault open (Dragon Dogs Heat increases when the dogs are secured);\n- Gold Cup stealth timer is 8 minutes in Roguelite, and 6 minutes in Multiplayer.\n!!!\n\nVersion 6\n!!!\nShuffle list changes (more jobs available, especially with latest version of More MP Jobs mod installed);\nUrban legend perk and loadout changes (also added Janitor to Silence Is Gold);\nRemoved scripted heat on Golf With The Dragon in Multiplayer;\nChanged music played on Golf With The Dragon and Great Escape ([Preview](https://youtu.be/DqnJnJ5TlXQ?si=3ctWK41Nzz9uzFr_&t=137)).\n!!!\n\nVersion 5.2\n!!!\nSlight reduction in Marskman enemy frequency;\nAdded Graves Captains boss skins;\nChanges to Adrenaline (no passive penalty but takes more kills to charge);\nBerserk and Adrenaline gain a 20% boost to reload speed (was 0);\nRemoved BU-RP from beat cops and increased damage done by enemies;\nIncreased Ghost dodge chance to 5-10-15%;\nRoguelite perk availability changes;\nLoud variants of the regular bank heist no longer have scripted heat;\nPerk level changes for certain Urban Legends;\nSkyhaul difficulty tweaks (no more CBT in Extreme Multiplayer, re-added to Shuffle).\n!!!\n\nVersion 5.1\n!!!\nFixed Auction House not being able to be started in the Roguelite (+ other missing economy data for newer jobs);\nIncreased difficulty of the Art Gallery and Night Bank job when going loud in Roguelite;\nDecreased difficulty of Armored Trucks heists so that they are doable at Heat 5 (as well as re-added them to the shuffle list along with Truck Convoys);\nFixed Tier 3 Army Upgrade playing the wrong cutscene for the Compound and High Security Warehouse.\n!!!\n\nVersion 5\nRe-added modded Shuffles & Urban Legends, as well as made many character/loadout changes within them.\n\nVersion 4.6\n!!!\nCharacter loadout changes;\nBuffed Scudomnion damage;\nCracker story uses his Maxed variant instead of regular on missions 2-5 (loadout is the same) and is added to the crew at the end;\nRemoved penetration from Stgw;\nAdded the Annihilator revolver as a Primary weapon;\nFixed Mighty Mother/Vixen Vamp being part of the random roguelite pool;\nAdded Mac as a team member and boss skin.\n!!!\n\nVersion 4.5\nFixed broken Roguelite\nAdded cutscene to the end of Last Verse plotline\n\nVersion 4.4\n!!!\nAnti-alien patch;\nChanges to turf war loadouts (and some minor fixes/adjustments);\nRandomized Graves boss skin added;\nAdded Vixen Vamp, Mighty Mother, Werevolk, Savant Nasara, Monarch Baker as well as DLC-less Hielo and Dragon team members;\nHard diff in MP uses Medium Scenario diff;\nReduced Sturm GWR damage;\nStandalone plotlines are available again;\nModded Urban Legends and Shuffles are currently removed due to being broken (empty menus).\n!!!\n\nVersion 4.3\n!!!\nShield SWATs have the same HP as regular SWAT but have stronger shield glass and do double melee damage;\nSniper SWATs have the same HP as regular SWAT but hit chance scales up with tiers;\nBribe The Cops and Interfere With Investigation goals now freeze investigation for 2 days instead of decreasing it;\nReplaced Obsolete Dodge Perk with Desperado;\n!!!\n\nVersion 4.2\n!!!\nIncreased Marksman Rifle damage done by enemy AI;\nMoved SL8 from SWAT tier 2 to 3;\nChanges to Scudos weapon setups on Tier 2 and 3;\nGave Forehand lore accurate main perk;\nCharacter weapon changes.\n!!!\n\nVersion 4.1\nDragon Dogs Ronin crash fix, also fixes character missions if they were broken.\n\nVersion 4\n!!!\nGangs and Police Tiers overhaul:\n- Graves no longer have overpowered weapon setups;\n- Touchdown has weaker weapons (especially on Tier 1);\n- Scudos are no longer poorly armed and bulletsponges (they are now the opposite and also back to being Italian);\n- Generic enemy captains are better armed;\n- Shock Trooper melee swing cooldown is now dependent on police tier (AI Fix);\n- Police Sniper damage is doubled;\n- Shields are back to using the Swiss instead of the Glizzy (nearly double damage difference) with variants scaling based on police tier;\n- Butchers have stronger, higher damage dealing saws and shorter cleaver throwing cooldowns.\n\nIncreased investigation per day on lower difficulties (13 and 15% for Normal and Hard);\nAmount of detectives per run and chances of appearing are now the same across all difficulties;\nAdded new weapon variants: SPX R, Urban Striker R & H;\nSwapped values of Health and Sturdy perks;\nMinor character changes for Clutch, Mr X and Stinger;\nRemoved double cutscene from New Blood Urban Legend;\nRunaway has different equipment on The Big Khan.\n!!!\n\nVersion 3.3\n!!!\nCharacter tweaks;\nAdded original version of Mozart's rifle (used in Urban Legend);\nAdded new cutscene to list of possible Roguelite intros;\nChanges to Urban Legend loadouts;\nMoved the ending cutscene of New Blood to the beginning of the Urban Legend;\nChanged the opening cutscene of Juiced Up, Iced Out (also added to Money Train standalone plotline), as well as swapped Cracker for Tuna;\nAdded Touchdown as a playable team member at the end of Cagnali's Order Urban Legend.\n!!!\n\nVersion 3.2\n!!!\nExtra changes to team member perks/weapons;\nReverted Sensor Grenade cooldown change and moved it to Epic rarity;\nAdded two SL8 variants (sights);\nChanged Shuffle lists (Big heists show up at the end of Short shuffles; Armored Truck Convoys, Truck Convoys, Airfield and Cold Strike are removed so Extreme difficulty Shuffles are doable/less CBT).\n!!!\n\nVersion 3.1:\n!!!\nFixed normal difficulty prices oversight;\nRemoved addon characters to prevent quickplayslot savefile being reset.\n!!!\n\nVersion 3:\n!!!\nChanged intro cutscenes;\nSentry takes 60 seconds longer to recharge;\nFlash Grenade no longer stuns through objects;\nSensor Grenade has shorter cooldown;\nDistraction Magazine is now a one time use item (rechargeable with kills);\nTimm4 default magazine is now correct (20) and trades accuracy stats with the Sturm GWR;\nAAS shoots half pellets/does half damage but has increased ammo reserve;\nScorp Elites with Volk's skin will no longer appear in the shop (instead, unskinned ones will);\nYou no longer start the game with Baker's Bearslayer (have to buy it similarly to the Repeater);\nBearslayer is no longer a straight upgrade to the 357 BOA (currently identical in stats) and they both do more damage;\nPracticals no longer deal shit damage in enemy hands;\nShotguns no longer have penetration;\nMinor rebalances for some weapons (mostly total ammo related, WIP);\nNew team members (Casey, Gloves, Nasara (and Savant), Werevolk, Mighty Mother, Vixen Xamp) and boss skins;\nRebalanced characters (including Multiplayer Boss);\nCharacters take longer to max level (+1 mission);\nReworked Urban Legends (WIP, only Cagnali's order atm);\nRebalanced melee weapons (WIP);\nRebalanced equipment (WIP, currently only Berserk and Adrenaline to be more melee focused);\nRebalanced perks (WIP);\nDisabled majority of DLC perks from Roguelite generation (may be re-enabled in the future);\nRemoved increased job cuts for DLC characters;\nRestored Rebar melee weapon.\n!!!\n\nAdded Plotline Tweaks Standalone (Dragon Dogs, Money Train, Wiz Missions)\n\nVersion 2:\n!!!\nRoguelite Normal & Hard difficulties use gameplay values from Extreme difficulty while other aspects remain the same (character missions unaffected);\nMultiplayer difficulties all use Extreme difficulty values, and now instead change starting heat (3/4/5) and enemy tiers (2/3/3);\nOnly one enemy can be pinged/marked at a time and it only lasts for 5 seconds;\nWiz plotline plays extra cutscenes;\nGang robbery missions can now also involve the Scudos.\n!!!",
+            "changelog": "Version 9\n!!!\nFixed Big Shot perk not decreasing weapon sway for Machineguns;\nBig Shot Bosses now have the Boss class (but still retain Big Shot perks, Baker team member now also has them);\nBuddy has his own custom class (Brute/Big Shot hybrid);\nSmall character and urban legend tweaks;\nShield's melee attack now actually works.\n!!!\n\nVersion 8.2\n!!!\nAdded Peak's Rifle and Golden skin to Tulip's Sturm GWR;\nIncreased enemy spawns on Defend Business Partner;\nBuffed Baker's Repeater and gave it to the MP Team Member;\nAdded Multiplayer exclusive generic skins to the Roguelite pool;\nReplaced Scorp in Army Tier 1 with Sting;\nChanges to Urban Legend loadouts.\n!!!\n\nVersion 8.1\n!!!\nChanged character loadouts (Lector, Vamp, Ropes, Mr X, Stinger: Ropes in particular now has a better loadout when taking his perk setup into account, Lector is back to using a Timm4 like old Crime Boss);\nChanged shuffle list (more jobs available but removed Golden Bux Truck due to difficulty, it's doable but still balls);\nChanged 12 Gauge stats and variants;\nAdded fail cutscene to The Big Khan and The Last Verse urban legends;\nFixed playable Mac's head breaking on character switch.\n!!!\n\nV8 ~~[2nd Offense](https://www.youtube.com/watch?v=__e8nsN9rYc)~~\n\n!!!\nFixed Volk's age old inaccurate UI image;\nFixed Mother's Gun UI image;\nFixed some unintended weapons showing up in the Roguelite shop;\nFixed Classic Roguelite being broken;\nAdded unused 99p music to Free Graves and Cyberstorm (latter only applies to robot ambush finale);\nCyberstorm difficulty changes (Big Heist Improvement additions now only apply to Extreme difficulty);\nRebalanced new DLC team members;\nDLC character variants no longer show up in the Roguelite by default (download the new submod to re-enable them as well as enable the ones from the mod and Matt DLC, disables Gold Cup adding Janitor to the hiring pool);\nWerevolk has a new Scorp skin and re-added him to the Silence Is Gold Urban Legend;\nSwapped melee weapons for Sicarios and Riders;\nChanged investigation goals to trigger more reliably (as it was sometimes possible to never get the 2nd goal before reaching 100% investigation even without wasting days);\nTuna gets a unique Practical variant.\n!!!\n\nVersion 7.1\n!!!\nDragon Dogs script fix;\nAddon character fixes;\nAdded Improved Hielo Vintovka Skin to the mod and gave it back to Hielo;\nAdded new loot and ending cutscene to Secret Symphony Urban Legend;\nAdded another (conditional) cutscene for completing the Dragon Dogs plotline.\n!!!\n\nVersion 7\n!!!\nSentries can no longer be stacked when using Geared;\nGeared roguelite generation is no longer exclusive to Baker;\nBuffed Ranger's M60 accuracy;\nNerfed Handcannon's effective range and buffed it for the 1911;\nChanged secondary Micro SMG stats and mods to be the same as the primary;\nFixed Rescue Khan's dealer job appearing even if Hielo was gone;\nHielo can now do heists if failed or ignored by the player (WIP);\nAdded effects for rejecting Last Verse and failing Dragon Dogs;\nScudo Robots now have pink lights;\nCopied Mac's stats over to Mozart (Urban Legend rescue mission);\nLowered requirements for gang related cutscenes;\nSlight increase to Roidiac Jupiter and Buddy HP;\nDesperado perk no longer blocks shotguns from all it's benefits;\nFixed bugs with the Armored Truck difficulty tweaks;\nMore team members and boss skins;\nAdded Money Train 2/Rendezvouz edit;\nBodycount now always plays on the Chopper escape variant of the Bank job;\nReplaced Wiz with Khan in Cagnali's Order and Volk with Luna in Han's Fang;\nAdded edited version of Big Heist Improvements:\n- Import Export detectives timer is 6 minutes, and shrinks by 30 seconds for every extra player;\n- Hidden Vault and Dragon Dogs start at Heat 4 in Roguelite (difficulty dependent in Multiplayer);\n- Heat no longer increases on vault open (Dragon Dogs Heat increases when the dogs are secured);\n- Gold Cup stealth timer is 8 minutes in Roguelite, and 6 minutes in Multiplayer.\n!!!\n\nVersion 6\n!!!\nShuffle list changes (more jobs available, especially with latest version of More MP Jobs mod installed);\nUrban legend perk and loadout changes (also added Janitor to Silence Is Gold);\nRemoved scripted heat on Golf With The Dragon in Multiplayer;\nChanged music played on Golf With The Dragon and Great Escape ([Preview](https://youtu.be/DqnJnJ5TlXQ?si=3ctWK41Nzz9uzFr_&t=137)).\n!!!\n\nVersion 5.2\n!!!\nSlight reduction in Marskman enemy frequency;\nAdded Graves Captains boss skins;\nChanges to Adrenaline (no passive penalty but takes more kills to charge);\nBerserk and Adrenaline gain a 20% boost to reload speed (was 0);\nRemoved BU-RP from beat cops and increased damage done by enemies;\nIncreased Ghost dodge chance to 5-10-15%;\nRoguelite perk availability changes;\nLoud variants of the regular bank heist no longer have scripted heat;\nPerk level changes for certain Urban Legends;\nSkyhaul difficulty tweaks (no more CBT in Extreme Multiplayer, re-added to Shuffle).\n!!!\n\nVersion 5.1\n!!!\nFixed Auction House not being able to be started in the Roguelite (+ other missing economy data for newer jobs);\nIncreased difficulty of the Art Gallery and Night Bank job when going loud in Roguelite;\nDecreased difficulty of Armored Trucks heists so that they are doable at Heat 5 (as well as re-added them to the shuffle list along with Truck Convoys);\nFixed Tier 3 Army Upgrade playing the wrong cutscene for the Compound and High Security Warehouse.\n!!!\n\nVersion 5\nRe-added modded Shuffles & Urban Legends, as well as made many character/loadout changes within them.\n\nVersion 4.6\n!!!\nCharacter loadout changes;\nBuffed Scudomnion damage;\nCracker story uses his Maxed variant instead of regular on missions 2-5 (loadout is the same) and is added to the crew at the end;\nRemoved penetration from Stgw;\nAdded the Annihilator revolver as a Primary weapon;\nFixed Mighty Mother/Vixen Vamp being part of the random roguelite pool;\nAdded Mac as a team member and boss skin.\n!!!\n\nVersion 4.5\nFixed broken Roguelite\nAdded cutscene to the end of Last Verse plotline\n\nVersion 4.4\n!!!\nAnti-alien patch;\nChanges to turf war loadouts (and some minor fixes/adjustments);\nRandomized Graves boss skin added;\nAdded Vixen Vamp, Mighty Mother, Werevolk, Savant Nasara, Monarch Baker as well as DLC-less Hielo and Dragon team members;\nHard diff in MP uses Medium Scenario diff;\nReduced Sturm GWR damage;\nStandalone plotlines are available again;\nModded Urban Legends and Shuffles are currently removed due to being broken (empty menus).\n!!!\n\nVersion 4.3\n!!!\nShield SWATs have the same HP as regular SWAT but have stronger shield glass and do double melee damage;\nSniper SWATs have the same HP as regular SWAT but hit chance scales up with tiers;\nBribe The Cops and Interfere With Investigation goals now freeze investigation for 2 days instead of decreasing it;\nReplaced Obsolete Dodge Perk with Desperado;\n!!!\n\nVersion 4.2\n!!!\nIncreased Marksman Rifle damage done by enemy AI;\nMoved SL8 from SWAT tier 2 to 3;\nChanges to Scudos weapon setups on Tier 2 and 3;\nGave Forehand lore accurate main perk;\nCharacter weapon changes.\n!!!\n\nVersion 4.1\nDragon Dogs Ronin crash fix, also fixes character missions if they were broken.\n\nVersion 4\n!!!\nGangs and Police Tiers overhaul:\n- Graves no longer have overpowered weapon setups;\n- Touchdown has weaker weapons (especially on Tier 1);\n- Scudos are no longer poorly armed and bulletsponges (they are now the opposite and also back to being Italian);\n- Generic enemy captains are better armed;\n- Shock Trooper melee swing cooldown is now dependent on police tier (AI Fix);\n- Police Sniper damage is doubled;\n- Shields are back to using the Swiss instead of the Glizzy (nearly double damage difference) with variants scaling based on police tier;\n- Butchers have stronger, higher damage dealing saws and shorter cleaver throwing cooldowns.\n\nIncreased investigation per day on lower difficulties (13 and 15% for Normal and Hard);\nAmount of detectives per run and chances of appearing are now the same across all difficulties;\nAdded new weapon variants: SPX R, Urban Striker R & H;\nSwapped values of Health and Sturdy perks;\nMinor character changes for Clutch, Mr X and Stinger;\nRemoved double cutscene from New Blood Urban Legend;\nRunaway has different equipment on The Big Khan.\n!!!\n\nVersion 3.3\n!!!\nCharacter tweaks;\nAdded original version of Mozart's rifle (used in Urban Legend);\nAdded new cutscene to list of possible Roguelite intros;\nChanges to Urban Legend loadouts;\nMoved the ending cutscene of New Blood to the beginning of the Urban Legend;\nChanged the opening cutscene of Juiced Up, Iced Out (also added to Money Train standalone plotline), as well as swapped Cracker for Tuna;\nAdded Touchdown as a playable team member at the end of Cagnali's Order Urban Legend.\n!!!\n\nVersion 3.2\n!!!\nExtra changes to team member perks/weapons;\nReverted Sensor Grenade cooldown change and moved it to Epic rarity;\nAdded two SL8 variants (sights);\nChanged Shuffle lists (Big heists show up at the end of Short shuffles; Armored Truck Convoys, Truck Convoys, Airfield and Cold Strike are removed so Extreme difficulty Shuffles are doable/less CBT).\n!!!\n\nVersion 3.1:\n!!!\nFixed normal difficulty prices oversight;\nRemoved addon characters to prevent quickplayslot savefile being reset.\n!!!\n\nVersion 3:\n!!!\nChanged intro cutscenes;\nSentry takes 60 seconds longer to recharge;\nFlash Grenade no longer stuns through objects;\nSensor Grenade has shorter cooldown;\nDistraction Magazine is now a one time use item (rechargeable with kills);\nTimm4 default magazine is now correct (20) and trades accuracy stats with the Sturm GWR;\nAAS shoots half pellets/does half damage but has increased ammo reserve;\nScorp Elites with Volk's skin will no longer appear in the shop (instead, unskinned ones will);\nYou no longer start the game with Baker's Bearslayer (have to buy it similarly to the Repeater);\nBearslayer is no longer a straight upgrade to the 357 BOA (currently identical in stats) and they both do more damage;\nPracticals no longer deal shit damage in enemy hands;\nShotguns no longer have penetration;\nMinor rebalances for some weapons (mostly total ammo related, WIP);\nNew team members (Casey, Gloves, Nasara (and Savant), Werevolk, Mighty Mother, Vixen Xamp) and boss skins;\nRebalanced characters (including Multiplayer Boss);\nCharacters take longer to max level (+1 mission);\nReworked Urban Legends (WIP, only Cagnali's order atm);\nRebalanced melee weapons (WIP);\nRebalanced equipment (WIP, currently only Berserk and Adrenaline to be more melee focused);\nRebalanced perks (WIP);\nDisabled majority of DLC perks from Roguelite generation (may be re-enabled in the future);\nRemoved increased job cuts for DLC characters;\nRestored Rebar melee weapon.\n!!!\n\nAdded Plotline Tweaks Standalone (Dragon Dogs, Money Train, Wiz Missions)\n\nVersion 2:\n!!!\nRoguelite Normal & Hard difficulties use gameplay values from Extreme difficulty while other aspects remain the same (character missions unaffected);\nMultiplayer difficulties all use Extreme difficulty values, and now instead change starting heat (3/4/5) and enemy tiers (2/3/3);\nOnly one enemy can be pinged/marked at a time and it only lasts for 5 seconds;\nWiz plotline plays extra cutscenes;\nGang robbery missions can now also involve the Scudos.\n!!!",
             "instructions": "",
             "license": "",
             "repo_url": null,
@@ -868,46 +535,46 @@
         "files": {
             "data": [
                 {
-                    "id": 102936,
+                    "id": 104701,
                     "name": "Improved Roguelite & Multiplayer",
                     "version": "",
-                    "size": 60323693,
+                    "size": 94971041,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/54961_1428_gPJwXs5jutqvo5xEkjrmwouyWfuP3kVTTXbQGxGE.zip?filename=Improved%20Roguelite%20%20Multiplayer.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/54961_1428_vHCDibBk7mukIzaMGsumcolXMozd6EgWbUGrMzKC.zip?filename=Improved%20Roguelite%20%20Multiplayer.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 1,
-                    "created_at": "2026-09-15T17:46:18.000000Z"
+                    "downloads": 4,
+                    "created_at": "2026-10-16T12:02:48.000000Z"
                 },
                 {
-                    "id": 102935,
+                    "id": 104700,
                     "name": "Roguelite DLC Character Variant Enabler",
                     "version": "",
-                    "size": 92541,
+                    "size": 104149,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/54961_1428_8gzl0yr7U14GksCvyYZiTuMVrOCzqxy5RIHCLhyr.zip?filename=Roguelite%20DLC%20Character%20Variant%20Enabler.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/54961_1428_Gwg2XXPxSaYEzfjwnOM9kqtwK5NLj3Rj7MDZW3EL.zip?filename=Roguelite%20DLC%20Character%20Variant%20Enabler.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 2,
-                    "created_at": "2026-09-15T17:45:14.000000Z"
+                    "downloads": 0,
+                    "created_at": "2026-10-16T12:02:44.000000Z"
                 },
                 {
-                    "id": 102937,
+                    "id": 104699,
                     "name": "Source",
                     "version": "",
-                    "size": 231626329,
+                    "size": 369141837,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/54961_1428_awoKEDt5T9OkDqjKjPoghy1F52MEusQ6GLWppCkD.zip?filename=Source.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/54961_1428_EZnuIBWjhygOIsbG0CDDro1JPf52GzPl1S24W1BZ.zip?filename=Source.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
                     "downloads": 1,
-                    "created_at": "2026-09-15T17:47:56.000000Z"
+                    "created_at": "2026-10-16T12:02:35.000000Z"
                 },
                 {
                     "id": 92943,
@@ -920,7 +587,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 4,
+                    "downloads": 5,
                     "created_at": "2026-02-23T18:20:10.000000Z"
                 }
             ],
@@ -941,201 +608,37 @@
             }
         }
     },
-    "55886": {
-        "detail": {
-            "id": 55886,
-            "name": "BerserkPlus",
-            "desc": "Equipment mod CREATED BY Crime_Boss MODKIT. Experience the wrath of Los Santos Urban Legend--TREVOR PHILLIPS, in Rockay City, and show'em who's the No.1 sturdy and fatal! Even Bulldozers and captains won't stand a chance!\n\nHave fun!",
-            "short_desc": "",
-            "version": "1.0.1",
-            "downloads": 33,
-            "likes": 1,
-            "views": 468,
-            "published_at": "2026-04-04T14:25:25.000000Z",
-            "bumped_at": "2026-07-21T11:02:11.000000Z",
-            "category_id": 889,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "thumbnail": {
-                "file": "ipDWC8oVr0T1Vz97U8VzP8MEQPabAcOWaalpzE83.webp",
-                "has_thumb": true
-            },
-            "download": {
-                "id": 100881,
-                "version": "",
-                "size": 21014671,
-                "type": "rar",
-                "download_url": "https://storage.modworkshop.net/mods/files/55886_221768_Ikj0yf0FqYf66El0G5zkj7OQO8VCm09uebnzitTO.1.rar?filename=BerserkPlusV1.1.rar",
-                "url": null
-            },
-            "user": {
-                "id": 221768,
-                "name": "SCUZR",
-                "donation_url": "",
-                "avatar": "KB9NlAXQ1sQv3VkyZk9wgaoHng51jYq4WzS3cL54.webp",
-                "avatar_has_thumb": true
-            },
-            "changelog": "V1.0.1\n\n* Grants full immunity to flash and stun effects when BerserkPlus is active.\n* Grants an \"SAS Instinct\" effect while aiming when BerserkPlus is active, with a longer radius but persisting very short upon quiting ADS.\n* Duration is reduced to 11.5 seconds, while still keeping its original cooldown.\n\nV1.0.0\n\nOfficial Release",
-            "instructions": "1. Find where your Crime Boss: Rockay City copy is installed. The location of this folder will vary depending on your installation preferences & storefront. For example: \nSteam: D:SteamLibrary/steamapps/common/CrimeBossRockayCity\n\n2. Extract the contents into CrimeBoss\\Mods.\n\nN.B. This mod cannot work when joining a multiplayer lobby as a cilent where the host doesn't have it.",
-            "license": "",
-            "repo_url": null,
-            "donation": "",
-            "banner": {
-                "id": 157672,
-                "file": "gjJDa2sLKjHG3KIuxDQX2oGL2IOB8lZ2qOQCN5Ln.webp",
-                "type": "webp",
-                "size": 12148,
-                "display_order": 1,
-                "visible": true,
-                "has_thumb": true
-            },
-            "images": [
-                {
-                    "id": 157671,
-                    "file": "ipDWC8oVr0T1Vz97U8VzP8MEQPabAcOWaalpzE83.webp",
-                    "type": "webp",
-                    "size": 8954,
-                    "display_order": 0,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 157672,
-                    "file": "gjJDa2sLKjHG3KIuxDQX2oGL2IOB8lZ2qOQCN5Ln.webp",
-                    "type": "webp",
-                    "size": 12148,
-                    "display_order": 1,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 157674,
-                    "file": "j5S7uBUPYjhq1Jgy8KYrQULH4D8Csjon1JPFRWEc.webp",
-                    "type": "webp",
-                    "size": 141550,
-                    "display_order": 2,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 157675,
-                    "file": "pXcLehUFT2rCm6MqEYbJuE8iPRRyjaHHoEUs5aXn.webp",
-                    "type": "webp",
-                    "size": 148254,
-                    "display_order": 3,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 157676,
-                    "file": "fyoqmAQuLq4vtGvJamVDoqCk86owkG8xJAeMqtGF.webp",
-                    "type": "webp",
-                    "size": 133334,
-                    "display_order": 4,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 157678,
-                    "file": "ukCwB81CxJQ7iwuzK8OL6JEot91oZh6w80vmSX6r.webp",
-                    "type": "webp",
-                    "size": 142612,
-                    "display_order": 5,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 157679,
-                    "file": "t0en2Y3wBfZ8jAybB2jQnb08GGhOvhpBwSHm7cnf.webp",
-                    "type": "webp",
-                    "size": 128856,
-                    "display_order": 6,
-                    "visible": true,
-                    "has_thumb": true
-                }
-            ],
-            "dependencies": [],
-            "instructs_template": null,
-            "tags": [
-                {
-                    "id": 17,
-                    "name": "Joke",
-                    "color": "#b747c7"
-                },
-                {
-                    "id": 67,
-                    "name": "UGC Mod",
-                    "color": "#ecb3fb"
-                },
-                {
-                    "id": 38,
-                    "name": "Gameplay Changing",
-                    "color": "#658327"
-                }
-            ],
-            "members": []
-        },
-        "files": {
-            "data": [
-                {
-                    "id": 100881,
-                    "name": "BerserkPlusV1.0.1",
-                    "version": "",
-                    "size": 21014671,
-                    "type": "rar",
-                    "download_url": "https://storage.modworkshop.net/mods/files/55886_221768_Ikj0yf0FqYf66El0G5zkj7OQO8VCm09uebnzitTO.1.rar?filename=BerserkPlusV1.1.rar",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 12,
-                    "created_at": "2026-07-21T10:31:01.000000Z"
-                }
-            ],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 1
-            }
-        },
-        "links": {
-            "data": [],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 0
-            }
-        }
-    },
     "57043": {
         "detail": {
             "id": 57043,
             "name": "More Weapon Variants",
-            "desc": "This mod adds new variants of existing base game and DLC weapons.\nNew variants are automatically added to the MP stash but must be purchased. Additionally they have a chance of appearing in roguelike black market, Rockay rumble van or in resupply crates.\nMod additionally fixes misaligned Lupara and Pump ADS view and TIMM 4's 40 round magazine textures when using skins.\n\n|New variant name|Attachments| \n| -------- | -------- |\n|12 Gauge Elite|7 round tube magazine|\n|DE 44 B|-|\n|FDE Tactical R|Mini red dot sight|\n|FDE Tactical S|Suppressor|\n|Glizzy EC|33 round quick mag, compensator|\n|Neshek HS|Holographic sight, suppressor, quick draw mag|\n|Neshek RC|OKP sight, compensator|\n|Lupara Mk. II C+|Ghost ring sight, compensator|\n|M1911 S|Suppressor|\n|SAM-AF1 HS|Holographic sight, suppressor|\n|Scorp Elite R|Mini red dot sight|\n|Scorp RS|Mini red dot sight, suppressor|\n|Slate 36 ER|20 round magazine, reflex red dot sight|\n|Slate 36 HG|Holographic sight, long vertical grip|\n|Slate 36 S|Suppressor|\n|Sting Elite HS|Holographic sight, B&T MP9 QD suppressor|\n|Sturm GWR ER|OKP sight, 42 round magazine|\n|Sturm GWR HS|Holographic sight, suppressor, quick draw mag|\n|PMG E |40 round magazine|\n|PMG S|Suppressor|\n|Pump Mk. II R|Reflex red dot sight|\n|Pump Mk. III ERC|2 round tube mag extension, reflex red dot sight, compensator|\n|TIMM 4 ERS|40 round magazine, OKP sight, suppressor|\n|Urban Striker H|Holographic sight|\n|Urban Striker R|Red dot reflex sight|\n|Vintovka ER|45 round magazine, OKP sight|\n|Vintovka S|PBS1 suppressor|\n|Vintovka U ERC|45 round magazine, OKP sight, compensator|",
+            "desc": "This mod adds new variants of existing base game and DLC weapons.\nNew variants are automatically added to the MP stash but must be purchased. Additionally they have a chance of appearing in roguelike black market, Rockay rumble van or in resupply crates.\nMod additionally fixes misaligned Lupara and Pump ADS view and TIMM 4's 40 round magazine textures when using skins.\n\n|New variant name|Attachments| \n| -------- | -------- |\n|12 Gauge Elite|7 round tube magazine|\n|Bohema S|Suppressor|\n|Chopper ES|30 round magazine, suppressor|\n|DE 44 B|-|\n|FDE Tactical R|Mini red dot sight|\n|FDE Tactical S|Suppressor|\n|Glizzy EC|33 round quick magazine, compensator|\n|Neshek HS|Holographic sight, suppressor, quick draw magazine|\n|Neshek RC|OKP sight, compensator|\n|Lupara Mk. II C+|Ghost ring sight, compensator|\n|M1911 S|Suppressor|\n|SAM-AF1 HS|Holographic sight, suppressor|\n|Scorp Elite R|Mini red dot sight|\n|Scorp RS|Mini red dot sight, suppressor|\n|Slate 36 ER|20 round magazine, reflex red dot sight|\n|Slate 36 HG|Holographic sight, long vertical grip|\n|Slate 36 S|Suppressor|\n|Sting Elite HS|Holographic sight, B&T MP9 QD suppressor|\n|Sturm GWR ER|OKP sight, 42 round magazine|\n|Sturm GWR HS|Holographic sight, suppressor, quick draw magazine|\n|PMG E |40 round magazine|\n|PMG S|Suppressor|\n|Pump Mk. II R|Reflex red dot sight|\n|Pump Mk. III ERC|2 round tube extension, reflex red dot sight, compensator|\n|SMG 9mm ECG|40 round magazine, compensator, long vertical grip|\n|Sniper Rifle R|Red dot reflex sight|\n|TIMM 4 EG|30 round quick draw magazine, angled foregrip|\n|TIMM 4 ERS|40 round magazine, OKP sight, suppressor|\n|Urban Striker H|Holographic sight|\n|Urban Striker R|Red dot reflex sight|\n|Vintovka ER|45 round magazine, OKP sight|\n|Vintovka S|PBS1 suppressor|\n|Vintovka U ERC|45 round magazine, OKP sight, compensator|",
             "short_desc": "So, you ready to level up the gear?",
-            "version": "1.0.4",
-            "downloads": 376,
-            "likes": 12,
-            "views": 1053,
+            "legacy_markup": false,
+            "version": "1.0.5",
+            "downloads": 431,
+            "likes": 13,
+            "views": 1209,
             "published_at": "2026-06-18T15:17:42.000000Z",
-            "bumped_at": "2026-07-25T15:25:44.000000Z",
+            "bumped_at": "2026-10-18T13:00:32.000000Z",
             "category_id": 896,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "p8TkLR0Hac1eH1V1OjLKHCi8FkUjRAsPAWXXlvPS.webp",
                 "has_thumb": true
             },
             "download": {
                 "id": 100360,
-                "version": "",
-                "size": 62565928,
+                "version": "1.0.5",
+                "size": 68668625,
                 "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/57043_965_qBEWnlaA2UstJPofvOIvpPudACKTSv2S4mfsMqcl.zip?filename=MoreWeaponVariants.zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/57043_965_FqaKsH1z3xKu112OdyLJ2itP8MxSlkeyE0mT4nx3.zip?filename=MoreWeaponVariants.zip",
                 "url": null
             },
+            "download_id": 100360,
+            "files_are_versions": true,
             "user": {
                 "id": 965,
                 "name": ">:3",
@@ -1143,7 +646,7 @@
                 "avatar": "https://avatars.steamstatic.com/978c7b3f1e1a890b3b125f593f45098aa861cb10_full.jpg",
                 "avatar_has_thumb": false
             },
-            "changelog": "1.0.4\n* Fixed mod had unintended textures packed.\n* Added SAM-AF1 HS.\n* Added Scorp RS.\n* Added Scorp Elite R.\n\n1.0.3\n* Corrected Lupara and Pump iron sights ADS view after changes from 1.0.2.\n* Moved ADS view of reflex red dot on Pump slightly backwards.\n* Improved stats of Pump Mk. III ERC.\n\n1.0.2\n* Fixed default DE 44 B icon.\n* Corrected DE 44 B rarity level.\n* Added Lupara Mk. II C+.\n* Added Pump Mk. II R.\n* Added Pump Mk. III ERC.\n\n1.0.1\n* Added DE 44 B.\n* Added Glizzy EC.\n* Added 12 Gauge Elite.\n* Added Sting Elite HS.\n* Added Slate 36 ER.",
+            "changelog": "1.0.5\n* Added Chopper ES.\n* Added TIMM 4 EG.\n* Added SMG 9mm ECG.\n* Added Sniper Rifle R.\n* Added Bohema S.\n\n1.0.4\n* Fixed mod had unintended textures packed.\n* Added SAM-AF1 HS.\n* Added Scorp RS.\n* Added Scorp Elite R.\n\n1.0.3\n* Corrected Lupara and Pump iron sights ADS view after changes from 1.0.2.\n* Moved ADS view of reflex red dot on Pump slightly backwards.\n* Improved stats of Pump Mk. III ERC.\n\n1.0.2\n* Fixed default DE 44 B icon.\n* Corrected DE 44 B rarity level.\n* Added Lupara Mk. II C+.\n* Added Pump Mk. II R.\n* Added Pump Mk. III ERC.\n\n1.0.1\n* Added DE 44 B.\n* Added Glizzy EC.\n* Added 12 Gauge Elite.\n* Added Sting Elite HS.\n* Added Slate 36 ER.",
             "instructions": "",
             "license": "OKP sight model/texture - Insurgency: Sandstorm (New World Interactive)\nB&T MP9 QD suppressor model/texture - Ready or Not (VOID Interactive)\nGhost Ring Sight model/texture - Overkill's The Walking Dead (Overkill Software/Starbreeze Publishing)",
             "repo_url": null,
@@ -1365,15 +868,15 @@
                 {
                     "id": 100360,
                     "name": "MoreWeaponVariants",
-                    "version": "",
-                    "size": 62565928,
+                    "version": "1.0.5",
+                    "size": 68668625,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/57043_965_qBEWnlaA2UstJPofvOIvpPudACKTSv2S4mfsMqcl.zip?filename=MoreWeaponVariants.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/57043_965_FqaKsH1z3xKu112OdyLJ2itP8MxSlkeyE0mT4nx3.zip?filename=MoreWeaponVariants.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 219,
+                    "downloads": 275,
                     "created_at": "2026-07-07T16:17:04.000000Z"
                 }
             ],
@@ -1394,116 +897,94 @@
             }
         }
     },
-    "57533": {
+    "57476": {
         "detail": {
-            "id": 57533,
-            "name": "MP7A2",
-            "desc": "This mod adds MP7A2 submachine gun as custom weapon in 7 variants. Weapon is automatically added to mp stash and has a chance to appear in roguelike black market, rockay rumble van or resupply crates.\n\n\n|Variant name|Attachments| \n| -------- | -------- |\n|MP7A2|-|\n|MP7A2 E|40 round magazine|\n|MP7A2 ER|40 round magazine, red dot reflex sight, extended stock|\n|MP7A2 ERC|30 round magazine, mini red dot sight, compensator, extended stock|\n|MP7A2 ES|30 round magazine, MP7 suppressor, folded iron sights|\n|MP7A2 H|Holographic sight, extended stock|\n|MP7A2 HS|Holographic sight, MP7 suppressor, extended stock|",
-            "short_desc": "It costs four hundred thousand dollars to fire this weapon...for twelve seconds",
-            "version": "1.1.0",
-            "downloads": 189,
-            "likes": 4,
-            "views": 394,
-            "published_at": "2026-07-03T16:10:26.000000Z",
-            "bumped_at": "2026-07-20T15:51:59.000000Z",
-            "category_id": 896,
+            "id": 57476,
+            "name": "Austin",
+            "desc": "> A stone cold killer. Former mob hitman turned bank robber. Born south, but worked up north before robbing the mob he did contract work for. Now he looks for new scores in Rockay.\n\nAdds Austin as a Boss Appearance and Team Member",
+            "short_desc": "I'm out of ammo! Someone got an ammo bag?",
+            "legacy_markup": false,
+            "version": "v2",
+            "downloads": 56,
+            "likes": 2,
+            "views": 488,
+            "published_at": "2026-06-11T10:52:05.000000Z",
+            "bumped_at": "2026-10-01T09:10:36.000000Z",
+            "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": null,
             "thumbnail": {
-                "file": "T9AZuG3rTfNGMp5S3B7iwhClP8bWktwAc5HkT2O1.webp",
+                "file": "ygqHiXfGlGz4OKv5OiwUzIajyRWJKUfPpKBT4npj.webp",
                 "has_thumb": true
             },
             "download": {
-                "id": 100199,
+                "id": 103968,
                 "version": "",
-                "size": 24197295,
+                "size": 3830791,
                 "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/57533_965_TQYynRkZ4UZOyf0AigxvFKDI2ClQQOxzvKRPEgp6.zip?filename=MP7.zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/57476_1428_2a46LitLFshkwxaLtcHifKHiP7FboYWFvLj1dFug.zip?filename=Austin%20in%20Roguelite%20too.zip",
                 "url": null
             },
+            "download_id": null,
+            "files_are_versions": true,
             "user": {
-                "id": 965,
-                "name": ">:3",
-                "donation_url": "https://ko-fi.com/pawcio1337",
-                "avatar": "https://avatars.steamstatic.com/978c7b3f1e1a890b3b125f593f45098aa861cb10_full.jpg",
-                "avatar_has_thumb": false
+                "id": 1428,
+                "name": "B Dawg",
+                "donation_url": "",
+                "avatar": "CmCL0Pkvw53Wl4JbAi0u2yIBdAn7uJBFRGlEXrLW.webp",
+                "avatar_has_thumb": true
             },
-            "changelog": "1.1.0\n* Lowered base variant damage and accuracy by 10%.\n* Corrected iron sights on base variant.\n* Fixed mod had unintended textures packed\n* Changed sight in ERC variant to mini red dot.\n* Increased size of aperture in flip-up rear sight.\n* Added \"MP7A2 ER\" variant.",
+            "changelog": "Massive optimization patch, made addon instead of replacement, changed head model from existing generic brute to civilian head/hair/moustache combo.\n\nExtra download option where he can appear in the roguelite",
             "instructions": "",
-            "license": "Model/texture - Insurgency: Sandstorm (New World Interactive)\nMP7 suppressor model/Texture - Battlefield 2042 (DICE/EA)",
+            "license": "",
             "repo_url": null,
             "donation": "",
-            "banner": {
-                "id": 164741,
-                "file": "uVvXeiCVvQJco2TN6HQvK6zcnof6C6hvwYzlrSr2.webp",
-                "type": "webp",
-                "size": 200314,
-                "display_order": 1,
-                "visible": false,
-                "has_thumb": true
-            },
+            "banner": null,
             "images": [
                 {
-                    "id": 164742,
-                    "file": "T9AZuG3rTfNGMp5S3B7iwhClP8bWktwAc5HkT2O1.webp",
+                    "id": 164413,
+                    "file": "r2ggzGc2XLJX5rhZJNUjce3SATzTL6lPp8UUAXTi.webp",
                     "type": "webp",
-                    "size": 200784,
+                    "size": 18744,
                     "display_order": 0,
                     "visible": true,
                     "has_thumb": true
                 },
                 {
-                    "id": 164741,
-                    "file": "uVvXeiCVvQJco2TN6HQvK6zcnof6C6hvwYzlrSr2.webp",
+                    "id": 170494,
+                    "file": "UfPmexqUckWeYIIeK0YTg02GJYXwZOkuSQAzNHHg.webp",
                     "type": "webp",
-                    "size": 200314,
+                    "size": 28474,
                     "display_order": 1,
-                    "visible": false,
+                    "visible": true,
                     "has_thumb": true
                 },
                 {
-                    "id": 165770,
-                    "file": "5lvR4PNb0HG7fYzv6l0sFfTdkUPdbAbI49mtNQK4.webp",
+                    "id": 170495,
+                    "file": "bw20LYvi62cOFyP9uhJVeaaeXPgpgSjscB4S14M5.webp",
                     "type": "webp",
-                    "size": 228750,
+                    "size": 43416,
                     "display_order": 2,
                     "visible": true,
                     "has_thumb": true
                 },
                 {
-                    "id": 165772,
-                    "file": "Udu3cCWUmJSAUMNNybZpIO4Sw9geJeCD8lwwTZfS.webp",
+                    "id": 170496,
+                    "file": "V65TAFqSFw2SVU2OMQuBeL3pleIY5mpwppg9MVqa.webp",
                     "type": "webp",
-                    "size": 205016,
+                    "size": 137492,
                     "display_order": 3,
                     "visible": true,
                     "has_thumb": true
                 },
                 {
-                    "id": 165773,
-                    "file": "9B2GBueqtUVj80PxKA2rw7y6x1Nq5LL6hHzCvSHa.webp",
+                    "id": 170499,
+                    "file": "ygqHiXfGlGz4OKv5OiwUzIajyRWJKUfPpKBT4npj.webp",
                     "type": "webp",
-                    "size": 298380,
+                    "size": 37434,
                     "display_order": 4,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 165771,
-                    "file": "q3GBqvmmMSqOptnF1QAguSQapA8W4tWVtYAwhLo4.webp",
-                    "type": "webp",
-                    "size": 239474,
-                    "display_order": 5,
-                    "visible": true,
-                    "has_thumb": true
-                },
-                {
-                    "id": 165774,
-                    "file": "g4lAS8QOJ5FMFUvRTQj4NmpifLKC4AZ4PSQfHQEP.webp",
-                    "type": "webp",
-                    "size": 288396,
-                    "display_order": 6,
-                    "visible": true,
+                    "visible": false,
                     "has_thumb": true
                 }
             ],
@@ -1516,9 +997,14 @@
             },
             "tags": [
                 {
-                    "id": 7,
-                    "name": "Port",
-                    "color": "#7c41c5"
+                    "id": 3,
+                    "name": "Lorefriendly",
+                    "color": "#1e621e"
+                },
+                {
+                    "id": 13,
+                    "name": "Add-on",
+                    "color": "#3167c1"
                 },
                 {
                     "id": 67,
@@ -1531,25 +1017,53 @@
         "files": {
             "data": [
                 {
-                    "id": 100199,
-                    "name": "MP7",
+                    "id": 103968,
+                    "name": "Austin (in Roguelite too)",
                     "version": "",
-                    "size": 24197295,
+                    "size": 3830791,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/57533_965_TQYynRkZ4UZOyf0AigxvFKDI2ClQQOxzvKRPEgp6.zip?filename=MP7.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/57476_1428_2a46LitLFshkwxaLtcHifKHiP7FboYWFvLj1dFug.zip?filename=Austin%20in%20Roguelite%20too.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 189,
-                    "created_at": "2026-07-03T16:10:03.000000Z"
+                    "downloads": 16,
+                    "created_at": "2026-10-01T09:10:32.000000Z"
+                },
+                {
+                    "id": 103029,
+                    "name": "Austin",
+                    "version": "",
+                    "size": 3831011,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/57476_1428_1DIcdvz5ptvzLoL0yEPLIO3QkMsGNiEelN55TEEs.zip?filename=Austin.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 16,
+                    "created_at": "2026-09-17T16:26:53.000000Z"
+                },
+                {
+                    "id": 103030,
+                    "name": "Source",
+                    "version": "",
+                    "size": 10145098,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/57476_1428_PeDFxRHQYKMG4rVOv2bAnwkiEWYMEkz6toQujzFb.zip?filename=Source.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 1,
+                    "created_at": "2026-09-17T16:27:01.000000Z"
                 }
             ],
             "meta": {
                 "current_page": 1,
                 "last_page": 1,
                 "per_page": 20,
-                "total": 1
+                "total": 3
             }
         },
         "links": {
@@ -1568,15 +1082,17 @@
             "name": "Warlord Perk",
             "desc": "Adds a new perk (Warlord) which increases magazine size and total ammo capacity by 50/100/150 % but 25% less reload speed & 50/40/30 % movement speed\n\nUsed in Heavy Skin/Team Member Mod: https://modworkshop.net/mod/57707",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "2.1",
-            "downloads": 105,
+            "downloads": 119,
             "likes": 1,
-            "views": 756,
+            "views": 857,
             "published_at": "2026-06-28T15:58:38.000000Z",
             "bumped_at": "2026-08-01T12:58:36.000000Z",
             "category_id": 889,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": null,
             "thumbnail": {
                 "file": "deXn7D7IM4GBDujoNFfSnMKMJUvQXGBAMkYLduKX.webp",
                 "has_thumb": true
@@ -1589,6 +1105,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/57735_216822_rhgZu21jeKZMcdYaQidkY9yjhyWv4qViob9n5awi.zip?filename=Perk_Warlord.zip",
                 "url": null
             },
+            "download_id": null,
+            "files_are_versions": true,
             "user": {
                 "id": 216822,
                 "name": "Yui",
@@ -1660,8 +1178,225 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 105,
+                    "downloads": 119,
                     "created_at": "2026-06-28T15:56:51.000000Z"
+                }
+            ],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 1
+            }
+        },
+        "links": {
+            "data": [],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 0
+            }
+        }
+    },
+    "57760": {
+        "detail": {
+            "id": 57760,
+            "name": "M110",
+            "desc": "This mod adds M110 designated marksman rifle as custom weapon in 6 variants and with 1 unique skin. Weapon is automatically added to mp stash and has a chance to appear in roguelike black market, rockay rumble van or resupply crates.\n \n\n|Variant name|Attachments| \n| -------- | -------- |\n|M110|-|\n|M110 H|Holographic sight|\n|M110 HG|Holographic sight, long vertical grip, 20 round PMAG|\n|M110 O|Leupold Mark 4 Scope|\n|M110 OS|Leupold Mark 4 Scope, M110 suppressor|\n|M110 RS|Red dot reflex sight, M110 suppressor|",
+            "short_desc": "High on accuracy",
+            "legacy_markup": false,
+            "version": "1.0.1",
+            "downloads": 182,
+            "likes": 3,
+            "views": 415,
+            "published_at": "2026-07-13T15:42:12.000000Z",
+            "bumped_at": "2026-09-17T14:15:02.000000Z",
+            "category_id": 896,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "haAlSSyBlggezrDs8V5FSct9Hu2UvF1zsmG7wQmF.webp",
+                "has_thumb": true
+            },
+            "download": {
+                "id": 100611,
+                "version": "",
+                "size": 46955167,
+                "type": "zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/57760_965_OSkJFsU2opHligqEXI7C7f2RyjOUGl91sJnnrhM5.zip?filename=M110.zip",
+                "url": null
+            },
+            "download_id": 100611,
+            "files_are_versions": true,
+            "user": {
+                "id": 965,
+                "name": ">:3",
+                "donation_url": "https://ko-fi.com/pawcio1337",
+                "avatar": "https://avatars.steamstatic.com/978c7b3f1e1a890b3b125f593f45098aa861cb10_full.jpg",
+                "avatar_has_thumb": false
+            },
+            "changelog": "1,0.1\n* Tweaked mesh of Mark 4 Scope ADS so it blocks less FOV.",
+            "instructions": "",
+            "license": "Model/texture - Insurgency: Sandstorm (New World Interactive)",
+            "repo_url": null,
+            "donation": "",
+            "banner": {
+                "id": 165865,
+                "file": "qtyFnrTlsJWhaWNWICm5heHEwXRZfnh5TTIcfxYb.webp",
+                "type": "webp",
+                "size": 554730,
+                "display_order": 1,
+                "visible": false,
+                "has_thumb": true
+            },
+            "images": [
+                {
+                    "id": 165864,
+                    "file": "haAlSSyBlggezrDs8V5FSct9Hu2UvF1zsmG7wQmF.webp",
+                    "type": "webp",
+                    "size": 182736,
+                    "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 165865,
+                    "file": "qtyFnrTlsJWhaWNWICm5heHEwXRZfnh5TTIcfxYb.webp",
+                    "type": "webp",
+                    "size": 554730,
+                    "display_order": 1,
+                    "visible": false,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166155,
+                    "file": "kMQa6PFgGbd3dQ9MccUwuTp5viRXiQP9WRPNHmAq.webp",
+                    "type": "webp",
+                    "size": 425484,
+                    "display_order": 2,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166153,
+                    "file": "oefBkOMq4PKMZ36mnVNCBN6mFz3luQRQfCGQPf2L.webp",
+                    "type": "webp",
+                    "size": 407638,
+                    "display_order": 3,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 169860,
+                    "file": "dYeKLzA4wMc9H2lSwYeQgHjd5VnECdMAD7ANkXgR.webp",
+                    "type": "webp",
+                    "size": 83768,
+                    "display_order": 4,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166154,
+                    "file": "vADiXGcAvrsAAYgwXO9HnaeqWD9pNIbIsWbsKc6U.webp",
+                    "type": "webp",
+                    "size": 341410,
+                    "display_order": 5,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166152,
+                    "file": "mD0r5MLEuFWzg0wC7mipvq5efAn7zOgSAoLZGVmI.webp",
+                    "type": "webp",
+                    "size": 377152,
+                    "display_order": 6,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166352,
+                    "file": "ytyaiMYYnwlcmLk9qnjv6veLSTSJECtQe3NSc4eq.webp",
+                    "type": "webp",
+                    "size": 296372,
+                    "display_order": 7,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166351,
+                    "file": "XeoQpHF4w0Gs6qK3Db98B5Luie64wRuK1AJGML5L.webp",
+                    "type": "webp",
+                    "size": 213632,
+                    "display_order": 8,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166526,
+                    "file": "IQqEPmqMSOaldbAP4JYHylzqMH1DOYKVukLwzYJP.webp",
+                    "type": "webp",
+                    "size": 244596,
+                    "display_order": 9,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166525,
+                    "file": "4rKqwoh3oS8ZZgS1fIe3vdW5uSrkGDtOmT9OkeWG.webp",
+                    "type": "webp",
+                    "size": 303054,
+                    "display_order": 10,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166524,
+                    "file": "aVSNJAxTURYoR3sZVVVYf8MYr44WlBb1uHu5Oobo.webp",
+                    "type": "webp",
+                    "size": 470232,
+                    "display_order": 11,
+                    "visible": true,
+                    "has_thumb": true
+                }
+            ],
+            "dependencies": [],
+            "instructs_template": {
+                "id": 23,
+                "name": "UGC Mods",
+                "instructions": "1. Find where your Crime Boss: Rockay City copy is installed. The location of this folder will vary depending on your installation preferences & storefront.\n    **Steam**\n    ![](https://i.imgur.com/XhQTDLm.png)\n    **EGS**\n    ![](https://i.imgur.com/1TS0xF2.png)\n2. Extract the contents into `CrimeBoss\\Mods`.",
+                "dependencies": []
+            },
+            "tags": [
+                {
+                    "id": 7,
+                    "name": "Port",
+                    "color": "#7c41c5"
+                },
+                {
+                    "id": 67,
+                    "name": "UGC Mod",
+                    "color": "#ecb3fb"
+                }
+            ],
+            "members": []
+        },
+        "files": {
+            "data": [
+                {
+                    "id": 100611,
+                    "name": "M110",
+                    "version": "",
+                    "size": 46955167,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/57760_965_OSkJFsU2opHligqEXI7C7f2RyjOUGl91sJnnrhM5.zip?filename=M110.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 182,
+                    "created_at": "2026-07-13T15:41:40.000000Z"
                 }
             ],
             "meta": {
@@ -1687,15 +1422,17 @@
             "name": "Graves Gang Captains",
             "desc": "Adds retextured Chico & Riders Gang Captains as boss skins.\n\nThe Biker uses the masked thief voice (Midnight) while the Hockey mask guy uses the white brute voice (Tank).\n\nNew: Now includes the Catwoman Gunner.",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "3",
-            "downloads": 81,
+            "downloads": 90,
             "likes": 1,
-            "views": 402,
+            "views": 484,
             "published_at": "2026-07-07T11:28:13.000000Z",
             "bumped_at": "2026-08-19T10:52:29.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "eJVVfrp6koPGNLuvfufkpYVygTSbWZu6dLGNrOXN.webp",
                 "has_thumb": true
@@ -1708,6 +1445,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/57846_1428_VbNsstcWAWeE0ruZ4Wg40KCqvN8rqiPzRwCbEno0.zip?filename=Graves%20Captains.zip",
                 "url": null
             },
+            "download_id": 101854,
+            "files_are_versions": true,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -1822,7 +1561,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 19,
+                    "downloads": 28,
                     "created_at": "2026-08-19T10:52:07.000000Z"
                 }
             ],
@@ -1843,86 +1582,153 @@
             }
         }
     },
-    "58031": {
+    "58028": {
         "detail": {
-            "id": 58031,
-            "name": "Gun Game perk",
-            "desc": "made because of the idea i heard on this igs stream: https://www.youtube.com/watch?v=W5u4KaNWzfc&t=1277s (timestamped to the point in the stream)\n\nrandomizes your loadout (excluding equipment because i was lazy) every 30 seconds",
-            "short_desc": "",
-            "version": "1.1.1",
-            "downloads": 64,
+            "id": 58028,
+            "name": "VHS-D2",
+            "desc": "This mod adds VHS-D2 assault rifle and designated marksman rifle (VHS-D2 Elite) as custom weapon in 6 variants. Weapon is automatically added to mp stash and has a chance to appear in roguelike black market, rockay rumble van or resupply crates.\n\n\n|Variant name|Attachments| \n| -------- | -------- |\n|VHS-D2|-|\n|VHS-D2 Elite O|DMR stats, VHS 2.5x scope|\n|VHS-D2 H|Holographic sight|\n|VHS-D2 HS|Holographic sight, suppressor|\n|VHS-D2 RC|Reflex red dot sight, compensator|\n|VHS-D2 S|Suppressor|\n\n\nNote. Due to recoil animation being problematic with VHS scope i made this variant a semi-auto DMR.",
+            "short_desc": "Dragan power",
+            "legacy_markup": false,
+            "version": "1.0.0",
+            "downloads": 56,
             "likes": 0,
-            "views": 293,
-            "published_at": "2026-07-17T14:17:56.000000Z",
-            "bumped_at": "2026-07-22T06:38:17.000000Z",
-            "category_id": 898,
+            "views": 177,
+            "published_at": "2026-09-17T14:14:38.000000Z",
+            "bumped_at": "2026-09-17T14:14:38.000000Z",
+            "category_id": 896,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": null,
             "thumbnail": {
-                "file": "nXbzaiQ0kU5xnnU5KC8SVokzolhAYmIhgqM418iJ.webp",
+                "file": "y7UxqbYmYaiPFR2X6qDjTwcDYno7hukTK3X3cqCb.webp",
                 "has_thumb": true
             },
             "download": {
-                "id": 100898,
+                "id": 103025,
                 "version": "",
-                "size": 114146,
+                "size": 27615798,
                 "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/58031_125495_wMnqQjdBAoG2PRRw5u7gqm78rpCXw3EIKKyD4fCy.zip?filename=GunGamePerk.zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/58028_965_pJkO2dyDZ1KPt46mCU4ryXwpGa8wIsTWw6U6BMUu.zip?filename=VHS.zip",
                 "url": null
             },
+            "download_id": null,
+            "files_are_versions": true,
             "user": {
-                "id": 125495,
-                "name": "braidy08",
-                "donation_url": "",
-                "avatar": "GQr7sCeiVUZPKBmW16Ec5prpVoHvSmzowMmb5huJ.webp",
+                "id": 965,
+                "name": ">:3",
+                "donation_url": "https://ko-fi.com/pawcio1337",
+                "avatar": "https://avatars.steamstatic.com/978c7b3f1e1a890b3b125f593f45098aa861cb10_full.jpg",
                 "avatar_has_thumb": false
             },
-            "changelog": "1.1.1\n- added support for rockay rumble\n\n1.1.0\n- fixed softlock with mounted guns\n- added new bonus\n\n1.0.1\n- fix oversight that causes eggs/dogs to be erased causing a softlock on auction house/afterburner",
+            "changelog": "",
             "instructions": "",
-            "license": "",
-            "repo_url": "https://github.com/braidy08/CrimeBossModsSource",
+            "license": "Model/texture - [Trepang2](https://store.steampowered.com/app/1164940/Trepang2/) (Trepang Studios/Team17)",
+            "repo_url": null,
             "donation": "",
             "banner": {
-                "id": 166881,
-                "file": "Sj9o82NnCgECdLWuqvTan63Q6naxG2MXPY0OVi6z.webp",
+                "id": 166758,
+                "file": "sqtOlOu9w316GBLE4IE8xLgfvbHUb5jVRXhGcoVE.webp",
                 "type": "webp",
-                "size": 53978,
+                "size": 132396,
                 "display_order": 1,
-                "visible": true,
+                "visible": false,
                 "has_thumb": true
             },
             "images": [
                 {
-                    "id": 166880,
-                    "file": "nXbzaiQ0kU5xnnU5KC8SVokzolhAYmIhgqM418iJ.webp",
+                    "id": 166759,
+                    "file": "y7UxqbYmYaiPFR2X6qDjTwcDYno7hukTK3X3cqCb.webp",
                     "type": "webp",
-                    "size": 14838,
+                    "size": 200436,
                     "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 166758,
+                    "file": "sqtOlOu9w316GBLE4IE8xLgfvbHUb5jVRXhGcoVE.webp",
+                    "type": "webp",
+                    "size": 132396,
+                    "display_order": 1,
                     "visible": false,
                     "has_thumb": true
                 },
                 {
-                    "id": 166881,
-                    "file": "Sj9o82NnCgECdLWuqvTan63Q6naxG2MXPY0OVi6z.webp",
+                    "id": 168409,
+                    "file": "cIceZTsbFb8snXynootHOsyNNlt7HhjBknpAQ5vo.webp",
                     "type": "webp",
-                    "size": 53978,
-                    "display_order": 1,
+                    "size": 209606,
+                    "display_order": 2,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168404,
+                    "file": "0Gr6GJnHDZkcprJAsFFrP0pjVUinFHeDDfvx01lk.webp",
+                    "type": "webp",
+                    "size": 209822,
+                    "display_order": 3,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168402,
+                    "file": "EkeXTiYy6ZnHVOOhLVugNaCYKZirptTHiAQ5zdDa.webp",
+                    "type": "webp",
+                    "size": 198916,
+                    "display_order": 4,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168403,
+                    "file": "UPI9AZ6Fm8mcbUzFM7RECgG5kG5tXPHeRIzX5Stq.webp",
+                    "type": "webp",
+                    "size": 280498,
+                    "display_order": 5,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168405,
+                    "file": "cK6JHRmeyD55ggIDu5pGYnK17O0qHVr1AcR62lNn.webp",
+                    "type": "webp",
+                    "size": 330480,
+                    "display_order": 6,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168406,
+                    "file": "6ca7gAhZ21U14ZaUT8ViZyqyoSN7XeOHbe3Jmzpw.webp",
+                    "type": "webp",
+                    "size": 445584,
+                    "display_order": 7,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 168401,
+                    "file": "jTSQ3uv2qsbIXLW2xzXs2cz7LckSv71nvOPHOVSR.webp",
+                    "type": "webp",
+                    "size": 93818,
+                    "display_order": 8,
                     "visible": true,
                     "has_thumb": true
                 }
             ],
             "dependencies": [],
-            "instructs_template": {
-                "id": 23,
-                "name": "UGC Mods",
-                "instructions": "1. Find where your Crime Boss: Rockay City copy is installed. The location of this folder will vary depending on your installation preferences & storefront.\n    **Steam**\n    ![](https://i.imgur.com/XhQTDLm.png)\n    **EGS**\n    ![](https://i.imgur.com/1TS0xF2.png)\n2. Extract the contents into `CrimeBoss\\Mods`.",
-                "dependencies": []
-            },
+            "instructs_template": null,
             "tags": [
                 {
-                    "id": 38,
-                    "name": "Gameplay Changing",
-                    "color": "#658327"
+                    "id": 7,
+                    "name": "Port",
+                    "color": "#7c41c5"
+                },
+                {
+                    "id": 67,
+                    "name": "UGC Mod",
+                    "color": "#ecb3fb"
                 }
             ],
             "members": []
@@ -1930,18 +1736,18 @@
         "files": {
             "data": [
                 {
-                    "id": 100898,
-                    "name": "GunGamePerk",
+                    "id": 103025,
+                    "name": "VHS",
                     "version": "",
-                    "size": 114146,
+                    "size": 27615798,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/58031_125495_wMnqQjdBAoG2PRRw5u7gqm78rpCXw3EIKKyD4fCy.zip?filename=GunGamePerk.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/58028_965_pJkO2dyDZ1KPt46mCU4ryXwpGa8wIsTWw6U6BMUu.zip?filename=VHS.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 39,
-                    "created_at": "2026-07-22T06:38:12.000000Z"
+                    "downloads": 56,
+                    "created_at": "2026-09-17T14:14:09.000000Z"
                 }
             ],
             "meta": {
@@ -1967,15 +1773,17 @@
             "name": "Mr. Norris (Playable Chuck Norris)",
             "desc": "I thought to myself, there must be a playable version of Norris right? Then I discovered that there wasn't any, so I made my own. \n\n* Has custom first person arms\n* Uses Mozart as voice\n* Team Member version (Has high HP, because it's Chuck Norris)",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "Version 5.2",
-            "downloads": 82,
+            "downloads": 100,
             "likes": 1,
-            "views": 414,
+            "views": 491,
             "published_at": "2026-07-25T00:03:15.000000Z",
             "bumped_at": "2026-08-12T20:37:09.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "dFx2vCBiHvOIR3WOCbhqy7HFqxddoUWdSLm8Gxvz.webp",
                 "has_thumb": true
@@ -1988,6 +1796,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/58145_228527_vBKklAZs6vtu6XBE3SCNwbB5Rakr7keCeBfAh7WV.zip?filename=PlayableNorris_v5_2.zip",
                 "url": null
             },
+            "download_id": 101627,
+            "files_are_versions": true,
             "user": {
                 "id": 228527,
                 "name": "Wuffesan",
@@ -2071,7 +1881,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 32,
+                    "downloads": 50,
                     "created_at": "2026-08-12T20:37:06.000000Z"
                 },
                 {
@@ -2168,20 +1978,24 @@
             "name": "Hellflower Character Pack",
             "desc": "*A modded character pack for Crime Boss: Rockay City.*\n\n*Unlock Hellflower and take the city by storm with her new perks, weapons, and equipment.*\n\n**Loadout**\n- Primary Weapon: Scorp \"Blossom\" Elite\n- Secondary Weapon: Scorp \"Blossom\"\n- Melee Weapon: Katana\n- Equipment: Neurotoxin Kunai\n\n**Perks**\n- Blade Dancer 3\n- Massacre Maiden 3\n- Bullet Ballet 3\n\n*Hellflower can be hired as a legendary team member in co-op mode and the roguelite campaign.*\n\n\n\n**Thanks**\n\n[Crime Boss Modding Discord](https://discord.com/channels/1067809091046613002/1233067026054910043)\n[IGStudios for the Crime Boss Modkit Editor](https://store.epicgames.com/p/crime-boss--modkit?lang=en-US)\n**Stardrop** from the CB modding discord\n[braidy08](https://modworkshop.net/user/braidy08)\n[B Dawg](https://modworkshop.net/user/bdawg)\n\n\n\n**Issues**\n\n- No voice\n\n- Subdue is currently broken for Scorp Secondary\n\n![](https://youtu.be/VkkQBpVeBKU)\n\n![](https://youtu.be/SPlWSTkt8jI)",
             "short_desc": "Hellflower offers to join the Crew. A modded character pack for Crime Boss.",
+            "legacy_markup": false,
             "version": "1.0.4",
-            "downloads": 148,
-            "likes": 4,
-            "views": 804,
+            "downloads": 176,
+            "likes": 5,
+            "views": 1045,
             "published_at": "2026-07-26T22:15:23.000000Z",
             "bumped_at": "2026-08-11T17:13:25.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": true,
+            "download_type": null,
             "thumbnail": {
                 "file": "Exo1WyYyoAmGIHbrfUxOqxT3Uu6bIAkqnTTYBydM.webp",
                 "has_thumb": true
             },
             "download": null,
+            "download_id": null,
+            "files_are_versions": false,
             "user": {
                 "id": 228597,
                 "name": "PlatinumShadow",
@@ -2281,7 +2095,7 @@
                     "image_id": null,
                     "desc": "Main file - always make sure your saves are backed up before installing or updating mods",
                     "label": "",
-                    "downloads": 137,
+                    "downloads": 165,
                     "created_at": "2026-07-27T06:35:17.000000Z"
                 },
                 {
@@ -2295,133 +2109,8 @@
                     "image_id": null,
                     "desc": "For modders wanting to look at how it works in the editor",
                     "label": "",
-                    "downloads": 20,
+                    "downloads": 24,
                     "created_at": "2026-07-26T22:12:41.000000Z"
-                }
-            ],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 2
-            }
-        },
-        "links": {
-            "data": [],
-            "meta": {
-                "current_page": 1,
-                "last_page": 1,
-                "per_page": 20,
-                "total": 0
-            }
-        }
-    },
-    "58196": {
-        "detail": {
-            "id": 58196,
-            "name": "Money Train 2",
-            "desc": "Changes the music on Rendezvouz to Money Train, including the [unused Combat phase](https://www.youtube.com/watch?v=WlS9R1E6hN0) while fighting the Chicos.\n\nMultiplayer compatibility is unknown due to it being a replacement blueprint.",
-            "short_desc": "Choo-choo! The money express is back!",
-            "version": "",
-            "downloads": 7,
-            "likes": 1,
-            "views": 256,
-            "published_at": "2026-07-28T19:17:39.000000Z",
-            "bumped_at": "2026-07-28T19:17:39.000000Z",
-            "category_id": 886,
-            "has_download": true,
-            "disable_mod_managers": false,
-            "thumbnail": {
-                "file": "7DFiImpX2pUN5s5sOueHgpCJWJHtxia5PhUMjtL9.webp",
-                "has_thumb": true
-            },
-            "download": {
-                "id": 101114,
-                "version": "",
-                "size": 91517,
-                "type": "zip",
-                "download_url": "https://storage.modworkshop.net/mods/files/58196_1428_siW69pNXmXMk9OMTwnPOJbMAAodxWkYagJ7YBX4L.zip?filename=Money%20Train%202.zip",
-                "url": null
-            },
-            "user": {
-                "id": 1428,
-                "name": "B Dawg",
-                "donation_url": "",
-                "avatar": "CmCL0Pkvw53Wl4JbAi0u2yIBdAn7uJBFRGlEXrLW.webp",
-                "avatar_has_thumb": true
-            },
-            "changelog": "",
-            "instructions": "",
-            "license": "",
-            "repo_url": null,
-            "donation": "",
-            "banner": null,
-            "images": [
-                {
-                    "id": 167363,
-                    "file": "7DFiImpX2pUN5s5sOueHgpCJWJHtxia5PhUMjtL9.webp",
-                    "type": "webp",
-                    "size": 85056,
-                    "display_order": 0,
-                    "visible": true,
-                    "has_thumb": true
-                }
-            ],
-            "dependencies": [],
-            "instructs_template": {
-                "id": 23,
-                "name": "UGC Mods",
-                "instructions": "1. Find where your Crime Boss: Rockay City copy is installed. The location of this folder will vary depending on your installation preferences & storefront.\n    **Steam**\n    ![](https://i.imgur.com/XhQTDLm.png)\n    **EGS**\n    ![](https://i.imgur.com/1TS0xF2.png)\n2. Extract the contents into `CrimeBoss\\Mods`.",
-                "dependencies": []
-            },
-            "tags": [
-                {
-                    "id": 12,
-                    "name": "Quality of Life",
-                    "color": "#369649"
-                },
-                {
-                    "id": 67,
-                    "name": "UGC Mod",
-                    "color": "#ecb3fb"
-                },
-                {
-                    "id": 44,
-                    "name": "Music",
-                    "color": "#742374"
-                }
-            ],
-            "members": []
-        },
-        "files": {
-            "data": [
-                {
-                    "id": 101114,
-                    "name": "Money Train 2",
-                    "version": "",
-                    "size": 91517,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/58196_1428_siW69pNXmXMk9OMTwnPOJbMAAodxWkYagJ7YBX4L.zip?filename=Money%20Train%202.zip",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 6,
-                    "created_at": "2026-07-28T19:17:21.000000Z"
-                },
-                {
-                    "id": 101115,
-                    "name": "Source",
-                    "version": "",
-                    "size": 367136,
-                    "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/58196_1428_h2CJXPTbKSW8hcdMlphRqGItvWLYDSM5fQZlLpN4.zip?filename=Source.zip",
-                    "url": null,
-                    "image_id": null,
-                    "desc": "",
-                    "label": "",
-                    "downloads": 1,
-                    "created_at": "2026-07-28T19:17:32.000000Z"
                 }
             ],
             "meta": {
@@ -2447,15 +2136,17 @@
             "name": "Sheriff LT",
             "desc": "LT wanted to rob banks with Mr.Norris, so here he is!\n\n## Features:\n* Boss Appearance\n* Team Member\n* Custom arms\n* Uses Janitor as it's voice",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "Version 1.1",
-            "downloads": 31,
+            "downloads": 33,
             "likes": 1,
-            "views": 150,
+            "views": 178,
             "published_at": "2026-07-31T20:38:30.000000Z",
             "bumped_at": "2026-08-12T20:35:54.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "0m3kaCBESngXqMXlamEf8JZ9Gd0trvEiyB6QQxWr.webp",
                 "has_thumb": true
@@ -2468,6 +2159,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/58250_228527_1oMSUWAJZEQvuoxvfatwAwpd0gqkASgy98vfB4N2.zip?filename=SheriffLT_v1_1.zip",
                 "url": null
             },
+            "download_id": 101626,
+            "files_are_versions": true,
             "user": {
                 "id": 228527,
                 "name": "Wuffesan",
@@ -2542,7 +2235,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 14,
+                    "downloads": 16,
                     "created_at": "2026-08-12T20:35:05.000000Z"
                 },
                 {
@@ -2583,15 +2276,17 @@
             "name": "Holy Hand Grenade",
             "desc": "Erase your enemies with your holy energy. Works the same as the holy nade from Worms, so if you don't have enough health, you will get downed.\n\n\nGot this little idea while working on Mr. Norris, a fun little thing. The model was also created quickly in Blender, designed after the OG holy hand grenade from Worms: The Directors Cut.\n\nAnd yes, the \"hallelujah\" sound is also included. :D",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "",
-            "downloads": 42,
+            "downloads": 51,
             "likes": 2,
-            "views": 172,
+            "views": 200,
             "published_at": "2026-07-31T21:26:21.000000Z",
             "bumped_at": "2026-07-31T21:26:21.000000Z",
             "category_id": 889,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "XiwpZsKeldAvJ6bUWvm6bczV8vEsUyMIyTJvYoGL.webp",
                 "has_thumb": true
@@ -2604,6 +2299,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/58251_228527_dPNDPiT9LPVJAEqe7qbCVAtwhh3r9d5tECZw9w0L.zip?filename=HolyHandGrenade_v1.zip",
                 "url": null
             },
+            "download_id": 101215,
+            "files_are_versions": true,
             "user": {
                 "id": 228527,
                 "name": "Wuffesan",
@@ -2683,7 +2380,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 42,
+                    "downloads": 51,
                     "created_at": "2026-07-31T21:25:39.000000Z"
                 }
             ],
@@ -2710,15 +2407,17 @@
             "name": "Baked Swats",
             "desc": "I have no idea why I named this Baked Swats, but here we are.\n\n# New boss appearances:\n* Swat Dragon\n* Sgt Baker\n* LT Grandpa\n* Franko\n* Li Tao\n* Marcus\n* Dragon Chieff\n* Baked Big Nose\n* LT Nasara\n* Jarek\n\nAnd as always, custom arm models!",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "Version 4",
-            "downloads": 48,
+            "downloads": 54,
             "likes": 5,
-            "views": 326,
+            "views": 382,
             "published_at": "2026-08-01T04:53:43.000000Z",
             "bumped_at": "2026-08-06T16:55:39.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "KZZsP57dxgyctXYyokz6PluxKnWhlkW0gYOLiHik.webp",
                 "has_thumb": true
@@ -2731,6 +2430,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/58258_228527_INEBiqUzb2uEcYABw2xZEL4iDULo63llJLjqt8qw.zip?filename=BakedSwat_v4.zip",
                 "url": null
             },
+            "download_id": 101453,
+            "files_are_versions": true,
             "user": {
                 "id": 228527,
                 "name": "Wuffesan",
@@ -2855,7 +2556,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 32,
+                    "downloads": 38,
                     "created_at": "2026-08-06T16:55:25.000000Z"
                 },
                 {
@@ -2906,7 +2607,7 @@
                     "version": "",
                     "size": 32239807,
                     "type": "zip",
-                    "download_url": "https://storage.modworkshop.net/mods/files/58258_228527_ci5rHg8kKLW8lUwTTipSAs8dwPKw3pVsaTpTDO14.1.zip?filename=BakedSwat_v1_1.1.zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/58258_228527_ci5rHg8kKLW8lUwTTipSAs8dwPKw3pVsaTpTDO14.1.zip?filename=BakedSwat_v1_1.zip",
                     "url": null,
                     "image_id": null,
                     "desc": "",
@@ -2938,20 +2639,24 @@
             "name": "Enemy Character Packs",
             "desc": "2 download options: Khan Character Pack and Hielo's Crew Pack (Team Members and Boss Skins)\n\nLuna is assigned the unused Latina voice, Carlos and Khan are silent.\n\n[Removed Weapons Restoration](https://modworkshop.net/mod/53751) potentially required because I forgot to change Carlos' weapon and I cba go back and change it to Reaper Saw.",
             "short_desc": "Who the fuck is Luna?",
+            "legacy_markup": false,
             "version": "",
-            "downloads": 36,
+            "downloads": 43,
             "likes": 1,
-            "views": 311,
+            "views": 436,
             "published_at": "2026-08-07T20:23:53.000000Z",
             "bumped_at": "2026-08-19T10:53:20.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": null,
             "thumbnail": {
                 "file": "rtFX66bPwhATlv8ZQVhkOoWXpCfGAwjU1pbtEqIu.webp",
                 "has_thumb": true
             },
             "download": null,
+            "download_id": null,
+            "files_are_versions": false,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -3028,7 +2733,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 6,
+                    "downloads": 9,
                     "created_at": "2026-08-19T10:53:20.000000Z"
                 },
                 {
@@ -3042,7 +2747,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 14,
+                    "downloads": 19,
                     "created_at": "2026-08-19T10:52:53.000000Z"
                 },
                 {
@@ -3056,7 +2761,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 15,
+                    "downloads": 19,
                     "created_at": "2026-08-19T10:52:51.000000Z"
                 }
             ],
@@ -3083,15 +2788,17 @@
             "name": "Professional Baker",
             "desc": "Baker has gone professional.\n\n## New Boss Skins:\n* Professional\n* Master Chef\n* Security\n* Guard\n* War Hero",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "Version 2.2",
-            "downloads": 50,
-            "likes": 2,
-            "views": 332,
+            "downloads": 60,
+            "likes": 3,
+            "views": 407,
             "published_at": "2026-08-09T10:56:08.000000Z",
             "bumped_at": "2026-08-14T12:21:10.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "GI4KRH3eIMZw0iubvuybHLfHKOmShebku9k65Qtw.webp",
                 "has_thumb": true
@@ -3104,6 +2811,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/58362_228527_wmeRE0GNJ6yhTJLHPTkiWMjJQaSnNc3sR1BgWKEQ.zip?filename=ProffesionalBaker_v2_2.zip",
                 "url": null
             },
+            "download_id": 101673,
+            "files_are_versions": true,
             "user": {
                 "id": 228527,
                 "name": "Wuffesan",
@@ -3219,7 +2928,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 29,
+                    "downloads": 39,
                     "created_at": "2026-08-14T12:20:29.000000Z"
                 },
                 {
@@ -3233,7 +2942,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 9,
+                    "downloads": 10,
                     "created_at": "2026-08-12T22:29:35.000000Z"
                 },
                 {
@@ -3247,7 +2956,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 3,
+                    "downloads": 4,
                     "created_at": "2026-08-12T21:35:19.000000Z"
                 },
                 {
@@ -3261,7 +2970,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 20,
+                    "downloads": 21,
                     "created_at": "2026-08-09T10:54:08.000000Z"
                 }
             ],
@@ -3288,20 +2997,24 @@
             "name": "Baker's Vixens",
             "desc": "Adds Vixen versions of Runaway and Theresa as Boss Skins, as well as a version of Vamp without the backpack and blood connectors on the suit (optional).",
             "short_desc": "Better than Baker's Angels update",
+            "legacy_markup": false,
             "version": "",
-            "downloads": 94,
-            "likes": 2,
-            "views": 565,
+            "downloads": 140,
+            "likes": 3,
+            "views": 848,
             "published_at": "2026-08-11T13:57:45.000000Z",
             "bumped_at": "2026-08-19T11:04:40.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": null,
             "thumbnail": {
                 "file": "C800M3WxfZKWb4cAjWlukTUkSadROL4ppsxOpvrz.webp",
                 "has_thumb": true
             },
             "download": null,
+            "download_id": null,
+            "files_are_versions": false,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -3383,7 +3096,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 21,
+                    "downloads": 46,
                     "created_at": "2026-08-19T11:04:40.000000Z"
                 },
                 {
@@ -3397,7 +3110,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 26,
+                    "downloads": 44,
                     "created_at": "2026-08-19T11:04:00.000000Z"
                 },
                 {
@@ -3411,7 +3124,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 33,
+                    "downloads": 65,
                     "created_at": "2026-08-19T11:03:59.000000Z"
                 }
             ],
@@ -3438,15 +3151,17 @@
             "name": "Vietnam Dragon",
             "desc": "Dragon recently returned from Vietnam, and wants some money.",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "",
-            "downloads": 18,
+            "downloads": 20,
             "likes": 1,
-            "views": 140,
+            "views": 187,
             "published_at": "2026-08-14T12:16:45.000000Z",
             "bumped_at": "2026-08-14T12:16:45.000000Z",
             "category_id": 887,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "0J3C5gfZyPkfQnT2StQ5kQeLa3GisNbpEzo1nI8X.webp",
                 "has_thumb": true
@@ -3459,6 +3174,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/58424_228527_2V4xlGCLNBEizVXm4FJuioU2BXoEesluS0sjD8x7.zip?filename=VietnamDragon_v1.zip",
                 "url": null
             },
+            "download_id": 101671,
+            "files_are_versions": true,
             "user": {
                 "id": 228527,
                 "name": "Wuffesan",
@@ -3533,7 +3250,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 18,
+                    "downloads": 20,
                     "created_at": "2026-08-14T12:16:27.000000Z"
                 }
             ],
@@ -3560,15 +3277,17 @@
             "name": "Improved Hielo Vintovka Skin",
             "desc": "Changes Hielo's Vintovka to be more old-school skin styled (using the old Golden Vintovka U skin as inspiration).",
             "short_desc": "",
+            "legacy_markup": false,
             "version": "",
-            "downloads": 12,
+            "downloads": 15,
             "likes": 0,
-            "views": 86,
+            "views": 115,
             "published_at": "2026-08-18T17:50:31.000000Z",
             "bumped_at": "2026-08-18T17:50:31.000000Z",
             "category_id": 896,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "6o8R0SwD0vqWFWA8DRmYBEFB7uPWlYUFNfvwHokp.webp",
                 "has_thumb": true
@@ -3581,6 +3300,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/58485_1428_UXNI0VM3J5JrVFLT6LR4gtFEcfrN7qyF4Xd9FU2q.zip?filename=Good%20Golden%20AK.zip",
                 "url": null
             },
+            "download_id": 101826,
+            "files_are_versions": true,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -3671,7 +3392,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 12,
+                    "downloads": 15,
                     "created_at": "2026-08-18T17:48:35.000000Z"
                 }
             ],
@@ -3698,15 +3419,17 @@
             "name": "Icon Fixes",
             "desc": "Fixes the age old issue of Volk's UI pic being wrong, as well as Mother's Gun.",
             "short_desc": "Мои очки розовые, а не зелёные.",
+            "legacy_markup": false,
             "version": "",
-            "downloads": 4,
+            "downloads": 10,
             "likes": 0,
-            "views": 156,
+            "views": 213,
             "published_at": "2026-08-28T11:36:43.000000Z",
             "bumped_at": "2026-08-29T16:22:15.000000Z",
             "category_id": 890,
             "has_download": true,
             "disable_mod_managers": false,
+            "download_type": "file",
             "thumbnail": {
                 "file": "RYXTcQtryiP5qkNroHP35SXuSV3k1paJXcrU0kV4.webp",
                 "has_thumb": true
@@ -3719,6 +3442,8 @@
                 "download_url": "https://storage.modworkshop.net/mods/files/58589_1428_qdlVZhvMiYzGtENbmNYzXuxgoZFO6Dadn8mkDQ4e.zip?filename=Icon%20Fixes.zip",
                 "url": null
             },
+            "download_id": 102095,
+            "files_are_versions": true,
             "user": {
                 "id": 1428,
                 "name": "B Dawg",
@@ -3795,7 +3520,7 @@
                     "image_id": null,
                     "desc": "",
                     "label": "",
-                    "downloads": 3,
+                    "downloads": 9,
                     "created_at": "2026-08-29T16:22:15.000000Z"
                 }
             ],
@@ -3804,6 +3529,473 @@
                 "last_page": 1,
                 "per_page": 20,
                 "total": 1
+            }
+        },
+        "links": {
+            "data": [],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 0
+            }
+        }
+    },
+    "59404": {
+        "detail": {
+            "id": 59404,
+            "name": "Peak's Rifle",
+            "desc": "Sitting in the game files since release, Peak's Rifle can now finally see the light of day. All it needed was a custom first person scope setup, everything else was already done.\n\nThe mod adds it as a custom weapon (same stats as regular sniper rifle) and gives it to Peak, with working lobby pose (only for him).\n\nNote: Due to weird rendering bugs, it does not use the sniper scope reticle, instead using one from the Vortex 3x sight found on other weapons.",
+            "short_desc": "Die you ugly pigs!",
+            "legacy_markup": false,
+            "version": "",
+            "downloads": 17,
+            "likes": 1,
+            "views": 96,
+            "published_at": "2026-10-06T10:07:17.000000Z",
+            "bumped_at": "2026-10-06T10:07:17.000000Z",
+            "category_id": 896,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "7ubbXNk5u1jzMKLGREYbhRCTFhp8lPXODHYRB10R.webp",
+                "has_thumb": true
+            },
+            "download": {
+                "id": 104263,
+                "version": "",
+                "size": 2619474,
+                "type": "zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/59404_1428_eVqzXbBoInm1quTsbO61Z2IMj7nqYpp5RzU1JDwg.zip?filename=Peaks%20Rifle.zip",
+                "url": null
+            },
+            "download_id": 104263,
+            "files_are_versions": true,
+            "user": {
+                "id": 1428,
+                "name": "B Dawg",
+                "donation_url": "",
+                "avatar": "CmCL0Pkvw53Wl4JbAi0u2yIBdAn7uJBFRGlEXrLW.webp",
+                "avatar_has_thumb": true
+            },
+            "changelog": "",
+            "instructions": "",
+            "license": "",
+            "repo_url": null,
+            "donation": "",
+            "banner": null,
+            "images": [
+                {
+                    "id": 172298,
+                    "file": "7ubbXNk5u1jzMKLGREYbhRCTFhp8lPXODHYRB10R.webp",
+                    "type": "webp",
+                    "size": 106238,
+                    "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 172299,
+                    "file": "7YPfbJoZHwCISYi9zpU8P9RoWUIEX4CBWtsoO3oU.webp",
+                    "type": "webp",
+                    "size": 15794,
+                    "display_order": 1,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 172300,
+                    "file": "aJOFi9lcL9YArFB4CiWmyrrrFI1PZWvYWeUPLnbA.webp",
+                    "type": "webp",
+                    "size": 75778,
+                    "display_order": 1,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 172301,
+                    "file": "YuPZAryXfwU1BqdArnQ6hOhoDlETpJdzCbbkFPGk.webp",
+                    "type": "webp",
+                    "size": 101346,
+                    "display_order": 1,
+                    "visible": true,
+                    "has_thumb": true
+                }
+            ],
+            "dependencies": [],
+            "instructs_template": null,
+            "tags": [
+                {
+                    "id": 3,
+                    "name": "Lorefriendly",
+                    "color": "#1e621e"
+                },
+                {
+                    "id": 22,
+                    "name": "Bugfix",
+                    "color": "#7a20fc"
+                },
+                {
+                    "id": 67,
+                    "name": "UGC Mod",
+                    "color": "#ecb3fb"
+                },
+                {
+                    "id": 12,
+                    "name": "Quality of Life",
+                    "color": "#369649"
+                },
+                {
+                    "id": 13,
+                    "name": "Add-on",
+                    "color": "#3167c1"
+                }
+            ],
+            "members": []
+        },
+        "files": {
+            "data": [
+                {
+                    "id": 104263,
+                    "name": "Peak's Rifle",
+                    "version": "",
+                    "size": 2619474,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59404_1428_eVqzXbBoInm1quTsbO61Z2IMj7nqYpp5RzU1JDwg.zip?filename=Peaks%20Rifle.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 16,
+                    "created_at": "2026-10-06T09:56:45.000000Z"
+                },
+                {
+                    "id": 104264,
+                    "name": "Source",
+                    "version": "",
+                    "size": 2473357,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59404_1428_mPojiyd0zXeEbJ4jKDEcByzyulmmhUQ1cFR4VkVU.zip?filename=Source.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 1,
+                    "created_at": "2026-10-06T09:57:58.000000Z"
+                }
+            ],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 2
+            }
+        },
+        "links": {
+            "data": [],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 0
+            }
+        }
+    },
+    "59475": {
+        "detail": {
+            "id": 59475,
+            "name": "Chiappa Rhino 60DS",
+            "desc": "This mod adds Rhino 60DS revolver as custom weapon in 2 variants. Weapon is automatically added to mp stash and has a chance to appear in roguelike black market, rockay rumble van or resupply crates.\n \n\n|Variant name|Attachments| \n| -------- | -------- |\n|Rhino 60DS|-|\n|Rhino 60DS R|Reflex red dot sight|",
+            "short_desc": "",
+            "legacy_markup": false,
+            "version": "1.0.0",
+            "downloads": 19,
+            "likes": 0,
+            "views": 64,
+            "published_at": "2026-10-18T13:02:29.000000Z",
+            "bumped_at": "2026-10-18T13:02:29.000000Z",
+            "category_id": 0,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": null,
+            "thumbnail": {
+                "file": "vD4DYiY1JjTsKQw7b4Gz2sMO1GlcwsBP383lCGh3.webp",
+                "has_thumb": true
+            },
+            "download": {
+                "id": 104804,
+                "version": "1.0.0",
+                "size": 12976528,
+                "type": "zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/59475_965_CdUFc47FfwBsFf8WPAgA8ldcNLIoFoQwMNBBL4ai.zip?filename=ChiappaRhino.zip",
+                "url": null
+            },
+            "download_id": null,
+            "files_are_versions": true,
+            "user": {
+                "id": 965,
+                "name": ">:3",
+                "donation_url": "https://ko-fi.com/pawcio1337",
+                "avatar": "https://avatars.steamstatic.com/978c7b3f1e1a890b3b125f593f45098aa861cb10_full.jpg",
+                "avatar_has_thumb": false
+            },
+            "changelog": "",
+            "instructions": "",
+            "license": "Model/texture - Killing Floor 2 (Tripwire Interactive)",
+            "repo_url": null,
+            "donation": "",
+            "banner": {
+                "id": 172710,
+                "file": "wuHPLnH9TvO4CK5N50DEnejBG1wCKB1yYwuS2wQH.webp",
+                "type": "webp",
+                "size": 227544,
+                "display_order": 1,
+                "visible": false,
+                "has_thumb": true
+            },
+            "images": [
+                {
+                    "id": 172711,
+                    "file": "vD4DYiY1JjTsKQw7b4Gz2sMO1GlcwsBP383lCGh3.webp",
+                    "type": "webp",
+                    "size": 202164,
+                    "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 172710,
+                    "file": "wuHPLnH9TvO4CK5N50DEnejBG1wCKB1yYwuS2wQH.webp",
+                    "type": "webp",
+                    "size": 227544,
+                    "display_order": 1,
+                    "visible": false,
+                    "has_thumb": true
+                },
+                {
+                    "id": 173184,
+                    "file": "nZubwdweZfs7zOZUq8TMXgdi4mrqMoT7StHpyScK.webp",
+                    "type": "webp",
+                    "size": 209248,
+                    "display_order": 2,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 173591,
+                    "file": "kQ0A12FPWjCMjOeTsbVE3YElYwQ5pxE7J8gaE6VE.webp",
+                    "type": "webp",
+                    "size": 589376,
+                    "display_order": 3,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 173186,
+                    "file": "2qhtMJU3gyeb6yDWmyM4s4BYNCAAzWBZYKhUTSoD.webp",
+                    "type": "webp",
+                    "size": 198198,
+                    "display_order": 4,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 173185,
+                    "file": "SprXMZKGU3ug4GjMWRn3OEQjhr1TPljawtcwc9SW.webp",
+                    "type": "webp",
+                    "size": 235598,
+                    "display_order": 5,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 173187,
+                    "file": "b3NyWy8aLNXIdZjRkVL8NrTbJeyLg5BQfVq432yW.webp",
+                    "type": "webp",
+                    "size": 180802,
+                    "display_order": 6,
+                    "visible": true,
+                    "has_thumb": true
+                }
+            ],
+            "dependencies": [],
+            "instructs_template": {
+                "id": 23,
+                "name": "UGC Mods",
+                "instructions": "1. Find where your Crime Boss: Rockay City copy is installed. The location of this folder will vary depending on your installation preferences & storefront.\n    **Steam**\n    ![](https://i.imgur.com/XhQTDLm.png)\n    **EGS**\n    ![](https://i.imgur.com/1TS0xF2.png)\n2. Extract the contents into `CrimeBoss\\Mods`.",
+                "dependencies": []
+            },
+            "tags": [
+                {
+                    "id": 7,
+                    "name": "Port",
+                    "color": "#7c41c5"
+                },
+                {
+                    "id": 67,
+                    "name": "UGC Mod",
+                    "color": "#ecb3fb"
+                }
+            ],
+            "members": []
+        },
+        "files": {
+            "data": [
+                {
+                    "id": 104804,
+                    "name": "ChiappaRhino",
+                    "version": "1.0.0",
+                    "size": 12976528,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59475_965_CdUFc47FfwBsFf8WPAgA8ldcNLIoFoQwMNBBL4ai.zip?filename=ChiappaRhino.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 19,
+                    "created_at": "2026-10-18T13:01:39.000000Z"
+                }
+            ],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 1
+            }
+        },
+        "links": {
+            "data": [],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 0
+            }
+        }
+    },
+    "59551": {
+        "detail": {
+            "id": 59551,
+            "name": "Third Person Camera",
+            "desc": "**This mod is incredibly buggy, the game obviously was not made for this.**\n\nA brand new perspective for Rockay City.\n\n![](https://www.youtube.com/watch?v=jWKWU2uD6Bw)\n\nAllows for the user to go into third person, default button to do so is T. Features a BUNCH of options for configuration, you should mess with those when you start.\n\nBUGS:\n\n- Certain characters may have floating/broken appendages (hair,etc). Baker and Touchdown are some for example\n- Female Boss appearances have broken primary weapon animations (for some reason? Female teammembers work though)\n- Quick melee does not work all the time\n\nI hope I can fix these, but the blueprint is a fucking mess.\n\nCONTROLS:\n**Toggle Third Person - \"T\"\nShoulder Swap - \"Z\"**",
+            "short_desc": "Adds a third person toggle to the game.",
+            "legacy_markup": false,
+            "version": "0.3",
+            "downloads": 32,
+            "likes": 2,
+            "views": 199,
+            "published_at": "2026-10-16T13:24:26.000000Z",
+            "bumped_at": "2026-10-19T15:01:57.000000Z",
+            "category_id": 898,
+            "has_download": true,
+            "disable_mod_managers": false,
+            "download_type": "file",
+            "thumbnail": {
+                "file": "yIJt87178lVXVpKZSsp0HD1HBpQNZBgPYNwpHMdv.webp",
+                "has_thumb": true
+            },
+            "download": {
+                "id": 104864,
+                "version": "0.3",
+                "size": 39696,
+                "type": "zip",
+                "download_url": "https://storage.modworkshop.net/mods/files/59551_221687_onBXXF14VTHvQoMlEho2phOOt218kSuk5fVQE2f5.zip?filename=TPMod.zip",
+                "url": null
+            },
+            "download_id": 104864,
+            "files_are_versions": true,
+            "user": {
+                "id": 221687,
+                "name": "Vax",
+                "donation_url": "",
+                "avatar": "QEHx5dk6RXbW2dkGLazLKT9llFe1eS51oW2TNpNj.webp",
+                "avatar_has_thumb": true
+            },
+            "changelog": "0.3 - Hopefully fixed the weird size bug when dropping bags?\n\n0.2 - Maybe fixed window scaling",
+            "instructions": "",
+            "license": "",
+            "repo_url": null,
+            "donation": "",
+            "banner": {
+                "id": 173059,
+                "file": "OCz80AmRidyP2SHe3cQNMJfCPlbQVzJvGbAevyVe.webp",
+                "type": "webp",
+                "size": 51390,
+                "display_order": 0,
+                "visible": true,
+                "has_thumb": true
+            },
+            "images": [
+                {
+                    "id": 173059,
+                    "file": "OCz80AmRidyP2SHe3cQNMJfCPlbQVzJvGbAevyVe.webp",
+                    "type": "webp",
+                    "size": 51390,
+                    "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 173060,
+                    "file": "yIJt87178lVXVpKZSsp0HD1HBpQNZBgPYNwpHMdv.webp",
+                    "type": "webp",
+                    "size": 144250,
+                    "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                },
+                {
+                    "id": 173061,
+                    "file": "PJNYHOUjPppVDWGlFd6YZvlxS1vsmPJO3i65zCxp.webp",
+                    "type": "webp",
+                    "size": 128722,
+                    "display_order": 0,
+                    "visible": true,
+                    "has_thumb": true
+                }
+            ],
+            "dependencies": [],
+            "instructs_template": null,
+            "tags": [],
+            "members": []
+        },
+        "files": {
+            "data": [
+                {
+                    "id": 104864,
+                    "name": "TPMod",
+                    "version": "0.3",
+                    "size": 39696,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59551_221687_onBXXF14VTHvQoMlEho2phOOt218kSuk5fVQE2f5.zip?filename=TPMod.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "0.3 - Hopefully fixed the weird size bug when dropping bags?",
+                    "label": "",
+                    "downloads": 17,
+                    "created_at": "2026-10-19T15:01:55.000000Z"
+                },
+                {
+                    "id": 104863,
+                    "name": "Source",
+                    "version": "",
+                    "size": 267924,
+                    "type": "zip",
+                    "download_url": "https://storage.modworkshop.net/mods/files/59551_221687_NX8OYkB295Gs22PWZvmrNlARpRmMTZgUyeXOPq17.zip?filename=Source.zip",
+                    "url": null,
+                    "image_id": null,
+                    "desc": "",
+                    "label": "",
+                    "downloads": 1,
+                    "created_at": "2026-10-19T15:01:29.000000Z"
+                }
+            ],
+            "meta": {
+                "current_page": 1,
+                "last_page": 1,
+                "per_page": 20,
+                "total": 2
             }
         },
         "links": {
